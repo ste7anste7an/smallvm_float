@@ -281,6 +281,13 @@ class MB_Parser {
 			// quoted string constant; just remove the quotes
 			return arg.slice(1, -1);
 		}
+		if (('if' == op) && ('else' == arg)) {
+			// The final condition slot of an 'if' is written as the bare word
+			// 'else' when it is true (PrettyPrinter.gp printBlock). A genuine
+			// string "else" is always quoted (PrettyPrinter.gp quoteOp), so an
+			// unquoted one can only be the boolean.
+			return true;
+		}
 		// arg is an unquoted string, so it may be a variable reference
 		if (this.isVariableReference(op, isFirstArg)) {
 			// return a variable reporter block for arg
