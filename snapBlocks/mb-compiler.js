@@ -472,9 +472,11 @@ class MB_Compiler {
 	fixLoopExits(loopBody) {
 		// Resolve any uninitialized exitLoop instructions to jump past this loop.
 		// Ignore exitLoop instructions that already have an offset (nested loops).
+		// Note: entries() is zero-based where the GP original iterates from one,
+		// so the offset is (length - i) - 2, not - 1.
 		for (const [i, instr] of loopBody.entries()) {
 			if (instr[0] === 'exitLoop' && instr[1] == null) {
-				instr[1] = (loopBody.length - i) - 1;
+				instr[1] = (loopBody.length - i) - 2;
 			}
 		}
 	}
