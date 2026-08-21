@@ -27,7 +27,7 @@ rm default_app/index.html
 rm default_app/main.js
 rm default_app/default_app.js
 rm default_app/styles.css
-cp electron/MicroBlocks.png default_app/icon.png
+cp ../../../../electron/MicroBlocks.png default_app/icon.png
 rm -r default_app/octicon
 
 npx asar pack default_app default_app.asar

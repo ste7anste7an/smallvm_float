@@ -6,8 +6,7 @@ system=$1
 version=$2
 
 if test -n "$version"; then
-	cp package.json package.json.bak
-	sed -i -E "s/(.*version.*)\".*\"/\1\"$version\"/" package.json
+	sed -i.bak -E "s/(.*version.*)\".*\"/\1\"$version\"/" package.json
 fi
 
 if [[ "$system" == 'all' || "$system" == 'linux' ]]; then
@@ -46,7 +45,7 @@ fi
 
 if [[ "$system" == 'all' || "$system" == 'macos' ]]; then
 echo "Zipping MacOS release..."
-rm -R MicroBlocks.app
+rm -rf MicroBlocks.app
 mv ../prepack/macos/MicroBlocks.app .
 rm -f microblocks-macos.zip
 zip -ryq microblocks-macos.zip MicroBlocks.app
@@ -55,7 +54,7 @@ fi
 
 if [[ "$system" == 'all' || "$system" == 'windows' ]]; then
 echo "Zipping Windows release..."
-rm -R microblocks-windows
+rm -f microblocks-windows
 mv ../prepack/windows microblocks-windows
 rm -f microblocks-windows.zip
 zip -rq microblocks-windows.zip microblocks-windows
