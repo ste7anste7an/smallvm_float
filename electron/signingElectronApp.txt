@@ -1,0 +1,77 @@
+Electron notes:
+  - Try removing Squirrel.framework to save space
+
+Signing notes:
+  - signed app must have a secure timestamp. This should show a "Timestamp" entry:
+	codesign -dvv MicroBlocks.app
+  - enable hardened runtime (required by Catalina and later): --options=runtime
+  - add entitlements: --entitlements entitlements.plist
+
+One-time setup for signing:
+  1. become Apple developer and pay annual fee
+  2. create an app specific password in my apple account
+  3. run:
+xcrun altool --store-password-in-keychain-item "App Signing" -u "jmaloney@media.mit.edu" -p <secret password>
+
+*** Code Signing Process for MicroBlocks app ***
+
+1. Unzip the app, run the codesign command, create archive, and submit for notarization:
+
+  rm -rf Microblocks.app
+  rm -f Microblocks.app.zip
+  unzip out/microblocks-macos.zip
+  ./signScript.sh
+#  codesign --force --deep --options=runtime --entitlements entitlements.plist -s "Developer ID Application: John H Maloney" MicroBlocks.app
+  ditto -c -k --keepParent MicroBlocks.app MicroBlocks.app.zip
+
+xcrun notarytool submit \
+  --apple-id "jmaloney@media.mit.edu" \
+  --team-id YU23V8C72W \
+  --keychain-profile "NotaryTool" \
+  MicroBlocks.app.zip
+
+2. Check notarization status:
+
+xcrun notarytool history \
+  --apple-id "jmaloney@media.mit.edu" \
+  --team-id YU23V8C72W \
+  --keychain-profile "NotaryTool" | head
+
+3. Staple the notarization and re-zip:
+
+xcrun stapler staple MicroBlocks.app
+ditto -c -k --keepParent MicroBlocks.app MicroBlocks.app.zip
+
+4. Upload to current release folder
+
+-------
+Debugging:
+
+1. To check locally if app would be accepted:
+
+spctl --assess --verbose=4 --type execute MicroBlocks.app
+
+2. To get error/status log (fill in the ID returned by the notarytool submit request):
+(Must have submitted the app to app to get an error log.)
+
+xcrun notarytool log 5ffbe041-bc64-4673-b2bf-ac809a4744c7 \
+  --apple-id "jmaloney@media.mit.edu" \
+  --keychain-profile "NotaryTool" \
+  --team-id "YU23V8C72W" \
+  log.json
+
+-------
+Old way to submit and check status (deprecated):
+
+xcrun altool --notarize-app \
+               --primary-bundle-id "fun.microblocks.MicroBlocks.zip" \
+               --username "jmaloney@media.mit.edu" \
+               --password "@keychain:AppSigning" \
+               --file MicroBlocks.app.zip
+
+To check submissions status:
+
+xcrun altool --notarization-history 0 -u "jmaloney@media.mit.edu" -p "@keychain:AppSigning"
+xcrun altool -u "jmaloney@media.mit.edu" -p "@keychain:AppSigning" --notarization-info 129a941b-a963-4863-bc28-bd75b142ae10
+
+Will get an email from Apple when process completes.
