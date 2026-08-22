@@ -1,7 +1,7 @@
 {
 	"name": "microblocks",
 	"productName": "MicroBlocks",
-	"version": "2.5.1",
+	"version": "2.5.2",
 	"description": "MicroBlocks is a free, live blocks programming language for learning physical computing with educational microcontroller boards",
 	"main": "index.js",
 	"scripts": {
