@@ -1,24 +1,11 @@
 MicroBlocks as Snap Blocks Experiment
 
 To do:
-[x] rework built-in block specs as object keyed by selector
-[x] code to generate MicroBlocks code from blocks
-[x] test parser
-[x] handle variables ("var" slot type)
-[x] set slot default values
-[x] add MicroBit display input slot type
-[x] fix: remove quotes from quoted strings (but may need for 'var' slots...)
-[x] slot dropdown menu support
-[x] optional block sections (see e.g. Snap! "broadcast" block)
-[x] BlockExpander morph
-[x] implement collapse
 [ ] fix: if-else blocks are expanded (don't extend args for option sections?)
-[ ] handle default values from specs
+[ ] set default values from specs
 [ ] handle expand/collapse of if-else
 [ ] lookup specs in project as well as "mb-specs" (need global for project)
-
-Block cleanup:
-  [ ] finish removing block comment code
+[ ] finish removing block comment code
 
 Issues:
 [x] Snap! seems to allow arg slots to contain null, MicroBlocks assumes they always have some value.
@@ -37,16 +24,23 @@ Long term plan:
   [x] ability to parse a single script and generate blocks for it
   [x] project representation (medium)
   [x] ability to import an entire project
+  [x] compiler (big!)
+  [x] IDE communication protocol
+  [x] ability to print compiled code and bytecodes
+  [x] ability to compile, download, and run a script
   [ ] ability to export an entire project
-  [x] compiler (big!) → mb-compiler.js
-  [ ] ability to print compiled code and bytecodes
-  [ ] IDE communication protocol (huge!)
-  [ ] ability to compile, download, and run a script
   [ ] ability to compile entire project
   [ ] library support
   [ ] ability to install VM's from the IDE (big!)
   [ ] decompiler (big!)
+  [ ] ability to copy/paste scripts
+  [ ] ability to save PNG files with embedded scripts
+  [ ] ability to create URL with embedded project
   - ...
+
+Combining with new UI:
+  [ ] placeholder API mechanism
+  [ ] an html file that combines new UI with SnapBlocks
 
 Tests:
   [ ] import/export all projects
@@ -60,11 +54,11 @@ GP code that will need to ported:
 	1236	ide/MicroBlocksProject.gp (mostly done)
 
 	1332 	ide/MicroBlocksCompiler.gp (done!)
-	1102	ide/MicroBlocksDecompiler.gp
+	1102	ide/MicroBlocksDecompiler.gp (started)
 
-	3216	ide/MicroBlocksRuntime.gp
-	265		ide/MicroBlocksExchange.gp
-	164		ide/MicroBlocksFinder.gp
+	3216	ide/MicroBlocksRuntime.gp (mostly done)
+	265		ide/MicroBlocksExchange.gp (mostly done; merged into project but not tested)
+	164		ide/MicroBlocksFinder.gp (search functionality implemented; needs UI)
 
 	1028	ide/ESPTool.gp -- use existing Javascript library?
 	153		ide/MicroBlocksAPI.gp -- won't be needed; use direct Javascript calls
