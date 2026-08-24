@@ -112,12 +112,12 @@ class MB_Connection {
 	}
 
 	isConnected() {
-		return this.port.isConnected();
+		return (this.port != null) && (this.port.isConnected());
 	}
 
 	connectedToBoard() {
 		const pingTimeout = 8000;
-		if (!this.port.isConnected()) return false;
+		if (!this.isConnected()) return false;
 		if (this.lastPingRecvMSecs == null || this.lastPingRecvMSecs === 0) return false;
 		return (Date.now() - this.lastPingRecvMSecs) < pingTimeout;
 	}
@@ -142,7 +142,7 @@ class MB_Connection {
 		}
 
 		// if port is not open, disconnect
-		if (!this.port.isConnected()) {
+		if (!this.isConnected()) {
 			MB_editor.clearRunningHighlights();
 			this.disconnect();
 			this.portName = null;
@@ -190,7 +190,7 @@ class MB_Connection {
 		// Called when connectionStartTime is not null, indicating that we are trying
 		// to establish a connection to a board.
 
-		if (!this.port.isConnected()) return 'not connected'; // Port is not yet connected...
+		if (!this.isConnected()) return 'not connected'; // Port is not yet connected...
 
 		this.sendMsg('pingMsg');
 
@@ -351,7 +351,7 @@ class MB_Connection {
 
 	async readAvailableSerialData() {
 		// Read any available data into recvBuf so that waitForResponse will await fresh data.
-		if (!this.port.isConnected()) return;
+		if (!this.isConnected()) return;
 		await waitMSecs(20); // leave some time for queued data to arrive
 		if (this.recvBuf == null) this.recvBuf = new Uint8Array(0);
 		const s = this.port.read();
@@ -366,7 +366,7 @@ class MB_Connection {
 		let iter = 1;
 		const start = Date.now();
 		while ((Date.now() - start) < timeout) {
-			if (!this.port.isConnected()) return false;
+			if (!this.isConnected()) return false;
 			const s = this.port.read();
 			if (s != null) {
 				this.recvBuf = this.joinBytes(this.recvBuf, s);
@@ -388,7 +388,7 @@ class MB_Connection {
 
 	processNextMessage() {
 		// Process the next message, if any. Return false when there are no more messages.
-		if (!this.port.isConnected()) return false;
+		if (!this.isConnected()) return false;
 
 		// Read any available bytes and append to recvBuf
 		const s = this.port.read();
@@ -609,7 +609,7 @@ class MB_Connection {
 	// --- Message sending ---
 
 	async sendMsg(msgName, chunkID = 0, byteList = null) {
-		if (!this.port.isConnected()) return;
+		if (!this.isConnected()) return;
 
 		if (chunkID == null) chunkID = 0;
 		const msgID = this.msgNameToID(msgName);
@@ -631,7 +631,7 @@ class MB_Connection {
 		}
 
 		while (dataToSend.length > 0) {
-			if (!this.port.isConnected()) return; // connection lost
+			if (!this.isConnected()) return; // connection lost
 			let chunkSize = dataToSend.length;
 			if (this.portName !== 'BLE' || isMobile()) {
 				// Note: Serial receive buffer is only 63 bytes on many boards so limit chunkSize.

@@ -43,14 +43,7 @@ class MB_Editor {
 		world.add(this.scripts);
 	}
 
-	scriptsPane() {
-		// Return the scripts pane.
-		// Hack: Assume the scripts pane is the second child of the world.
-		// This allows dynmically reloading of mb-blocks.js which breaks
-		// "childThatIsA(ScriptsMorph)" by redefining the ScriptsMorph prototype.
-
-		return world.children[1];
-	}
+	scriptsPane() { return this.scripts; }
 
 	removeAllScripts() {
 		let allScripts = this.scriptsPane().children.slice();
@@ -136,12 +129,12 @@ class MB_Editor {
 	// Run/stop
 
 	startAll() {
-console.log('starting'); // xxx
+		this.updateProject();
 		this.codeManager.syncAndStartAll();
 	}
 
 	stopAll() {
-console.log('stopping'); // xxx
+		this.updateProject();
 		this.codeManager.stopAndSyncScripts();
 	}
 
@@ -174,7 +167,10 @@ console.log('stopping'); // xxx
 
 	updateRunning(chunkID, isRunning) {
 		let runningBlock = this.codeManager.blockForChunkID(chunkID);
-		if (runningBlock == null) return; // unknown chunk
+		if (!(runningBlock instanceof BlockMorph)) {
+console.log('unknown');
+			return; // unknown chunk
+		}
 
 		if (isRunning) {
 			runningBlock.addHighlight();
@@ -183,6 +179,28 @@ console.log('stopping'); // xxx
 			runningBlock.removeHighlight();
 			this.runningChunks.delete(runningBlock);
 		}
+	}
+
+	// Project updating
+
+	updateProject() {
+		// Replace the project scripts with the scripts in the scripting pane.
+
+		let newScripts = [];
+		for (const aBlockMorph of this.scriptsPane().children) {
+			if (aBlockMorph instanceof BlockMorph) {
+				if (aBlockMorph.isFunctionDefinition()) {
+					let funcName = aBlockMorph.inputValues()[0];
+console.log('func:', funcName);
+				} else {
+					let x = Math.round(aBlockMorph.left() - this.scripts.left());
+					let y = Math.round(aBlockMorph.top() - this.scripts.top());
+					newScripts.push([x, y, aBlockMorph]);
+console.log('script:', x, y, aBlockMorph);
+				}
+			}
+		}
+//		project.main.setScripts(newScripts);
 	}
 
 	// File operations
@@ -196,14 +214,14 @@ console.log('stopping'); // xxx
 	openProject() {
 		function loadFile(fileName, contents) {
 			MB_editor.project = new MB_Project();
-			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
-			MB_connection.setCodeManager(MB_editor.codeManager);
 			MB_editor.project.loadFromString(contents);
 			MB_editor.removeAllScripts();
 			MB_editor.project.main.scripts.forEach( (entry) => {
 				let x = entry[0], y = entry[1], script = entry[2];
 				MB_editor.addBlockToScriptsAt(script, x, y);
 			});
+			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+			MB_connection.setCodeManager(MB_editor.codeManager);
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',
 				MB_editor.project.allFunctions().length, 'functions'

@@ -20,6 +20,7 @@ class MB_CodeManager {
 		this.lastRcvMSecs = null;
 		this.crc32Table = null;
 		this.buildCRC32Table();
+		this.assignFunctionIDs();
 	}
 
 	// --- run/stop ---
@@ -199,10 +200,17 @@ class MB_CodeManager {
 	}
 
 	blockForChunkID(chunkID) {
+		let result = null;
 		for (const [key, entry] of this.chunkIDs.entries()) {
-			if (entry[0] === chunkID) return key; // return block
+			if (entry[0] === chunkID) {
+				result = key;
+				break;
+			}
 		}
-		return null;
+		if (typeof result === 'string') { // look up function
+			result = this.project.functionNamed(result);
+		}
+		return result;
 	}
 
 	assignFunctionIDs() {
@@ -214,7 +222,7 @@ class MB_CodeManager {
 				const id = this.unusedChunkID();
 				const entry = [id, null, this.chunkTypeFor(func), '', true];
 				this.chunkIDs.set(fName, entry); // fName -> [id, crc, chunkType, lastSrc, functionMayHaveChanged]
-				this.functionChunkIDs.set(fname, id);
+				this.functionChunkIDs.set(fName, id);
 			}
 		}
 	}

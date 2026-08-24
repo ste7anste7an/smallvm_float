@@ -118,7 +118,7 @@ class MB_Decompiler {
 
 	extractOpcodes(chunkData) {
 		// Build an array mapping opcode-number → op-name.
-		const compiler = new MB_Compiler(null, new Map());
+		const compiler = new MB_Compiler(null);
 		const opcodeToName = new Array(256).fill(null);
 		for (const [name, num] of compiler.opcodes) {
 			opcodeToName[num] = name;

@@ -9,11 +9,11 @@
 /* globals BlockMorph, CommandBlockMorph, CommandSlotMorph, MB_Function, ReporterBlockMorph */
 
 class MB_Compiler {
-	constructor(project, codeManager) {
+	constructor(project, codeManager = null) {
 		// project: MB_Project for variable/function lookup
 		// codeManager: used to look up chunkID for functions
 		this.project = project;
-		this.codeManager = codeManager;
+		this.codeManager = codeManager ?? new MB_CodeManager(project);
 		// per-compilation state (reset in instructionsFor)
 		this.argNames = new Map();	// varName -> argIndex
 		this.localVars = new Map(); // varName -> localIndex
