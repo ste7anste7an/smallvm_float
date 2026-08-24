@@ -56,8 +56,6 @@
 										CommandBlockMorph
 												HatBlockMorph
 										ReporterBlockMorph
-				BoxMorph*
-						ScriptFocusMorph
 				StringMorph*
 						BlockLabelMorph
 						InputSlotStringMorph
@@ -165,7 +163,6 @@ var BlockHighlightMorph;
 var MicroBitDisplaySlotMorph;
 var TemplateSlotMorph;
 var TextSlotMorph;
-var ScriptFocusMorph;
 
 // SyntaxElementMorph //////////////////////////////////////////////////
 
@@ -1554,19 +1551,6 @@ BlockMorph.prototype.buildSpec = function () {
 	this.blockSpec = this.blockSpec.trim();
 };
 
-BlockMorph.prototype.rebuild = function (contrast) {
-	// rebuild my label fragments, for use in ToggleElementMorphs
-	this.setSpec(this.blockSpec);
-	if (contrast) {
-		this.inputs().forEach(input => {
-			if (input instanceof ReporterBlockMorph) {
-				input.setColor(input.color.lighter(contrast));
-				input.setSpec(input.blockSpec);
-			}
-		});
-	}
-};
-
 BlockMorph.prototype.localizeBlockSpec = function (spec) {
 	// answer the translated block spec where the translation itself
 	// is in the form of an abstract spec, i.e. with padded underscores
@@ -1664,13 +1648,6 @@ BlockMorph.prototype.userMenu = function () {
 BlockMorph.prototype.type = function () {
 	// private
 	return this instanceof CommandBlockMorph ? 'command' : 'reporter';
-};
-
-BlockMorph.prototype.isUnattached = function () {
-	// private
-	return ((this.nextBlock && !this.nextBlock()) || !this.nextBlock) &&
-		!(this.parent instanceof SyntaxElementMorph) &&
-		!(this.parent instanceof ScriptsMorph);
 };
 
 BlockMorph.prototype.nextBlock = function (block) {
@@ -1834,9 +1811,6 @@ BlockMorph.prototype.restoreInputs = function (oldInputs, offset = 0) {
 			// "fix" may be wrong b/c constants
 			if (old.contents) {
 				inp.setContents(old.contents().text);
-				if (old.constant) {
-					inp.constant = old.constant;
-				}
 			}
 		} else if (old instanceof CSlotMorph && inp instanceof CSlotMorph) {
 			nb = old.nestedBlock();
@@ -1970,26 +1944,6 @@ BlockMorph.prototype.exportResultPic = function () {
 	return;
 	var top = this.topBlock();
 	if (top !== this) {return; }
-};
-
-BlockMorph.prototype.equalTo = function (other) {
-	// private - only to be called from a Context
-	return this.constructor.name === other.constructor.name &&
-		this.selector === other.selector &&
-		this.blockSpec === other.blockSpec;
-};
-
-BlockMorph.prototype.copyWithNext = function (next, parameterNames) {
-	var expr = this.fullCopy(),
-		top;
-	if (this instanceof ReporterBlockMorph) {
-		return expr.reify();
-	}
-	top = next.fullCopy().topBlock();
-	if (top instanceof CommandBlockMorph) {
-		expr.bottomBlock().nextBlock(top);
-	}
-	return expr.reify(parameterNames);
 };
 
 // BlockMorph thumbnail and script pic
@@ -2208,10 +2162,6 @@ BlockMorph.prototype.cSlots = function () {
 		if (part instanceof CSlotMorph) result.push(part);
 	});
 	return result;
-};
-
-BlockMorph.prototype.isRuleHat = function () {
-	return false;
 };
 
 // BlockMorph highlighting
@@ -2496,12 +2446,6 @@ BlockMorph.prototype.reactToTemplateCopy = function () {
 	this.forceNormalColoring();
 };
 
-BlockMorph.prototype.hasBlockVars = function () {
-	return this.anyChild(any =>
-		any.isCustomBlock && any.variables.names().length
-	);
-};
-
 BlockMorph.prototype.pickUp = function (wrrld) {
 	// used when duplicating and grabbing a block via its context menu
 	// position the duplicate's top-left corner at the mouse pointer
@@ -2531,21 +2475,6 @@ BlockMorph.prototype.mouseClickLeft = function () {
 		if (stage) {
 			stage.threads.toggleProcess(top, receiver);
 		}
-	}
-};
-
-BlockMorph.prototype.focus = function () {
-	var scripts = this.parentThatIsA(ScriptsMorph),
-		world = this.world(),
-		focus;
-	if (!scripts || !ScriptsMorph.prototype.enableKeyboard) {return; }
-	if (scripts.focus) {scripts.focus.stopEditing(); }
-	world.stopEditing();
-	focus = new ScriptFocusMorph(scripts, this);
-	scripts.focus = focus;
-	focus.getFocus(world);
-	if (this instanceof HatBlockMorph) {
-		focus.nextCommand();
 	}
 };
 
@@ -2619,11 +2548,6 @@ BlockMorph.prototype.stackHeight = function () {
 
 BlockMorph.prototype.stackFullBounds = function () {
 	return this.fullBounds();
-};
-
-BlockMorph.prototype.stackWidth = function () {
-	var fb = this.fullBounds();
-	return fb.right() - fb.left();
 };
 
 BlockMorph.prototype.snap = function () {
@@ -3196,10 +3120,6 @@ HatBlockMorph.prototype.blockSequence = function (forSyntax) {
 
 HatBlockMorph.prototype.isCustomBlockSpecific = function () {
 	return this.selector === 'receiveSlotEvent';
-};
-
-HatBlockMorph.prototype.isRuleHat = function () {
-	return this.selector === 'receiveCondition';
 };
 
 HatBlockMorph.prototype.isFunctionDefinition = function () {
@@ -3946,53 +3866,11 @@ ScriptsMorph.prototype.reactToDropOf = function (droppedMorph, hand) {
 // ScriptsMorph events
 
 ScriptsMorph.prototype.mouseClickLeft = function (pos) {
-	var shiftClicked = this.world().currentKey === 16;
-	if (shiftClicked) {
-		return this.edit(pos);
-	}
 	if (this.focus) {this.focus.stopEditing(); }
 };
 
 ScriptsMorph.prototype.selectForEdit = function () {
 	return this;
-};
-
-// ScriptsMorph keyboard support
-
-ScriptsMorph.prototype.edit = function (pos) {
-	var target,
-		world = this.world();
-	if (this.focus) {this.focus.stopEditing(); }
-	world.stopEditing();
-	if (!ScriptsMorph.prototype.enableKeyboard) {return; }
-	target = this.selectForEdit(); // enable copy-on-edit
-	target.focus = new ScriptFocusMorph(target, target, pos);
-	target.focus.getFocus(world);
-};
-
-ScriptsMorph.prototype.toggleKeyboardEntry = function () {
-	// when the user clicks the keyboard button in the toolbar
-	var target, sorted,
-		world = this.world();
-	if (this.focus) {
-		this.focus.stopEditing();
-		return;
-	}
-	world.stopEditing();
-	if (!ScriptsMorph.prototype.enableKeyboard) {return; }
-	target = this.selectForEdit(); // enable copy-on-edit
-	target.focus = new ScriptFocusMorph(target, target, target.position());
-	target.focus.getFocus(world);
-	sorted = target.focus.sortedScripts();
-	if (sorted.length) {
-		target.focus.element = sorted[0];
-		if (target.focus.element instanceof HatBlockMorph) {
-			target.focus.nextCommand();
-		}
-	} else {
-		target.focus.moveBy(new Point(50, 50));
-	}
-	target.focus.fixLayout();
 };
 
 // ArgMorph //////////////////////////////////////////////////////////
@@ -4571,7 +4449,6 @@ InputSlotMorph.prototype.init = function (
 	this.isNumeric = isNumeric || false;
 	this.isAlphanumeric = false; // temporary override for allowing text
 	this.isReadOnly = isReadOnly || false;
-	this.constant = null;
 
 	InputSlotMorph.uber.init.call(this, null, true);
 	this.color = WHITE;
@@ -4607,7 +4484,6 @@ InputSlotMorph.prototype.setContents = function (data) {
 	// data can be a String, Float, or "wish" Block
 	var cnts = this.contents(),
 		dta = data,
-		isConstant = dta instanceof Array,
 		block;
 
 	if (this.selectedBlock) {
@@ -4618,10 +4494,7 @@ InputSlotMorph.prototype.setContents = function (data) {
 		this.symbol = null;
 	}
 
-	if (isConstant) {
-		dta = localize(dta[0]);
-		cnts.isItalic = !this.isReadOnly;
-	} else if (dta instanceof BlockMorph) {
+	if (dta instanceof BlockMorph) {
 		this.selectedBlock = dta;
 		dta = ''; // make sure the contents text emptied
 	} else {
@@ -4641,9 +4514,6 @@ InputSlotMorph.prototype.setContents = function (data) {
 	}
 	cnts.fixLayout();
 
-	// remember the constant, if any
-	this.constant = isConstant ? data : null;
-
 	// adjust to zebra coloring:
 	if (this.isReadOnly) {
 		block = this.parentThatIsA(BlockMorph); // could be inside a multi-arg
@@ -4651,14 +4521,6 @@ InputSlotMorph.prototype.setContents = function (data) {
 			block.fixLabelColor();
 		}
 	}
-};
-
-InputSlotMorph.prototype.userSetContents = function (aStringOrFloat) {
-	// enable copy-on-edit for inherited scripts
-	var block = this.parentThatIsA(BlockMorph),
-		trgt = block.scriptTarget(true);
-	this.selectForEdit().setContents(aStringOrFloat);
-	this.reactToEdit();
 };
 
 // InputSlotMorph drop-down menu:
@@ -4826,16 +4688,6 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 	}
 };
 
-InputSlotMorph.prototype.reactToKeystroke = function () {
-	var cnts;
-	if (this.constant) {
-		cnts = this.contents();
-		this.constant = null;
-		cnts.isItalic = false;
-		cnts.rerender();
-	}
-};
-
 InputSlotMorph.prototype.reactToEdit = function () {
 	var block = this.parentThatIsA(BlockMorph);
 	this.contents().clearSelection();
@@ -4863,20 +4715,12 @@ InputSlotMorph.prototype.evaluate = function () {
 		}
 		return '';
 	}
-	if (this.constant) {
-		return this.constant;
-	}
 	let val = this.contents().text;
 	if (this.isNumeric || (this.isAlphanumeric && /^-?\d+$/.test(val))) {
 		let num = parseInt(val, 10);
 		if (!isNaN(num)) return num;
 	}
 	return val;
-};
-
-InputSlotMorph.prototype.evaluateOption = function () {
-	var val = this.evaluate();
-	return val instanceof Array ? val[0] : val;
 };
 
 InputSlotMorph.prototype.isEmptySlot = function () {
@@ -5138,10 +4982,6 @@ TemplateSlotMorph.prototype.render = function (ctx) {
 
 TemplateSlotMorph.prototype.outlinePath =
 	ReporterBlockMorph.prototype.outlinePathOval;
-
-TemplateSlotMorph.prototype.isRuleHat = function () {
-	return false;
-};
 
 TemplateSlotMorph.prototype.cSlots = function () {
 	return [];
@@ -5581,7 +5421,6 @@ TextSlotMorph.prototype.init = function (
 	this.oldContentsExtent = contents.extent();
 	this.isNumeric = isNumeric || false;
 	this.isReadOnly = isReadOnly || false;
-	this.constant = null;
 
 	InputSlotMorph.uber.init.call(this, null, null, null, null, true); // sil.
 	this.color = WHITE;
@@ -6027,770 +5866,4 @@ MicroBitDisplaySlotMorph.prototype.pixelIndex = function (pos) {
 	let row = Math.trunc(y / this.stride);
 	if ((col < 0) || (col > 4) || (row < 0) || (row > 4)) return -1;
 	return (row * 5) + col;
-};
-
-// ScriptFocusMorph //////////////////////////////////////////////////////////
-
-/*
-	I offer keyboard navigation for syntax elements, blocks and scripts:
-
-	activate:
-	  - shift + click on a scripting pane's background
-	  - shift + click on any block
-	  - shift + enter in the IDE's edit mode
-
-	stop editing:
-	  - left-click on scripting pane's background
-	  - esc
-
-	navigate among scripts:
-	  - tab: next script
-	  - backtab (shift + tab): last script
-
-	start editing a new script:
-	  - shift + enter
-
-	navigate among commands within a script:
-	  - down arrow: next command
-	  - up arrow: last command
-
-	navigate among all elements within a script:
-	  - right arrow: next element (block or input)
-	  - left arrow: last element
-
-	move the currently edited script (stack of blocks):
-	  - shift + arrow keys (left, right, up, down)
-
-	editing scripts:
-
-	  - backspace:
-		* delete currently focused reporter
-		* delete command above current insertion mark (blinking)
-		* collapse currently focused variadic input by one element
-
-	  - enter:
-		* edit currently focused input slot
-		* expand currently focused variadic input by one element
-
-	  - space:
-		* activate currently focused input slot's pull-down menu, if any
-		* show a menu of reachable variables for the focused input or reporter
-
-	  - any other key:
-		start searching for insertable matching blocks
-
-	  - in menus triggered by this feature:
-		* navigate with up / down arrow keys
-		* trigger selection with enter
-		* cancel menu with esc
-
-	  - in the search bar triggered b this feature:
-		* keep typing / deleting to narrow and update matches
-		* navigate among shown matches with up / down arrow keys
-		* insert selected match at the focus' position with enter
-		* cancel searching and inserting with esc
-
-	running the currently edited script:
-		* shift+ctrl+enter simulates clicking the edited script with the mouse
-*/
-
-// ScriptFocusMorph inherits from BoxMorph:
-
-ScriptFocusMorph.prototype = new BoxMorph();
-ScriptFocusMorph.prototype.constructor = ScriptFocusMorph;
-ScriptFocusMorph.uber = BoxMorph.prototype;
-
-// ScriptFocusMorph instance creation:
-
-function ScriptFocusMorph(editor, initialElement, position) {
-	this.init(editor, initialElement, position);
-}
-
-ScriptFocusMorph.prototype.init = function (
-	editor,
-	initialElement,
-	position
-) {
-	this.editor = editor; // a ScriptsMorph
-	this.element = initialElement;
-	this.atEnd = false;
-	ScriptFocusMorph.uber.init.call(this);
-	if (this.element instanceof ScriptsMorph) {
-		this.setPosition(position);
-	}
-};
-
-// ScriptFocusMorph keyboard focus:
-
-ScriptFocusMorph.prototype.getFocus = function (world) {
-	if (!world) {world = this.world(); }
-	if (world && world.keyboardFocus !== this) {
-		world.stopEditing();
-	}
-	world.keyboardFocus = this;
-	this.fixLayout();
-	this.editor.updateToolbar();
-};
-
-// ScriptFocusMorph layout:
-
-ScriptFocusMorph.prototype.fixLayout = function () {
-	this.changed();
-	if (this.element instanceof CommandBlockMorph ||
-			this.element instanceof CommandSlotMorph ||
-			this.element instanceof ScriptsMorph) {
-		this.manifestStatement();
-	} else {
-		this.manifestExpression();
-	}
-	this.editor.add(this); // come to front
-	this.scrollIntoView();
-	this.changed();
-};
-
-ScriptFocusMorph.prototype.manifestStatement = function () {
-	var newScript = this.element instanceof ScriptsMorph,
-		y = this.element.top();
-	this.border = 0;
-	this.edge = 0;
-	this.alpha = 1;
-	this.color = this.editor.feedbackColor;
-	this.bounds.setExtent(new Point(
-		newScript ?
-				SyntaxElementMorph.prototype.hatWidth : this.element.width(),
-		Math.max(
-			SyntaxElementMorph.prototype.corner,
-			SyntaxElementMorph.prototype.feedbackMinHeight
-		)
-	));
-	if (this.element instanceof CommandSlotMorph) {
-		y += SyntaxElementMorph.prototype.corner;
-	} else if (this.atEnd) {
-		y = this.element.bottom();
-	}
-	if (!newScript) {
-		this.setPosition(new Point(
-			this.element.left(),
-			y
-		));
-	}
-	this.fps = 2;
-	this.show();
-	this.step = function () {
-		this.toggleVisibility();
-	};
-};
-
-ScriptFocusMorph.prototype.manifestExpression = function () {
-	this.edge = SyntaxElementMorph.prototype.rounding;
-	this.border = Math.max(
-		SyntaxElementMorph.prototype.edge,
-		3
-	);
-	this.color = this.editor.feedbackColor.copy();
-	this.color.a = 0.5;
-	this.borderColor = this.editor.feedbackColor;
-
-	this.bounds = this.element.fullBounds()
-		.expandBy(Math.max(
-			SyntaxElementMorph.prototype.edge * 2,
-			SyntaxElementMorph.prototype.reporterDropFeedbackPadding
-		));
-	this.rerender();
-	delete this.fps;
-	delete this.step;
-	this.show();
-};
-
-// ScriptFocusMorph editing
-
-ScriptFocusMorph.prototype.trigger = function () {
-	var current = this.element,
-		i;
-	if (current.parent instanceof TemplateSlotMorph) {
-		current.mouseClickLeft();
-		return;
-	}
-	if (current instanceof BooleanSlotMorph) {
-		current.toggleValue();
-		return;
-	}
-	if (current instanceof InputSlotMorph) {
-		if (!current.isReadOnly) {
-			delete this.fps;
-			delete this.step;
-			this.hide();
-			this.world().onNextStep = () => {
-				current.contents().edit();
-				current.contents().selectAll();
-			};
-		} else if (current.choices) {
-			current.dropDownMenu(true);
-			delete this.fps;
-			delete this.step;
-			this.hide();
-		}
-	}
-};
-
-ScriptFocusMorph.prototype.menu = function () {
-	var current = this.element;
-	if (current instanceof InputSlotMorph && current.choices) {
-		current.dropDownMenu(true);
-		delete this.fps;
-		delete this.step;
-		this.hide();
-	} else {
-		this.insertVariableGetter();
-	}
-};
-
-ScriptFocusMorph.prototype.deleteLastElement = function () {
-	var current = this.element,
-		i;
-	if (current.parent instanceof ScriptsMorph) {
-		if (this.atEnd || current instanceof ReporterBlockMorph) {
-			current.destroy();
-			this.element = this.editor;
-			this.atEnd = false;
-		}
-	} else if (current instanceof BooleanSlotMorph) {
-		if (!current.isStatic) {
-			current.setContents(null);
-		}
-	} else if (current instanceof ReporterBlockMorph) {
-		if (!current.isTemplate) {
-			this.lastElement();
-			current.prepareToBeGrabbed();
-			current.destroy();
-		}
-	} else if (current instanceof CommandBlockMorph) {
-		if (this.atEnd) {
-			this.element = current.parent;
-			current.userDestroy();
-		} else {
-			if (current.parent instanceof CommandBlockMorph) {
-				current.parent.userDestroy();
-			}
-		}
-	}
-	this.editor.adjustBounds();
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.insertBlock = function (block) {
-	// insert the block after a short gliding animation
-	this.world().add(block);
-	block.glideTo(
-		this.position(),
-		null,
-		null,
-		() => this.fillInBlock(block)
-	);
-};
-
-ScriptFocusMorph.prototype.fillInBlock = function (block) {
-	var pb, stage, ide, rcvr;
-	block.isTemplate = false;
-	block.isDraggable = true;
-
-	if (block.snapSound) {
-		block.snapSound.play();
-	}
-
-	if (this.element instanceof ScriptsMorph) {
-		this.editor.add(block);
-		this.element = block;
-		if (block instanceof CommandBlockMorph) {
-			block.setLeft(this.left());
-			if (block.isStop()) {
-				block.setTop(this.top());
-			} else {
-				block.setBottom(this.top());
-				this.atEnd = true;
-			}
-		} else {
-			block.setCenter(this.center());
-			block.setLeft(this.left());
-		}
-	} else if (this.element instanceof CommandBlockMorph) {
-		if (this.atEnd) {
-			this.element.nextBlock(block);
-			this.element = block;
-			this.fixLayout();
-		} else {
-			// to be done: special case if block.isStop()
-			pb = this.element.parent;
-			if (pb instanceof ScriptsMorph) { // top block
-				block.setLeft(this.element.left());
-				block.setBottom(this.element.top() + this.element.corner);
-				this.editor.add(block);
-				block.nextBlock(this.element);
-				this.fixLayout();
-			} else if (pb instanceof CommandSlotMorph) {
-				pb.nestedBlock(block);
-			} else if (pb instanceof CommandBlockMorph) {
-				pb.nextBlock(block);
-			}
-		}
-	} else if (this.element instanceof CommandSlotMorph) {
-		// to be done: special case if block.isStop()
-		this.element.nestedBlock(block);
-		this.element = block;
-		this.atEnd = true;
-	} else {
-		pb = this.element.parent;
-		if (pb instanceof ScriptsMorph) {
-			this.editor.add(block);
-			block.setPosition(this.element.position());
-			this.element.destroy();
-		} else {
-			pb.replaceInput(this.element, block);
-		}
-		this.element = block;
-	}
-	block.fixBlockColor();
-	this.editor.adjustBounds();
-	// block.scrollIntoView();
-	this.fixLayout();
-
-	// experimental: if the inserted block has inputs, go to the first one
-	if (block.inputs && block.inputs().length) {
-		this.element = block;
-		this.atEnd = false;
-		this.nextElement();
-	}
-};
-
-ScriptFocusMorph.prototype.insertVariableGetter = function () {
-	var types = this.blockTypes(),
-		vars,
-		menu = new MenuMorph();
-	if (!types || !contains(types, 'reporter')) {
-		return;
-	}
-	vars = InputSlotMorph.prototype.allVarsMenu.call(this.element);
-	Object.keys(vars).forEach(vName => {
-		var block = SpriteMorph.prototype.variableBlock(vName);
-		block.addShadow(new Point(3, 3));
-		menu.addItem(
-			block,
-			() => {
-				block.removeShadow();
-				this.insertBlock(block);
-			}
-		);
-	});
-	if (menu.items.length > 0) {
-		menu.popup(this.world(), this.element.bottomLeft());
-		menu.getFocus();
-	}
-};
-
-ScriptFocusMorph.prototype.stopEditing = function () {
-	this.editor.focus = null;
-	this.editor.updateToolbar();
-	this.world().keyboardFocus = null;
-	this.destroy();
-};
-
-// ScriptFocusMorph navigation
-
-ScriptFocusMorph.prototype.lastElement = function () {
-	var items = this.items(),
-		idx;
-	if (!items.length) {
-		this.shiftScript(new Point(-50, 0));
-		return;
-	}
-	if (this.atEnd) {
-		this.element = items[items.length - 1];
-		this.atEnd = false;
-	} else {
-		idx = items.indexOf(this.element) - 1;
-		if (idx < 0) {idx = items.length - 1; }
-		this.element = items[idx];
-	}
-	if (this.element instanceof CommandSlotMorph &&
-			this.element.nestedBlock()) {
-		this.lastElement();
-	} else if (this.element instanceof HatBlockMorph) {
-		if (items.length > 1) {
-			this.lastElement();
-		} else {
-			this.atEnd = true;
-		}
-	}
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.nextElement = function () {
-	var items = this.items(), idx, nb;
-	if (!items.length) {
-		this.shiftScript(new Point(50, 0));
-		return;
-	}
-	idx = items.indexOf(this.element) + 1;
-	if (idx >= items.length) {
-		idx = 0;
-	}
-	this.atEnd = false;
-	this.element = items[idx];
-	if (this.element instanceof CommandSlotMorph) {
-		nb = this.element.nestedBlock();
-		if (nb) {this.element = nb; }
-	} else if (this.element instanceof HatBlockMorph) {
-		if (items.length === 1) {
-			this.atEnd = true;
-		} else {
-			this.nextElement();
-		}
-	}
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.lastCommand = function () {
-	var cm = this.element.parentThatIsA(CommandBlockMorph),
-		pb;
-	if (!cm) {
-		if (this.element instanceof ScriptsMorph) {
-			this.shiftScript(new Point(0, -50));
-		}
-		return;
-	}
-	if (this.element instanceof CommandBlockMorph) {
-		if (this.atEnd) {
-			this.atEnd = false;
-		} else {
-			pb = cm.parent.parentThatIsA(CommandBlockMorph);
-			if (pb) {
-				this.element = pb;
-			} else {
-				pb = cm.topBlock().bottomBlock();
-				if (pb) {
-					this.element = pb;
-					this.atEnd = true;
-				}
-			}
-		}
-	} else {
-		this.element = cm;
-		this.atEnd = false;
-	}
-	if (this.element instanceof HatBlockMorph && !this.atEnd) {
-		this.lastCommand();
-	}
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.nextCommand = function () {
-	var cm = this.element,
-		tb,
-		nb,
-		cs;
-	if (cm instanceof ScriptsMorph) {
-		this.shiftScript(new Point(0, 50));
-		return;
-	}
-	while (!(cm instanceof CommandBlockMorph)) {
-		cm = cm.parent;
-		if (cm instanceof ScriptsMorph) {
-			return;
-		}
-	}
-	if (this.atEnd) {
-		cs = cm.parentThatIsA(CommandSlotMorph);
-		if (cs) {
-			this.element = cs.parentThatIsA(CommandBlockMorph);
-			this.atEnd = false;
-			this.nextCommand();
-		} else {
-			tb = cm.topBlock().parentThatIsA(CommandBlockMorph);
-			if (tb) {
-				this.element = tb;
-				this.atEnd = false;
-				if (this.element instanceof HatBlockMorph) {
-					this.nextCommand();
-				}
-			}
-		}
-	} else {
-		nb = cm.nextBlock();
-		if (nb) {
-			this.element = nb;
-		} else {
-			this.element = cm;
-			this.atEnd = true;
-		}
-	}
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.nextScript = function () {
-	var scripts = this.sortedScripts(),
-		idx;
-	if (scripts.length < 1) {return; }
-	if (this.element instanceof ScriptsMorph) {
-		this.element = scripts[0];
-	}
-	idx = scripts.indexOf(this.element.topBlock()) + 1;
-	if (idx >= scripts.length) {idx = 0; }
-	this.element = scripts[idx];
-	this.element.scrollIntoView();
-	this.atEnd = false;
-	if (this.element instanceof HatBlockMorph) {
-		return this.nextElement();
-	}
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.lastScript = function () {
-	var scripts = this.sortedScripts(),
-		idx;
-	if (scripts.length < 1) {return; }
-	if (this.element instanceof ScriptsMorph) {
-		this.element = scripts[0];
-	}
-	idx = scripts.indexOf(this.element.topBlock()) - 1;
-	if (idx < 0) {idx = scripts.length - 1; }
-	this.element = scripts[idx];
-	this.element.scrollIntoView();
-	this.atEnd = false;
-	if (this.element instanceof HatBlockMorph) {
-		return this.nextElement();
-	}
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.shiftScript = function (deltaPoint) {
-	var tb;
-	if (this.element instanceof ScriptsMorph) {
-		this.moveBy(deltaPoint);
-	} else {
-		tb = this.element.topBlock();
-		if (tb && !(tb.isFunctionDefinition())) {
-			tb.moveBy(deltaPoint);
-		}
-	}
-	this.editor.adjustBounds();
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.newScript = function () {
-	var pos = this.position();
-	if (!(this.element instanceof ScriptsMorph)) {
-		pos = this.element.topBlock().fullBounds().bottomLeft().add(
-			new Point(0, 50)
-		);
-	}
-	this.setPosition(pos);
-	this.element = this.editor;
-	this.editor.adjustBounds();
-	this.fixLayout();
-};
-
-ScriptFocusMorph.prototype.runScript = function () {
-	if (this.element instanceof ScriptsMorph) {return; }
-	this.element.topBlock().mouseClickLeft();
-};
-
-ScriptFocusMorph.prototype.items = function () {
-	if (this.element instanceof ScriptsMorph) {return []; }
-	var script = this.element.topBlock();
-	return script.allChildren().filter(each =>
-		each instanceof SyntaxElementMorph &&
-			!(each instanceof TemplateSlotMorph) &&
-				(!each.isStatic ||
-					each.choices ||
-					each instanceof BooleanSlotMorph ||
-					each instanceof CommandSlotMorph
-				)
-	);
-};
-
-ScriptFocusMorph.prototype.sortedScripts = function () {
-	var scripts = this.editor.children.filter(each =>
-		each instanceof BlockMorph
-	);
-	scripts.sort((a, b) =>
-		// make sure the prototype hat block always stays on top
-		a instanceof PrototypeHatBlockMorph ? -1 :
-			(b instanceof PrototypeHatBlockMorph ? 1 : a.top() - b.top())
-	);
-	return scripts;
-};
-
-// ScriptFocusMorph undo / redo
-
-ScriptFocusMorph.prototype.undrop = function () {
-	this.editor.undrop();
-};
-
-ScriptFocusMorph.prototype.redrop = function () {
-	this.editor.redrop();
-};
-
-// ScriptFocusMorph block types
-
-ScriptFocusMorph.prototype.blockTypes = function () {
-	// answer an array of possible block types that fit into
-	// the current situation, NULL if no block can be inserted
-
-	if (this.element.isTemplate) {return null; }
-	if (this.element instanceof ScriptsMorph) {
-		return ['hat', 'command', 'reporter'];
-	}
-	if (this.element instanceof HatBlockMorph ||
-			this.element instanceof CommandSlotMorph) {
-		return ['command'];
-	}
-	if (this.element instanceof CommandBlockMorph) {
-		if (this.atEnd && this.element.isStop()) {
-			return null;
-		}
-		if (this.element.parent instanceof ScriptsMorph) {
-			return ['hat', 'command'];
-		}
-		return ['command'];
-	}
-	if (this.element instanceof ReporterBlockMorph) {
-		return ['reporter'];
-	}
-	if (this.element.getSpec() === '%num') {
-		return ['reporter'];
-	}
-	if (this.element.isStatic) {
-		return null;
-	}
-	return ['reporter'];
-};
-
-
-// ScriptFocusMorph keyboard events
-
-ScriptFocusMorph.prototype.processKeyDown = function (event) {
-	this.processKeyEvent(
-		event,
-		this.reactToKeyEvent
-	);
-};
-
-ScriptFocusMorph.prototype.processKeyUp = function (event) {
-	nop(event);
-};
-
-ScriptFocusMorph.prototype.processKeyPress = function (event) {
-	nop(event);
-};
-
-
-ScriptFocusMorph.prototype.processKeyEvent = function (event, action) {
-	var keyName, ctrl, shift;
-
-	this.world().hand.destroyTemporaries(); // remove result bubbles, if any
-	switch (event.keyCode) {
-	case 8:
-		keyName = 'backspace';
-		break;
-	case 9:
-		keyName = 'tab';
-		break;
-	case 13:
-		keyName = 'enter';
-		break;
-	case 16:
-	case 17:
-	case 18:
-		return;
-	case 27:
-		keyName = 'esc';
-		break;
-	case 32:
-		keyName = 'space';
-		break;
-	case 37:
-		keyName = 'left arrow';
-		break;
-	case 39:
-		keyName = 'right arrow';
-		break;
-	case 38:
-		keyName = 'up arrow';
-		break;
-	case 40:
-		keyName = 'down arrow';
-		break;
-	default:
-		keyName = String.fromCharCode(event.keyCode || event.charCode);
-	}
-	ctrl = (event.ctrlKey || event.metaKey) ? 'ctrl ' : '';
-	shift = event.shiftKey ? 'shift ' : '';
-	keyName = ctrl + shift + keyName;
-	action.call(this, keyName);
-};
-
-ScriptFocusMorph.prototype.reactToKeyEvent = function (key) {
-	var evt = key.toLowerCase(),
-		shift = 50,
-		types,
-		vNames;
-
-	switch (evt) {
-	case 'esc':
-		return this.stopEditing();
-	case 'enter':
-		return this.trigger();
-	case 'shift enter':
-		return this.newScript();
-	case 'ctrl shift enter':
-		return this.runScript();
-	case 'space':
-		return this.menu();
-	case 'left arrow':
-		return this.lastElement();
-	case 'shift left arrow':
-		return this.shiftScript(new Point(-shift, 0));
-	case 'right arrow':
-		return this.nextElement();
-	case 'shift right arrow':
-		return this.shiftScript(new Point(shift, 0));
-	case 'up arrow':
-		return this.lastCommand();
-	case 'shift up arrow':
-		return this.shiftScript(new Point(0, -shift));
-	case 'down arrow':
-		return this.nextCommand();
-	case 'shift down arrow':
-		return this.shiftScript(new Point(0, shift));
-	case 'tab':
-		return this.nextScript();
-	case 'shift tab':
-		return this.lastScript();
-	case 'backspace':
-		return this.deleteLastElement();
-	case 'ctrl z':
-		return this.undrop();
-	case 'ctrl y':
-	case 'ctrl shift z':
-		return this.redrop();
-	case 'ctrl [': // ignore the first press of the Mac cmd key
-		return;
-	default:
-		types = this.blockTypes();
-		if (!(this.element instanceof ScriptsMorph) &&
-				types && contains(types, 'reporter')) {
-			vNames = Object.keys(this.element.allVarsMenu());
-		}
-		if (types) {
-			delete this.fps;
-			delete this.step;
-			this.show();
-			this.editor.scriptTarget().searchBlocks(
-				key,
-				types,
-				vNames,
-				this
-			);
-		}
-	}
 };
