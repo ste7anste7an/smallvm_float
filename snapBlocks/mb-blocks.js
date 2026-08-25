@@ -3836,9 +3836,13 @@ ScriptsMorph.prototype.scriptsPicture = function () {
 	return pic;
 };
 
-ScriptsMorph.prototype.gpCallTest = function () {
-	// Simple call of GP.
-	GP.apiCall('test.getBinary', 0, function(value) { console.log("return value:", value) });
+ScriptsMorph.prototype.doGPCall = function (apiCall, params) {
+	// Call the given GP API function with the given parameters and print the result.
+
+	GP.apiCall(
+		apiCall,
+		params,
+		function(value) { console.log("return value:", value) });
 }
 
 // ScriptsMorph sorting blocks

@@ -1286,7 +1286,12 @@ method loadBlockList MicroBlocksModule cmdList {
 }
 
 method loadSpecs MicroBlocksModule cmdList {
-	blockSpecs = (parsedSpecs (project (findProjectEditor)) cmdList)
+	if (notNil (findProjectEditor)) {
+		blockSpecs = (parsedSpecs (project (findProjectEditor)) cmdList)
+	} else {
+		// This case is for running GP tests without a UI (and no project editor)
+		blockSpecs = (parsedSpecs (newMicroBlocksProject) cmdList)
+	}
 }
 
 // Updating primitives

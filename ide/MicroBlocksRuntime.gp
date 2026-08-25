@@ -2990,3 +2990,4 @@ defineClass PseudoScriptor project
 
 method setProject PseudoScriptor aProject { project = aProject; return this }
 method project PseudoScriptor { return project }
+method fileNameForLibraryNamed PseudoScriptor libName { return nil }
