@@ -265,7 +265,7 @@ method writeObject JSONWriter obj {
 		writeArray this obj
 	} (isClass obj 'Dictionary') {
 		writeDictionary this obj
-	} (isClass obj 'List') {
+	} (or (isClass obj 'List') (isClass obj 'BinaryData')) {
 		writeArray this (toArray obj)
 	} else {
 		error (join 'JSON cannot represent objects of class ' (className (classOf obj)))
