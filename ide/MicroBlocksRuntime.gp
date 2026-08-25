@@ -716,11 +716,11 @@ method unusedChunkID SmallRuntime {
 	for entry (values chunkIDs) {
 		add inUse (first entry) // the chunk ID is first element of entry
 	}
-	for i 256 {
+	for i 255 {
 		id = (i - 1)
 		if (not (contains inUse id)) { return id }
 	}
-	error 'Too many code chunks (functions and scripts). Max is 256).'
+	error 'Too many code chunks (functions and scripts). Max is 255).'
 }
 
 method ensureChunkIdFor SmallRuntime aBlock {
