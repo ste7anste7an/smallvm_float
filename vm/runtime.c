@@ -218,6 +218,9 @@ void initTasks() {
 void startTaskForChunk(uint8 chunkIndex) {
 	// Start a task for the given chunk, if there is not one already.
 
+	if (chunkIndex >= MAX_CHUNKS) return;
+	if (NULL == chunks[chunkIndex].code) return; // no code stored for this chunk
+
 	int i;
 	for (i = 0; i < taskCount; i++) {
 		if ((chunkIndex == tasks[i].taskChunkIndex) && tasks[i].status) {
