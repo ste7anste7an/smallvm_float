@@ -202,9 +202,16 @@ method dispatchCall MicroBlocksAPI callObject {
 			importEmbeddedLibrary scripter libName
 		}
 
-	// Testing
+	// GP/Javascript testing
 	} (endPoint == 'test.getBinary') {
 		respondAPIRequest this id (toBinaryData (toArray (list 4 5 6 7 8 9)))
+	} (endPoint == 'test.compileExample') {
+		project = (newMicroBlocksProject)
+		setProject (scripter (smallRuntime)) project
+		projectData = (at params 1)
+		loadFromString project projectData false
+		code = (compiledBytesFor (smallRuntime) 'stopScrollingText')
+		respondAPIRequest this id code
 
 	// API endpoint not found
 	} else {

@@ -3763,7 +3763,12 @@ ScriptsMorph.prototype.userMenu = function () {
 	menu.addItem('scripts pic...', 'exportScriptsPicture', 'save a picture\nof all scripts');
 
 	menu.addLine();
-	menu.addItem('test', 'gpCallTest', 'test of JS call of GP function');
+	menu.addItem('compile function test',
+		async () => {
+			data = await MB_Files.readFile('Examples/Blink.ubp');
+			this.doGPCall('test.compileExample', [data])
+		},
+		'Compile a function from the "Blink" project');
 
 	return menu;
 };
