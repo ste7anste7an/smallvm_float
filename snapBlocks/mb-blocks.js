@@ -3761,6 +3761,10 @@ ScriptsMorph.prototype.userMenu = function () {
 
 	menu.addItem('clean up', 'cleanUp', 'arrange scripts\nvertically');
 	menu.addItem('scripts pic...', 'exportScriptsPicture', 'save a picture\nof all scripts');
+
+	menu.addLine();
+	menu.addItem('test', 'gpCallTest', 'test of JS call of GP function');
+
 	return menu;
 };
 
@@ -3831,6 +3835,11 @@ ScriptsMorph.prototype.scriptsPicture = function () {
 	});
 	return pic;
 };
+
+ScriptsMorph.prototype.gpCallTest = function () {
+	// Simple call of GP.
+	GP.apiCall('test.getBinary', 0, function(value) { console.log("return value:", value) });
+}
 
 // ScriptsMorph sorting blocks
 

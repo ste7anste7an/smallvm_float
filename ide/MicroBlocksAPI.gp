@@ -200,6 +200,10 @@ method dispatchCall MicroBlocksAPI callObject {
 			importEmbeddedLibrary scripter libName
 		}
 
+	// Testing
+	} (endPoint == 'test.getBinary') {
+		respondAPIRequest this id (toBinaryData (toArray (list 4 5 6 7 8 9)))
+
 	// API endpoint not found
 	} else {
 		respondAPIRequest this id 'Unknown API endpoint'
