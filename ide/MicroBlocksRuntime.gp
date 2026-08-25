@@ -1203,6 +1203,7 @@ method installBoardSpecificBlocks SmallRuntime {
 	if ('Boardie' == boardType) {
 		importEmbeddedLibrary scripter 'LED Display'
 		importEmbeddedLibrary scripter 'Tone'
+		importEmbeddedLibrary scripter 'TFT'
 	} ('Citilab ED1' == boardType) {
 		importEmbeddedLibrary scripter 'ED1 Buttons'
 		importEmbeddedLibrary scripter 'Tone'
