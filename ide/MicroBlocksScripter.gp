@@ -1267,19 +1267,66 @@ method importLibraryFromFile MicroBlocksScripter fileName data updateLastLibFold
 	importLibraryFromString this (toString data) libName fileName asImplementation
 }
 
+to codebergFileURL fullUrl {
+	// If fullUrl is a Codeberg link to a file, return the equivalent Codeberg API URL.
+	// Return nil if it is not one.
+	//
+	// Codeberg's web routes do not send CORS headers, so the browser cannot let the IDE
+	// read them, and its /src/ routes return the repository's web page for the file (or,
+	// for requests its anti-scraper filter does not recognise, a decoy page) rather than
+	// the file itself. Codeberg's API route returns the file and does send CORS headers.
+	//   https://codeberg.org/OWNER/REPO/{src|raw}/{branch|commit|tag}/REF/PATH
+	//     becomes
+	//   https://codeberg.org/api/v1/repos/OWNER/REPO/raw/PATH?ref=REF
+
+	prefix = 'https://codeberg.org/'
+	if (not (beginsWith fullUrl prefix)) {
+		prefix = 'http://codeberg.org/'
+		if (not (beginsWith fullUrl prefix)) { return nil }
+	}
+	rest = (substring fullUrl ((count prefix) + 1))
+	queryStart = (findFirst rest '?')
+	if (notNil queryStart) { rest = (substring rest 1 (queryStart - 1)) }
+
+	parts = (splitWith rest '/')
+	if ((count parts) < 6) { return nil }
+	route = (at parts 3)
+	if (and ('src' != route) ('raw' != route)) { return nil }
+	refKind = (at parts 4)
+	if (and ('branch' != refKind) (and ('commit' != refKind) ('tag' != refKind))) { return nil }
+
+	filePath = (joinStrings (copyFromTo parts 6) '/')
+	if (isEmpty filePath) { return nil }
+	return (join
+		'https://codeberg.org/api/v1/repos/' (at parts 1) '/' (at parts 2)
+		'/raw/' filePath '?ref=' (at parts 5))
+}
+
 method importLibraryFromUrl MicroBlocksScripter fullUrl {
-	if (beginsWith fullUrl 'http://') {
-		url = (substring fullUrl 8)
-	} (beginsWith fullUrl 'https://') {
+	// A Codeberg web URL cannot be read by the browser-based IDE, so fetch it via
+	// Codeberg's API instead. Other URLs are used unchanged.
+	fetchUrl = (codebergFileURL fullUrl)
+	if (isNil fetchUrl) { fetchUrl = fullUrl }
+
+	if (beginsWith fetchUrl 'http://') {
+		url = (substring fetchUrl 8)
+	} (beginsWith fetchUrl 'https://') {
 		// HTTPS is not supported, but we'll try to fetch the lib via HTTP, just
 		// in case the remote server supports both SSL and plain HTTP
-		url = (substring fullUrl 9)
+		url = (substring fetchUrl 9)
 	} else {
-		url = fullUrl
+		url = fetchUrl
 	}
 	host = (substring url 1 ((findFirst url '/') - 1))
 	libPath = (substring url (findFirst url '/'))
-	libName = (substring libPath ((findLast libPath '/') + 1) ((findLast libPath '.') - 1))
+
+	// Ignore any query string when deriving the library name, so that a path ending in
+	// '/Telegram.ubl?ref=v1.2' yields 'Telegram' rather than 'Telegram.ubl?ref=v1'.
+	namePath = libPath
+	queryStart = (findFirst namePath '?')
+	if (notNil queryStart) { namePath = (substring namePath 1 (queryStart - 1)) }
+	libName = (substring namePath ((findLast namePath '/') + 1) ((findLast namePath '.') - 1))
+
 	libSource = (httpGet host libPath)
 
 	// Check if response is valid
@@ -1299,6 +1346,15 @@ method importLibraryFromUrl MicroBlocksScripter fullUrl {
 		// HTTP and are redirected to the HTTPS equivalent
 		(inform (global 'page')
 			(localized 'Server expects HTTPS, and MicroBlocks doesn''t currently support it.')
+			'Could not fetch library')
+		return false
+	}
+
+	if (not (beginsWith libSource 'module ')) {
+		// Something was fetched, but it is not a library. This happens when the URL
+		// points at a repository's web page for a file rather than at the file itself.
+		(inform (global 'page')
+			(localized 'That URL does not return a MicroBlocks library.')
 			'Could not fetch library')
 		return false
 	}

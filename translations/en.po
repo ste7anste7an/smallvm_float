@@ -8091,6 +8091,10 @@ msgid "Server expects HTTPS, and MicroBlocks doesn't currently support it."
 msgstr "Server expects HTTPS, and MicroBlocks doesn't currently support it."
 
 #. String in file picker and library dialogs
+msgid "That URL does not return a MicroBlocks library."
+msgstr "That URL does not return a MicroBlocks library."
+
+#. String in file picker and library dialogs
 msgid "library information"
 msgstr "library information"
 
