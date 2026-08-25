@@ -16,8 +16,7 @@ method processLastCall MicroBlocksAPI {
 
 method dispatchCall MicroBlocksAPI callObject {
 	editor = (findMicroBlocksEditor)
-	if (isNil editor) { return }
-	scripter = (scripter editor)
+	if (notNil editor) { scripter = (scripter editor) }
 	runtime = (smallRuntime)
 
 	// retrieve call properties
