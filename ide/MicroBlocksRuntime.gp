@@ -1726,6 +1726,10 @@ method verifyCRCs SmallRuntime {
 			if (contains unusedFuncs key) {
 				remove chunkIDs key // unused function; does not need to be saved to board
 			}
+			if (contains chunkIDs key) { // function is still in use, so verify it like any other chunk
+				atPut ideChunks id key
+				atPut crcForChunkID id (at (first pair) 2)
+			}
 		} else {
 			atPut ideChunks id (last pair)
 			atPut crcForChunkID id (at (first pair) 2)
