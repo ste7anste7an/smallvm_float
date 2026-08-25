@@ -1303,6 +1303,15 @@ method importLibraryFromUrl MicroBlocksScripter fullUrl {
 		return false
 	}
 
+	if (not (beginsWith libSource 'module ')) {
+		// Something was fetched, but it is not a library. This happens when the URL
+		// points at a repository's web page for a file rather than at the file itself.
+		(inform (global 'page')
+			(localized 'That URL does not return a MicroBlocks library.')
+			'Could not fetch library')
+		return false
+	}
+
 	importLibraryFromString this libSource libName fullUrl
 	return true
 }
