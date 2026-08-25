@@ -35,10 +35,12 @@ method lastScriptPicFolder MicroBlocksEditor { return lastScriptPicFolder }
 method setLastScriptPicFolder MicroBlocksEditor dir { lastScriptPicFolder = dir }
 
 to openMicroBlocksEditor devMode {
-	if (endsWith (browserURL) 'test.html') {
-		print 'GP test - API loop only (no GP window)'
+	if (and ('Browser' == (platform)) (endsWith (browserURL) 'test.html')) {
+		print 'GP runtime only (no window)'
 
-		// This loop is runs GP commands from Javascript when Morphic is not running.
+		setGlobal 'smallRuntime' (initialize (new 'SmallRuntime') (new 'PseudoScriptor'))
+
+		// This forever loop is runs GP API commands from Javascript when Morphic is not running.
 		animate {
 			gcIfNeeded
 			processLastCall (api (smallRuntime))

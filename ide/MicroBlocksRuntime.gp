@@ -2983,3 +2983,10 @@ method installESPFirmwareFromFile SmallRuntime fileName data {
 	flasher = (newFlasher fileName portName false false)
 	installFromData flasher fileName data
 }
+
+// Class used for testing
+
+defineClass PseudoScriptor project
+
+method setProject PseudoScriptor aProject { project = aProject; return this }
+method project PseudoScriptor { return project }
