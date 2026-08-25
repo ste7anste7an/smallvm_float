@@ -76,17 +76,22 @@ to basicHTTPGetResponse host path port {
 }
 
 to httpGetInBrowser url timeout {
-	if (isNil timeout) { timeout = 1000 }
+	if (isNil timeout) { timeout = 5000 }
 	if (and (beginsWith url 'http:') (not (beginsWith (browserURL) 'http:'))) {
 		// switch to 'https' unless browser page is 'http' (unlikely)
 		url = (join 'https://' (substring url 8))
 	}
 	requestID = (startFetch url)
-	start = (msecsSinceStart)
-	while (((msecsSinceStart) - start) < timeout) {
+	lastChange = (msecsSinceStart)
+	bytesSeen = 0
+	while (((msecsSinceStart) - lastChange) < timeout) {
 		result = (fetchResult requestID)
 		if (false == result) { return '' } // request failed
 		if (notNil result) { return result } // request completed
+		if ((fetchBytesReceived requestID) != bytesSeen) { // data still arriving; keep waiting
+			bytesSeen = (fetchBytesReceived requestID)
+			lastChange = (msecsSinceStart)
+		}
 		waitMSecs 20
 	}
 	return ''
