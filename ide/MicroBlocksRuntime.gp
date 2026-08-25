@@ -1434,7 +1434,6 @@ method saveAllChunks SmallRuntime checkCRCs paletteBlock {
 	setCursor 'wait'
 
 	t = (newTimer)
-	editor = (findMicroBlocksEditor)
 	totalScripts = (
 		(count (allFunctions (project scripter))) +
 		(count (sortedScripts (scriptEditor scripter))))
@@ -1737,7 +1736,6 @@ method verifyCRCs SmallRuntime {
 		}
 	}
 
-	editor = (findMicroBlocksEditor)
 	totalCount = ((count crcDict) + (count ideChunks))
 	processedCount = 0
 
@@ -1903,7 +1901,6 @@ method saveVariableNamesIfNeeded SmallRuntime {
 	newVarNames = (allVariableNames project)
 	if (oldVarNames == newVarNames) { return false }
 
-	editor = (findMicroBlocksEditor)
 	varCount = (count newVarNames)
 	progressInterval = (max 1 (floor (varCount / 20)))
 
