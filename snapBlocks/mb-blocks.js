@@ -5085,7 +5085,7 @@ BooleanSlotMorph.prototype.getSpec = function () {
 // BooleanSlotMorph accessing:
 
 BooleanSlotMorph.prototype.evaluate = function () {
-	return this.value;
+	return (this.mbValue === undefined) ? this.value : this.mbValue;
 };
 
 BooleanSlotMorph.prototype.isEmptySlot = function () {
@@ -5103,6 +5103,13 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 			+boolOrNull < 0 ? null
 				: ['true', 'on', 'yes', 'ok', 'y', '+'].includes(boolOrNull) ||
 					+boolOrNull > 0);
+	// A number in a boolean position stays that number. The coercion above is
+	// for the words a user can type or pick from a menu; a number is a value in
+	// its own right, and GP compiles it as one because its compiler reads the
+	// parse tree and never passes it through a slot. The bytes carry such a
+	// number whenever the compiler emitted its dummy for a call it could not
+	// resolve, and coercing it to false changes the program.
+	this.mbValue = (typeof boolOrNull === 'number') ? boolOrNull : undefined;
 	this.rerender();
 };
 
