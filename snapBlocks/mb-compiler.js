@@ -709,7 +709,13 @@ class MB_Compiler {
 		if (!this.project) return null;
 		const vars = this.project.allVariableNames();
 		const idx = vars.indexOf(varName);
-		return idx >= 0 ? idx : null;
+		if (idx < 0) return null;
+		// A global's index is emitted as one byte, so it must fit in 7 bits.
+		// GP gives every global past the 128th the index 127 -- its comment
+		// says the code will run strangely but will not crash
+		// (MicroBlocksProject.gp indexForVar). Without the cap the byte
+		// emitter throws and the project cannot be compiled at all.
+		return Math.min(idx, 127);
 	}
 
 	// function calls
