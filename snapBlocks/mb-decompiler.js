@@ -6,9 +6,10 @@
 
 // mb-decompiler.js - Decompiles bytecodes back to block trees
 // XXX Preliminary port; not yet tested or debugged!
-// XXX Currently outputs parse trees (block tree nodes) not blocks.
+// Works internally in block tree nodes (see below) and converts them to
+// blocks in decompileProject, which is where the rest of the IDE takes over.
 
-/* globals MB_Compiler, MB_Files, MB_Function, MB_Module, MB_Project, MB_Specs */
+/* globals MB_Compiler, MB_Files, MB_Function, MB_Module, MB_Parser, MB_Project, MB_Specs */
 
 /*
   Block tree nodes produced by the decompiler:
@@ -75,7 +76,7 @@ class MB_Decompiler {
 			} else {
 				const x = Math.floor(Math.random() * 350) + 50;
 				const y = Math.floor(Math.random() * 250) + 50;
-				scripts.push([x, y, gpCode]);
+				scripts.push([x, y, MB_Parser.blockForDecompiled(gpCode)]);
 			}
 		}
 		project.main.scripts = scripts;
@@ -919,9 +920,12 @@ class MB_Decompiler {
 			}
 		}
 
-		// The cmdList in aFunc is a decompiler block tree, not a morphic block.
-		// Wrap it in an MB_Function so the rest of the IDE can use it.
-		const mbFunc = new MB_Function(fName, aFunc.argNames, aFunc.cmdList);
+		// aFunc.cmdList is a decompiler block tree. The rest of the IDE works
+		// in morphs -- MB_Function walks its cmdList with inputs() and
+		// nextBlock(), and MB_Compiler does the same -- so convert it here,
+		// through the same builder the parser uses.
+		const mbFunc = new MB_Function(
+			fName, aFunc.argNames, MB_Parser.blockForDecompiled(aFunc.cmdList));
 		targetModule.functions.push(mbFunc);
 		if (!targetModule.blockList.includes(fName)) {
 			targetModule.blockList.push(fName);

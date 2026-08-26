@@ -48,6 +48,23 @@ class MB_Parser {
 		}
 	}
 
+	static blockForDecompiled(node) {
+		// Convert a block tree from MB_Decompiler into command blocks and
+		// return the first one.
+		//
+		// The decompiler works in {selector, args, isReporter, next} nodes,
+		// which is a good shape for reading bytes but is not the program: the
+		// program is the morphs, and everything downstream -- MB_Function,
+		// MB_Compiler, MB_Project -- asks a morph for it. Rendering these nodes
+		// back to source and re-parsing them would answer that too, but it
+		// would mean writing a second pretty printer, re-quoting every literal
+		// so the parser could unquote it again, and inheriting the parser's
+		// reading of a final `else` as a variable named "else". This walks the
+		// nodes straight into the same builder the parser uses instead.
+
+		return new MB_Parser('').makeBlockChain(node);
+	}
+
 	// Private methods
 
 	// ***** Command Parsing *****
@@ -198,10 +215,33 @@ class MB_Parser {
 		if (buf.length == 0) return null; // empty command list (e.g. in an if-else)
 
 		let selector = buf[0];
-		let args = buf.slice(1);
 		if ('v' == selector) {
-			return this.makeVariableReporter(args[0]);
+			return this.makeVariableReporter(buf[1]);
 		}
+		// Resolve the source tokens, then build the block. Everything after
+		// this point is shared with blockForDecompiled(), which arrives with
+		// its arguments already resolved.
+		let args = buf.slice(1).map((arg, i) => {
+			if ((typeof arg) == 'string') {
+				return this.argOrVarRef(selector, arg, (i == 0));
+			} else if (Array.isArray(arg)) {
+				return Array.isArray(arg[0]) ? this.makeBlockList(arg) : this.makeBlock(arg, true);
+			}
+			return arg;
+		});
+		return this.blockWithArgs(selector, args, isReporter);
+	}
+
+	blockWithArgs(selector, args, isReporter = false) {
+		// Make a block for the given selector and already-resolved arguments.
+		// An argument is a value, a ReporterBlockMorph for a nested reporter,
+		// or a CommandBlockMorph for the first block of a body.
+		//
+		// This is the one place a block gets built. The text parser reaches it
+		// through makeBlock and the decompiler through blockForDecompiled, so a
+		// script read back from a board and the same script loaded from a file
+		// are the same morph, and therefore compile to the same bytes.
+
 		let b, blockType = MB_Specs.blockTypeForSelector(selector);
 		if (isReporter || ('r' == blockType)) {
 			b = new ReporterBlockMorph();
@@ -230,15 +270,6 @@ class MB_Parser {
 
 		for (let i = 0; i < args.length; i++) {
 			let arg = args[i];
-			if ((typeof arg) == 'string') {
-				arg = this.argOrVarRef(selector, arg, (i == 0));
-			} else if (Array.isArray(arg)) {
-				if (Array.isArray(arg[0])) {
-					arg = this.makeBlockList(arg);
-				} else {
-					arg = this.makeBlock(arg, true);
-				}
-			}
 			this.setBlockArg(b, arg, i);
 			if (arg instanceof ReporterBlockMorph) arg.fixBlockColor();
 		}
@@ -257,6 +288,41 @@ class MB_Parser {
 		} else {
 			inputs[i].setContents(arg);
 		}
+	}
+
+	makeBlockChain(node) {
+		// Make command blocks for a decompiler `next` chain and return the first.
+
+		let first = null, previous = null;
+		for (let n = node; n != null; n = n.next) {
+			let b = this.blockFromDecompiled(n);
+			if (!b) continue;
+			if (previous) previous.nextBlock(b); else first = b;
+			previous = b;
+		}
+		return first;
+	}
+
+	blockFromDecompiled(node) {
+		// Make one command or reporter block from a decompiler block tree node.
+
+		if (node == null) return null;
+		if ('v' == node.selector) return this.makeVariableReporter(node.args[0]);
+
+		let args = (node.args || []).map(arg => {
+			if ((arg == null) || ((typeof arg) != 'object')) return arg; // a literal
+			// A colour, which the decompiler re-spells from the packed integer
+			// the bytes carry (fixBooleanAndColorArgs). Source writes the same
+			// value as a colorSwatch reporter, so build that: the two compile
+			// identically, and it keeps one spelling in the IDE rather than two.
+			if (true == arg.isColor) {
+				return this.blockWithArgs('colorSwatch', [arg.r, arg.g, arg.b], true);
+			}
+			// A reporter is one node; a command in an argument position is the
+			// first block of a body, so take its whole chain.
+			return arg.isReporter ? this.blockFromDecompiled(arg) : this.makeBlockChain(arg);
+		});
+		return this.blockWithArgs(node.selector, args, node.isReporter);
 	}
 
 	makeBlockList(bufList) {
