@@ -5549,6 +5549,13 @@ ColorSlotMorph.prototype.setContents = function (clr) {
 };
 
 ColorSlotMorph.prototype.setColor = function (clr) {
+	// A number is a colour packed as 0xRRGGBB, which is how the bytes carry one
+	// and how the source writes one outside a colorSwatch. Without this it
+	// falls through to the default below, so a colour read back from a board
+	// arrives as (145, 26, 68) whatever it was.
+	if (typeof clr === 'number') {
+		clr = new Color((clr >> 16) & 255, (clr >> 8) & 255, clr & 255);
+	}
 	ColorSlotMorph.uber.setColor.call(
 		this,
 		isString(clr) && clr.length > 10 ? Color.fromString(clr)
