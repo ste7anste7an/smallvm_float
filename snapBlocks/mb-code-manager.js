@@ -62,9 +62,11 @@ class MB_CodeManager {
 	recompileNeeded() { this.recompileAll = true; }
 
 	chunkTypeFor(aBlockOrFunction) {
-		if (aBlockOrFunction instanceof CommandBlockMorph) return 1;
-		if (aBlockOrFunction instanceof ReporterBlockMorph) return 2;
-
+		// Order matters, and it is GP's: SmallRuntime.chunkTypeFor tests the hat
+		// selectors BEFORE falling through to Command and Reporter. A hat is a
+		// command -- HatBlockMorph.prototype is a CommandBlockMorph -- so
+		// testing for one first answers 1 for every hat there is and leaves the
+		// selector tests below it unreachable.
 		if (aBlockOrFunction instanceof MB_Function) return 3;
 		if (aBlockOrFunction instanceof BlockMorph &&
 			aBlockOrFunction.isFunctionDefinition()) {
@@ -81,6 +83,9 @@ class MB_CodeManager {
 			if (button === 'B') return 8;
 			return 9; // A+B
 		}
+
+		if (aBlockOrFunction instanceof CommandBlockMorph) return 1;
+		if (aBlockOrFunction instanceof ReporterBlockMorph) return 2;
 
 		throw new Error('Unexpected argument to chunkTypeFor');
 	}
