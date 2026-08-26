@@ -253,7 +253,10 @@ class MB_Compiler {
 				result.push(['pushLiteral', func.functionName]);
 				result.push(['placeholder', 0]);
 				result.push(['recvBroadcast', 1]);
-				if (op !== 'noop') {
+				// Skip only the lone 'noop' placeholder of an empty body; testing
+				// the first block alone drops the whole body of a function that
+				// merely starts with a real no-op (as GP's fixed condition).
+				if (!(op === 'noop' && cmdOrReporter.nextBlock() === null)) {
 					result.push(...this.instructionsForCmdList(cmdOrReporter));
 				}
 			} else {
@@ -348,7 +351,8 @@ class MB_Compiler {
 		} else if (op === 'digitalWriteOp') {
 			const pinVal = this.exprArg(inputs, 0);
 			const boolVal = this.exprArg(inputs, inputs.length - 1);
-			if (typeof pinVal === 'number' && typeof boolVal === 'boolean') {
+			if (typeof pinVal === 'number' && typeof boolVal === 'boolean' &&
+				pinVal >= 0 && pinVal <= 127) { // out-of-range pins take the general primitive, as GP
 				const pinNum = pinVal & 255;
 				result.push([boolVal ? 'digitalSet' : 'digitalClear', pinNum]);
 				return result;
@@ -472,9 +476,11 @@ class MB_Compiler {
 	fixLoopExits(loopBody) {
 		// Resolve any uninitialized exitLoop instructions to jump past this loop.
 		// Ignore exitLoop instructions that already have an offset (nested loops).
+		// Note: entries() is zero-based where the GP original iterates from one,
+		// so the offset is (length - i) - 2, not - 1.
 		for (const [i, instr] of loopBody.entries()) {
 			if (instr[0] === 'exitLoop' && instr[1] == null) {
-				instr[1] = (loopBody.length - i) - 1;
+				instr[1] = (loopBody.length - i) - 2;
 			}
 		}
 	}
@@ -641,7 +647,7 @@ class MB_Compiler {
 
 		const todo = firstCmd ? [firstCmd] : [];
 		while (todo.length > 0) {
-			const cmd = todo.shift();
+			const cmd = todo.pop(); // depth-first, as GP (collectVars gp:1066): args before nextBlock
 			const sel = cmd.selector;
 			const inputs = cmd.inputs();
 
@@ -660,7 +666,11 @@ class MB_Compiler {
 				}
 			}
 
-			for (const input of inputs) {
+			// GP pushes nextBlock first, then the args reversed, so a stack pop
+			// visits args in order before the next block (gp:1087-1093).
+			if (cmd.nextBlock()) todo.push(cmd.nextBlock());
+			for (let i = inputs.length - 1; i >= 0; i--) {
+				const input = inputs[i];
 				if (input instanceof BlockMorph) {
 					todo.push(input);
 				} else if (input instanceof CommandSlotMorph) {
@@ -668,7 +678,6 @@ class MB_Compiler {
 					if (nested) todo.push(nested);
 				}
 			}
-			if (cmd.nextBlock()) todo.push(cmd.nextBlock());
 		}
 	}
 
@@ -700,7 +709,13 @@ class MB_Compiler {
 		if (!this.project) return null;
 		const vars = this.project.allVariableNames();
 		const idx = vars.indexOf(varName);
-		return idx >= 0 ? idx : null;
+		if (idx < 0) return null;
+		// A global's index is emitted as one byte, so it must fit in 7 bits.
+		// GP gives every global past the 128th the index 127 -- its comment
+		// says the code will run strangely but will not crash
+		// (MicroBlocksProject.gp indexForVar). Without the cap the byte
+		// emitter throws and the project cannot be compiled at all.
+		return Math.min(idx, 127);
 	}
 
 	// function calls
@@ -750,7 +765,7 @@ class MB_Compiler {
 					const primNameOffset = (litOffset - (ip + 1)) & 1023;			// 10 bits
 					const argCount = (instr[3] || 0) & 255;
 					instr[1] = ((primSetIndex << 18) | (primNameOffset << 8)) | argCount;
-					instr[2] = literal; // retain literal string for "show instructions"
+					instr.push(literal); // retain literal string for "show instructions" (as GP: primSet stays at [2])
 				} else {
 					instr[1] = litOffset - (ip + 1); // ip points to next instruction word
 					instr[2] = literal; // retain literal string for "show instructions"
