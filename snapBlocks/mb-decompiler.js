@@ -479,9 +479,30 @@ class MB_Decompiler {
 
 		let gpCode = this.codeForSequence(0, this.opcodes.length - 1);
 		gpCode = this.removePrefix(gpCode);
+		if (chunkType === 3) gpCode = this.removeFinalReturnFalse(gpCode);
 		gpCode = this.addHatBlock(chunkID, chunkType, gpCode);
 		if (gpCode == null) return this.newCmd('comment', 'Stand-alone comment');
 		this.fixBooleanAndColorArgs(gpCode);
+		return gpCode;
+	}
+
+	removeFinalReturnFalse(gpCode) {
+		// The compiler appends an implicit 'pushImmediate false; returnResult' to
+		// every function chunk, so the decompiled body would show an extra
+		// 'return false' block, and gain another on each save/decompile cycle.
+		// A user's explicit final 'return false' still gets the compiler's own
+		// copy appended, so removing one keeps the user's.
+		if (gpCode == null) return null;
+		let prev = null;
+		let last = gpCode;
+		while (last.next != null) {
+			prev = last;
+			last = last.next;
+		}
+		if ((last.selector === 'return') && (last.args.length === 1) && (last.args[0] === false)) {
+			if (prev == null) return null; // body was only the implicit return
+			prev.next = null;
+		}
 		return gpCode;
 	}
 
