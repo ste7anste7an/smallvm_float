@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>MicroBlocks Compiler Compare</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script src="morphic.js"></script>
+	<script src="mb-blocks.js"></script>
+	<script src="mb-specs.js"></script>
+	<script src="mb-parser.js"></script>
+	<script src="mb-function.js"></script>
+	<script src="mb-project.js"></script>
+	<script src="mb-compiler.js"></script>
+	<script src="mb-code-manager.js"></script>
+	<script src="mb-decompiler.js"></script>
+	<script src="mb-files.js"></script>
+	<script src="mb-compare.js"></script>
+
+	<!-- optional: GP runtime for live GP-vs-JS comparison; page works without it -->
+	<!-- <script src="mb-gpAPI.js"></script> -->
+	<!-- <script src="gp_wasm.js"></script> -->
+
+	<style>
+		body { font: 13px/1.4 system-ui, sans-serif; margin: 0; color: #222; }
+		header { padding: 10px 14px; background: #f4f6f8; border-bottom: 1px solid #ddd;
+			display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+		header b { margin-right: 8px; }
+		button { font: inherit; padding: 4px 10px; }
+		#status { color: #667; margin-left: 8px; }
+		#summary { padding: 8px 14px; border-bottom: 1px solid #eee; }
+		#summary span { margin-right: 14px; }
+		.n-same { color: #2c7a3d; } .n-changed { color: #b03030; font-weight: 600; }
+		.n-new { color: #8a6d00; } .n-gone { color: #8a6d00; }
+		#main { display: flex; height: calc(100vh - 96px); }
+		#list { width: 42%; overflow: auto; border-right: 1px solid #ddd; }
+		#detail { flex: 1; overflow: auto; padding: 10px 14px; }
+		table { border-collapse: collapse; width: 100%; }
+		#list td { padding: 2px 8px; border-bottom: 1px solid #f2f2f2; cursor: pointer;
+			white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+		#list tr:hover { background: #f6f9fc; }
+		#list tr.sel { background: #e8f0fa; }
+		.st { font-size: 11px; padding: 0 6px; border-radius: 3px; }
+		.st-same { background: #e6f4ea; color: #2c7a3d; }
+		.st-changed { background: #fbe7e7; color: #b03030; }
+		.st-reshaped { background: #fdf0e0; color: #a05a10; }
+		.st-new, .st-gone { background: #fdf3d7; color: #8a6d00; }
+		.st-error { background: #eee; color: #666; }
+		#detail pre, #detail td { font: 12px/1.45 ui-monospace, Menlo, monospace; }
+		#detail table td { padding: 1px 10px; vertical-align: top; white-space: pre; }
+		#detail tr.diff td { background: #fbe7e7; }
+		#detail th { text-align: left; font-weight: 600; padding: 4px 10px; }
+		.hint { color: #778; }
+	</style>
+</head>
+<body>
+	<header>
+		<b>Compiler compare</b>
+		<button id="run">Compile everything</button>
+		<button id="save" disabled>Save as baseline</button>
+		<button id="download" disabled>Download baseline</button>
+		<label><input type="checkbox" id="onlyChanged" checked> only changes</label>
+		<span id="status" class="hint">baseline: none</span>
+	</header>
+	<div id="summary" class="hint">Compile the corpus, save a baseline, change the compiler,
+		compile again: every function or script whose bytes changed lights up. Click one to see the
+		instruction listings side by side.</div>
+	<div id="main">
+		<div id="list"><table><tbody id="rows"></tbody></table></div>
+		<div id="detail"><span class="hint">No function selected.</span></div>
+	</div>
+
+<script>
+(function () {
+	const $ = (id) => document.getElementById(id);
+	let rows = [];
+
+	function refreshStatus() {
+		$('status').textContent = 'baseline: ' +
+			(MB_Compare.baseline ? Object.keys(MB_Compare.baseline).length + ' functions' : 'none');
+		$('save').disabled = !MB_Compare.current;
+		$('download').disabled = !(MB_Compare.baseline || MB_Compare.current);
+	}
+
+	function renderSummary(diff) {
+		const c = { same: 0, changed: 0, reshaped: 0, new: 0, gone: 0 };
+		for (const r of diff) c[r.status] = (c[r.status] || 0) + 1;
+		$('summary').innerHTML =
+			'<span class="n-same">' + c.same + ' unchanged</span>' +
+			'<span class="n-changed">' + c.changed + ' changed</span>' +
+			(c.reshaped ? '<span class="n-changed">' + c.reshaped +
+				' reshaped (same bytes, different chunk type)</span>' : '') +
+			'<span class="n-new">' + c.new + ' new</span>' +
+			'<span class="n-gone">' + c.gone + ' gone</span>';
+	}
+
+	function renderList(diff) {
+		const only = $('onlyChanged').checked;
+		const tbody = $('rows');
+		tbody.innerHTML = '';
+		for (const r of diff) {
+			if (only && r.status === 'same') continue;
+			const tr = document.createElement('tr');
+			const err = (r.cur && r.cur.error) || (r.base && r.base.error);
+			tr.innerHTML = '<td><span class="st st-' + (err ? 'error' : r.status) + '">' +
+				(err ? 'throws' : r.status) + '</span></td><td title="' + r.key + '">' +
+				r.key.replace('::', ' :: ') + '</td>';
+			tr.onclick = () => { select(tr, r); };
+			tbody.appendChild(tr);
+		}
+		if (!tbody.children.length) {
+			tbody.innerHTML = '<tr><td class="hint" style="padding:10px">' +
+				(only ? 'No changes.' : 'Nothing compiled yet.') + '</td></tr>';
+		}
+	}
+
+	function select(tr, r) {
+		for (const el of $('rows').children) el.classList.remove('sel');
+		tr.classList.add('sel');
+		const base = r.base, cur = r.cur;
+		let html = '<h3 style="margin-top:0">' + r.key.replace('::', ' :: ') + '</h3>';
+		if (!base || !cur) {
+			html += '<p class="hint">' + (base ? 'gone from current run' : 'not in baseline') + '</p>';
+			const one = base || cur;
+			html += one.error ? '<pre>throws: ' + one.error + '</pre>'
+				: '<pre>' + (one.listing || []).join('\n') + '</pre>';
+		} else if (base.error || cur.error) {
+			html += '<table><tr><th>baseline</th><th>current</th></tr><tr><td>' +
+				(base.error || (base.listing || []).join('\n')) + '</td><td>' +
+				(cur.error || (cur.listing || []).join('\n')) + '</td></tr></table>';
+		} else if (!base.listing) {
+			html += '<p class="hint">bytes ' + (base.bytes === cur.bytes ? 'identical' :
+				'differ (baseline reloaded without listings; re-save a baseline this session for a line diff)') +
+				'</p><pre>' + (cur.listing || []).join('\n') + '</pre>';
+		} else {
+			const d = MB_Compare.renderListingDiff(base.listing || [], cur.listing || []);
+			html += '<table><tr><th>baseline</th><th>current</th></tr>' + d.map((x) =>
+				'<tr' + (x.same ? '' : ' class="diff"') + '><td>' + x.a + '</td><td>' + x.b + '</td></tr>'
+			).join('') + '</table>';
+			html += '<p class="hint">bytes: ' + (base.bytes === cur.bytes ? 'identical' :
+				base.bytes.length / 2 + ' → ' + cur.bytes.length / 2 + ' bytes') + '</p>';
+		}
+		$('detail').innerHTML = html;
+	}
+
+	async function run() {
+		if (MB_Compare.running) return;
+		MB_Compare.running = true;
+		$('run').disabled = true;
+		try {
+			const { results, errors } = await MB_Compare.sweep((s) => { $('status').textContent = s; });
+			MB_Compare.current = results;
+			if (errors.length) console.log('compare sweep file errors:', errors);
+			if (!MB_Compare.baseline) MB_Compare.loadSavedBaseline();
+			const diff = MB_Compare.diffAgainstBaseline();
+			rows = diff;
+			renderSummary(diff);
+			renderList(diff);
+		} finally {
+			MB_Compare.running = false;
+			$('run').disabled = false;
+			refreshStatus();
+		}
+	}
+
+	$('run').onclick = run;
+	$('save').onclick = () => { MB_Compare.saveBaseline(); refreshStatus();
+		rows = MB_Compare.diffAgainstBaseline(); renderSummary(rows); renderList(rows); };
+	$('download').onclick = () => MB_Compare.downloadBaseline();
+	$('onlyChanged').onchange = () => renderList(rows);
+	MB_Compare.loadSavedBaseline();
+	refreshStatus();
+})();
+</script>
+</body>
+</html>
