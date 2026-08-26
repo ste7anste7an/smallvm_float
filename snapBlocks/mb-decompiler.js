@@ -8,7 +8,7 @@
 // XXX Preliminary port; not yet tested or debugged!
 // XXX Currently outputs parse trees (block tree nodes) not blocks.
 
-/* globals MB_Compiler, MB_Function, MB_Module, MB_Project, MB_Specs */
+/* globals MB_Compiler, MB_Files, MB_Function, MB_Module, MB_Project, MB_Specs */
 
 /*
   Block tree nodes produced by the decompiler:
@@ -50,7 +50,7 @@ class MB_Decompiler {
 		this.vars.set(varID, varName);
 	}
 
-	decompileProject() {
+	async decompileProject() {
 		const project = new MB_Project();
 		for (const varName of this.vars.values()) {
 			project.addVariable(varName);
@@ -69,7 +69,7 @@ class MB_Decompiler {
 			const gpCode = this.decompile(chunkID, chunkType, chunkData);
 			if (!gpCode) continue;
 			if (gpCode.isFunction) {
-				this.addFunctionToProject(gpCode, project);
+				await this.addFunctionToProject(gpCode, project);
 			} else if (gpCode.selector === 'comment') {
 				// ignore stand-alone comments
 			} else {
@@ -832,15 +832,50 @@ class MB_Decompiler {
 
 	// --- Project assembly ---
 
-	addFunctionToProject(aFunc, project) {
+	async addEmbeddedLibrary(libName, project) {
+		// Add the embedded library with the given name to the project, then
+		// load any of its dependencies that are not already loaded. A missing
+		// library or dependency is logged, not thrown: shipped libraries are
+		// known to carry broken 'depends' lines.
+		let isImplementation = false;
+		if (libName.startsWith('_')) {
+			libName = libName.slice(1);
+			isImplementation = true;
+		}
+		const libFileName = '/' + libName + '.ubl';
+		for (const filePath of MB_Files.allFilesIn('Libraries')) {
+			if (filePath.endsWith(libFileName)) {
+				const data = await MB_Files.readFile(filePath);
+				if (data) project.addLibraryFromString(data, libName, '//' + filePath);
+			}
+		}
+		const lib = project.libraryNamed(libName);
+		if (!lib) {
+			console.log('Could not load library:', libName);
+			return;
+		}
+		if (isImplementation) lib.beImplementation();
+		for (const dependency of lib.dependencies) {
+			if (!project.libraryNamed(dependency)) {
+				await this.addEmbeddedLibrary(dependency, project);
+			}
+		}
+	}
+
+	async addFunctionToProject(aFunc, project) {
 		let targetModule = project.main;
 		const libName    = this.functionLibrary || '';
 
 		if (libName) {
 			let lib = project.libraryNamed(libName);
 			if (!lib) {
+				await this.addEmbeddedLibrary(libName, project);
+				lib = project.libraryNamed(libName);
+			}
+			if (!lib) {
+				// no library file available; fall back to an empty stub module
 				lib = new MB_Module(libName);
-				project.libraries.push(lib);
+				project.addLibrary(lib);
 			}
 			targetModule = lib;
 		}
