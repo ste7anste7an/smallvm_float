@@ -348,7 +348,8 @@ class MB_Compiler {
 		} else if (op === 'digitalWriteOp') {
 			const pinVal = this.exprArg(inputs, 0);
 			const boolVal = this.exprArg(inputs, inputs.length - 1);
-			if (typeof pinVal === 'number' && typeof boolVal === 'boolean') {
+			if (typeof pinVal === 'number' && typeof boolVal === 'boolean' &&
+				pinVal >= 0 && pinVal <= 127) { // out-of-range pins take the general primitive, as GP
 				const pinNum = pinVal & 255;
 				result.push([boolVal ? 'digitalSet' : 'digitalClear', pinNum]);
 				return result;
