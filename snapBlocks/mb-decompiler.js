@@ -140,7 +140,7 @@ class MB_Decompiler {
 
 			if (op === 'pushImmediate') {
 				if ((arg & 1) === 1) {
-					arg = (arg << 23) >> 24; // 7-bit signed integer
+					arg = (arg << 24) >> 25; // 7-bit signed integer (sign must reach JS bit 31)
 				} else if (arg === 0) {
 					arg = false;
 				} else if (arg === 4) {
@@ -149,13 +149,14 @@ class MB_Decompiler {
 			} else if (op === 'pushLargeInteger') {
 				arg |= (chunkData[i] << 8);
 				arg |= (chunkData[i + 1] << 16);
-				arg = (arg << 7) >> 8; // integer object → signed integer
+				arg = (arg << 8) >> 9; // integer object → signed integer (sign must reach JS bit 31)
 				extraWords = 1;
 			} else if (op === 'pushHugeInteger') {
 				arg = chunkData[i] >> 1;
 				arg |= (chunkData[i + 1] << 7);
 				arg |= (chunkData[i + 2] << 15);
 				arg |= (chunkData[i + 3] << 23);
+				arg = (arg << 1) >> 1; // GP integers are 31-bit; fold the sign down from bit 30
 				extraWords = 2;
 			} else if (op === 'pushLiteral') {
 				const offset = chunkData[i] | (chunkData[i + 1] << 8);
