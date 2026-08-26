@@ -253,7 +253,10 @@ class MB_Compiler {
 				result.push(['pushLiteral', func.functionName]);
 				result.push(['placeholder', 0]);
 				result.push(['recvBroadcast', 1]);
-				if (op !== 'noop') {
+				// Skip only the lone 'noop' placeholder of an empty body; testing
+				// the first block alone drops the whole body of a function that
+				// merely starts with a real no-op (as GP's fixed condition).
+				if (!(op === 'noop' && cmdOrReporter.nextBlock() === null)) {
 					result.push(...this.instructionsForCmdList(cmdOrReporter));
 				}
 			} else {
