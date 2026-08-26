@@ -752,7 +752,7 @@ class MB_Compiler {
 					const primNameOffset = (litOffset - (ip + 1)) & 1023;			// 10 bits
 					const argCount = (instr[3] || 0) & 255;
 					instr[1] = ((primSetIndex << 18) | (primNameOffset << 8)) | argCount;
-					instr[2] = literal; // retain literal string for "show instructions"
+					instr.push(literal); // retain literal string for "show instructions" (as GP: primSet stays at [2])
 				} else {
 					instr[1] = litOffset - (ip + 1); // ip points to next instruction word
 					instr[2] = literal; // retain literal string for "show instructions"
