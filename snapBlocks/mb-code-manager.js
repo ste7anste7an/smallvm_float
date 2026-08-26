@@ -216,6 +216,7 @@ class MB_CodeManager {
 	assignFunctionIDs() {
 		// Ensure that there is a chunk ID for every user-defined function.
 		// This must be done before generating any code to allow for recursive calls.
+		if (!this.project) return; // no project: nothing to assign (e.g. the decompiler's opcode-table compiler)
 		for (const func of this.project.allFunctions()) {
 			const fName = func.functionName;
 			if (!this.chunkIDs.has(fName)) {
