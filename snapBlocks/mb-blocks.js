@@ -4543,6 +4543,15 @@ InputSlotMorph.prototype.setContents = function (data) {
 	} else if (dta.toString) {
 		cnts.text = dta.toString();
 	}
+
+	// Keep the value, not only its text. GP's InputSlot.gp setContents does the
+	// same (contents = data); keeping only the text is what turned the literal
+	// '0x06' into 0 and false into "false" at compile time. mbValueText records
+	// the text this value was shown as, so evaluate() can tell a value the slot
+	// was given from one the user has since typed over.
+	this.mbValue = dta;
+	this.mbValueText = cnts.text;
+
 	cnts.fixLayout();
 
 	// adjust to zebra coloring:
@@ -4747,6 +4756,13 @@ InputSlotMorph.prototype.evaluate = function () {
 		return '';
 	}
 	let val = this.contents().text;
+	// The value this slot was given, for as long as the text still shows it.
+	// Editing the slot replaces the text, and from then on the text is the
+	// truth -- which is where the coercion below belongs, and where GP puts it
+	// too (InputSlot.gp textChanged, on the edit path).
+	if (this.mbValueText === val) {
+		return this.mbValue;
+	}
 	if (this.isNumeric || (this.isAlphanumeric && /^-?\d+$/.test(val))) {
 		let num = parseInt(val, 10);
 		if (!isNaN(num)) return num;
