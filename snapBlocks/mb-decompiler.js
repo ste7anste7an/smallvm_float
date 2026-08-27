@@ -8,7 +8,7 @@
 // XXX Preliminary port; not yet tested or debugged!
 // XXX Currently outputs parse trees (block tree nodes) not blocks.
 
-/* globals MB_Compiler, MB_Function, MB_Module, MB_Project, MB_Specs */
+/* globals MB_Compiler, MB_Files, MB_Function, MB_Module, MB_Project, MB_Specs */
 
 /*
   Block tree nodes produced by the decompiler:
@@ -50,7 +50,7 @@ class MB_Decompiler {
 		this.vars.set(varID, varName);
 	}
 
-	decompileProject() {
+	async decompileProject() {
 		const project = new MB_Project();
 		for (const varName of this.vars.values()) {
 			project.addVariable(varName);
@@ -69,7 +69,7 @@ class MB_Decompiler {
 			const gpCode = this.decompile(chunkID, chunkType, chunkData);
 			if (!gpCode) continue;
 			if (gpCode.isFunction) {
-				this.addFunctionToProject(gpCode, project);
+				await this.addFunctionToProject(gpCode, project);
 			} else if (gpCode.selector === 'comment') {
 				// ignore stand-alone comments
 			} else {
@@ -140,7 +140,7 @@ class MB_Decompiler {
 
 			if (op === 'pushImmediate') {
 				if ((arg & 1) === 1) {
-					arg = (arg << 23) >> 24; // 7-bit signed integer
+					arg = (arg << 24) >> 25; // 7-bit signed integer (sign must reach JS bit 31)
 				} else if (arg === 0) {
 					arg = false;
 				} else if (arg === 4) {
@@ -149,13 +149,14 @@ class MB_Decompiler {
 			} else if (op === 'pushLargeInteger') {
 				arg |= (chunkData[i] << 8);
 				arg |= (chunkData[i + 1] << 16);
-				arg = (arg << 7) >> 8; // integer object → signed integer
+				arg = (arg << 8) >> 9; // integer object → signed integer (sign must reach JS bit 31)
 				extraWords = 1;
 			} else if (op === 'pushHugeInteger') {
 				arg = chunkData[i] >> 1;
 				arg |= (chunkData[i + 1] << 7);
 				arg |= (chunkData[i + 2] << 15);
 				arg |= (chunkData[i + 3] << 23);
+				arg = (arg << 1) >> 1; // GP integers are 31-bit; fold the sign down from bit 30
 				extraWords = 2;
 			} else if (op === 'pushLiteral') {
 				const offset = chunkData[i] | (chunkData[i + 1] << 8);
@@ -478,9 +479,30 @@ class MB_Decompiler {
 
 		let gpCode = this.codeForSequence(0, this.opcodes.length - 1);
 		gpCode = this.removePrefix(gpCode);
+		if (chunkType === 3) gpCode = this.removeFinalReturnFalse(gpCode);
 		gpCode = this.addHatBlock(chunkID, chunkType, gpCode);
 		if (gpCode == null) return this.newCmd('comment', 'Stand-alone comment');
 		this.fixBooleanAndColorArgs(gpCode);
+		return gpCode;
+	}
+
+	removeFinalReturnFalse(gpCode) {
+		// The compiler appends an implicit 'pushImmediate false; returnResult' to
+		// every function chunk, so the decompiled body would show an extra
+		// 'return false' block, and gain another on each save/decompile cycle.
+		// A user's explicit final 'return false' still gets the compiler's own
+		// copy appended, so removing one keeps the user's.
+		if (gpCode == null) return null;
+		let prev = null;
+		let last = gpCode;
+		while (last.next != null) {
+			prev = last;
+			last = last.next;
+		}
+		if ((last.selector === 'return') && (last.args.length === 1) && (last.args[0] === false)) {
+			if (prev == null) return null; // body was only the implicit return
+			prev.next = null;
+		}
 		return gpCode;
 	}
 
@@ -832,15 +854,50 @@ class MB_Decompiler {
 
 	// --- Project assembly ---
 
-	addFunctionToProject(aFunc, project) {
+	async addEmbeddedLibrary(libName, project) {
+		// Add the embedded library with the given name to the project, then
+		// load any of its dependencies that are not already loaded. A missing
+		// library or dependency is logged, not thrown: shipped libraries are
+		// known to carry broken 'depends' lines.
+		let isImplementation = false;
+		if (libName.startsWith('_')) {
+			libName = libName.slice(1);
+			isImplementation = true;
+		}
+		const libFileName = '/' + libName + '.ubl';
+		for (const filePath of MB_Files.allFilesIn('Libraries')) {
+			if (filePath.endsWith(libFileName)) {
+				const data = await MB_Files.readFile(filePath);
+				if (data) project.addLibraryFromString(data, libName, '//' + filePath);
+			}
+		}
+		const lib = project.libraryNamed(libName);
+		if (!lib) {
+			console.log('Could not load library:', libName);
+			return;
+		}
+		if (isImplementation) lib.beImplementation();
+		for (const dependency of lib.dependencies) {
+			if (!project.libraryNamed(dependency)) {
+				await this.addEmbeddedLibrary(dependency, project);
+			}
+		}
+	}
+
+	async addFunctionToProject(aFunc, project) {
 		let targetModule = project.main;
 		const libName    = this.functionLibrary || '';
 
 		if (libName) {
 			let lib = project.libraryNamed(libName);
 			if (!lib) {
+				await this.addEmbeddedLibrary(libName, project);
+				lib = project.libraryNamed(libName);
+			}
+			if (!lib) {
+				// no library file available; fall back to an empty stub module
 				lib = new MB_Module(libName);
-				project.libraries.push(lib);
+				project.addLibrary(lib);
 			}
 			targetModule = lib;
 		}

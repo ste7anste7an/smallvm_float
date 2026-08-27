@@ -1,31 +1,42 @@
-module 'Telegram'
-author 'Luis Mateos'
-version 1 1
+module Telegram
+author 'Luis Mateos, Peter Mathijssen'
+version 1 3 
 description 'To send messages, you need to set up a bot by typing @BotFather into the Telegram search bar on any device and connecting to it. Make sure it is the official Telegram bot and not a fake.
 @BotFather will provide you with the Bot_Token.
 
 To find the Channel_ID for a channel or user, you can use a bot like @userinfobot or @myidbot.
 You can also find it via Telegram Web (it appears in the URL bar).
-
---------------
-
-Para enviar mensajes es necesario dar de alta un Bot  escribiendo @Botfather en la barra de busqueda de Telegram en cualquier dispositivo y conectándose a él.
-Asegúrate de que es el Bot oficial de Telegram y no un fake.
-@BotFather te dará el Bot_Token.
-
-Para encontrar el Channel_ID del canal o usuario puedes usar un bot como @userinfobot o @myidbot. 
-Tambien puedes verlo a través de Telegram Web (aparece en la barra de Url)
 '
+choices tgrm_url_emojiMenu smiley 'thumbs up' 'thumbs down' 'hot face' 'cold face' 'sleeping face' heart robot skull 'pile of poo' bell battery 'low battery' 'light bulb' locked unlocked gear
 
-  spec 'r' 'tgrm_send' 'send to Telegram, text _ #BR# channel ID _ bot token _ ' 'auto auto auto' 'MicroBlocks is amazing!' '' ''
+  spec ' ' 'tgrm_send' 'send to Telegram, text _ #BR# channel ID _ bot token _' 'auto auto auto' 'MicroBlocks is amazing!' '' ''
+  spec 'r' 'tgrm_emoji' 'emoji _' 'menu.tgrm_url_emojiMenu' 'smiley'
+  spec 'r' 'tgrm_url_emojiData' '_url_emojiData'
 
-to 'tgrm_send' text id token {
+to tgrm_emoji name {
+  local 'data' ('tgrm_url_emojiData')
+  local 'i' ('[data:find]' name data)
+  if (i == -1) {
+    comment 'Name not found'
+    return 0
+  }
+  local 'start' (('[data:find]' ':' data i) + 1)
+  local 'end' (('[data:find]' ',' data i) - 1)
+  return ('[data:copyFromTo]' data start end)
+}
+
+to 'tgrm_url_emojiData' {
+  return 'smiley:%F0%9F%98%80,thumbs up:%F0%9F%91%8D,thumbs down:%F0%9F%91%8E,hot face:%F0%9F%A5%B5,cold face:%F0%9F%A5%B6,sleeping face:%F0%9F%98%B4,heart:%E2%9D%A4%EF%B8%8F,robot:%F0%9F%A4%96,skull:%F0%9F%92%80,pile of poo:%F0%9F%92%A9,bell:%F0%9F%94%94,battery:%F0%9F%94%8B,low battery:%F0%9F%AA%AB,light bulb:%F0%9F%92%A1,locked:%F0%9F%94%92,unlocked:%F0%9F%94%93,gear:%E2%9A%99%EF%B8%8F,'
+}
+
+to tgrm_send text id token {
   local 'message' 0
   local 'result' 0
   local 'web' 0
   local 'response' 0
   if ((getIPAddress) == '0.0.0.0') {
-    return 'Not connected to the internet!'
+    sayIt 'Not connected to the internet!'
+    return 0
   }
   web = ('[data:join]' ('[data:join]' 'api.telegram.org/bot' token '/sendMessage?chat_id=') id '&text=')
   message = ('[data:toString]' text)
@@ -42,10 +53,7 @@ to 'tgrm_send' text id token {
     }
   }
   response = ('https܃//' ('[data:join]' web result))
-  if (-1 != ('[data:find]' '"ok":true' response)) {
-    return 'Sent'
-  } else {
-    return ('[data:join]' 'Error: ' response)
+  if (-1 == ('[data:find]' '"ok":true' response)) {
+    sayIt ('[data:join]' 'Error: ' response)
   }
 }
-

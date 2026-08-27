@@ -2043,6 +2043,15 @@ BlockMorph.prototype.isInfix = function (op) {
 	return infixOps.includes(op);
 }
 
+BlockMorph.prototype.isElseSlot = function (args, i) {
+	// The final condition of an 'if', when literally true: GP writes this slot
+	// as the bare word 'else' (PrettyPrinter.gp printBlock), including for a
+	// single-branch 'if' (see Libraries/AI/AILens.ubl:83).
+	if (this.selector !== 'if') return false;
+	if (i !== args.length - 2) return false;    // conditions are at even indices
+	return (args[i] instanceof BooleanSlotMorph) && (args[i].value === true);
+};
+
 BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	if (arg instanceof CSlotMorph) {
 		let nested = arg.nestedBlock();
@@ -2116,7 +2125,11 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 	} else {
 		result.push(quoteIfNeeded(this.selector) + ' ');
 		for (let i = 0; i < args.length; i++) {
-			this.addCodeStringForArg(args[i], indent, result);
+			if (this.isElseSlot(args, i)) {
+				result.push('else');
+			} else {
+				this.addCodeStringForArg(args[i], indent, result);
+			}
 			if (i < (args.length - 1)) {
 				result.push(' ');
 			}

@@ -83,7 +83,11 @@ function allBlocksIn(root) {
 		if (b.nextBlock && b.nextBlock()) todo.push(b.nextBlock());
 		if (b.inputs) {
 			for (const inp of b.inputs()) {
-				if (inp instanceof BlockMorph) todo.push(inp);
+				if (inp instanceof BlockMorph) {
+					todo.push(inp);
+				} else if (inp instanceof CommandSlotMorph && inp.nestedBlock()) {
+					todo.push(inp.nestedBlock()); // the body of an if/repeat/forever/for
+				}
 			}
 		}
 	}
@@ -468,6 +472,7 @@ class MB_Project {
 				this.removeLibraryNamed(moduleName);
 				// updating: don't import dependencies
 			}
+			lib.updatePrimitives(); // rename obsolete primitives, as loadFromString does
 			// importDependencies would go here (requires scripter runtime)
 			this.addLibrary(lib);
 		}

@@ -244,7 +244,7 @@ MB_Specs.mbBlockSpecs = function () {
 			[" ", "[sensors:spiSetup]", "spi setup speed _ : mode _ : rpi channel _ : bit order _", "num num num str", 1000000, 0, 0, "MSB"],
 			[" ", "[sensors:spiExchange]", "spi exchange bytes _", "auto", "aByteArray"],
 		"-",
-			[" ", "[serial:open]", "serial open _ baud", "num", 9600],
+			[" ", "[serial:open]", "serial open _ baud : rx pin _ tx pin _", "num num num", 9600, 0, 1],
 			[" ", "[serial:close]", "serial close"],
 			["r", "[serial:read]", "serial read"],
 			[" ", "[serial:write]", "serial write _", "auto", "anIntegerStringListOrByteArray"],
