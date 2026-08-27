@@ -8,27 +8,11 @@
 
 /* globals BlockMorph, CommandBlockMorph, CommandSlotMorph, MB_Function, ReporterBlockMorph */
 
-class MB_Compiler {
-	constructor(project, codeManager = null) {
-		// project: MB_Project for variable/function lookup
-		// codeManager: used to look up chunkID for functions
-		this.project = project;
-		this.codeManager = codeManager ?? new MB_CodeManager(project);
-		// per-compilation state (reset in instructionsFor)
-		this.argNames = new Map();	// varName -> argIndex
-		this.localVars = new Map(); // varName -> localIndex
-		// encoding constants
-		this.falseObj = 0;
-		this.trueObj = 4;
-		this.zeroObj = 1; // (0 << 1) | 1
-		this.stringClassID = 4;
+// Built once at load and shared by every compiler instance. Both tables are
+// read-only after construction; if a future change ever needs to extend them
+// at runtime it must copy first, or every compiler in the page changes with it.
 
-		this.initOpcodes();
-		this.initPrimsets();
-	}
-
-	initOpcodes() {
-		// Must match the opcode table in interp.c
+const MB_OPCODE_TABLE = (function () {
 		const defs = `
 			halt 0
 			stopAll 1
@@ -159,29 +143,62 @@ class MB_Compiler {
 			comment 126
 			codeEnd 127
 			metadata 240`;
-
-		this.opcodes = new Map();
-		for (const line of defs.split('\n')) {
-			const words = line.trim().split(/\s+/);
-			if (words.length >= 2 && words[0] !== '') {
-				if ('RESERVED' !== words[0]) {
-					this.opcodes.set(words[0], parseInt(words[1]));
-				}
+	const table = new Map();
+	for (const line of defs.split('\n')) {
+		const words = line.trim().split(/\s+/);
+		if (words.length >= 2 && words[0] !== '') {
+			if ('RESERVED' !== words[0]) {
+				table.set(words[0], parseInt(words[1]));
 			}
 		}
 	}
+	return table;
+})();
 
-	initPrimsets() {
-		// Must match PrimitiveSetIndex enum in interp.c
+const MB_PRIMSET_TABLE = (function () {
 		const names = [
 			'vars', 'data', 'misc', 'io', 'sensors', 'serial',
 			'display', 'file', 'net', 'ble', 'radio', 'tft',
 			'hid', 'camera', '1wire', 'encoder', 'sd', 'lgvl'
 		];
-		this.primsets = new Map();
-		for (const [i, name] of names.entries()) {
-			this.primsets.set(name, i);
-		}
+	const table = new Map();
+	for (const [i, name] of names.entries()) {
+		table.set(name, i);
+	}
+	return table;
+})();
+
+class MB_Compiler {
+	constructor(project, codeManager = null) {
+		// project: MB_Project for variable/function lookup
+		// codeManager: used to look up chunkID for functions
+		this.project = project;
+		this.codeManager = codeManager ?? new MB_CodeManager(project);
+		// per-compilation state (reset in instructionsFor)
+		this.argNames = new Map();	// varName -> argIndex
+		this.localVars = new Map(); // varName -> localIndex
+		// encoding constants
+		this.falseObj = 0;
+		this.trueObj = 4;
+		this.zeroObj = 1; // (0 << 1) | 1
+		this.stringClassID = 4;
+
+		this.initOpcodes();
+		this.initPrimsets();
+	}
+
+	initOpcodes() {
+		// The table is built once at load (MB_OPCODE_TABLE above) and shared. It
+		// is read-only in every use -- .get and .has only -- so one Map serves
+		// every compiler. Rebuilding it per construction cost 28us, which is 95%
+		// of constructing a compiler, and the decompiler constructs one per chunk
+		// just to read this table.
+		this.opcodes = MB_OPCODE_TABLE;
+	}
+
+	initPrimsets() {
+		// Shared and read-only, as the opcode table above.
+		this.primsets = MB_PRIMSET_TABLE;
 	}
 
 	// input extraction helpers
@@ -708,8 +725,10 @@ class MB_Compiler {
 	indexOfGlobalVar(varName) {
 		if (!this.project) return null;
 		const vars = this.project.allVariableNames();
-		const idx = vars.indexOf(varName);
-		if (idx < 0) return null;
+		if (!vars.includes(varName)) return null;
+		// The index the board was given, not a position in the sorted list; the
+		// two part company once a global is added mid-session.
+		const idx = this.project.indexForVar(varName);
 		// A global's index is emitted as one byte, so it must fit in 7 bits.
 		// GP gives every global past the 128th the index 127 -- its comment
 		// says the code will run strangely but will not crash
@@ -821,15 +840,34 @@ class MB_Compiler {
 	metaInfoForFunction(func) {
 		// Return the block spec string for the given function.
 		// Used by the decompiler to reconstruct the function signature.
-		// TODO: implement full spec serialization once MB_Specs supports it
-		return '';
+		return this.project ? this.project.metaInfoForFunction(func) : '';
 	}
 
 	notEmbeddedLibrary(libName) {
 		// Return true if the given library is not one of the embedded libraries.
-		// For now, treat all libraries as non-embedded.
-		// XXX TO DO: FIX THIS!
-		return true;
+		// The question this answers is whether the decompiler will be able to
+		// get the library back when it reads a chunk off a board, so it is
+		// asked the same way addEmbeddedLibrary answers it: is there a file of
+		// that name under Libraries/.
+		if (libName.startsWith('_')) libName = libName.slice(1);
+		return !MB_Compiler.embeddedLibraryNames().has(libName);
+	}
+
+	static embeddedLibraryNames() {
+		if (MB_Compiler._embeddedLibs) return MB_Compiler._embeddedLibs;
+		const names = new Set();
+		if (typeof MB_Files !== 'undefined') {
+			for (const path of MB_Files.allFilesIn('Libraries')) {
+				if (!path.endsWith('.ubl')) continue;
+				names.add(path.slice(path.lastIndexOf('/') + 1, -4));
+			}
+		}
+		// Cached only once it has something in it. An empty list means
+		// files.txt has not loaded yet, and caching that would write a spec
+		// into every chunk of the session for a reason that has nothing to do
+		// with the code being compiled.
+		if (names.size > 0) MB_Compiler._embeddedLibs = names;
+		return names;
 	}
 
 	// binary code generation
