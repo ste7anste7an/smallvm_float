@@ -708,8 +708,10 @@ class MB_Compiler {
 	indexOfGlobalVar(varName) {
 		if (!this.project) return null;
 		const vars = this.project.allVariableNames();
-		const idx = vars.indexOf(varName);
-		if (idx < 0) return null;
+		if (!vars.includes(varName)) return null;
+		// The index the board was given, not a position in the sorted list; the
+		// two part company once a global is added mid-session.
+		const idx = this.project.indexForVar(varName);
 		// A global's index is emitted as one byte, so it must fit in 7 bits.
 		// GP gives every global past the 128th the index 127 -- its comment
 		// says the code will run strangely but will not crash
