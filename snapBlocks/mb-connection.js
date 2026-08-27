@@ -406,7 +406,7 @@ class MB_Connection {
 		if (firstByte === 250) { // short message
 			const msg = this.recvBuf.slice(0, 3);
 			this.recvBuf = this.recvBuf.slice(3); // remove message
-			this.handleMessage(msg);
+			this.dispatchMessage(msg);
 		} else if (firstByte === 251) { // long message
 			if (this.recvBuf.length < 5) return false; // incomplete length field
 			const bodyBytes = (this.recvBuf[4] << 8) | this.recvBuf[3];
@@ -418,7 +418,7 @@ class MB_Connection {
 			if (this.recvBuf.length < (5 + bodyBytes)) return false; // incomplete body
 			const msg = this.recvBuf.slice(0, bodyBytes + 5);
 			this.recvBuf = this.recvBuf.slice(bodyBytes + 5); // remove message
-			this.handleMessage(msg);
+			this.dispatchMessage(msg);
 		} else {
 			console.log('Serial error, start byte:', firstByte);
 			console.log(this.bytesToString(this.recvBuf)); // show the string (could be an ESP error message)
@@ -443,6 +443,17 @@ class MB_Connection {
 	}
 
 	// --- Message handling ---
+
+	dispatchMessage(msg) {
+		// Contain a handler failure to this one message. startMessageProcessing
+		// re-arms itself with requestAnimationFrame as the last statement in its
+		// own callback, so an uncaught throw stops message processing for good.
+		try {
+			this.handleMessage(msg);
+		} catch (e) {
+			console.log('Error handling message, opcode:', msg[1], e);
+		}
+	}
 
 	handleMessage(msg) {
 		this.lastPingRecvMSecs = Date.now(); // reset ping timer when any valid message is received
