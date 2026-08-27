@@ -472,6 +472,12 @@ static OBJ primI2cSetPins(int argCount, OBJ *args) {
 	#define PIN_SPI_SS   (5u)
 	#define PIN_SPI_SCK  (2u)
 	#define PIN_SPI_MOSI (3u)
+#elif defined(STEAMaker) || defined(FOXBIT)
+	// edge pins 13-16: 18, 19, 23, 5
+	#define PIN_SPI_SCK  (18u)
+	#define PIN_SPI_MISO (19u)
+	#define PIN_SPI_MOSI (23u)
+	#define PIN_SPI_SS   (5u)
 #elif defined(DOMINO4_CWA)
 	#define PIN_SPI_MISO (38u)
 	#define PIN_SPI_SS   (35u)
