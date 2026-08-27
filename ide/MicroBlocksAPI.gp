@@ -210,6 +210,7 @@ method dispatchCall MicroBlocksAPI callObject {
 		setProject (scripter (smallRuntime)) project
 		projectData = (at params 1)
 		loadFromString project projectData false
+		assignFunctionIDs (smallRuntime)
 		code = (compiledBytesFor (smallRuntime) 'stopScrollingText')
 		respondAPIRequest this id code
 
