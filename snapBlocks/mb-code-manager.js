@@ -438,9 +438,9 @@ console.log('saving chunk A', chunkID, 'len', chunkBytes.length, 'type', chunkTy
 		// restart the chunk if it was running
 		if (restartChunk) {
 			this.stopRunningChunk(chunkID);
-			this.waitForResponse();
+			MB_connection.waitForResponse();
 			this.runChunk(chunkID);
-			this.waitForResponse();
+			MB_connection.waitForResponse();
 		}
 		return true;
 	}

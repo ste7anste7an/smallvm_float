@@ -701,6 +701,10 @@ class MB_Connection {
 		if (this.codeManager) this.codeManager.crcReceived(chunkID, crc);
 	}
 
+	allCRCsReceived(data) {
+		if (this.codeManager) this.codeManager.allCRCsReceived(data);
+	}
+
 	// --- Code File Updates ---
 
 	suspendCodeFileUpdates() {
