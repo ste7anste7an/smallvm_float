@@ -714,7 +714,7 @@ to widget_addGraph x y w h min max {
   '[data:addLast]' (minimum min max) widget
   '[data:addLast]' (maximum min max) widget
   '[data:addLast]' s widget
-  '[data:addLast]' ('[data:makeList]')
+  '[data:addLast]' ('[data:makeList]') widget
   '_widget_add' widget
   return widget
 }
