@@ -821,15 +821,34 @@ class MB_Compiler {
 	metaInfoForFunction(func) {
 		// Return the block spec string for the given function.
 		// Used by the decompiler to reconstruct the function signature.
-		// TODO: implement full spec serialization once MB_Specs supports it
-		return '';
+		return this.project ? this.project.metaInfoForFunction(func) : '';
 	}
 
 	notEmbeddedLibrary(libName) {
 		// Return true if the given library is not one of the embedded libraries.
-		// For now, treat all libraries as non-embedded.
-		// XXX TO DO: FIX THIS!
-		return true;
+		// The question this answers is whether the decompiler will be able to
+		// get the library back when it reads a chunk off a board, so it is
+		// asked the same way addEmbeddedLibrary answers it: is there a file of
+		// that name under Libraries/.
+		if (libName.startsWith('_')) libName = libName.slice(1);
+		return !MB_Compiler.embeddedLibraryNames().has(libName);
+	}
+
+	static embeddedLibraryNames() {
+		if (MB_Compiler._embeddedLibs) return MB_Compiler._embeddedLibs;
+		const names = new Set();
+		if (typeof MB_Files !== 'undefined') {
+			for (const path of MB_Files.allFilesIn('Libraries')) {
+				if (!path.endsWith('.ubl')) continue;
+				names.add(path.slice(path.lastIndexOf('/') + 1, -4));
+			}
+		}
+		// Cached only once it has something in it. An empty list means
+		// files.txt has not loaded yet, and caching that would write a spec
+		// into every chunk of the session for a reason that has nothing to do
+		// with the code being compiled.
+		if (names.size > 0) MB_Compiler._embeddedLibs = names;
+		return names;
 	}
 
 	// binary code generation
