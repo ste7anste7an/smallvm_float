@@ -83,7 +83,11 @@ function allBlocksIn(root) {
 		if (b.nextBlock && b.nextBlock()) todo.push(b.nextBlock());
 		if (b.inputs) {
 			for (const inp of b.inputs()) {
-				if (inp instanceof BlockMorph) todo.push(inp);
+				if (inp instanceof BlockMorph) {
+					todo.push(inp);
+				} else if (inp instanceof CommandSlotMorph && inp.nestedBlock()) {
+					todo.push(inp.nestedBlock()); // the body of an if/repeat/forever/for
+				}
 			}
 		}
 	}
