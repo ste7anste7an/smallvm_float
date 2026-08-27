@@ -704,11 +704,14 @@ class MB_Connection {
 	// --- Code File Updates ---
 
 	suspendCodeFileUpdates() {
-		this.sendMsgSync('extendedMsg', 2);
+		// The empty byte list is required, not incidental: it makes this a long
+		// message, and the VM handles extendedMsg only in processLongMessage.
+		// As GP does in SmallRuntime.suspendCodeFileUpdates.
+		this.sendMsgSync('extendedMsg', 2, []);
 	}
 
 	resumeCodeFileUpdates() {
-		this.sendMsg('extendedMsg', 3);
+		this.sendMsg('extendedMsg', 3, []);
 	}
 }
 
