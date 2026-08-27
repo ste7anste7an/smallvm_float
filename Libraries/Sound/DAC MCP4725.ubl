@@ -1,24 +1,44 @@
 module 'DAC MCP4725' Output
 author 'Luis Mateos - @proyectonoise'
-version 2 2 
+version 2 3 
 tags dac mcp4725 
 description 'MCP 4725
 Digital to Analog Converter 12 bits
 '
 variables '_mcp4725 out' 
 
-  spec ' ' 'mcp4725 write' 'write _ to MCP4725 DAC : at address _ : write EEPROM _' 'auto auto bool' 1236 96 false
+  spec ' ' 'mcp4725 write' 'write _ (0-4095) to MCP4725 DAC : I2C address _' 'num num' 2048 98
+  advanced
+  spec ' ' 'mcp4725_setEEPROM' 'mcp4725 set EEPROM to _ millivolts : I2C address _' 'num num' 0 98
 
-to 'mcp4725 write' value address eeprom {
-  if ((v '_mcp4725 out') == 0) {'_mcp4725 out' = (newList 3)}
-  if (eeprom == (booleanConstant true)) {
-    atPut 1 (v '_mcp4725 out') (hexToInt '60')
-  } else {
-    atPut 1 (v '_mcp4725 out') (hexToInt '40')
+to 'mcp4725 write' value optionalAddress {
+  comment 'Send a two-byte "fast mode write" command as shown in Figure 6.1
+of the data sheet:
+  https://ww1.microchip.com/downloads/en/devicedoc/22039d.pdf
+First data byte contains the top four bits of the 12-bit DAC value.
+Second data byte contains the lower 8 bits.'
+  local 'i2cAddr' (argOrDefault 2 98)
+  if ((v '_mcp4725 out') == 0) {
+    '_mcp4725 out' = (newList 2)
   }
   value = (maximum 0 (minimum value 4095))
-  atPut 2 (v '_mcp4725 out') ((value >> 8) & 15)
-  atPut 3 (v '_mcp4725 out') (value & 255)
-  '[sensors:i2cWrite]' (argOrDefault 2 96) (v '_mcp4725 out')
+  atPut 1 (v '_mcp4725 out') ((value >> 8) & 15)
+  atPut 2 (v '_mcp4725 out') (value & 255)
+  '[sensors:i2cWrite]' i2cAddr (v '_mcp4725 out')
+}
+
+to mcp4725_setEEPROM millivolts optionalAddress {
+  comment 'Set the EEPROM value, which deterines the voltage of the MPC4725 DAC at power up.'
+  comment 'Send a three-byte "write DAC register and EEPROM" command
+as shown in Figure 6.2 of the data sheet:
+  https://ww1.microchip.com/downloads/en/devicedoc/22039d.pdf
+First data byte contains the command.
+Second byte contains top eight bits of the 12-bit DAC value.
+Third data byte contains the lower 4 bits of the DAC value shifted left four bits.'
+  local 'i2cAddr' (argOrDefault 2 98)
+  local 'level' ((4095 * millivolts) / 3300)
+  level = (maximum 0 (minimum level 4095))
+  local 'cmd' ('[data:makeList]' (hexToInt '60') ((level >> 4) & 255) ((level & 15) << 4))
+  '[sensors:i2cWrite]' i2cAddr cmd
 }
 
