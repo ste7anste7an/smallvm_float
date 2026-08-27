@@ -13,7 +13,7 @@
 	the libraries it uses.
 */
 
-/* global MB_editor, MB_Function, MB_Parser, BlockMorph, CommandBlockMorph */
+/* global MB_editor, MB_Function, MB_Parser, BlockMorph, CommandBlockMorph, ReporterBlockMorph */
 
 // --- Module-level helpers ---
 
@@ -815,9 +815,19 @@ class MB_Module {
 			let x = Math.round(entry[0]);
 			let y = Math.round(entry[1]);
 			let block = entry[2];
-			result.push('script ' + x + ' ' + y + ' {\n');
-			if (block) result.push(block.codeString(1));
-			result.push('}\n\n');
+			result.push('script ' + x + ' ' + y + ' ');
+			// A reporter script is written '( ... )', a command list '{ ... }',
+			// as GP's scriptString does (MicroBlocksProject.gp:938).
+			if (block instanceof ReporterBlockMorph) {
+				// codeString() already parenthesises a reporter, so do not add
+				// a second pair here as GP's scriptString has to.
+				result.push(block.codeString() + '\n');
+			} else {
+				result.push('{\n');
+				if (block) result.push(block.codeString(1));
+				result.push('}\n');
+			}
+			result.push('\n');
 		}
 		return result.join('');
 	}
