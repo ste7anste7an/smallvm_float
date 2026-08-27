@@ -156,10 +156,15 @@ const MB_OPCODE_TABLE = (function () {
 })();
 
 const MB_PRIMSET_TABLE = (function () {
+		// The order is the encoding: the index is compiled into every named
+		// primitive call, so a name in the wrong place is worse than a name
+		// missing. Must match PrimitiveSetIndex in vm/interp.h and
+		// SmallCompiler.initPrimsets in ide/MicroBlocksCompiler.gp.
 		const names = [
 			'vars', 'data', 'misc', 'io', 'sensors', 'serial',
 			'display', 'file', 'net', 'ble', 'radio', 'tft',
-			'hid', 'camera', '1wire', 'encoder', 'sd', 'lgvl'
+			'hid', 'camera', '1wire', 'encoder', 'sd', 'lgvl',
+			'h75'
 		];
 	const table = new Map();
 	for (const [i, name] of names.entries()) {
