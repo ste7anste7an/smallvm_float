@@ -497,7 +497,7 @@ class MB_Connection {
 		} else if (op === this.msgNameToID('fileChunk')) {
 			this.recordFileTransferMsg(msg.slice(5));
 		} else if (op === this.msgNameToID('clearGraphMsg')) {
-			this.clearLoggedData();
+			MB_editor.clearLoggedData();
 		} else {
 			console.log('msg:', Array.from(msg));
 		}
