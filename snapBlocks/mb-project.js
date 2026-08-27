@@ -468,6 +468,7 @@ class MB_Project {
 				this.removeLibraryNamed(moduleName);
 				// updating: don't import dependencies
 			}
+			lib.updatePrimitives(); // rename obsolete primitives, as loadFromString does
 			// importDependencies would go here (requires scripter runtime)
 			this.addLibrary(lib);
 		}
