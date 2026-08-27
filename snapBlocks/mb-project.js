@@ -977,7 +977,9 @@ class MB_Module {
 			let bodyArg = cmd[3];
 			let block = null;
 			if (Array.isArray(bodyArg) && bodyArg.length > 0) {
-				block = MB_Parser.blockFor(bodyArg);
+				// A single command here came from '( ... )', which is this file
+				// format's way of saying the script is an expression.
+				block = MB_Parser.blockFor(bodyArg, true);
 			}
 			this.scripts.push([x, y, block]);
 		}

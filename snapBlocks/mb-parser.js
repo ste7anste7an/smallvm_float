@@ -36,13 +36,15 @@ class MB_Parser {
 		return result;
 	}
 
-	static blockFor(parseTree) {
-		// Convert the given parse tree into a command block.
-
+	static blockFor(parseTree, singleIsReporter = false) {
+		// Convert the given parse tree into a block. A single command can have
+		// come from '( ... )' or from a bare command line and the reader does not
+		// record which, so the caller says. Defaults to command: functest() in
+		// mb-function.js passes a bare `to`.
 		if (Array.isArray(parseTree[0])) { // array of commands
 			return new MB_Parser('').makeBlockList(parseTree);
 		} else {
-			return new MB_Parser('').makeBlock(parseTree);
+			return new MB_Parser('').makeBlock(parseTree, singleIsReporter);
 		}
 	}
 
