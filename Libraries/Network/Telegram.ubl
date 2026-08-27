@@ -7,14 +7,14 @@ description 'To send messages, you need to set up a bot by typing @BotFather int
 To find the Channel_ID for a channel or user, you can use a bot like @userinfobot or @myidbot.
 You can also find it via Telegram Web (it appears in the URL bar).
 '
-choices url_emojiMenu smiley 'thumbs up' 'thumbs down' 'hot face' 'cold face' 'sleeping face' heart robot skull 'pile of poo' bell battery 'low battery' 'light bulb' locked unlocked gear
+choices tgrm_url_emojiMenu smiley 'thumbs up' 'thumbs down' 'hot face' 'cold face' 'sleeping face' heart robot skull 'pile of poo' bell battery 'low battery' 'light bulb' locked unlocked gear
 
   spec ' ' 'tgrm_send' 'send to Telegram, text _ #BR# channel ID _ bot token _' 'auto auto auto' 'MicroBlocks is amazing!' '' ''
-  spec 'r' 'emoji' 'emoji _' 'menu.url_emojiMenu' 'smiley'
-  spec 'r' '_url_emojiData' '_url_emojiData'
+  spec 'r' 'tgrm_emoji' 'emoji _' 'menu.tgrm_url_emojiMenu' 'smiley'
+  spec 'r' 'tgrm__url_emojiData' '_url_emojiData'
 
-to emoji name {
-  local 'data' ('_url_emojiData')
+to tgrm_emoji name {
+  local 'data' ('tgrm__url_emojiData')
   local 'i' ('[data:find]' name data)
   if (i == -1) {
     comment 'Name not found'
@@ -25,7 +25,7 @@ to emoji name {
   return ('[data:copyFromTo]' data start end)
 }
 
-to '_url_emojiData' {
+to 'tgrm__url_emojiData' {
   return 'smiley:%F0%9F%98%80,thumbs up:%F0%9F%91%8D,thumbs down:%F0%9F%91%8E,hot face:%F0%9F%A5%B5,cold face:%F0%9F%A5%B6,sleeping face:%F0%9F%98%B4,heart:%E2%9D%A4%EF%B8%8F,robot:%F0%9F%A4%96,skull:%F0%9F%92%80,pile of poo:%F0%9F%92%A9,bell:%F0%9F%94%94,battery:%F0%9F%94%8B,low battery:%F0%9F%AA%AB,light bulb:%F0%9F%92%A1,locked:%F0%9F%94%92,unlocked:%F0%9F%94%93,gear:%E2%9A%99%EF%B8%8F,'
 }
 
