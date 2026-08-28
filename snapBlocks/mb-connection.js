@@ -53,8 +53,10 @@ class MB_Connection {
 
 	clearBoardIfConnected() {
 		this.sendMsg('systemResetMsg'); // send the reset message
-		this.sendMsgSync('deleteAllCodeMsg'); // delete all code from board
-		this.sendMsgSync('clearVarsMsg'); // delete all variable names from board
+		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
+		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
+		this.sendMsgSync('deleteAllCodeMsg', 1); // delete all code from board
+		this.sendMsgSync('clearVarsMsg', 1); // delete all variable names from board
 	}
 
 	// --- Decompiler ---
