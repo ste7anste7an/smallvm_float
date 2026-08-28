@@ -904,10 +904,19 @@ class MB_Decompiler {
 
 		const fName = aFunc.functionName;
 		if (!project.blockSpecs.has(fName)) {
-			// Generate a minimal block spec.
-			const argSlots = aFunc.argNames.map(() => '_').join(' ');
-			const label    = fName + (argSlots ? ' ' + argSlots : '');
-			project.blockSpecs.set(fName, { opName: fName, label, argTypes: [] });
+			// The chunk metadata carries blockType, specString and slotTypes.
+			// Use them when they are there; a function whose library will
+			// re-supply the spec records none, and then one is generated.
+			const info = this.functionSpecInfo;
+			if (info && info.length >= 3 && info[1]) {
+				project.recordBlockSpec(fName, { blockType: info[0], opName: fName,
+					specString: info[1], slotTypes: info[2], defaults: [] });
+			} else {
+				const specString = fName + aFunc.argNames.map(() => ' _').join('');
+				const slotTypes  = aFunc.argNames.map(() => 'auto').join(' ');
+				project.recordBlockSpec(fName, { blockType: ' ', opName: fName,
+					specString, slotTypes, defaults: [] });
+			}
 		}
 
 		// The cmdList in aFunc is a decompiler block tree, not a morphic block.
