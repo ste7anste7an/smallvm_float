@@ -4574,6 +4574,17 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 	menu.environment = this;
 	menu.fontSize = this.fontSize;
 
+	if (slotMenuName && slotMenuName.startsWith('range:')) {
+		// an integer range such as 'range:1-8', as GP's InputSlot does
+		const pair = slotMenuName.slice(6).split('-');
+		if ((pair.length == 2) && /^\d+$/.test(pair[0]) && /^\d+$/.test(pair[1])) {
+			for (let i = Number(pair[0]); i <= Number(pair[1]); i++) {
+				menu.addItem('' + i, i);
+			}
+			return menu;
+		}
+	}
+
 	if ('buttonMenu' == slotMenuName) {
 		menu.addItem('A', 'A');
 		menu.addItem('B', 'B');
@@ -4606,6 +4617,16 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		menu.addItem('all', 'all');
 		return menu;
 	}
+	// A library declares its own menus with a `choices` line and the project
+	// has already parsed them.
+	if (typeof MB_editor !== 'undefined') {
+		const choices = MB_editor.project.choicesFor(slotMenuName);
+		if (choices) {
+			choices.forEach((each) => { menu.addItem(each, each); });
+			return menu;
+		}
+	}
+
 	// todo when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
 
 	console.log('unhandled slot menu:', slotMenuName);
