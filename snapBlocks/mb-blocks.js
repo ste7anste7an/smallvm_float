@@ -3764,6 +3764,8 @@ ScriptsMorph.prototype.userMenu = function () {
 		'new project', () => { MB_editor.newProject() }, 'clear current project');
 	menu.addItem(
 		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
+	menu.addItem(
+		'save project', () => { MB_editor.saveProject() }, 'save this project to a file');
 	menu.addLine();
 
 	menu.addItem(

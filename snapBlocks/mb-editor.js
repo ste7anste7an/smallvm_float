@@ -15,6 +15,7 @@ class MB_Editor {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.readFromBoard = false;
+		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
 	}
 
@@ -230,7 +231,31 @@ console.log('unknown');
 	newProject() {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
+		this.projectName = null;
 		this.removeAllScripts();
+	}
+
+	saveProject() {
+		// Write the project to a file the browser downloads.
+
+		this.updateProject();
+		let name = this.projectName || 'untitled.ubp';
+		if (!name.endsWith('.ubp')) name += '.ubp';
+		this.saveTextAsFile(this.project.codeString(), name);
+	}
+
+	saveTextAsFile(text, fileName) {
+		// A download is all a web page can do; there is no file system to
+		// write to and no path to write it at.
+
+		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = fileName;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
 	}
 
 	openProject() {
@@ -243,6 +268,7 @@ console.log('unknown');
 				MB_editor.addBlockToScriptsAt(script, x, y);
 			});
 			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+			MB_editor.projectName = fileName;
 			MB_connection.setCodeManager(MB_editor.codeManager);
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',
