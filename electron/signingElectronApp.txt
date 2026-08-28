@@ -22,7 +22,14 @@ xcrun altool --store-password-in-keychain-item "App Signing" -u "jmaloney@media.
   unzip out/microblocks-macos.zip
   ./signScript.sh
 #  codesign --force --deep --options=runtime --entitlements entitlements.plist -s "Developer ID Application: John H Maloney" MicroBlocks.app
-  ditto -c -k --keepParent MicroBlocks.app MicroBlocks.app.zip
+
+2. Local check
+
+  spctl --assess --verbose=4 --type execute MicroBlocks.app
+
+3. Ditto and submit
+
+ditto -c -k --keepParent MicroBlocks.app MicroBlocks.app.zip
 
 xcrun notarytool submit \
   --apple-id "jmaloney@media.mit.edu" \
@@ -30,19 +37,19 @@ xcrun notarytool submit \
   --keychain-profile "NotaryTool" \
   MicroBlocks.app.zip
 
-2. Check notarization status:
+4. Check notarization status:
 
 xcrun notarytool history \
   --apple-id "jmaloney@media.mit.edu" \
   --team-id YU23V8C72W \
   --keychain-profile "NotaryTool" | head
 
-3. Staple the notarization and re-zip:
+5. Staple the notarization and re-zip:
 
 xcrun stapler staple MicroBlocks.app
 ditto -c -k --keepParent MicroBlocks.app MicroBlocks.app.zip
 
-4. Upload to current release folder
+6. Upload to current release folder
 
 -------
 Debugging:
