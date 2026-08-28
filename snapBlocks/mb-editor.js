@@ -81,10 +81,11 @@ class MB_Editor {
 	}
 
 	addBlockToScriptsAt(b, x, y) {
-		// For testing. Add the given block to the scripts pane at the given position.
+		// Add the given block to the scripts pane at the given position.
+		// x and y are relative to the pane, which is what updateProject records.
 
 		let scriptsPane = this.scriptsPane();
-		b.setPosition(new Point(300 + x, y));
+		b.setPosition(scriptsPane.position().add(new Point(x, y)));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
 		scriptsPane.changed();
@@ -211,18 +212,17 @@ console.log('unknown');
 		let newScripts = [];
 		for (const aBlockMorph of this.scriptsPane().children) {
 			if (aBlockMorph instanceof BlockMorph) {
-				if (aBlockMorph.isFunctionDefinition()) {
-					let funcName = aBlockMorph.inputValues()[0];
-console.log('func:', funcName);
-				} else {
+				// A function definition in the pane belongs to the project's
+				// functions, not to main.scripts. XXX TO DO: write an edited
+				// definition back, as GP's updateFunctionOrMethod does.
+				if (!aBlockMorph.isFunctionDefinition()) {
 					let x = Math.round(aBlockMorph.left() - this.scripts.left());
 					let y = Math.round(aBlockMorph.top() - this.scripts.top());
 					newScripts.push([x, y, aBlockMorph]);
-console.log('script:', x, y, aBlockMorph);
 				}
 			}
 		}
-//		project.main.setScripts(newScripts);
+		this.project.main.setScripts(newScripts);
 	}
 
 	// File operations

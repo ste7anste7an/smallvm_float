@@ -48,7 +48,7 @@ class MB_CodeManager {
 	}
 
 	syncAndStartAll() {
-//		this.syncScripts();
+		this.syncScripts();
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
 
