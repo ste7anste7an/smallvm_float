@@ -363,7 +363,7 @@ class MB_Connection {
 		await waitMSecs(20); // leave some time for queued data to arrive
 		if (this.recvBuf == null) this.recvBuf = new Uint8Array(0);
 		const s = this.port.read();
-		if (s != null) this.recvBuf = this.joinBytes(this.recvBuf, s);
+		if (s != null && s.length > 0) this.recvBuf = this.joinBytes(this.recvBuf, s);
 	}
 
 	async waitForResponse() {
@@ -376,7 +376,7 @@ class MB_Connection {
 		while ((Date.now() - start) < timeout) {
 			if (!this.isConnected()) return false;
 			const s = this.port.read();
-			if (s != null) {
+			if (s != null && s.length > 0) { // read() returns an EMPTY array, not null
 				this.recvBuf = this.joinBytes(this.recvBuf, s);
 				return true;
 			}
@@ -400,7 +400,7 @@ class MB_Connection {
 
 		// Read any available bytes and append to recvBuf
 		const s = this.port.read();
-		if (s != null) this.recvBuf = this.joinBytes(this.recvBuf, s);
+		if (s != null && s.length > 0) this.recvBuf = this.joinBytes(this.recvBuf, s);
 		if (this.recvBuf.length < 3) return false; // not enough bytes for even a short message
 
 		// Parse and dispatch messages
@@ -655,15 +655,15 @@ class MB_Connection {
 		}
 	}
 
-	sendMsgSync(msgName, chunkID = 0, byteList = null) {
+	async sendMsgSync(msgName, chunkID = 0, byteList = null) {
 		// Send a message followed by a 'pingMsg', then wait for a ping response from VM.
-		this.readAvailableSerialData();
+		await this.readAvailableSerialData();
 		this.sendMsg(msgName, chunkID, byteList);
 		if (this.portName === 'boardie') return true; // don't wait for a response
 
 		if (!this.connectedToBoard()) return false;
 
-		const ok = this.waitForResponse();
+		const ok = await this.waitForResponse();
 		if (!ok) {
 			console.log('Lost communication to the board in sendMsgSync');
 			this.disconnect();
