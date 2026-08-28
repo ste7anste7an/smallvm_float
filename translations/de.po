@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:43+0200\n"
-"PO-Revision-Date: 2026-08-28 13:58+0000\n"
+"PO-Revision-Date: 2026-08-29 15:55+0000\n"
 "Last-Translator: Ralf Krause <ralf.krause@moodleschule.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/microblocks/ide/"
 "de/>\n"
@@ -9134,3 +9134,9 @@ msgstr "beide, gegenläufig"
 #. String in file picker and library dialogs
 msgid "That URL does not return a MicroBlocks library."
 msgstr "Dieser URL liefert keine MicroBlocks-Bibiothek."
+
+#. KidsIOT library choice. Move both motors at the same rate, but opposite to
+#. each other. If value is 50, motor A will move at speed 50 and motor B will
+#. move at speed -50. Useful for robots with wheels set at opposite sides.
+msgid "kiot;both, opposite"
+msgstr "beide gegenläufig"
