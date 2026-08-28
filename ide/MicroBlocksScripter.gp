@@ -1459,9 +1459,13 @@ method extractLibraryName MicroBlocksScripter libData {
 		if (beginsWith line 'module') {
 			libName = (at (words line) 2)
 			if ('''' == (at libName 1)) { // quoted library name
+				// Ends at the closing quote of the name, not at the last quote
+				// on the line: a module line may carry a category after the
+				// name, and findLast swallows it into the name.
 				i = (findFirst line '''')
-				j = (findLast line '''')
-				libName = (substring line (i + 1) (j - 1))
+				rest = (substring line (i + 1))
+				j = (findFirst rest '''')
+				libName = (substring rest 1 (j - 1))
 			}
 			return libName
 		}
