@@ -19,12 +19,10 @@ class MB_Editor {
 	}
 
 	open(world) {
-		const scriptingHeight = 500;
-		const paletteWidth = 200;
+		this.paletteWidth = 200;
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.color = new Color(180, 180, 180);
-		this.palette.setExtent(new Point(paletteWidth, scriptingHeight));
 		this.addBlocksToPalette(this.palette);
 		this.palette.contents.adjustBounds();
 		this.palette.contents.acceptsDrops = true;
@@ -34,13 +32,35 @@ class MB_Editor {
 			}
 		};
 
+		// The scripting pane scrolls, so a script taller than the window can
+		// be reached without dragging it off the pane.
 		this.scripts = new ScriptsMorph();
 		this.scripts.color = new Color(150, 150, 150);
-		this.scripts.setLeft(paletteWidth);
-		this.scripts.setExtent(new Point(1000, scriptingHeight));
+		this.scriptsFrame = new ScrollFrameMorph(this.scripts);
+		this.scriptsFrame.color = this.scripts.color;
+		// What FrameMorph's constructor would have set; ScriptsMorph takes no
+		// scroll frame, and adjustBounds does nothing without one.
+		this.scripts.scrollFrame = this.scriptsFrame;
 
 		world.add(this.palette);
-		world.add(this.scripts);
+		world.add(this.scriptsFrame);
+
+		// WorldMorph.fillPage hands every direct child the new bounds when the
+		// browser window resizes.
+		this.palette.reactToWorldResize = () => this.fixLayout(world);
+		this.scriptsFrame.reactToWorldResize = () => this.fixLayout(world);
+		this.fixLayout(world);
+	}
+
+	fixLayout(world) {
+		// Two panes, filling the window.
+
+		this.palette.setPosition(world.position());
+		this.palette.setExtent(new Point(this.paletteWidth, world.height()));
+		this.scriptsFrame.setPosition(
+			world.position().add(new Point(this.paletteWidth, 0)));
+		this.scriptsFrame.setExtent(
+			new Point(world.width() - this.paletteWidth, world.height()));
 	}
 
 	scriptsPane() { return this.scripts; }
@@ -56,6 +76,7 @@ class MB_Editor {
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(new Point(this.randomBetween(200, 800), this.randomBetween(10, 300)));
 		scriptsPane.add(b);
+		scriptsPane.adjustBounds();
 		scriptsPane.changed();
 	}
 
@@ -65,6 +86,7 @@ class MB_Editor {
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(new Point(300 + x, y));
 		scriptsPane.add(b);
+		scriptsPane.adjustBounds();
 		scriptsPane.changed();
 	}
 
