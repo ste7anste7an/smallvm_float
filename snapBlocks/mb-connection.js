@@ -14,6 +14,7 @@ class MB_Connection {
 		this.port = null;
 		this.portName = null;
 		this.connectionStartTime = null;
+		this.portOpenedTime = null;
 		this.pingSentMSecs = 0;
 		this.lastPingRecvMSecs = null;
 		this.recvBuf = new Uint8Array(0);
@@ -93,6 +94,7 @@ class MB_Connection {
 			await waitMSecs(100); // make sure Boardie is ready to receive messages
 		}
 		this.connectionStartTime = Date.now();
+		this.portOpenedTime = null;
 		this.lastPingRecvMSecs = 0;
 		this.sendMsg('pingMsg');
 		this.startMessageProcessing();
@@ -193,6 +195,11 @@ class MB_Connection {
 
 		if (!this.isConnected()) return 'not connected'; // Port is not yet connected...
 
+		// Time the board's silence from the moment the port opened, not from
+		// connect(): connect() returns before the user has answered the browser's
+		// port chooser, so connectionStartTime can already be many seconds old.
+		if (this.portOpenedTime == null) this.portOpenedTime = Date.now();
+
 		this.sendMsg('pingMsg');
 
 		// process any incoming messages
@@ -203,7 +210,7 @@ class MB_Connection {
 		}
 
 		const connectionAttemptTimeout = 10000; // milliseconds
-		if ((Date.now() - this.connectionStartTime) > connectionAttemptTimeout) {
+		if ((Date.now() - this.portOpenedTime) > connectionAttemptTimeout) {
 			// give up and disconnect if no response from board after connectionAttemptTimeout
 			this.disconnect();
 			this.connectionStartTime = null;
