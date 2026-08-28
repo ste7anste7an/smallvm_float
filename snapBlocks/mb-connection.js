@@ -441,7 +441,7 @@ class MB_Connection {
 		for (let i = 1; i < end; i++) { // start at index 1 to skip the current (bad) start byte
 			const byte = this.recvBuf[i];
 			if (byte === 250 || byte === 251) {
-				if (discard === true) console.log('	   ', this.bytesToString(this.recvBuf.slice(0, i)));
+				console.log('	   ', this.bytesToString(this.recvBuf.slice(0, i)));
 				this.recvBuf = this.recvBuf.slice(i);
 				return;
 			}
