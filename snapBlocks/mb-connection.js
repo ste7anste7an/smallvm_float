@@ -76,12 +76,13 @@ class MB_Connection {
 
 	async connect(portType = 'serial', boardieIFrame = null) {
 		this.port = new MB_CommPort();
-		if (!this.hasWebSerial()) {
+		// Each transport needs its own API and no other. Boardie needs neither.
+		if ((portType == 'serial') && !this.hasWebSerial()) {
 			// running in a browser w/o WebSerial (or it is not enabled)
 			alert(localized('This browser does not support WebSerial.'));
 			return;
 		}
-		if (!this.hasWebBluetooth()) {
+		if ((portType == 'BLE') && !this.hasWebBluetooth()) {
 			// running in a browser w/o WebBluetooth (or it is not enabled)
 			alert(localized('This browser does not support WebBluetooth.'));
 			return;
