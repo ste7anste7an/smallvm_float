@@ -701,6 +701,24 @@ class MB_Connection {
 		if (this.codeManager) this.codeManager.crcReceived(chunkID, crc);
 	}
 
+	// --- Program Size ---
+
+	receivedCodeStoreUsed(data) {
+		// Report how much of the board's code store the current program uses.
+		if (data.length < 8) return; // bad message; should have 8-byte payload
+		const used = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+		const total = data[4] + (data[5] << 8) + (data[6] << 16) + (data[7] << 24);
+		// Rounded to one decimal place. Scaling by 10 rather than dividing by
+		// 0.1 keeps float noise out of a string the user reads: 78 of 998 bytes
+		// is 7.8% either way, but dividing by 0.1 renders it 7.800000000000001.
+		const percent = Math.round(((100 * used) / total) * 10) / 10;
+		// localized() has no parameter substitution yet, so the placeholders are
+		// filled here. By name, not in order: a translation may reorder them.
+		const label = localized('Using %1 out of %2 bytes')
+			.replace('%1', used).replace('%2', total);
+		MB_editor.inform(label + ' (' + percent + '%)');
+	}
+
 	// --- Code File Updates ---
 
 	suspendCodeFileUpdates() {
