@@ -618,7 +618,7 @@ static OBJ primDUESleep(int argCount, OBJ *args) {
 #include <stm32c0xx_hal_rtc.h>
 
 static RTC_HandleTypeDef hrtc;
-static bool rtc_initialized = false;
+static int rtc_initialized = false;
 
 static void Rtc_Initialize() {
 	if (rtc_initialized) return;

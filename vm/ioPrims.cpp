@@ -1436,6 +1436,8 @@ void hardwareInit() {
 		-1,
 	};
 
+	extern "C" void dueStopUSBSerial() { Serial.end(); }
+
 	static int duePWMPin(int pinNum) {
 		int result = -1; // default - no pin
 		if ((0 <= pinNum) && (pinNum < DUE_PWM_PIN_COUNT)) {

@@ -41,12 +41,13 @@ static void sendData();
 
 #include <stm32c0xx.h>
 #include <stm32c071xx.h>
-#include <usbd_cdc_if.h> // for CDC_deInit()
+
+void dueStopUSBSerial(); // defined in ioPrims.cpp
 
 __RAM_FUNC __NOINLINE static void dueLinkEraseFlashAndReset() {
 	// Danger! This function erases all of Flash memory then reboots the board in DFU mode.
 
-	CDC_deInit(); // stop USB serial
+	dueStopUSBSerial();
 
 	// disable interrupts
 	__disable_irq();
