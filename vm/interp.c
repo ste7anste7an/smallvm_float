@@ -1463,12 +1463,12 @@ void EMSCRIPTEN_KEEPALIVE taskSleep(int msecs) { shouldYield = true; }
 static int currentTaskIndex = 0; // remember this across calls to interpretStep()
 
 void interpretStep() {
-	uint32 endTime = millisecs() + 15;
+	uint32 startTime = millisecs();
 	processMessage();
 	checkButtons();
 	updateMicrobitDisplay();
 	shouldYield = false;
-	while ((millisecs() < endTime) && !shouldYield) {
+	while (((millisecs() - startTime) < 15) && !shouldYield) {
 		// Run the next runnable task. Wake up any waiting tasks whose wakeup time has arrived.
 		int runCount = 0;
 		uint32 usecs = microsecs(); // get usecs
