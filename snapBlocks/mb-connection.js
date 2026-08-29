@@ -20,6 +20,8 @@ class MB_Connection {
 		this.vmVersion = null;
 		this.boardType = null;
 		this.codeManager = null;
+		this.decompiler = null;   // set while reading the code back from a board
+		this.lastRcvMSecs = 0;    // when the board last answered a read request
 	}
 
 	// --- Process Messages Every Animation Frame (for now) ---
@@ -58,8 +60,36 @@ class MB_Connection {
 
 	// --- Decompiler ---
 
-	readCodeFromBoard() {
-		// XXX TODO
+	async readCodeFromBoard() {
+		// Collect the board's variable names and code chunks into a decompiler.
+		// Each request is followed by a wait for the board to go QUIET rather
+		// than for a fixed count: receivedVarName and receivedChunk push
+		// lastRcvMSecs forward as each reply arrives, and the board sends one
+		// frame per variable and per chunk with no reply saying how many.
+		// XXX TODO: decompile what was collected and install it in the editor.
+		this.decompiler = new MB_Decompiler();
+
+		this.sendMsg('getVarNamesMsg');
+		await this.readUntilQuiet(100, 10, false);
+
+		this.sendMsg('getAllCodeMsg', 1);
+		// Longer, and pinging: a board doing a Flash read can take seconds
+		// between chunks, and the ping keeps updateConnection from timing the
+		// connection out while it does.
+		await this.readUntilQuiet(2000, 50, true);
+
+		const decompiler = this.decompiler;
+		this.decompiler = null;
+		return decompiler;
+	}
+
+	async readUntilQuiet(quietMSecs, stepMSecs, sendPings) {
+		this.lastRcvMSecs = Date.now();
+		while ((Date.now() - this.lastRcvMSecs) < quietMSecs) {
+			if (sendPings) this.sendMsg('pingMsg');
+			this.processMessages();
+			await waitMSecs(stepMSecs);
+		}
 	}
 
 	// --- Feature detection ---
@@ -699,6 +729,22 @@ class MB_Connection {
 
 	crcReceived(chunkID, crc) {
 		if (this.codeManager) this.codeManager.crcReceived(chunkID, crc);
+	}
+
+	// --- Reading Code From The Board ---
+
+	receivedChunk(chunkID, chunkType, bytecodes) {
+		this.lastRcvMSecs = Date.now();
+		if (bytecodes.length === 0) {
+			console.log('truncated chunk!', chunkID, chunkType, bytecodes.length); // shouldn't happen
+			return;
+		}
+		if (this.decompiler) this.decompiler.addChunk(chunkID, chunkType, bytecodes);
+	}
+
+	receivedVarName(varID, varName, byteCount) {
+		this.lastRcvMSecs = Date.now();
+		if (this.decompiler) this.decompiler.addVar(varID, varName);
 	}
 
 	// --- Code File Updates ---
