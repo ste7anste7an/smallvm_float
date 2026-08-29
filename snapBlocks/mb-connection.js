@@ -51,12 +51,14 @@ class MB_Connection {
 
 	// --- Startup Actions ---
 
-	clearBoardIfConnected() {
+	async clearBoardIfConnected() {
 		this.sendMsg('systemResetMsg'); // send the reset message
 		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
 		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
-		this.sendMsgSync('deleteAllCodeMsg', 1); // delete all code from board
-		this.sendMsgSync('clearVarsMsg', 1); // delete all variable names from board
+		// Awaited, because the caller downloads the project next and an erase
+		// that arrives after the download takes the download with it.
+		await this.sendMsgSync('deleteAllCodeMsg', 1); // delete all code from board
+		await this.sendMsgSync('clearVarsMsg', 1); // delete all variable names from board
 	}
 
 	// --- Decompiler ---
@@ -221,15 +223,15 @@ class MB_Connection {
 		return 'not connected';
 	}
 
-	justConnected() {
+	async justConnected() {
 		// Called when a board has just connected (browser or stand-alone).
 		console.log('Connected (' + this.portName + ')');
 		this.connectionStartTime = null;
 		this.vmVersion = null;
-		this.sendMsgSync('getVersionMsg');
+		await this.sendMsgSync('getVersionMsg');
 		this.sendMsg('stopAllMsg');
 		this.processMessages(); // process incoming version message
-		MB_editor.justConnected();
+		await MB_editor.justConnected();
 	}
 
 	// --- Message handling ---
