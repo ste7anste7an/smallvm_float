@@ -28,7 +28,8 @@ MB_Files.readFile = async function (url) {
 	try {
 		const response = await fetch(url);
 		if (!response.ok) return undefined;
-		return response.text();
+		// awaited, so that a failed body read is caught below rather than returned
+		return await response.text();
 	} catch (error) {
 		console.error("Could not read:", url, error);
 	}
