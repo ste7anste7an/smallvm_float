@@ -7,6 +7,7 @@ description 'To send messages, you need to set up a bot by typing @BotFather int
 To find the Channel_ID for a channel or user, you can use a bot like @userinfobot or @myidbot.
 You can also find it via Telegram Web (it appears in the URL bar).
 '
+depends WiFi
 choices tgrm_url_emojiMenu smiley 'thumbs up' 'thumbs down' 'hot face' 'cold face' 'sleeping face' heart robot skull 'pile of poo' bell battery 'low battery' 'light bulb' locked unlocked gear
 
   spec ' ' 'tgrm_send' 'send to Telegram, text _ #BR# channel ID _ bot token _' 'auto auto auto' 'MicroBlocks is amazing!' '' ''
