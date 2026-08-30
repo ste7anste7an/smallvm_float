@@ -1,15 +1,22 @@
 module 'DAC MCP4725' Output
-author 'Luis Mateos - @proyectonoise'
-version 2 3 
+author 'Luis Mateos - @proyectonoise and MicroBlocks'
+version 2 4 
 tags dac mcp4725 
-description 'MCP 4725
-Digital to Analog Converter 12 bits
+description 'MCP 4725 12-bit digital to analog converter
+
+This library uses a default I2C address of 96 (0x60) but different I2C addresses can be supplied as an optional parameter.
+
+I2C addresses for some popular MCP 4725 breakout boards (with A0 pin not connected):
+  SparkFun: 96 (0x60)
+  Adafruit: 98 (0x62)
+
+https://www.microchip.com/en-us/product/mcp4725
 '
 variables '_mcp4725 out' 
 
-  spec ' ' 'mcp4725 write' 'write _ (0-4095) to MCP4725 DAC : I2C address _' 'num num' 2048 98
+  spec ' ' 'mcp4725 write' 'write _ (0-4095) to MCP4725 DAC : I2C address _' 'num num' 2048 96
   advanced
-  spec ' ' 'mcp4725_setEEPROM' 'mcp4725 set EEPROM to _ millivolts : I2C address _' 'num num' 0 98
+  spec ' ' 'mcp4725_setEEPROM' 'mcp4725 set EEPROM to _ millivolts : I2C address _' 'num num' 0 96
 
 to 'mcp4725 write' value optionalAddress {
   comment 'Send a two-byte "fast mode write" command as shown in Figure 6.1
@@ -17,7 +24,7 @@ of the data sheet:
   https://ww1.microchip.com/downloads/en/devicedoc/22039d.pdf
 First data byte contains the top four bits of the 12-bit DAC value.
 Second data byte contains the lower 8 bits.'
-  local 'i2cAddr' (argOrDefault 2 98)
+  local 'i2cAddr' (argOrDefault 2 96)
   if ((v '_mcp4725 out') == 0) {
     '_mcp4725 out' = (newList 2)
   }
@@ -35,7 +42,7 @@ as shown in Figure 6.2 of the data sheet:
 First data byte contains the command.
 Second byte contains top eight bits of the 12-bit DAC value.
 Third data byte contains the lower 4 bits of the DAC value shifted left four bits.'
-  local 'i2cAddr' (argOrDefault 2 98)
+  local 'i2cAddr' (argOrDefault 2 96)
   local 'level' ((4095 * millivolts) / 3300)
   level = (maximum 0 (minimum level 4095))
   local 'cmd' ('[data:makeList]' (hexToInt '60') ((level >> 4) & 255) ((level & 15) << 4))
