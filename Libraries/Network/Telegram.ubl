@@ -1,4 +1,4 @@
-module Telegram
+module Telegram Comm
 author 'Luis Mateos, Peter Mathijssen'
 version 1 3 
 description 'To send messages, you need to set up a bot by typing @BotFather into the Telegram search bar on any device and connecting to it. Make sure it is the official Telegram bot and not a fake.
