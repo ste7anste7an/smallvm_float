@@ -1012,7 +1012,7 @@ static void initNeoPixelPin(int pinNum) {
 	neoPixelPinMask = 1 << pinIndex; // pin bit in low 16-bits of pinReg used to "set"
 }
 
-__attribute__((always_inline)) static inline void delay_ns(uint32_t loopCount) {
+__attribute__((always_inline)) static inline void due_delay(uint32_t loopCount) {
 	// One loop takes 3 cycles per iteration = 62.5 nsecs at 48 MHz.
 
 	asm volatile (
@@ -1036,14 +1036,14 @@ static void sendNeoPixelData(int val) { // DUELink
 	for (uint32 mask = (1 << (neoPixelBits - 1)); mask > 0; mask >>= 1) {
 		if (val & mask) { // one bit; timing goal: high 850 nsecs, low 350 nsecs
 			neoPixelPinReg->BSRR = SET_PIN;
-			delay_ns(12);
+			due_delay(12);
 			neoPixelPinReg->BSRR = RESET_PIN;
-			delay_ns(3);
+			due_delay(3);
 		} else { // zero bit; timing goal: high 250 nsecs, low 950 nsecs
 			neoPixelPinReg->BSRR = SET_PIN;
-			delay_ns(2);
+			due_delay(2);
 			neoPixelPinReg->BSRR = RESET_PIN;
-			delay_ns(11);
+			due_delay(11);
 		}
 	}
 	restoreIRQState(oldIRQ);
@@ -1386,8 +1386,23 @@ static inline int gamma(int val) {
 	if (val > 175) val = 175; // limit brightness to avoid making WiFi fail
 	#endif
 
-	const int divisor = (255 * 255) / neoPixelMax;
-	return ((val * val) / divisor) & 0xFF;
+// Kathy's super picky NeoPixels test
+// 64 - 17 uSecs - fails
+// 32 - 11 uSecs - fails
+// 16 -  8 uSecs - propagates only a few NeoPixels
+// 11 - 7.3 uSecs - works but many glitches
+// 5 - 6.1 uSecs - still glitches
+// no delay - 5.1 uSecs - reliable
+
+// Elecfreaks NeoPixel strip test
+// 264 - 55 usecs only first 2 NeoPixels
+// 232 - 48 usecs only first 5 NeoPixels
+// 216 - 45 usecs only first 6-7 NeoPixels
+// 200 - 42.5 usecs last 2 of 10 sometimes fail
+// 180 - 40 usecs reliable
+//due_delay(180);
+
+	return ((val * val * neoPixelMax) >> 16) & 0xFF;
 }
 
 static const int whiteTable[64] = {
