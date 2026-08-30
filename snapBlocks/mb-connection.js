@@ -18,6 +18,7 @@ class MB_Connection {
 		this.pingSentMSecs = 0;
 		this.lastPingRecvMSecs = null;
 		this.recvBuf = new Uint8Array(0);
+		this.sendQueue = Promise.resolve(); // messages go out one at a time
 		this.vmVersion = null;
 		this.boardType = null;
 		this.codeManager = null;
@@ -635,13 +636,23 @@ class MB_Connection {
 			msgArr = [251, msgID, chunkID, bodyByteCount & 255, (bodyByteCount >> 8) & 255,
 				...byteList, 254]; // 254 is terminator byte (helps board detect dropped bytes)
 		}
-		let dataToSend = new Uint8Array(msgArr);
+		const dataToSend = new Uint8Array(msgArr);
 
 		if (this.portName === 'boardie') { // send all data at once to boardie
 			this.port.write(dataToSend);
 			return;
 		}
 
+		// One message on the wire at a time. writeMsgBytes waits between writes,
+		// so without this queue a message sent during that wait is written into
+		// the middle of this one and the board discards both: it counts the
+		// intruder's bytes as body, then fails the terminator check.
+		const sent = this.sendQueue.then(() => this.writeMsgBytes(dataToSend));
+		this.sendQueue = sent.catch(() => {}); // a failed write must not stop the queue
+		return sent;
+	}
+
+	async writeMsgBytes(dataToSend) {
 		while (dataToSend.length > 0) {
 			if (!this.isConnected()) return; // connection lost
 			let chunkSize = dataToSend.length;
@@ -716,11 +727,14 @@ class MB_Connection {
 	// --- Code File Updates ---
 
 	suspendCodeFileUpdates() {
-		this.sendMsgSync('extendedMsg', 2);
+		// The empty byte list is required, not incidental: it makes this a long
+		// message, and the VM handles extendedMsg only in processLongMessage.
+		// As GP does in SmallRuntime.suspendCodeFileUpdates.
+		this.sendMsgSync('extendedMsg', 2, []);
 	}
 
 	resumeCodeFileUpdates() {
-		this.sendMsg('extendedMsg', 3);
+		this.sendMsg('extendedMsg', 3, []);
 	}
 }
 

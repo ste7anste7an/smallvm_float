@@ -574,7 +574,6 @@ static OBJ primEnableBLE(int argCount, OBJ *args) {
 #include <stm32c0xx.h>
 #include <stm32c0xx_hal_pwr.h>
 #include <stm32c0xx_hal_pwr_ex.h>
-#include <usbd_cdc_if.h> // for CDC_deInit()
 
 void delay(unsigned long); // Arduino delay function
 
@@ -608,22 +607,10 @@ static OBJ primDUESleep(int argCount, OBJ *args) {
 	HAL_PWREx_EnableGPIOPullDown(PWR_GPIO_A, GPIO_PIN_4);
 	__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF2);
 
-// Commented out to save space (308 bytes)
-// 	if ((argCount > 0) && (args[0] == trueObj)) {
-// 		// STOP mode; wakes up on alarm but uses about 1 mA
-// 		CDC_deInit();
-// 		HAL_SuspendTick(); // suspend tick interrupts so we don't spontaneously wake up
-// 		HAL_PWR_EnterSTOPMode(0, PWR_STOPENTRY_WFI); // stop; continue from here on wakeup
-// 		SystemClock_Config(); // necessary; restarts the USB clock, I think
-// 		HAL_ResumeTick();
-// 		CDC_init();
-// 		HAL_PWREx_DisablePullUpPullDownConfig();
-// 	} else {
-		// default: SHUTDOWN mode; wake up on wakeup pin and uses less than 0.001 mA
-		// on boards without voltage regulators (e.g. Snowy or Chrono)
-		HAL_PWREx_EnterSHUTDOWNMode();
-		__WFI(); // shuts down here; restarts on wakeup
-// 	}
+	// default: SHUTDOWN mode; wake up on wakeup pin and uses less than 0.001 mA
+	// on boards without voltage regulators (e.g. Snowy or Chrono)
+	HAL_PWREx_EnterSHUTDOWNMode();
+	__WFI(); // shuts down here; restarts on wakeup
 
 	return falseObj;
 }
@@ -631,7 +618,7 @@ static OBJ primDUESleep(int argCount, OBJ *args) {
 #include <stm32c0xx_hal_rtc.h>
 
 static RTC_HandleTypeDef hrtc;
-static bool rtc_initialized = false;
+static int rtc_initialized = false;
 
 static void Rtc_Initialize() {
 	if (rtc_initialized) return;

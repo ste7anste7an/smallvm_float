@@ -993,6 +993,62 @@ static void sendNeoPixelData(int val) { // SAMD21 (48 MHz)
 	restoreIRQState(oldIRQ);
 }
 
+#elif defined(DUELink)
+
+static volatile GPIO_TypeDef *neoPixelPinReg = GPIOA;
+
+static void initNeoPixelPin(int pinNum) {
+	if (pinNum == -1) pinNum = mapDigitalPinNum(1); // default to DUELink pin 1
+	if (pinNum == -1) return;
+
+	setPinMode(pinNum, OUTPUT);
+
+	PinName pinName = digitalPin[pinNum];
+	int port = (pinName >> 4) & 15;
+	int pinIndex = pinName & 15;
+
+	// set neoPixelPinReg to the GPIO port for the given pin
+	neoPixelPinReg = (GPIO_TypeDef *) (IOPORT_BASE + (port * 0x400));
+	neoPixelPinMask = 1 << pinIndex; // pin bit in low 16-bits of pinReg used to "set"
+}
+
+__attribute__((always_inline)) static inline void delay_ns(uint32_t loopCount) {
+	// One loop takes 3 cycles per iteration = 62.5 nsecs at 48 MHz.
+
+	asm volatile (
+		".balign 4\n\t"
+		"1:\n\t"
+		"sub %0, %0, #1\n\t" // long form for Thumb
+		"bne 1b\n\t"
+		: "+l" (loopCount)	// "l" vs. "r" restricts GCC to low registers (r0-r7) for Thumb
+		:
+		: "cc" // clear condition bits
+	);
+}
+
+#define SET_PIN		(neoPixelPinMask)		// writing a bit in low 16-bits makes the pin high
+#define RESET_PIN	(neoPixelPinMask << 16)	// writing a bit in high 16-bits makes the pin low
+
+static void sendNeoPixelData(int val) { // DUELink
+//	if (!neoPixelPinReg || !neoPixelPinMask) return; // do nothing if either is zero
+
+	uint32 oldIRQ = saveIRQState();
+	for (uint32 mask = (1 << (neoPixelBits - 1)); mask > 0; mask >>= 1) {
+		if (val & mask) { // one bit; timing goal: high 850 nsecs, low 350 nsecs
+			neoPixelPinReg->BSRR = SET_PIN;
+			delay_ns(12);
+			neoPixelPinReg->BSRR = RESET_PIN;
+			delay_ns(3);
+		} else { // zero bit; timing goal: high 250 nsecs, low 950 nsecs
+			neoPixelPinReg->BSRR = SET_PIN;
+			delay_ns(2);
+			neoPixelPinReg->BSRR = RESET_PIN;
+			delay_ns(11);
+		}
+	}
+	restoreIRQState(oldIRQ);
+}
+
 #elif defined(ESP8266)
 
 static void initNeoPixelPin(int pinNum) {
