@@ -3764,6 +3764,9 @@ ScriptsMorph.prototype.userMenu = function () {
 		'new project', () => { MB_editor.newProject() }, 'clear current project');
 	menu.addItem(
 		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
+	menu.addItem(
+		'read from board', () => { MB_editor.openProjectFromBoard() },
+		'replace this project with the one\nstored on the connected board');
 	menu.addLine();
 
 	menu.addItem(

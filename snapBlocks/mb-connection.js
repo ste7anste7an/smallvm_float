@@ -61,12 +61,12 @@ class MB_Connection {
 	// --- Decompiler ---
 
 	async readCodeFromBoard() {
-		// Collect the board's variable names and code chunks into a decompiler.
+		// Collect the board's variable names and code chunks into a decompiler,
+		// then hand back the project they decompile to.
 		// Each request is followed by a wait for the board to go QUIET rather
 		// than for a fixed count: receivedVarName and receivedChunk push
 		// lastRcvMSecs forward as each reply arrives, and the board sends one
 		// frame per variable and per chunk with no reply saying how many.
-		// XXX TODO: decompile what was collected and install it in the editor.
 		this.decompiler = new MB_Decompiler();
 
 		this.sendMsg('getVarNamesMsg');
@@ -80,7 +80,7 @@ class MB_Connection {
 
 		const decompiler = this.decompiler;
 		this.decompiler = null;
-		return decompiler;
+		return decompiler.decompileProject();
 	}
 
 	async readUntilQuiet(quietMSecs, stepMSecs, sendPings) {
@@ -517,7 +517,7 @@ class MB_Connection {
 			// not currently used
 			// const broadcastMsg = this.bytesToString(msg.slice(5));
 		} else if (op === this.msgNameToID('chunkCode16Msg')) {
-			this.receivedChunk(msg[2], msg[5], Array.from(msg.slice(6)));
+			this.receivedChunk(msg[2], msg[5], msg.slice(6));
 		} else if (op === this.msgNameToID('codeStoreUsedMsg')) {
 			this.receivedCodeStoreUsed(Array.from(msg.slice(5)));
 		} else if (op === this.msgNameToID('varNameMsg')) {
@@ -734,6 +734,8 @@ class MB_Connection {
 	// --- Reading Code From The Board ---
 
 	receivedChunk(chunkID, chunkType, bytecodes) {
+		// bytecodes stays a Uint8Array: MB_Decompiler.readMetadata slices it
+		// into a TextDecoder, which takes only a typed array.
 		this.lastRcvMSecs = Date.now();
 		if (bytecodes.length === 0) {
 			console.log('truncated chunk!', chunkID, chunkType, bytecodes.length); // shouldn't happen

@@ -258,7 +258,9 @@ console.log('script:', x, y, aBlockMorph);
 	justConnected() {
 		if (this.readFromBoard) {
 			this.readFromBoard = false;
-			this.readCodeFromBoard();
+			// Not awaited: justConnected is synchronous here, and nothing after
+			// this branch depends on the read having finished.
+			this.openProjectFromBoard();
 		} else {
 			const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
 			if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
@@ -271,6 +273,23 @@ console.log('script:', x, y, aBlockMorph);
 			MB_editor.showDownloadProgress(2, 0);
 			this.codeManager.stopAndSyncScripts(true);
 		}
+	}
+
+	async openProjectFromBoard() {
+		// Read what the board is holding and show it, the way openProject shows
+		// a project read from a file. readCodeFromBoard is MB_connection's, not
+		// this class's.
+		const project = await MB_connection.readCodeFromBoard();
+		if (project == null) return;
+		this.project = project;
+		this.removeAllScripts();
+		this.project.main.scripts.forEach(
+			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
+		this.codeManager = new MB_CodeManager(this.project);
+		this.projectName = null;
+		MB_connection.setCodeManager(this.codeManager);
+		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
+			this.project.allFunctions().length, 'functions');
 	}
 
 	boardHasSameProject() {
