@@ -137,7 +137,6 @@ static NimBLECharacteristic *pRxCharacteristic;
 static NimBLECharacteristic *pUARTTxCharacteristic;
 static NimBLECharacteristic *pUARTRxCharacteristic;
 
-static uint16_t connID = -1;
 static int lastRC = 0;
 
 // incoming BLE buffer
@@ -145,6 +144,11 @@ static int lastRC = 0;
 static uint8_t bleRecvBuf[RECV_BUF_SIZE];
 static int bleBytesAvailable = 0;
 static int overRuns = 0;
+
+static void disconnectBLEClients() {
+	if (!pServer) return;
+	for (uint16_t handle : pServer->getPeerDevices()) pServer->disconnect(handle);
+}
 
 static void updateConnectionState() { // NimBLE
 	if (USB_connected_to_IDE && !ideConnected()) {
@@ -154,10 +158,6 @@ static void updateConnectionState() { // NimBLE
 	}
 	if (BLE_connected_to_IDE && pServer && (pServer->getConnectedCount() == 0)) {
 		// lost BLE connection
-		if (pServer) {
-			if (connID != -1) { pServer->disconnect(connID); }
-			connID = -1;
-		}
 		BLE_connected_to_IDE = false;
 		BLE_resumeAdvertising();
 	}
@@ -211,14 +211,13 @@ static int bleSendData(uint8_t *data, int byteCount) {
 
 class ConnectionCallbacks: public NimBLEServerCallbacks {
 	void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
-		connID = desc->conn_handle;
 		lastRcvTime = microsecs();
 		BLE_allowShutdown = false;
 		BLE_connected_to_IDE = true;
+		BLE_resumeAdvertising(); // stay connectable so another device can use BLE serial
 	}
 	void onDisconnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
-		connID = -1;
-		BLE_connected_to_IDE = false;
+		BLE_connected_to_IDE = (pServer->getConnectedCount() > 0);
 		BLE_resumeAdvertising();
 	}
 };
@@ -299,8 +298,7 @@ void BLE_start() {
 void BLE_stop() {
 	if (!bleRunning) return; // BLE already stopped
 
-	if (connID != -1) { pServer->disconnect(connID); }
-	connID = -1;
+	disconnectBLEClients();
 	BLE_connected_to_IDE = false;
 
 	// the following lines cause a crash on ESP32 boards and do not seem to be needed
@@ -332,7 +330,6 @@ void BLE_pauseAdvertising() {
 void BLE_resumeAdvertising() {
 	if (!bleRunning) return;
 
-	if (BLE_connected_to_IDE) return; // already connected; nothing to advertise for
 	// While USB holds the IDE session, advertise the UART service alone. The IDE
 	// filters its scan on the MicroBlocks service UUID, so leaving that UUID out
 	// of both the advertisement and the scan response is what keeps a second IDE
