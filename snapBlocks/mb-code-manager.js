@@ -38,7 +38,11 @@ class MB_CodeManager {
 	}
 
 	isRunning(aBlock) {
-		return aBlock.getHighlight.getHighlight != null;
+		// The board's taskStarted/taskDone messages are recorded here, as GP
+		// records them in chunkRunning (MicroBlocksRuntime.gp updateRunning).
+		// Reading the block's highlight asks the view a question the runtime
+		// already answers.
+		return MB_editor.runningChunks.has(aBlock);
 	}
 
 	stopRunningBlock(aBlock) {
