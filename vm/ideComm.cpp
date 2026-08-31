@@ -145,13 +145,29 @@ static uint8_t bleRecvBuf[RECV_BUF_SIZE];
 static int bleBytesAvailable = 0;
 static int overRuns = 0;
 
+// How long a quiet serial link keeps the IDE session on USB. ideConnected() times out
+// after five seconds, but it counts only messages the board receives, and the IDE stops
+// pinging while it decompiles or installs a project. Giving up USB ownership mid-session
+// re-advertises the MicroBlocks service, which lets a second IDE find a board in use.
+// Ten seconds clears the IDE's own eight second ping timeout, past which it has closed
+// the port anyway.
+#define USB_IDE_TIMEOUT_USECS 10000000
+
+static int usbIDESessionEnded() {
+	if (0 == lastRcvTime) return true;
+
+	uint32 now = microsecs();
+	uint32 elapsed = (lastRcvTime > now) ? now : (now - lastRcvTime);
+	return elapsed > USB_IDE_TIMEOUT_USECS;
+}
+
 static void disconnectBLEClients() {
 	if (!pServer) return;
 	for (uint16_t handle : pServer->getPeerDevices()) pServer->disconnect(handle);
 }
 
 static void updateConnectionState() { // NimBLE
-	if (USB_connected_to_IDE && !ideConnected()) {
+	if (USB_connected_to_IDE && usbIDESessionEnded()) {
 		// lost USB connection; resume advertisting
 		USB_connected_to_IDE = false;
 		BLE_resumeAdvertising();
@@ -168,6 +184,7 @@ static void updateConnectionState() { // NimBLE
 			// tell runtime that we've gotten a ping
 			lastRcvTime = microsecs();
 			USB_connected_to_IDE = true;
+			bleBytesAvailable = 0; // drop any partial BLE message; USB owns the session now
 			BLE_resumeAdvertising(); // re-advertise, as BLE serial only
 		}
 	}
