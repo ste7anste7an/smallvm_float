@@ -2607,9 +2607,10 @@ extern "C" void ARDUINO_ISR_ATTR esp32_servo_IRQHandler() {
 
 static void startESP32ServoTimer() {
 	esp32_servoTimer = timerBegin(0, 80, true); // divide 80 Mhz by 80, count up
+	esp32ServoTimerStarted = true;
+	if (!esp32_servoTimer) return; // timer unavailable; servos won't move but board won't crash
 	timerAttachInterrupt(esp32_servoTimer, &esp32_servo_IRQHandler, false);
 	timerAlarmEnable(esp32_servoTimer);
-	esp32ServoTimerStarted = true;
 }
 
 static void esp32_detachServo(int pin) {
