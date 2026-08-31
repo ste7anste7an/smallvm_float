@@ -4545,6 +4545,15 @@ InputSlotMorph.prototype.setContents = function (data) {
 	} else if (dta.toString) {
 		cnts.text = dta.toString();
 	}
+
+	// Keep the value, not only its text. GP's InputSlot.gp setContents does the
+	// same (contents = data); keeping only the text is what turned the literal
+	// '0x06' into 0 and false into "false" at compile time. mbValueText records
+	// the text this value was shown as, so evaluate() can tell a value the slot
+	// was given from one the user has since typed over.
+	this.mbValue = dta;
+	this.mbValueText = cnts.text;
+
 	cnts.fixLayout();
 
 	// adjust to zebra coloring:
@@ -4770,6 +4779,13 @@ InputSlotMorph.prototype.evaluate = function () {
 		return '';
 	}
 	let val = this.contents().text;
+	// The value this slot was given, for as long as the text still shows it.
+	// Editing the slot replaces the text, and from then on the text is the
+	// truth -- which is where the coercion below belongs, and where GP puts it
+	// too (InputSlot.gp textChanged, on the edit path).
+	if (this.mbValueText === val) {
+		return this.mbValue;
+	}
 	if (this.isNumeric || (this.isAlphanumeric && /^-?\d+$/.test(val))) {
 		let num = parseInt(val, 10);
 		if (!isNaN(num)) return num;
@@ -5092,7 +5108,7 @@ BooleanSlotMorph.prototype.getSpec = function () {
 // BooleanSlotMorph accessing:
 
 BooleanSlotMorph.prototype.evaluate = function () {
-	return this.value;
+	return (this.mbValue === undefined) ? this.value : this.mbValue;
 };
 
 BooleanSlotMorph.prototype.isEmptySlot = function () {
@@ -5110,6 +5126,13 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 			+boolOrNull < 0 ? null
 				: ['true', 'on', 'yes', 'ok', 'y', '+'].includes(boolOrNull) ||
 					+boolOrNull > 0);
+	// A number in a boolean position stays that number. The coercion above is
+	// for the words a user can type or pick from a menu; a number is a value in
+	// its own right, and GP compiles it as one because its compiler reads the
+	// parse tree and never passes it through a slot. The bytes carry such a
+	// number whenever the compiler emitted its dummy for a call it could not
+	// resolve, and coercing it to false changes the program.
+	this.mbValue = (typeof boolOrNull === 'number') ? boolOrNull : undefined;
 	this.rerender();
 };
 
@@ -5549,6 +5572,13 @@ ColorSlotMorph.prototype.setContents = function (clr) {
 };
 
 ColorSlotMorph.prototype.setColor = function (clr) {
+	// A number is a colour packed as 0xRRGGBB, which is how the bytes carry one
+	// and how the source writes one outside a colorSwatch. Without this it
+	// falls through to the default below, so a colour read back from a board
+	// arrives as (145, 26, 68) whatever it was.
+	if (typeof clr === 'number') {
+		clr = new Color((clr >> 16) & 255, (clr >> 8) & 255, clr & 255);
+	}
 	ColorSlotMorph.uber.setColor.call(
 		this,
 		isString(clr) && clr.length > 10 ? Color.fromString(clr)
