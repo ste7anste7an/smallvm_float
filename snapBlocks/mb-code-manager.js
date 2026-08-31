@@ -123,8 +123,10 @@ class MB_CodeManager {
 		let bytes = this.compiledBytesFor(aBlockOrFunction);
 		if (bytes.length > 1000) {
 			// Replace compiled code with a stub that just reports a "Script too large" error.
-			bytes = this.compiledBytesFor(
-				new CommandBlockMorph('command', [255, 0, 0], '[misc:scriptTooLarge]'));
+			// Built through the parser: GP's `block` is a factory (MicroBlocksRuntime.gp
+			// chunkBytesFor) but CommandBlockMorph's constructor takes no arguments, so a
+			// block made that way has no selector and does not compile.
+			bytes = this.compiledBytesFor(MB_Parser.blockFor(['[misc:scriptTooLarge]']));
 		}
 		return bytes;
 	}
