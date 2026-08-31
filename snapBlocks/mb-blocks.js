@@ -2067,7 +2067,16 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 			result.push('}');
 		}
 	} else if (arg instanceof BooleanSlotMorph) {
-		result.push((arg.value == true).toString());
+		// evaluate(), not value: a value the slot cannot represent is kept
+		// beside it, and it is the one GP's printer sees in the argList.
+		let value = arg.evaluate();
+		if ((typeof value) == 'string') {
+			result.push('\'' + fixEmbeddedQuotes(value) + '\'');
+		} else if ((typeof value) == 'number') {
+			result.push(value);
+		} else {
+			result.push((value == true).toString());
+		}
 	} else if (arg instanceof ReporterBlockMorph) {
 		result.push(arg.codeString());
 	} else if (arg instanceof TemplateSlotMorph) {
@@ -5129,13 +5138,15 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 			+boolOrNull < 0 ? null
 				: ['true', 'on', 'yes', 'ok', 'y', '+'].includes(boolOrNull) ||
 					+boolOrNull > 0);
-	// A number in a boolean position stays that number. The coercion above is
-	// for the words a user can type or pick from a menu; a number is a value in
+	// A value that is not a boolean stays what it was. The coercion above is for
+	// the words a user can type or pick from a menu; anything else is a value in
 	// its own right, and GP compiles it as one because its compiler reads the
-	// parse tree and never passes it through a slot. The bytes carry such a
-	// number whenever the compiler emitted its dummy for a call it could not
-	// resolve, and coercing it to false changes the program.
-	this.mbValue = (typeof boolOrNull === 'number') ? boolOrNull : undefined;
+	// parse tree and never passes it through a slot -- its constant-pin shortcut
+	// tests `isClass (last args) 'Boolean'` (MicroBlocksCompiler.gp
+	// instructionsForCmd), which a string is not. The bytes carry such values,
+	// so coercing them here changes a program read back from a board.
+	this.mbValue = ((typeof boolOrNull === 'boolean') || isNil(boolOrNull))
+		? undefined : boolOrNull;
 	this.rerender();
 };
 
