@@ -15,17 +15,16 @@ class MB_Editor {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.readFromBoard = false;
+		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
 	}
 
 	open(world) {
-		const scriptingHeight = 500;
-		const paletteWidth = 200;
+		this.paletteWidth = 200;
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.color = new Color(180, 180, 180);
-		this.palette.setExtent(new Point(paletteWidth, scriptingHeight));
 		this.addBlocksToPalette(this.palette);
 		this.palette.contents.adjustBounds();
 		this.palette.contents.acceptsDrops = true;
@@ -35,13 +34,35 @@ class MB_Editor {
 			}
 		};
 
+		// The scripting pane scrolls, so a script taller than the window can
+		// be reached without dragging it off the pane.
 		this.scripts = new ScriptsMorph();
 		this.scripts.color = new Color(150, 150, 150);
-		this.scripts.setLeft(paletteWidth);
-		this.scripts.setExtent(new Point(1000, scriptingHeight));
+		this.scriptsFrame = new ScrollFrameMorph(this.scripts);
+		this.scriptsFrame.color = this.scripts.color;
+		// What FrameMorph's constructor would have set; ScriptsMorph takes no
+		// scroll frame, and adjustBounds does nothing without one.
+		this.scripts.scrollFrame = this.scriptsFrame;
 
 		world.add(this.palette);
-		world.add(this.scripts);
+		world.add(this.scriptsFrame);
+
+		// WorldMorph.fillPage hands every direct child the new bounds when the
+		// browser window resizes.
+		this.palette.reactToWorldResize = () => this.fixLayout(world);
+		this.scriptsFrame.reactToWorldResize = () => this.fixLayout(world);
+		this.fixLayout(world);
+	}
+
+	fixLayout(world) {
+		// Two panes, filling the window.
+
+		this.palette.setPosition(world.position());
+		this.palette.setExtent(new Point(this.paletteWidth, world.height()));
+		this.scriptsFrame.setPosition(
+			world.position().add(new Point(this.paletteWidth, 0)));
+		this.scriptsFrame.setExtent(
+			new Point(world.width() - this.paletteWidth, world.height()));
 	}
 
 	scriptsPane() { return this.scripts; }
@@ -57,15 +78,18 @@ class MB_Editor {
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(new Point(this.randomBetween(200, 800), this.randomBetween(10, 300)));
 		scriptsPane.add(b);
+		scriptsPane.adjustBounds();
 		scriptsPane.changed();
 	}
 
 	addBlockToScriptsAt(b, x, y) {
-		// For testing. Add the given block to the scripts pane at the given position.
+		// Add the given block to the scripts pane at the given position.
+		// x and y are relative to the pane, which is what updateProject records.
 
 		let scriptsPane = this.scriptsPane();
-		b.setPosition(new Point(300 + x, y));
+		b.setPosition(scriptsPane.position().add(new Point(x, y)));
 		scriptsPane.add(b);
+		scriptsPane.adjustBounds();
 		scriptsPane.changed();
 	}
 
@@ -190,18 +214,17 @@ console.log('unknown');
 		let newScripts = [];
 		for (const aBlockMorph of this.scriptsPane().children) {
 			if (aBlockMorph instanceof BlockMorph) {
-				if (aBlockMorph.isFunctionDefinition()) {
-					let funcName = aBlockMorph.inputValues()[0];
-console.log('func:', funcName);
-				} else {
+				// A function definition in the pane belongs to the project's
+				// functions, not to main.scripts. XXX TO DO: write an edited
+				// definition back, as GP's updateFunctionOrMethod does.
+				if (!aBlockMorph.isFunctionDefinition()) {
 					let x = Math.round(aBlockMorph.left() - this.scripts.left());
 					let y = Math.round(aBlockMorph.top() - this.scripts.top());
 					newScripts.push([x, y, aBlockMorph]);
-console.log('script:', x, y, aBlockMorph);
 				}
 			}
 		}
-//		project.main.setScripts(newScripts);
+		this.project.main.setScripts(newScripts);
 	}
 
 	// File operations
@@ -209,7 +232,31 @@ console.log('script:', x, y, aBlockMorph);
 	newProject() {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
+		this.projectName = null;
 		this.removeAllScripts();
+	}
+
+	saveProject() {
+		// Write the project to a file the browser downloads.
+
+		this.updateProject();
+		let name = this.projectName || 'untitled.ubp';
+		if (!name.endsWith('.ubp')) name += '.ubp';
+		this.saveTextAsFile(this.project.codeString(), name);
+	}
+
+	saveTextAsFile(text, fileName) {
+		// A download is all a web page can do; there is no file system to
+		// write to and no path to write it at.
+
+		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = fileName;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
 	}
 
 	openProject() {
@@ -222,6 +269,7 @@ console.log('script:', x, y, aBlockMorph);
 				MB_editor.addBlockToScriptsAt(script, x, y);
 			});
 			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+			MB_editor.projectName = fileName;
 			MB_connection.setCodeManager(MB_editor.codeManager);
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',

@@ -136,7 +136,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_GUI, MB_Project, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -3764,6 +3764,8 @@ ScriptsMorph.prototype.userMenu = function () {
 		'new project', () => { MB_editor.newProject() }, 'clear current project');
 	menu.addItem(
 		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
+	menu.addItem(
+		'save project', () => { MB_editor.saveProject() }, 'save this project to a file');
 	menu.addLine();
 
 	menu.addItem(
@@ -4574,6 +4576,17 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 	menu.environment = this;
 	menu.fontSize = this.fontSize;
 
+	if (slotMenuName && slotMenuName.startsWith('range:')) {
+		// an integer range such as 'range:1-8', as GP's InputSlot does
+		const pair = slotMenuName.slice(6).split('-');
+		if ((pair.length == 2) && /^\d+$/.test(pair[0]) && /^\d+$/.test(pair[1])) {
+			for (let i = Number(pair[0]); i <= Number(pair[1]); i++) {
+				menu.addItem('' + i, i);
+			}
+			return menu;
+		}
+	}
+
 	if ('buttonMenu' == slotMenuName) {
 		menu.addItem('A', 'A');
 		menu.addItem('B', 'B');
@@ -4606,6 +4619,16 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		menu.addItem('all', 'all');
 		return menu;
 	}
+	// A library declares its own menus with a `choices` line and the project
+	// has already parsed them.
+	if (typeof MB_editor !== 'undefined') {
+		const choices = MB_editor.project.choicesFor(slotMenuName);
+		if (choices) {
+			choices.forEach((each) => { menu.addItem(each, each); });
+			return menu;
+		}
+	}
+
 	// todo when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
 
 	console.log('unhandled slot menu:', slotMenuName);
