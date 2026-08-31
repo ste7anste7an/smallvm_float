@@ -38,6 +38,7 @@ static uint32 lastSendTime = 0;
 
 char BLE_ThreeLetterID[4];
 static char bleDeviceName[32];
+static char uartDeviceName[32];
 
 // Generic helper functions
 
@@ -63,6 +64,7 @@ static void initBLEDeviceName(const char *prefix) {
 
 	BLE_initThreeLetterID();
 	sprintf(bleDeviceName, "%s %s", prefix, BLE_ThreeLetterID);
+	sprintf(uartDeviceName, "UART %s", BLE_ThreeLetterID);
 }
 
 static void showShapeForMSecs(int msecs) {
@@ -135,7 +137,6 @@ static NimBLECharacteristic *pRxCharacteristic;
 static NimBLECharacteristic *pUARTTxCharacteristic;
 static NimBLECharacteristic *pUARTRxCharacteristic;
 
-static uint16_t connID = -1;
 static int lastRC = 0;
 
 // incoming BLE buffer
@@ -144,40 +145,66 @@ static uint8_t bleRecvBuf[RECV_BUF_SIZE];
 static int bleBytesAvailable = 0;
 static int overRuns = 0;
 
+// How long a quiet serial link keeps the IDE session on USB. ideConnected() times out
+// after five seconds, but it counts only messages the board receives, and the IDE stops
+// pinging while it decompiles or installs a project. Giving up USB ownership mid-session
+// re-advertises the MicroBlocks service, which lets a second IDE find a board in use.
+// Ten seconds clears the IDE's own eight second ping timeout, past which it has closed
+// the port anyway.
+#define USB_IDE_TIMEOUT_USECS 10000000
+
+static int usbIDESessionEnded() {
+	if (0 == lastRcvTime) return true;
+
+	uint32 now = microsecs();
+	uint32 elapsed = (lastRcvTime > now) ? now : (now - lastRcvTime);
+	return elapsed > USB_IDE_TIMEOUT_USECS;
+}
+
+// BLE_resumeAdvertising() rebuilds NimBLEAdvertising's payload, and that object has no
+// lock of its own. The connection callbacks run on the NimBLE host task while
+// updateConnectionState() runs on this one, so the callbacks ask for a restart here
+// instead of doing it themselves, leaving one task to touch the advertisement.
+static volatile int restartAdvertising = false;
+
+static void disconnectBLEClients() {
+	if (!pServer) return;
+	for (uint16_t handle : pServer->getPeerDevices()) pServer->disconnect(handle);
+}
+
 static void updateConnectionState() { // NimBLE
-	if (USB_connected_to_IDE && !ideConnected()) {
+	if (USB_connected_to_IDE && usbIDESessionEnded()) {
 		// lost USB connection; resume advertisting
 		USB_connected_to_IDE = false;
 		BLE_resumeAdvertising();
 	}
 	if (BLE_connected_to_IDE && pServer && (pServer->getConnectedCount() == 0)) {
 		// lost BLE connection
-		if (pServer) {
-			if (connID != -1) { pServer->disconnect(connID); }
-			connID = -1;
-		}
 		BLE_connected_to_IDE = false;
 		BLE_resumeAdvertising();
 	}
 	if (!USB_connected_to_IDE) { // either not connected or connected via BLE
 		if (Serial.available()) {
-			// new serial connection; disconnect BLE if it is connected
-			if (pServer) {
-				if (connID != -1) { pServer->disconnect(connID); }
-				connID = -1;
-			}
-			BLE_connected_to_IDE = false;
+			// New serial connection. A connected BLE client is left alone; it may be
+			// using BLE serial, which stays available while the IDE is on USB.
 			// tell runtime that we've gotten a ping
 			lastRcvTime = microsecs();
 			USB_connected_to_IDE = true;
-			BLE_pauseAdvertising();
+			bleBytesAvailable = 0; // drop any partial BLE message; USB owns the session now
+			BLE_resumeAdvertising(); // re-advertise, as BLE serial only
 		}
+	}
+	if (restartAdvertising) { // requested by a connection callback on the NimBLE task
+		restartAdvertising = false;
+		BLE_resumeAdvertising();
 	}
 }
 
 // BLE Operation
 
 static void bleReceiveData(const uint8_t *data, int byteCount) {
+	if (USB_connected_to_IDE) return; // USB owns the IDE session; ignore BLE IDE traffic
+
 	int available = RECV_BUF_SIZE - bleBytesAvailable;
 	if (byteCount > available) {
 		overRuns++;
@@ -211,15 +238,14 @@ static int bleSendData(uint8_t *data, int byteCount) {
 
 class ConnectionCallbacks: public NimBLEServerCallbacks {
 	void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
-		connID = desc->conn_handle;
 		lastRcvTime = microsecs();
 		BLE_allowShutdown = false;
 		BLE_connected_to_IDE = true;
+		restartAdvertising = true; // stay connectable so another device can use BLE serial
 	}
 	void onDisconnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
-		connID = -1;
-		BLE_connected_to_IDE = false;
-		BLE_resumeAdvertising();
+		BLE_connected_to_IDE = (pServer->getConnectedCount() > 0);
+		restartAdvertising = true;
 	}
 };
 
@@ -299,8 +325,7 @@ void BLE_start() {
 void BLE_stop() {
 	if (!bleRunning) return; // BLE already stopped
 
-	if (connID != -1) { pServer->disconnect(connID); }
-	connID = -1;
+	disconnectBLEClients();
 	BLE_connected_to_IDE = false;
 
 	// the following lines cause a crash on ESP32 boards and do not seem to be needed
@@ -332,15 +357,20 @@ void BLE_pauseAdvertising() {
 void BLE_resumeAdvertising() {
 	if (!bleRunning) return;
 
-	if (BLE_connected_to_IDE || USB_connected_to_IDE) {
-		return; // don't advertise if connected to IDE
-	}
-
+	// While USB holds the IDE session, advertise the UART service alone. The IDE
+	// filters its scan on the MicroBlocks service UUID, so leaving that UUID out
+	// of both the advertisement and the scan response is what keeps a second IDE
+	// from being offered this board.
 	NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
 	pAdvertising->reset();
 	pAdvertising->removeServices();
-	pAdvertising->addServiceUUID(MB_SERVICE_UUID);
-	pAdvertising->setName(bleDeviceName);
+	if (USB_connected_to_IDE) {
+		pAdvertising->addServiceUUID(UART_SERVICE_UUID);
+		pAdvertising->setName(uartDeviceName);
+	} else {
+		pAdvertising->addServiceUUID(MB_SERVICE_UUID);
+		pAdvertising->setName(bleDeviceName);
+	}
 	pAdvertising->setMinInterval(480); // 300 msecs
 	pAdvertising->setMaxInterval(640); // 400 msecs
 	pAdvertising->start();
@@ -603,7 +633,7 @@ int recvBytes(uint8 *buf, int count) {
 
 	updateConnectionState();
 
-	if (!BLE_connected_to_IDE) { // no BLE connection; use Serial
+	if (!BLE_connected_to_IDE || USB_connected_to_IDE) { // USB wins; use Serial
 		bytesRead = Serial.available();
 		if (bytesRead > count) bytesRead = count; // there is only enough room for count bytes
 		return Serial.readBytes((char *) buf, bytesRead);
@@ -628,7 +658,7 @@ int recvBytes(uint8 *buf, int count) {
 int sendBytes(uint8 *buf, int start, int end) {
 	// Send bytes buf[start] through buf[end - 1] and return the number of bytes sent.
 
-	if (!BLE_connected_to_IDE) { // no BLE connection; use Serial
+	if (!BLE_connected_to_IDE || USB_connected_to_IDE) { // USB wins; use Serial
 		// don't send serial data too often (needed on boards with USB serial)
 		uint32 now = millisecs();
 		if (lastSendTime > now) lastSendTime = 0; // clock wrap
