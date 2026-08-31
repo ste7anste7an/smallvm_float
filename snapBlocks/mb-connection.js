@@ -14,9 +14,11 @@ class MB_Connection {
 		this.port = null;
 		this.portName = null;
 		this.connectionStartTime = null;
+		this.portOpenedTime = null;
 		this.pingSentMSecs = 0;
 		this.lastPingRecvMSecs = null;
 		this.recvBuf = new Uint8Array(0);
+		this.sendQueue = Promise.resolve(); // messages go out one at a time
 		this.vmVersion = null;
 		this.boardType = null;
 		this.codeManager = null;
@@ -50,10 +52,14 @@ class MB_Connection {
 
 	// --- Startup Actions ---
 
-	clearBoardIfConnected() {
+	async clearBoardIfConnected() {
 		this.sendMsg('systemResetMsg'); // send the reset message
-		this.sendMsgSync('deleteAllCodeMsg'); // delete all code from board
-		this.sendMsgSync('clearVarsMsg'); // delete all variable names from board
+		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
+		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
+		// Awaited, because the caller downloads the project next and an erase
+		// that arrives after the download takes the download with it.
+		await this.sendMsgSync('deleteAllCodeMsg', 1); // delete all code from board
+		await this.sendMsgSync('clearVarsMsg', 1); // delete all variable names from board
 	}
 
 	// --- Decompiler ---
@@ -76,12 +82,13 @@ class MB_Connection {
 
 	async connect(portType = 'serial', boardieIFrame = null) {
 		this.port = new MB_CommPort();
-		if (!this.hasWebSerial()) {
+		// Each transport needs its own API and no other. Boardie needs neither.
+		if ((portType == 'serial') && !this.hasWebSerial()) {
 			// running in a browser w/o WebSerial (or it is not enabled)
 			alert(localized('This browser does not support WebSerial.'));
 			return;
 		}
-		if (!this.hasWebBluetooth()) {
+		if ((portType == 'BLE') && !this.hasWebBluetooth()) {
 			// running in a browser w/o WebBluetooth (or it is not enabled)
 			alert(localized('This browser does not support WebBluetooth.'));
 			return;
@@ -92,6 +99,7 @@ class MB_Connection {
 			await waitMSecs(100); // make sure Boardie is ready to receive messages
 		}
 		this.connectionStartTime = Date.now();
+		this.portOpenedTime = null;
 		this.lastPingRecvMSecs = 0;
 		this.sendMsg('pingMsg');
 		this.startMessageProcessing();
@@ -192,6 +200,11 @@ class MB_Connection {
 
 		if (!this.isConnected()) return 'not connected'; // Port is not yet connected...
 
+		// Time the board's silence from the moment the port opened, not from
+		// connect(): connect() returns before the user has answered the browser's
+		// port chooser, so connectionStartTime can already be many seconds old.
+		if (this.portOpenedTime == null) this.portOpenedTime = Date.now();
+
 		this.sendMsg('pingMsg');
 
 		// process any incoming messages
@@ -202,7 +215,7 @@ class MB_Connection {
 		}
 
 		const connectionAttemptTimeout = 10000; // milliseconds
-		if ((Date.now() - this.connectionStartTime) > connectionAttemptTimeout) {
+		if ((Date.now() - this.portOpenedTime) > connectionAttemptTimeout) {
 			// give up and disconnect if no response from board after connectionAttemptTimeout
 			this.disconnect();
 			this.connectionStartTime = null;
@@ -211,15 +224,15 @@ class MB_Connection {
 		return 'not connected';
 	}
 
-	justConnected() {
+	async justConnected() {
 		// Called when a board has just connected (browser or stand-alone).
 		console.log('Connected (' + this.portName + ')');
 		this.connectionStartTime = null;
 		this.vmVersion = null;
-		this.sendMsgSync('getVersionMsg');
+		await this.sendMsgSync('getVersionMsg');
 		this.sendMsg('stopAllMsg');
 		this.processMessages(); // process incoming version message
-		MB_editor.justConnected();
+		await MB_editor.justConnected();
 	}
 
 	// --- Message handling ---
@@ -355,7 +368,7 @@ class MB_Connection {
 		await waitMSecs(20); // leave some time for queued data to arrive
 		if (this.recvBuf == null) this.recvBuf = new Uint8Array(0);
 		const s = this.port.read();
-		if (s != null) this.recvBuf = this.joinBytes(this.recvBuf, s);
+		if (s != null && s.length > 0) this.recvBuf = this.joinBytes(this.recvBuf, s);
 	}
 
 	async waitForResponse() {
@@ -368,7 +381,7 @@ class MB_Connection {
 		while ((Date.now() - start) < timeout) {
 			if (!this.isConnected()) return false;
 			const s = this.port.read();
-			if (s != null) {
+			if (s != null && s.length > 0) { // read() returns an EMPTY array, not null
 				this.recvBuf = this.joinBytes(this.recvBuf, s);
 				return true;
 			}
@@ -392,7 +405,7 @@ class MB_Connection {
 
 		// Read any available bytes and append to recvBuf
 		const s = this.port.read();
-		if (s != null) this.recvBuf = this.joinBytes(this.recvBuf, s);
+		if (s != null && s.length > 0) this.recvBuf = this.joinBytes(this.recvBuf, s);
 		if (this.recvBuf.length < 3) return false; // not enough bytes for even a short message
 
 		// Parse and dispatch messages
@@ -433,7 +446,7 @@ class MB_Connection {
 		for (let i = 1; i < end; i++) { // start at index 1 to skip the current (bad) start byte
 			const byte = this.recvBuf[i];
 			if (byte === 250 || byte === 251) {
-				if (discard === true) console.log('	   ', this.bytesToString(this.recvBuf.slice(0, i)));
+				console.log('	   ', this.bytesToString(this.recvBuf.slice(0, i)));
 				this.recvBuf = this.recvBuf.slice(i);
 				return;
 			}
@@ -634,13 +647,23 @@ class MB_Connection {
 			msgArr = [251, msgID, chunkID, bodyByteCount & 255, (bodyByteCount >> 8) & 255,
 				...byteList, 254]; // 254 is terminator byte (helps board detect dropped bytes)
 		}
-		let dataToSend = new Uint8Array(msgArr);
+		const dataToSend = new Uint8Array(msgArr);
 
 		if (this.portName === 'boardie') { // send all data at once to boardie
 			this.port.write(dataToSend);
 			return;
 		}
 
+		// One message on the wire at a time. writeMsgBytes waits between writes,
+		// so without this queue a message sent during that wait is written into
+		// the middle of this one and the board discards both: it counts the
+		// intruder's bytes as body, then fails the terminator check.
+		const sent = this.sendQueue.then(() => this.writeMsgBytes(dataToSend));
+		this.sendQueue = sent.catch(() => {}); // a failed write must not stop the queue
+		return sent;
+	}
+
+	async writeMsgBytes(dataToSend) {
 		while (dataToSend.length > 0) {
 			if (!this.isConnected()) return; // connection lost
 			let chunkSize = dataToSend.length;
@@ -658,15 +681,15 @@ class MB_Connection {
 		}
 	}
 
-	sendMsgSync(msgName, chunkID = 0, byteList = null) {
+	async sendMsgSync(msgName, chunkID = 0, byteList = null) {
 		// Send a message followed by a 'pingMsg', then wait for a ping response from VM.
-		this.readAvailableSerialData();
+		await this.readAvailableSerialData();
 		this.sendMsg(msgName, chunkID, byteList);
 		if (this.portName === 'boardie') return true; // don't wait for a response
 
 		if (!this.connectedToBoard()) return false;
 
-		const ok = this.waitForResponse();
+		const ok = await this.waitForResponse();
 		if (!ok) {
 			console.log('Lost communication to the board in sendMsgSync');
 			this.disconnect();

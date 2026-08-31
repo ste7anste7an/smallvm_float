@@ -304,7 +304,7 @@ console.log('unknown');
 
 	// Connect/Disconnect
 
-	justConnected() {
+	async justConnected() {
 		if (this.readFromBoard) {
 			this.readFromBoard = false;
 			this.readCodeFromBoard();
@@ -312,7 +312,7 @@ console.log('unknown');
 			const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
 			if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
 				if (reuseCodeIfPossible) console.log('Full download');
-				MB_connection.clearBoardIfConnected();
+				await MB_connection.clearBoardIfConnected();
 				this.runningChunks = new Map();
 			} else {
 				console.log('Incremental download', this.vmVersion, this.boardType);
