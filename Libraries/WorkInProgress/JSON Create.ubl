@@ -1,29 +1,25 @@
 module 'JSON Create' Data
 author 'Bjarke Gotfredsen, Peter Mathijssen'
-version 1 1 
-description 'This library assist in creating JSON structures:
-Use "json" to create key/value pairs
-Add a list with json pairs as input to "json structure"
-You can nest jsons. Prettify json Structures with "pretty"
-See example https://apps.springbot.co.za/examples.html#JSON
+version 1 2 
+description 'This library assists in creating JSON structures:
+ - Use "json" to create key/value pairs
+ - Pass a list of json pairs as input to "json structure" to create a JSON object
+You can nest jsons. JSON arrays are not handled by this library.
+"format" generates a prettified (but less compact) version of the JSON string.
 '
 
-  spec 'r' 'jsncr_json' 'json _ _' 'auto auto' 'key' 'value or json structure'
+  spec 'r' 'jsncr_json' 'json _ _' 'str auto' 'key' 'value or json structure'
   spec 'r' 'jsncr_json structure' 'json structure _' 'auto' 'list of jsons'
   space
-  spec 'r' 'jsncr_pretty' 'pretty _' 'auto' 'json structure'
-  advanced
-  spec 'r' 'jsncr_str' 'str _' 'auto' 'string'
+  spec 'r' 'jsncr_format' 'format _' 'auto' 'json structure'
+  space
+  spec 'r' '_jsncr_str' 'str _' 'auto' 'string'
 
-to jsncr_json key value {
-  return (ifExpression (and (isType key 'string') (not (isType value 'list'))) ('[data:join]' (jsncr_str key) ':' (jsncr_str value)) '')
+to '_jsncr_str' s {
+  return (ifExpression (and (isType s 'string') ((at 1 s) != '{')) ('[data:join]' '"' s '"') s)
 }
 
-to 'jsncr_json structure' s {
-  return (ifExpression (isType s 'list') ('[data:join]' '{' ('[data:joinStrings]' s ',') '}') ('[data:join]' '{' s '}'))
-}
-
-to jsncr_pretty json {
+to jsncr_format json {
   local 'crlf' ('[data:unicodeString]' 10)
   local 'indent' ('[data:makeList]')
   local 'o' ('[data:toString]' '')
@@ -46,7 +42,21 @@ to jsncr_pretty json {
   return o
 }
 
-to jsncr_str s {
-  return (ifExpression (and (isType s 'string') ((at 1 s) != '{')) ('[data:join]' '"' s '"') s)
+to jsncr_json key value {
+  if (not (isType key 'string')) {return ('[data:toString]' '')}
+  if (isType value 'number') {
+    return ('[data:join]' ('_jsncr_str' key) ':' value)
+  } (isType value 'boolean') {
+    return ('[data:join]' ('_jsncr_str' key) ':' (ifExpression value 'true' 'false'))
+  } (isType value 'string') {
+    return ('[data:join]' ('_jsncr_str' key) ':' ('_jsncr_str' value))
+  } else {
+    sayIt 'This JSON library supports only numbers, strings, and boolean values.'
+    stopTask
+  }
+}
+
+to 'jsncr_json structure' s {
+  return (ifExpression (isType s 'list') ('[data:join]' '{' ('[data:joinStrings]' s ',') '}') ('[data:join]' '{' s '}'))
 }
 
