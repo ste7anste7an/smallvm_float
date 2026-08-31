@@ -1,127 +1,130 @@
 /*
+	mb-blocks.js
 
-		blocks.js
+	a programming construction kit
+	based on morphic.js
+	inspired by Scratch
 
-		a programming construction kit
-		based on morphic.js
-		inspired by Scratch
+	derived from blocks.js written by Jens Mönig for Snap!
+	modified by John Maloney and Bernat Romagosa
+	jens@moenig.org
 
-		written by Jens Mönig for Snap!
-		modified by John Maloney and Bernat Romagosa
-		jens@moenig.org
+	Copyright (C) 2025 by Jens Mönig
 
-		Copyright (C) 2025 by Jens Mönig
+    This file is a modified version of a file from Snap! (https://snap.berkeley.edu).
+    This specific file was licensed by Jens Mönig for use in MicroBlocks
+    under the MIT license on August 26, 2026.
 
-		This file is part of MicroBlocks, derived from the Snap! file blocks.js.
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this
+	software and associated documentation files (the “Software”), to deal in the Software
+	without restriction, including without limitation the rights to use, copy, modify, merge,
+	publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
+	to whom the Software is furnished to do so, subject to the following conditions:
 
-		Snap! is free software: you can redistribute it and/or modify
-		it under the terms of the GNU Affero General Public License as
-		published by the Free Software Foundation, either version 3 of
-		the License, or (at your option) any later version.
+	The above copyright notice and this permission notice shall be included in all copies or
+	substantial portions of the Software.
 
-		This program is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-		GNU Affero General Public License for more details.
+	THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+	PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+	FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+	DEALINGS IN THE SOFTWARE.
 
-		You should have received a copy of the GNU Affero General Public License
-		along with this program. If not, see <http://www.gnu.org/licenses/>.
+	prerequisites:
+	--------------
+	needs morphic.js
 
-		prerequisites:
-		--------------
-		needs morphic.js
+	hierarchy
+	---------
+	the following tree lists all constructors hierarchically,
+	indentation indicating inheritance. Refer to this list to get a
+	contextual overview:
 
-		hierarchy
-		---------
-		the following tree lists all constructors hierarchically,
-		indentation indicating inheritance. Refer to this list to get a
-		contextual overview:
-
-				Morph*
-						ArrowMorph
-						BlockExpanderMorph
-						BlockHighlightMorph
-						ScriptsMorph
-						SyntaxElementMorph
-								ArgMorph
-										BooleanSlotMorph
-										ColorSlotMorph
-										CommandSlotMorph
-												CSlotMorph
-										InputSlotMorph
-												TextSlotMorph
-										MicroBitDisplaySlotMorph
-										TemplateSlotMorph
-								BlockMorph
-										CommandBlockMorph
-												HatBlockMorph
-										ReporterBlockMorph
-				StringMorph*
-						BlockLabelMorph
-						InputSlotStringMorph
-						InputSlotTextMorph
-
- * from morphic.js
-
-		toc
-		---
-		the following list shows the order in which all constructors are
-		defined. Use this list to locate code in this document:
-
-				SyntaxElementMorph
-				BlockLabelMorph
-				BlockMorph
-				CommandBlockMorph
-				HatBlockMorph
-				ReporterBlockMorph
-				ScriptsMorph
-				ArgMorph
-				CommandSlotMorph
-				CSlotMorph
-				InputSlotMorph
-				InputSlotStringMorph
-				InputSlotTextMorph
+	Morph (from morphic.js)
+		ArrowMorph
+		BlockExpanderMorph
+		BlockHighlightMorph
+		ScriptsMorph
+		SyntaxElementMorph
+			ArgMorph
 				BooleanSlotMorph
-				ArrowMorph
-				TextSlotMorph
 				ColorSlotMorph
-				TemplateSlotMorph
-				BlockExpanderMorph
-				BlockHighlightMorph
+				CommandSlotMorph
+					CSlotMorph
+				InputSlotMorph
+					TextSlotMorph
 				MicroBitDisplaySlotMorph
+				TemplateSlotMorph
+			BlockMorph
+				CommandBlockMorph
+					HatBlockMorph
+				ReporterBlockMorph
 
-		structure of syntax elements
-		----------------------------
-		the structure of syntax elements is identical with their morphic
-		tree. There are, however, accessor methods to get (only) the
-		parts which are relevant for evaluation wherever appropriate.
+	StringMorph (from morphic.js)
+			BlockLabelMorph
+			InputSlotStringMorph
+			InputSlotTextMorph
 
-		In Scratch/BYOB every sprite and the stage has its own "blocks bin",
-		an instance of ScriptsMorph (we're going to name it differently in
-		Snap, probably just "scripts").
+	toc
+	---
+	the following list shows the order in which all constructors are
+	defined. Use this list to locate code in this document:
 
-		At the top most level blocks are assembled into stacks in ScriptsMorph
-		instances. A ScriptsMorph contains nothing but blocks, therefore
-		every child of a ScriptsMorph is expected to be a block.
+	SyntaxElementMorph
+	BlockLabelMorph
+	BlockMorph
+	CommandBlockMorph
+	HatBlockMorph
+	ReporterBlockMorph
+	ScriptsMorph
+	ArgMorph
+	CommandSlotMorph
+	CSlotMorph
+	InputSlotMorph
+	InputSlotStringMorph
+	InputSlotTextMorph
+	BooleanSlotMorph
+	ArrowMorph
+	TextSlotMorph
+	ColorSlotMorph
+	TemplateSlotMorph
+	BlockExpanderMorph
+	BlockHighlightMorph
+	MicroBitDisplaySlotMorph
 
-		Each block contains:
+	structure of syntax elements
+	----------------------------
+	the structure of syntax elements is identical with their morphic
+	tree. There are, however, accessor methods to get (only) the
+	parts which are relevant for evaluation wherever appropriate.
 
-				selector	- indicating the name of the function it triggers,
+	In Scratch/BYOB every sprite and the stage has its own "blocks bin",
+	an instance of ScriptsMorph (we're going to name it differently in
+	Snap, probably just "scripts").
 
-		Its arguments are first evaluated and then passed along as the
-		selector is called. Arguments can be either instances of ArgMorph
-		or ReporterBlockMorph. The getter method for a block's arguments is
+	At the top most level blocks are assembled into stacks in ScriptsMorph
+	instances. A ScriptsMorph contains nothing but blocks, therefore
+	every child of a ScriptsMorph is expected to be a block.
 
-				inputs()	- gets an array of arg morphs and/or reporter blocks
+	Each block contains:
 
-		in addition to inputs, command blocks also know their
+		selector	- indicating the name of the function it triggers,
 
-				nextBlock()	- gets the block attached to the receiver's bottom
+	Its arguments are first evaluated and then passed along as the
+	selector is called. Arguments can be either instances of ArgMorph
+	or ReporterBlockMorph. The getter method for a block's arguments is
 
-		and the block they're attached to - if any: Their parent.
+		inputs()	- gets an array of arg morphs and/or reporter blocks
 
-		please also refer to the high-level comment at the beginning of each
-		constructor for further details.
+	in addition to inputs, command blocks also know their
+
+		nextBlock()	- gets the block attached to the receiver's bottom
+
+	and the block they're attached to - if any: Their parent.
+
+	please also refer to the high-level comment at the beginning of each
+	constructor for further details.
 */
 
 /*global Array, BoxMorph,
