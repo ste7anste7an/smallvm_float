@@ -52,7 +52,7 @@
 #elif defined(ESP32_S2)
 	#define OBJSTORE_BYTES 12000 // https test: 20000 fails, 16000 fails
 #elif defined(ESP32_C3)
-	#define OBJSTORE_BYTES 40000 // https test: 80000 fails, 50000 fails, 40000 works
+	#define OBJSTORE_BYTES 32000 // https test: 50000 fails, 40000 unreliable,
 #elif defined(ESP32_S3)
 	#define OBJSTORE_BYTES 64000
 #elif defined(ARDUINO_ARCH_ESP32)
