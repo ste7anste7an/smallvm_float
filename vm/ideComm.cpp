@@ -161,6 +161,12 @@ static int usbIDESessionEnded() {
 	return elapsed > USB_IDE_TIMEOUT_USECS;
 }
 
+// BLE_resumeAdvertising() rebuilds NimBLEAdvertising's payload, and that object has no
+// lock of its own. The connection callbacks run on the NimBLE host task while
+// updateConnectionState() runs on this one, so the callbacks ask for a restart here
+// instead of doing it themselves, leaving one task to touch the advertisement.
+static volatile int restartAdvertising = false;
+
 static void disconnectBLEClients() {
 	if (!pServer) return;
 	for (uint16_t handle : pServer->getPeerDevices()) pServer->disconnect(handle);
@@ -187,6 +193,10 @@ static void updateConnectionState() { // NimBLE
 			bleBytesAvailable = 0; // drop any partial BLE message; USB owns the session now
 			BLE_resumeAdvertising(); // re-advertise, as BLE serial only
 		}
+	}
+	if (restartAdvertising) { // requested by a connection callback on the NimBLE task
+		restartAdvertising = false;
+		BLE_resumeAdvertising();
 	}
 }
 
@@ -231,11 +241,11 @@ class ConnectionCallbacks: public NimBLEServerCallbacks {
 		lastRcvTime = microsecs();
 		BLE_allowShutdown = false;
 		BLE_connected_to_IDE = true;
-		BLE_resumeAdvertising(); // stay connectable so another device can use BLE serial
+		restartAdvertising = true; // stay connectable so another device can use BLE serial
 	}
 	void onDisconnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
 		BLE_connected_to_IDE = (pServer->getConnectedCount() > 0);
-		BLE_resumeAdvertising();
+		restartAdvertising = true;
 	}
 };
 
