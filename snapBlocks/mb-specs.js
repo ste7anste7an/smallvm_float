@@ -104,8 +104,27 @@ MB_Specs.specForArg = function (arg) {
 	return '%auto';
 }
 
+MB_Specs.isSlotSpec = function (word) {
+	// A bare '%' is the per cent sign a block displays, not a slot: labelPart
+	// builds a label for it. Counting it as a slot leaves canExpand() true for a
+	// block that cannot grow, and the expansion loop in MB_Parser.makeBlock
+	// never ends.
+
+	return ('%' == word.at(0)) && (word.length > 1);
+}
+
+MB_Specs.slotCountForSpec = function (spec) {
+	// The number of input slots a spec string declares.
+
+	let count = 0;
+	for (let p of spec.split(/\s+/)) {
+		if (this.isSlotSpec(p)) count += 1;
+	}
+	return count;
+}
+
 MB_Specs.extendSpecForArgs = function (spec, args) {
-	let specSlotCount = spec.split('%').length - 1;
+	let specSlotCount = this.slotCountForSpec(spec);
 	let extraSlotCount = args.length - specSlotCount;
 
 	if (extraSlotCount <= 0) return spec; // no extra slots needed

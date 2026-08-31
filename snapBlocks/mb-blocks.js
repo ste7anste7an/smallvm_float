@@ -139,7 +139,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, MB_Specs, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -1880,7 +1880,7 @@ BlockMorph.prototype.maxInputCount = function () {
 
 	let count = 0;
 	for (let p of this.blockSpec.split(/\s+/)) {
-		if ('%' == p.at(0)) count += 1;
+		if (MB_Specs.isSlotSpec(p)) count += 1;
 	}
 	return count;
 }
@@ -1897,7 +1897,7 @@ BlockMorph.prototype.inputCountForSpecSection = function (specSection) {
 
 	let count = 0;
 	for (let p of specSection.split(/\s+/)) {
-		if ('%' == p.at(0)) count += 1;
+		if (MB_Specs.isSlotSpec(p)) count += 1;
 	}
 	return count;
 }
