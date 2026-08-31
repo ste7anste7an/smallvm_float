@@ -16,6 +16,7 @@ class MB_Editor {
 		this.codeManager = new MB_CodeManager(this.project);
 		this.readFromBoard = false;
 		this.runningChunks = new Map(); // used for block highlighting
+		this.resultBubbles = new Map(); // block -> the bubble showing its value
 	}
 
 	open(world) {
@@ -285,8 +286,35 @@ console.log('script:', x, y, aBlockMorph);
 		console.log(msg);
 	}
 
-	showResult(chunkID, value) {
-		console.log(value);
+	showResult(chunkID, value, isError) {
+		// Show a value the board reported next to the block that reported it,
+		// or take the last one away when there is nothing to show. GP does both
+		// in this one method (MicroBlocksRuntime.gp:2730).
+		const block = this.codeManager ? this.codeManager.blockForChunkID(chunkID) : null;
+		if (!(block instanceof BlockMorph)) {
+			console.log(value); // a chunk this editor does not know
+			return;
+		}
+		this.removeResultBubble(block);
+		if ((value == null) || ('' === value)) return;
+
+		const world = block.world();
+		if (!world) return;
+		const bubble = new SpeechBubbleMorph(
+			String(value),
+			isError ? new Color(255, 190, 190) : null);
+		world.add(bubble);
+		// Bottom left of the bubble at the block's right edge, where GP puts it.
+		bubble.setPosition(block.rightCenter().add(new Point(2, -bubble.height())));
+		bubble.keepWithin(world);
+		this.resultBubbles.set(block, bubble);
+	}
+
+	removeResultBubble(aBlock) {
+		const bubble = this.resultBubbles.get(aBlock);
+		if (bubble == null) return;
+		bubble.destroy();
+		this.resultBubbles.delete(aBlock);
 	}
 
 	showError(blockMorph, errorString) {
@@ -297,7 +325,7 @@ console.log('script:', x, y, aBlockMorph);
 	showChunkError(chunkID, errorString)  {
 		// Report a runtime error from the board in the given chunk .
 
-		console.log(errorString, 'in chunk', chunkID);
+		this.showResult(chunkID, errorString, true);
 	}
 
 	addLoggedData(value) {
@@ -316,7 +344,11 @@ console.log('script:', x, y, aBlockMorph);
 	}
 
 	clearRunningHighlights() {
-		// XXX TO DO
+		// Called on disconnect. Everything the board put on the screen goes with
+		// it, bubbles included -- GP clears them together too (:2717).
+		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		for (const block of this.runningChunks.keys()) block.removeHighlight();
+		this.runningChunks = new Map();
 	}
 }
 
