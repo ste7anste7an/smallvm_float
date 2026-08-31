@@ -503,15 +503,9 @@ static int spiMode = SPI_MODE0;
 static BitOrder spiBitOrder = MSBFIRST;
 
 void initSPI() {
-	#if defined(ARDUINO_ARCH_ESP32)
-		setPinMode(MISO, INPUT);
-		setPinMode(MOSI, OUTPUT);
-		setPinMode(SCK, OUTPUT);
-	#elif !defined(__ZEPHYR__)
-		setPinMode(PIN_SPI_MISO, INPUT);
-		setPinMode(PIN_SPI_SCK, OUTPUT);
-		setPinMode(PIN_SPI_MOSI, OUTPUT);
-	#endif
+	// *** Do not set the pin mode of the SPI MISO and SCL pins! ***
+	// Doing that causes turnOffPins() to switch them back into GPIO input
+	// pins when the stop button is pressed, which makes SPI stop working.
 	#if defined(PICO_ED) || defined(WUKONG2040)
 		setPinMode(PIN_SPI_SS, OUTPUT);
 		SPI.setRX(PIN_SPI_MISO);
