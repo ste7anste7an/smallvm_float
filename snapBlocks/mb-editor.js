@@ -305,6 +305,12 @@ console.log('script:', x, y, aBlockMorph);
 		console.log(value);
 	}
 
+	clearLoggedData() {
+		// Used for debugging. A stub at the same level as addLoggedData above:
+		// GP's clearLoggedData resets a ring buffer this port does not keep yet.
+		console.log('clear graph');
+	}
+
 	showDownloadProgress(phase, percent) {
 		// XXX TO DO
 	}
