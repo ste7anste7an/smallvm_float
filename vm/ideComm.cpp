@@ -38,7 +38,6 @@ static uint32 lastSendTime = 0;
 
 char BLE_ThreeLetterID[4];
 static char bleDeviceName[32];
-static char uartDeviceName[32];
 
 // Generic helper functions
 
@@ -64,7 +63,6 @@ static void initBLEDeviceName(const char *prefix) {
 
 	BLE_initThreeLetterID();
 	sprintf(bleDeviceName, "%s %s", prefix, BLE_ThreeLetterID);
-	sprintf(uartDeviceName, "UART %s", BLE_ThreeLetterID);
 }
 
 static void showShapeForMSecs(int msecs) {
@@ -364,13 +362,13 @@ void BLE_resumeAdvertising() {
 	NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
 	pAdvertising->reset();
 	pAdvertising->removeServices();
-	if (USB_connected_to_IDE) {
-		pAdvertising->addServiceUUID(UART_SERVICE_UUID);
-		pAdvertising->setName(uartDeviceName);
-	} else {
+	if (!USB_connected_to_IDE) {
+		// include MB service only if there is no USB connection
 		pAdvertising->addServiceUUID(MB_SERVICE_UUID);
-		pAdvertising->setName(bleDeviceName);
 	}
+	// always include UART service
+	pAdvertising->addServiceUUID(UART_SERVICE_UUID);
+	pAdvertising->setName(bleDeviceName);
 	pAdvertising->setMinInterval(480); // 300 msecs
 	pAdvertising->setMaxInterval(640); // 400 msecs
 	pAdvertising->start();
