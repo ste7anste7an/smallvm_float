@@ -211,11 +211,13 @@ class MB_Parser {
 			b = new CommandBlockMorph();
 		}
 		b.selector = selector;
+		// Grow the spec when the call supplies more arguments than it declares
+		// slots, or the extras are dropped. GP has no such ceiling: its compiler
+		// reads (count args) off argList (MicroBlocksCompiler.gp primitive,
+		// line 1042), which the spec does not bound.
 		let spec = MB_Specs.snapSpecForSelector(selector);
-		if (!spec) {
-			// no spe for selector; create one
-			spec = MB_Specs.specFor(selector, args);
-		}
+		spec = spec ? MB_Specs.extendSpecForArgs(spec, args)
+			: MB_Specs.specFor(selector, args); // unknown selector; specFor extends its own
 		b.setSpec(spec);
 		let cat = MB_Specs.categoryForSelector(selector);
 		if (cat.includes('Display')) cat = 'Output'; // xxx remove when libraries work

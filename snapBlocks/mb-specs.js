@@ -124,6 +124,7 @@ MB_Specs.slotCountForSpec = function (spec) {
 }
 
 MB_Specs.extendSpecForArgs = function (spec, args) {
+	if (spec.endsWith('...')) return spec; // variadic; expand() already grows it to fit
 	let specSlotCount = this.slotCountForSpec(spec);
 	let extraSlotCount = args.length - specSlotCount;
 
