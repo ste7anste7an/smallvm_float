@@ -246,7 +246,7 @@ class MB_CodeManager {
 			key = key.definedFunctionName();
 		}
 		const entry = this.chunkIDs.get(key);
-		if (entry != null && !MB_connection.isConnected()) {
+		if (entry != null && MB_connection.isConnected()) {
 			const chunkID = entry[0];
 			MB_connection.sendMsgSync('deleteChunkMsg', chunkID);
 			this.chunkIDs.delete(key);
@@ -438,9 +438,9 @@ console.log('saving chunk A', chunkID, 'len', chunkBytes.length, 'type', chunkTy
 		// restart the chunk if it was running
 		if (restartChunk) {
 			this.stopRunningChunk(chunkID);
-			this.waitForResponse();
+			MB_connection.waitForResponse();
 			this.runChunk(chunkID);
-			this.waitForResponse();
+			MB_connection.waitForResponse();
 		}
 		return true;
 	}
@@ -681,7 +681,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 		for (let i = 1; i <= varCount; i++) {
 			const varName = newVarNames[i - 1];
 			const varID = this.project.indexForVar(varName);
-			if (!MB_connection.isConnected()) {
+			if (MB_connection.isConnected()) {
 				const nameBytes = Array.from(new TextEncoder().encode(varName));
 				if ((i % 32) === 0) {
 					// send a sync message every 32 variables
@@ -736,7 +736,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 	}
 
 	clearVariableNames() {
-		if (!MB_connection.isConnected()) MB_connection.sendMsgSync('clearVarsMsg', 1);
+		if (MB_connection.isConnected()) MB_connection.sendMsgSync('clearVarsMsg', 1);
 		this.oldVarNames = null;
 	}
 
