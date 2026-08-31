@@ -493,7 +493,7 @@ class MB_Connection {
 			this.lastPingRecvMSecs = Date.now();
 		} else if (op === this.msgNameToID('codeStoreFullMsg')) {
 			// inform code store manager that code store is full
-			// codeStoreFull = true
+			MB_editor.codeManager.codeStoreFull = true;
 		} else if (op === this.msgNameToID('broadcastMsg')) {
 			// not currently used
 			// const broadcastMsg = this.bytesToString(msg.slice(5));
