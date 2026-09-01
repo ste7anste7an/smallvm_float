@@ -7,9 +7,18 @@ To do:
 [ ] lookup specs in project as well as "mb-specs" (need global for project)
 [ ] finish removing block comment code
 
+New to do:
+[x] Add [misc:clearGraph] to mb-specs.js
+[ ] Maybe await all calls to sendMsgSync() and waitForResponse()
+
 Issues:
 [x] Snap! seems to allow arg slots to contain null, MicroBlocks assumes they always have some value.
   (Solutions: MB always sets a default value OR MicroBlocks compiler can deal with "null" arg values.)
+
+Notes from Sam:
+ * Worth saying which of the five unported handlers this actually reaches, because I had it wrong at first too. receivedChunk, receivedVarName, receivedCodeStoreUsed and recordFileTransferMsg can't be provoked at all today, they're replies to requests the port never sends. I enumerated all 35 sendMsg/sendMsgSync call sites: no getAllCodeMsg, no getVarNamesMsg, no listFiles, no startReadingFile, and systemResetMsg only ever with chunkIndex 0, never 2. clearGraphMsg is the exception, primClearGraph sends it unprompted and it's the primitive behind clear graph, the fourth block in the Output palette. So the reachable case today is a board running a script with that block in it, and there the port goes deaf.
+
+
 
 Tips from Bernat:
   - how get a Morphic inspector in Snap! (both MB Snap and actual Snap!)
