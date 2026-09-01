@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:43+0200\n"
-"PO-Revision-Date: 2026-08-29 15:55+0000\n"
+"PO-Revision-Date: 2026-09-02 06:51+0000\n"
 "Last-Translator: Ralf Krause <ralf.krause@moodleschule.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/microblocks/ide/"
 "de/>\n"
@@ -2487,7 +2487,7 @@ msgstr "Board nicht verbunden"
 
 #. Process cancellation tip
 msgid "(press ESC to cancel)"
-msgstr "drücke ESC zum Abbrechen."
+msgstr "(drücke ESC zum Abbrechen)"
 
 #. Process finished information
 msgid "Done!"
