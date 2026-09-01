@@ -41,6 +41,8 @@ snapBlocks/Libraries
 electron/electron-v*.zip
 electron/prepack
 electron/out
+electron/MicroBlocks.app
+electron/MicroBlocks.app.zip
 
 # probably overkill, but this is what the official docs recommend
 
