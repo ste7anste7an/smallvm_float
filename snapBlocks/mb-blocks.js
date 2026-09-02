@@ -2113,15 +2113,24 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 		}
 	} else if (arg instanceof InputSlotMorph) { // includes subclass TextSlotMorph
 		let isStringOnly = (arg instanceof TextSlotMorph);
-		let value = arg.contents().text;
-		if (arg.isNumeric && !arg.isAlphanumeric && (value.length == 0)) {
+		let text = arg.contents().text;
+		// GP prints a literal by the class of the VALUE, quoting only a String
+		// (PrettyPrinter.gp printValue:160). The slot has kept that value since
+		// input slots became value preserving; reading the type back out of the
+		// text cannot tell 'false' from false, or '0' from 0.
+		let value = arg.evaluate();
+		if (arg.isNumeric && !arg.isAlphanumeric && (text.length == 0)) {
 			result.push('0'); // treat an empty numeric slot as zero
-		} else if (!isStringOnly && /^-?\d+$/.test(value)) { // value is an integer, slot is not 'str'
-			result.push(value);
-		} else if ((typeof value) == 'boolean') {
-			result.push(value);
-		} else { // string
+		} else if (isNil(value)) {
+			result.push('nil');
+		} else if (((typeof value) == 'number') || ((typeof value) == 'boolean')) {
+			result.push(value.toString());
+		} else if ((typeof value) == 'string') {
 			result.push('\'' + fixEmbeddedQuotes(value) + '\'');
+		} else if (!isStringOnly && /^-?\d+$/.test(text)) { // value is an integer, slot is not 'str'
+			result.push(text);
+		} else { // string
+			result.push('\'' + fixEmbeddedQuotes(text) + '\'');
 		}
 	} else {
 		console.log('unknown arg type:', arg);
