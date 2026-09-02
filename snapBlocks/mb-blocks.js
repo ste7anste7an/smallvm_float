@@ -2082,10 +2082,14 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	} else if (arg instanceof TemplateSlotMorph) {
 		result.push(fixEmbeddedQuotes(arg.contents()));
 	} else if (arg instanceof MicroBitDisplaySlotMorph) {
-		result.push(arg.contents());
+		this.addCodeStringForValue(arg.evaluate(), result);
 	} else if (arg instanceof ColorSlotMorph) {
 		let c = arg.evaluate();
-		result.push((c.r << 16) | (c.g << 8) | c.b);
+		if (c instanceof Color) {
+			result.push((c.r << 16) | (c.g << 8) | c.b);
+		} else {
+			this.addCodeStringForValue(c, result);
+		}
 	} else if (arg instanceof InputSlotMorph) { // includes subclass TextSlotMorph
 		let isStringOnly = (arg instanceof TextSlotMorph);
 		let value = arg.contents().text;
@@ -2100,6 +2104,16 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 		}
 	} else {
 		console.log('unknown arg type:', arg);
+	}
+}
+
+BlockMorph.prototype.addCodeStringForValue = function (value, result) {
+	// A kept value the slot could not show: a string must go back quoted, or
+	// the next load reads it as a variable name.
+	if ((typeof value) == 'string') {
+		result.push('\'' + fixEmbeddedQuotes(value) + '\'');
+	} else {
+		result.push(value);
 	}
 }
 
@@ -5582,6 +5596,10 @@ ColorSlotMorph.prototype.getSpec = function () {
 };
 
 ColorSlotMorph.prototype.setContents = function (clr) {
+	// Keep any value that is not a colour, as InputSlotMorph keeps mbValue.
+	// The swatch shows a default for it, but GP compiles and prints the value
+	// the source gave (Block.gp initializeForNode keeps the parse node).
+	this.mbValue = (clr instanceof Color) ? undefined : clr;
 	this.setColor(clr);
 };
 
@@ -5633,7 +5651,7 @@ ColorSlotMorph.prototype.getUserColor = function () {
 			event.pageX - posInDocument.x,
 			event.pageY - posInDocument.y
 		));
-		myself.setColor(new Color(dta[0], dta[1], dta[2]));
+		myself.setContents(new Color(dta[0], dta[1], dta[2]));
 	};
 
 	hand.processMouseDown = nop;
@@ -5655,7 +5673,7 @@ ColorSlotMorph.prototype.mouseClickLeft = function () {
 // ColorSlotMorph evaluating:
 
 ColorSlotMorph.prototype.evaluate = function () {
-	return this.color;
+	return (this.mbValue === undefined) ? this.color : this.mbValue;
 };
 
 // ColorSlotMorph drawing:
@@ -5871,7 +5889,7 @@ MicroBitDisplaySlotMorph.prototype.getSpec = function () {
 };
 
 MicroBitDisplaySlotMorph.prototype.evaluate = function() {
-	return this.contents();
+	return (this.mbValue === undefined) ? this.contents() : this.mbValue;
 }
 
 MicroBitDisplaySlotMorph.prototype.contents = function (bits) {
@@ -5895,6 +5913,10 @@ MicroBitDisplaySlotMorph.prototype.setContents = function (bits) {
 			shift += 1;
 		}
 	}
+	// A value the 25 LEDs cannot reproduce (a negative, or bits above 25) is
+	// kept, as the colour slot keeps one: GP compiles and prints the value the
+	// source gave, and its slot masks only the picture.
+	this.mbValue = (this.contents() === bits) ? undefined : bits;
 	this.rerender();
 };
 
@@ -5946,6 +5968,7 @@ MicroBitDisplaySlotMorph.prototype.mouseMove = function (pos) {
 	let i = this.pixelIndex(pos);
 	if (i >= 0) {
 		this.display[i] = this.paintMode;
+		this.mbValue = undefined; // painted, so the LEDs are the value now
 		this.rerender();
 	}
 };
