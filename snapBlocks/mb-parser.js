@@ -251,7 +251,7 @@ class MB_Parser {
 		// A reporter written where a command goes is a command block here: it
 		// chains, prints and compiles as GP's does (the primitive, then a pop),
 		// where a ReporterBlockMorph can do none of those.
-		let b, blockType = MB_Specs.blockTypeForSelector(selector);
+		let b, blockType = MB_Specs.blockTypeForSelector(selector, isReporter, args.length);
 		if (!inBody && (isReporter || ('r' == blockType))) {
 			b = new ReporterBlockMorph();
 		} else if ('h' == blockType) {
@@ -260,13 +260,12 @@ class MB_Parser {
 			b = new CommandBlockMorph();
 		}
 		b.selector = selector;
-		// Grow the spec when the call supplies more arguments than it declares
-		// slots, or the extras are dropped. GP has no such ceiling: its compiler
-		// reads (count args) off argList (MicroBlocksCompiler.gp primitive,
-		// line 1042), which the spec does not bound.
-		let spec = MB_Specs.snapSpecForSelector(selector);
+		// snapSpecForSelector returns no spec with fewer slots than the call has
+		// arguments. Any argument still without a slot is given one here, so
+		// none is dropped.
+		let spec = MB_Specs.snapSpecForSelector(selector, isReporter, args.length);
 		spec = spec ? MB_Specs.extendSpecForArgs(spec, args)
-			: MB_Specs.specFor(selector, args); // unknown selector; specFor extends its own
+			: MB_Specs.specFor(selector, args, isReporter); // no usable spec; specFor extends its own
 		b.setSpec(spec);
 		let cat = MB_Specs.categoryForSelector(selector);
 		if (cat.includes('Display')) cat = 'Output'; // xxx remove when libraries work
