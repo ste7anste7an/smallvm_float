@@ -2117,6 +2117,16 @@ BlockMorph.prototype.addCodeStringForValue = function (value, result) {
 	}
 }
 
+BlockMorph.prototype.argInputs = function () {
+	// My inputs up to the last one that is an argument: GP's argList. Trailing
+	// slots the source never filled show their defaults but compile and print
+	// as nothing, as they do in GP.
+	let inputs = this.inputs();
+	let n = inputs.length;
+	while ((n > 0) && (inputs[n - 1] instanceof ArgMorph) && inputs[n - 1].isUnsupplied()) n -= 1;
+	return (n == inputs.length) ? inputs : inputs.slice(0, n);
+};
+
 BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 	if (this.selector == 'v') {
 		// variable reporter
@@ -2134,7 +2144,7 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 		result.push('\t'.repeat(indent));
 	}
 
-	let args = this.inputs();
+	let args = this.argInputs();
 
 	if (['=', '+=', 'local', 'for', 'to'].includes(this.selector)) {
 		let varName = (args[0] instanceof TemplateSlotMorph) ?
@@ -3961,6 +3971,16 @@ ArgMorph.prototype.init = function (type) {
 
 // ArgMorph events:
 
+ArgMorph.prototype.markUnsupplied = function () {
+	// The source that built my block gave me no argument; see
+	// MB_Parser.makeBlock and BlockMorph.argInputs.
+	this.mbUnsupplied = true;
+};
+
+ArgMorph.prototype.isUnsupplied = function () {
+	return this.mbUnsupplied === true;
+};
+
 ArgMorph.prototype.setContents = function () {
 	// subclass responsibility
 	nop();
@@ -4075,6 +4095,10 @@ CommandSlotMorph.prototype.topBlock = function () {
 };
 
 // CommandSlotMorph nesting:
+
+CommandSlotMorph.prototype.isUnsupplied = function () {
+	return (this.mbUnsupplied === true) && (this.nestedBlock() == null);
+};
 
 CommandSlotMorph.prototype.nestedBlock = function (block) {
 	if (block) {
@@ -4579,6 +4603,7 @@ InputSlotMorph.prototype.setContents = function (data) {
 	// was given from one the user has since typed over.
 	this.mbValue = dta;
 	this.mbValueText = cnts.text;
+	this.mbUnsupplied = false;
 
 	cnts.fixLayout();
 
@@ -4817,6 +4842,12 @@ InputSlotMorph.prototype.evaluate = function () {
 		if (!isNaN(num)) return num;
 	}
 	return val;
+};
+
+InputSlotMorph.prototype.isUnsupplied = function () {
+	// Typing over the slot supplies the argument, the same way it replaces
+	// mbValue in evaluate().
+	return (this.mbUnsupplied === true) && (this.contents().text === this.mbValueText);
 };
 
 InputSlotMorph.prototype.isEmptySlot = function () {
@@ -5161,6 +5192,7 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 	// so coercing them here changes a program read back from a board.
 	this.mbValue = ((typeof boolOrNull === 'boolean') || isNil(boolOrNull))
 		? undefined : boolOrNull;
+	this.mbUnsupplied = false;
 	this.rerender();
 };
 
@@ -5600,6 +5632,7 @@ ColorSlotMorph.prototype.setContents = function (clr) {
 	// The swatch shows a default for it, but GP compiles and prints the value
 	// the source gave (Block.gp initializeForNode keeps the parse node).
 	this.mbValue = (clr instanceof Color) ? undefined : clr;
+	this.mbUnsupplied = false;
 	this.setColor(clr);
 };
 
@@ -5917,6 +5950,7 @@ MicroBitDisplaySlotMorph.prototype.setContents = function (bits) {
 	// kept, as the colour slot keeps one: GP compiles and prints the value the
 	// source gave, and its slot masks only the picture.
 	this.mbValue = (this.contents() === bits) ? undefined : bits;
+	this.mbUnsupplied = false;
 	this.rerender();
 };
 

@@ -244,6 +244,10 @@ class MB_Parser {
 			this.setBlockArg(b, arg, i);
 			if (arg instanceof ReporterBlockMorph) arg.fixBlockColor();
 		}
+		// A slot the source did not fill is not an argument. GP keeps the parse
+		// node beside the block (Block.gp initializeForNode :1747) and compiles
+		// and prints its argList, so `sayIt` stays `sayIt 0` and `return` stays bare.
+		for (let i = args.length; i < inputs.length; i++) inputs[i].markUnsupplied();
 		return b;
 	}
 
