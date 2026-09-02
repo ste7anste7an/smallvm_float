@@ -214,6 +214,12 @@ class MB_Parser {
 
 		if (buf.length == 0) return null; // empty command list (e.g. in an if-else)
 
+		// Resolve a command list before the spec is built, since a generated spec
+		// needs a body slot where a body goes. An empty body, `{}`, has no first
+		// block to be resolved to, so it is named instead.
+		buf = buf.map(a => ((Array.isArray(a) && ((a.length == 0) || Array.isArray(a[0])))
+			? (this.makeBlockList(a) || MB_Specs.emptyCommandList) : a));
+
 		let selector = buf[0];
 		if ('v' == selector) {
 			return this.makeVariableReporter(buf[1]);
@@ -288,6 +294,7 @@ class MB_Parser {
 	setBlockArg(b, arg, i) {
 		let inputs = b.inputs();
 		if (i >= inputs.length) return; // ignore extra arguments; shouldn't happen
+		if (MB_Specs.emptyCommandList === arg) arg = null; // an empty body fills no slot
 		if (inputs[i] instanceof CommandSlotMorph) {
 			if (arg instanceof CommandBlockMorph) {
 				inputs[i].nestedBlock(arg);

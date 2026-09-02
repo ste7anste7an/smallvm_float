@@ -91,6 +91,11 @@ MB_Specs.specFor = function (selector, args) {
 	return spec;
 }
 
+// What the parser puts in an argument that holds an empty command list, `{}`
+// in the source. An empty body has no first block, so this is the only thing
+// left to tell it from an argument that is simply absent.
+MB_Specs.emptyCommandList = { isEmptyCommandList: true };
+
 MB_Specs.specForArg = function (arg) {
 	if ((typeof arg) == 'number') {
 		return '%num';
@@ -98,7 +103,7 @@ MB_Specs.specForArg = function (arg) {
 		return '%auto';
 	} else if ((arg == true) || (arg == false)) {
 		return '%bool';
-	} else if (arg instanceof CommandBlockMorph) {
+	} else if ((arg instanceof CommandBlockMorph) || (this.emptyCommandList === arg)) {
 		return '%cmd';
 	}
 	return '%auto';
