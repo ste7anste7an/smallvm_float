@@ -1,13 +1,15 @@
 #!/bin/bash
 #
-# This script creates a temporary test folder named test-pureJS that combines
-# the current webapp UI with the pure Javascript runtime system (i.e. no GP code).
+# This script creates or updates a temporary test folder named test-pureJS that
+# combines the webapp UI with the pure Javascript runtime system (i.e. no GP code).
 # The test app can be run by running a web server (e.g. ws --https)
 # in the test-pureJS folder and opening purejs.html.
+#
+# During development, this script can be run after changing any file ot update the
+# test-pureJS folder (it's fast!). You can then reload the browser page to test.
 
-# create empty test-pureJS folder
-rm -rf test-pureJS
-mkdir test-pureJS
+# ensure test-pureJS folder exists
+mkdir -p test-pureJS
 
 # copy Libraries folder
 echo "Copying Library and Examples folders"

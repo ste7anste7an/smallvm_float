@@ -42,6 +42,18 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'edit.undo':
 		case 'ide.applyUserPreferences':
 		case 'ide.resize':
+			break; // do nothing for now
+			// the following code does not work:
+			if ((params != '') && (world != undefined)) {
+				const worldLeft = 192;
+				const worldTop = 48;
+				const cnv = document.getElementById('world-canvas');
+				cnv.width = params[0] - worldLeft;
+				cnv.height = params[1] - worldTop;
+				world.setExtent(new Point(cnv.width, cnv.height));
+				mbEditor.fixLayout();
+			}
+			break;
 		case 'ide.selectCategory':
 		case 'ide.selectLibrary':
 		case 'ide.setSerialDelay':

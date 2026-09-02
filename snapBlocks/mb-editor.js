@@ -49,20 +49,23 @@ class MB_Editor {
 
 		// WorldMorph.fillPage hands every direct child the new bounds when the
 		// browser window resizes.
-		this.palette.reactToWorldResize = () => this.fixLayout(world);
-		this.scriptsFrame.reactToWorldResize = () => this.fixLayout(world);
-		this.fixLayout(world);
+		this.palette.reactToWorldResize = () => this.fixLayout();
+		this.scriptsFrame.reactToWorldResize = () => this.fixLayout();
+		this.fixLayout();
+		return this;
 	}
 
-	fixLayout(world) {
-		// Two panes, filling the window.
+	fixLayout() {
+		// Two panes, filling the world canvas.
 
 		this.palette.setPosition(world.position());
 		this.palette.setExtent(new Point(this.paletteWidth, world.height()));
 		this.scriptsFrame.setPosition(
 			world.position().add(new Point(this.paletteWidth, 0)));
 		this.scriptsFrame.setExtent(
-			new Point(world.width() - this.paletteWidth, world.height()));
+			new Point(world.width() - this.paletteWidth,
+			this.palette.height()
+		));
 	}
 
 	scriptsPane() { return this.scripts; }
