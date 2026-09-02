@@ -2159,15 +2159,13 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 		result.push(' ' + this.selector + ' ');
 		this.addCodeStringForArg(args[1], indent, result);
 	} else {
-		result.push(quoteIfNeeded(this.selector) + ' ');
+		result.push(quoteIfNeeded(this.selector));
 		for (let i = 0; i < args.length; i++) {
+			result.push(' '); // no space after the last argument, as GP's printer
 			if (this.isElseSlot(args, i)) {
 				result.push('else');
 			} else {
 				this.addCodeStringForArg(args[i], indent, result);
-			}
-			if (i < (args.length - 1)) {
-				result.push(' ');
 			}
 		}
 	}
