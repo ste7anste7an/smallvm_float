@@ -6569,7 +6569,7 @@ msgstr "rotation"
 #. each other. If value is 50, motor A will move at speed 50 and motor B will
 #. move at speed -50. Useful for robots with wheels set at opposite sides.
 msgid "kiot;both, opposite"
-msgstr "both, flipped"
+msgstr "both, opposite"
 
 #. KidsIOT library choice
 msgid "kiot;clockwise"

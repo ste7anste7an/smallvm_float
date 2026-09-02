@@ -1,0 +1,62 @@
+module 'JSON Create' Data
+author 'Bjarke Gotfredsen, Peter Mathijssen'
+version 1 2 
+description 'This library assists in creating JSON structures:
+ - Use "json" to create key/value pairs
+ - Pass a list of json pairs as input to "json structure" to create a JSON object
+You can nest jsons. JSON arrays are not handled by this library.
+"format" generates a prettified (but less compact) version of the JSON string.
+'
+
+  spec 'r' 'jsncr_json' 'json _ _' 'str auto' 'key' 'value or json structure'
+  spec 'r' 'jsncr_json structure' 'json structure _' 'auto' 'list of jsons'
+  space
+  spec 'r' 'jsncr_format' 'format _' 'auto' 'json structure'
+  space
+  spec 'r' '_jsncr_str' 'str _' 'auto' 'string'
+
+to '_jsncr_str' s {
+  return (ifExpression (and (isType s 'string') ((at 1 s) != '{')) ('[data:join]' '"' s '"') s)
+}
+
+to jsncr_format json {
+  local 'crlf' ('[data:unicodeString]' 10)
+  local 'indent' ('[data:makeList]')
+  local 'o' ('[data:toString]' '')
+  for i (size json) {
+    local 'c' (at i json)
+    if (c == '{') {
+      '[data:addLast]' '  ' indent
+      o = ('[data:join]' o c crlf ('[data:joinStrings]' indent))
+    } (c == '}') {
+      '[data:delete]' 1 indent
+      o = ('[data:join]' o crlf ('[data:joinStrings]' indent) c)
+    } (c == ',') {
+      o = ('[data:join]' o c crlf ('[data:joinStrings]' indent))
+    } (c == ':') {
+      o = ('[data:join]' o c ' ')
+    } else {
+      o = ('[data:join]' o c)
+    }
+  }
+  return o
+}
+
+to jsncr_json key value {
+  if (not (isType key 'string')) {return ('[data:toString]' '')}
+  if (isType value 'number') {
+    return ('[data:join]' ('_jsncr_str' key) ':' value)
+  } (isType value 'boolean') {
+    return ('[data:join]' ('_jsncr_str' key) ':' (ifExpression value 'true' 'false'))
+  } (isType value 'string') {
+    return ('[data:join]' ('_jsncr_str' key) ':' ('_jsncr_str' value))
+  } else {
+    sayIt 'This JSON library supports only numbers, strings, and boolean values.'
+    stopTask
+  }
+}
+
+to 'jsncr_json structure' s {
+  return (ifExpression (isType s 'list') ('[data:join]' '{' ('[data:joinStrings]' s ',') '}') ('[data:join]' '{' s '}'))
+}
+

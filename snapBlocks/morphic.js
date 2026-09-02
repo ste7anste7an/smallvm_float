@@ -10,20 +10,10 @@
 
     Copyright (C) 2010-2025 by Jens Mönig
 
-    This file is part of Snap!.
+    This file is a copy of a file from Snap!
+    This specific file was licensed by Jens Mönig for use in MicroBlocks
+    on August 26, 2026 under the MIT license.
 
-    Snap! is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of
-    the License, or (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
     documentation contents
@@ -12313,7 +12303,7 @@ WorldMorph.prototype.initKeyboardHandler = function () {
                 kbd.world.currentKey = null;
                 kbd.world.keyboardFocus.processInput(event);
             } else {
-            	if (event.inputType == 'insertFromPaste') MB_GUI.handlePaste(event);
+            	if (event.inputType == 'insertFromPaste') MB_editor.handlePaste(event);
                 kbd.world.keyboardHandler.value = '';
             }
             event.preventDefault();
