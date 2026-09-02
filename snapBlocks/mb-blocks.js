@@ -1,127 +1,130 @@
 /*
+	mb-blocks.js
 
-		blocks.js
+	a programming construction kit
+	based on morphic.js
+	inspired by Scratch
 
-		a programming construction kit
-		based on morphic.js
-		inspired by Scratch
+	derived from blocks.js written by Jens Mönig for Snap!
+	modified by John Maloney and Bernat Romagosa
+	jens@moenig.org
 
-		written by Jens Mönig for Snap!
-		modified by John Maloney and Bernat Romagosa
-		jens@moenig.org
+	Copyright (C) 2025 by Jens Mönig
 
-		Copyright (C) 2025 by Jens Mönig
+    This file is a modified version of a file from Snap! (https://snap.berkeley.edu).
+    This specific file was licensed by Jens Mönig for use in MicroBlocks
+    under the MIT license on August 26, 2026.
 
-		This file is part of MicroBlocks, derived from the Snap! file blocks.js.
+	Permission is hereby granted, free of charge, to any person obtaining a copy of this
+	software and associated documentation files (the “Software”), to deal in the Software
+	without restriction, including without limitation the rights to use, copy, modify, merge,
+	publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
+	to whom the Software is furnished to do so, subject to the following conditions:
 
-		Snap! is free software: you can redistribute it and/or modify
-		it under the terms of the GNU Affero General Public License as
-		published by the Free Software Foundation, either version 3 of
-		the License, or (at your option) any later version.
+	The above copyright notice and this permission notice shall be included in all copies or
+	substantial portions of the Software.
 
-		This program is distributed in the hope that it will be useful,
-		but WITHOUT ANY WARRANTY; without even the implied warranty of
-		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-		GNU Affero General Public License for more details.
+	THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+	PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+	FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+	DEALINGS IN THE SOFTWARE.
 
-		You should have received a copy of the GNU Affero General Public License
-		along with this program. If not, see <http://www.gnu.org/licenses/>.
+	prerequisites:
+	--------------
+	needs morphic.js
 
-		prerequisites:
-		--------------
-		needs morphic.js
+	hierarchy
+	---------
+	the following tree lists all constructors hierarchically,
+	indentation indicating inheritance. Refer to this list to get a
+	contextual overview:
 
-		hierarchy
-		---------
-		the following tree lists all constructors hierarchically,
-		indentation indicating inheritance. Refer to this list to get a
-		contextual overview:
-
-				Morph*
-						ArrowMorph
-						BlockExpanderMorph
-						BlockHighlightMorph
-						ScriptsMorph
-						SyntaxElementMorph
-								ArgMorph
-										BooleanSlotMorph
-										ColorSlotMorph
-										CommandSlotMorph
-												CSlotMorph
-										InputSlotMorph
-												TextSlotMorph
-										MicroBitDisplaySlotMorph
-										TemplateSlotMorph
-								BlockMorph
-										CommandBlockMorph
-												HatBlockMorph
-										ReporterBlockMorph
-				StringMorph*
-						BlockLabelMorph
-						InputSlotStringMorph
-						InputSlotTextMorph
-
- * from morphic.js
-
-		toc
-		---
-		the following list shows the order in which all constructors are
-		defined. Use this list to locate code in this document:
-
-				SyntaxElementMorph
-				BlockLabelMorph
-				BlockMorph
-				CommandBlockMorph
-				HatBlockMorph
-				ReporterBlockMorph
-				ScriptsMorph
-				ArgMorph
-				CommandSlotMorph
-				CSlotMorph
-				InputSlotMorph
-				InputSlotStringMorph
-				InputSlotTextMorph
+	Morph (from morphic.js)
+		ArrowMorph
+		BlockExpanderMorph
+		BlockHighlightMorph
+		ScriptsMorph
+		SyntaxElementMorph
+			ArgMorph
 				BooleanSlotMorph
-				ArrowMorph
-				TextSlotMorph
 				ColorSlotMorph
-				TemplateSlotMorph
-				BlockExpanderMorph
-				BlockHighlightMorph
+				CommandSlotMorph
+					CSlotMorph
+				InputSlotMorph
+					TextSlotMorph
 				MicroBitDisplaySlotMorph
+				TemplateSlotMorph
+			BlockMorph
+				CommandBlockMorph
+					HatBlockMorph
+				ReporterBlockMorph
 
-		structure of syntax elements
-		----------------------------
-		the structure of syntax elements is identical with their morphic
-		tree. There are, however, accessor methods to get (only) the
-		parts which are relevant for evaluation wherever appropriate.
+	StringMorph (from morphic.js)
+			BlockLabelMorph
+			InputSlotStringMorph
+			InputSlotTextMorph
 
-		In Scratch/BYOB every sprite and the stage has its own "blocks bin",
-		an instance of ScriptsMorph (we're going to name it differently in
-		Snap, probably just "scripts").
+	toc
+	---
+	the following list shows the order in which all constructors are
+	defined. Use this list to locate code in this document:
 
-		At the top most level blocks are assembled into stacks in ScriptsMorph
-		instances. A ScriptsMorph contains nothing but blocks, therefore
-		every child of a ScriptsMorph is expected to be a block.
+	SyntaxElementMorph
+	BlockLabelMorph
+	BlockMorph
+	CommandBlockMorph
+	HatBlockMorph
+	ReporterBlockMorph
+	ScriptsMorph
+	ArgMorph
+	CommandSlotMorph
+	CSlotMorph
+	InputSlotMorph
+	InputSlotStringMorph
+	InputSlotTextMorph
+	BooleanSlotMorph
+	ArrowMorph
+	TextSlotMorph
+	ColorSlotMorph
+	TemplateSlotMorph
+	BlockExpanderMorph
+	BlockHighlightMorph
+	MicroBitDisplaySlotMorph
 
-		Each block contains:
+	structure of syntax elements
+	----------------------------
+	the structure of syntax elements is identical with their morphic
+	tree. There are, however, accessor methods to get (only) the
+	parts which are relevant for evaluation wherever appropriate.
 
-				selector	- indicating the name of the function it triggers,
+	In Scratch/BYOB every sprite and the stage has its own "blocks bin",
+	an instance of ScriptsMorph (we're going to name it differently in
+	Snap, probably just "scripts").
 
-		Its arguments are first evaluated and then passed along as the
-		selector is called. Arguments can be either instances of ArgMorph
-		or ReporterBlockMorph. The getter method for a block's arguments is
+	At the top most level blocks are assembled into stacks in ScriptsMorph
+	instances. A ScriptsMorph contains nothing but blocks, therefore
+	every child of a ScriptsMorph is expected to be a block.
 
-				inputs()	- gets an array of arg morphs and/or reporter blocks
+	Each block contains:
 
-		in addition to inputs, command blocks also know their
+		selector	- indicating the name of the function it triggers,
 
-				nextBlock()	- gets the block attached to the receiver's bottom
+	Its arguments are first evaluated and then passed along as the
+	selector is called. Arguments can be either instances of ArgMorph
+	or ReporterBlockMorph. The getter method for a block's arguments is
 
-		and the block they're attached to - if any: Their parent.
+		inputs()	- gets an array of arg morphs and/or reporter blocks
 
-		please also refer to the high-level comment at the beginning of each
-		constructor for further details.
+	in addition to inputs, command blocks also know their
+
+		nextBlock()	- gets the block attached to the receiver's bottom
+
+	and the block they're attached to - if any: Their parent.
+
+	please also refer to the high-level comment at the beginning of each
+	constructor for further details.
 */
 
 /*global Array, BoxMorph,
@@ -136,7 +139,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_GUI, MB_Project, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -3765,6 +3768,8 @@ ScriptsMorph.prototype.userMenu = function () {
 	menu.addItem(
 		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
 	menu.addItem(
+		'save project', () => { MB_editor.saveProject() }, 'save this project to a file');
+	menu.addItem(
 		'read from board', () => { MB_editor.openProjectFromBoard() },
 		'replace this project with the one\nstored on the connected board');
 	menu.addLine();
@@ -4546,6 +4551,15 @@ InputSlotMorph.prototype.setContents = function (data) {
 	} else if (dta.toString) {
 		cnts.text = dta.toString();
 	}
+
+	// Keep the value, not only its text. GP's InputSlot.gp setContents does the
+	// same (contents = data); keeping only the text is what turned the literal
+	// '0x06' into 0 and false into "false" at compile time. mbValueText records
+	// the text this value was shown as, so evaluate() can tell a value the slot
+	// was given from one the user has since typed over.
+	this.mbValue = dta;
+	this.mbValueText = cnts.text;
+
 	cnts.fixLayout();
 
 	// adjust to zebra coloring:
@@ -4576,6 +4590,17 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 	let menu = new MenuMorph(this.setContents);
 	menu.environment = this;
 	menu.fontSize = this.fontSize;
+
+	if (slotMenuName && slotMenuName.startsWith('range:')) {
+		// an integer range such as 'range:1-8', as GP's InputSlot does
+		const pair = slotMenuName.slice(6).split('-');
+		if ((pair.length == 2) && /^\d+$/.test(pair[0]) && /^\d+$/.test(pair[1])) {
+			for (let i = Number(pair[0]); i <= Number(pair[1]); i++) {
+				menu.addItem('' + i, i);
+			}
+			return menu;
+		}
+	}
 
 	if ('buttonMenu' == slotMenuName) {
 		menu.addItem('A', 'A');
@@ -4609,6 +4634,16 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		menu.addItem('all', 'all');
 		return menu;
 	}
+	// A library declares its own menus with a `choices` line and the project
+	// has already parsed them.
+	if (typeof MB_editor !== 'undefined') {
+		const choices = MB_editor.project.choicesFor(slotMenuName);
+		if (choices) {
+			choices.forEach((each) => { menu.addItem(each, each); });
+			return menu;
+		}
+	}
+
 	// todo when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
 
 	console.log('unhandled slot menu:', slotMenuName);
@@ -4750,6 +4785,13 @@ InputSlotMorph.prototype.evaluate = function () {
 		return '';
 	}
 	let val = this.contents().text;
+	// The value this slot was given, for as long as the text still shows it.
+	// Editing the slot replaces the text, and from then on the text is the
+	// truth -- which is where the coercion below belongs, and where GP puts it
+	// too (InputSlot.gp textChanged, on the edit path).
+	if (this.mbValueText === val) {
+		return this.mbValue;
+	}
 	if (this.isNumeric || (this.isAlphanumeric && /^-?\d+$/.test(val))) {
 		let num = parseInt(val, 10);
 		if (!isNaN(num)) return num;
@@ -5072,7 +5114,7 @@ BooleanSlotMorph.prototype.getSpec = function () {
 // BooleanSlotMorph accessing:
 
 BooleanSlotMorph.prototype.evaluate = function () {
-	return this.value;
+	return (this.mbValue === undefined) ? this.value : this.mbValue;
 };
 
 BooleanSlotMorph.prototype.isEmptySlot = function () {
@@ -5090,6 +5132,13 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 			+boolOrNull < 0 ? null
 				: ['true', 'on', 'yes', 'ok', 'y', '+'].includes(boolOrNull) ||
 					+boolOrNull > 0);
+	// A number in a boolean position stays that number. The coercion above is
+	// for the words a user can type or pick from a menu; a number is a value in
+	// its own right, and GP compiles it as one because its compiler reads the
+	// parse tree and never passes it through a slot. The bytes carry such a
+	// number whenever the compiler emitted its dummy for a call it could not
+	// resolve, and coercing it to false changes the program.
+	this.mbValue = (typeof boolOrNull === 'number') ? boolOrNull : undefined;
 	this.rerender();
 };
 
@@ -5529,6 +5578,13 @@ ColorSlotMorph.prototype.setContents = function (clr) {
 };
 
 ColorSlotMorph.prototype.setColor = function (clr) {
+	// A number is a colour packed as 0xRRGGBB, which is how the bytes carry one
+	// and how the source writes one outside a colorSwatch. Without this it
+	// falls through to the default below, so a colour read back from a board
+	// arrives as (145, 26, 68) whatever it was.
+	if (typeof clr === 'number') {
+		clr = new Color((clr >> 16) & 255, (clr >> 8) & 255, clr & 255);
+	}
 	ColorSlotMorph.uber.setColor.call(
 		this,
 		isString(clr) && clr.length > 10 ? Color.fromString(clr)

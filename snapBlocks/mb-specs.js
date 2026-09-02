@@ -200,6 +200,7 @@ MB_Specs.mbBlockSpecs = function () {
 			[" ", "setUserLED", "set user LED _", "bool", true],
 			[" ", "sayIt", "say _ : _ : ...", "str str str str str str str str str str str str", 123, "", ""],
 			[" ", "graphIt", "graph _ : _ : ...", "auto auto auto auto auto auto auto auto auto auto", 100],
+			[" ", "[misc:clearGraph]", "clear graph"],
 		"cat;Input",
 			["r", "buttonA", "button A"],
 			["r", "buttonB", "button B"],

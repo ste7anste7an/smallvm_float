@@ -15,16 +15,16 @@ class MB_Editor {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.readFromBoard = false;
+		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
+		this.resultBubbles = new Map(); // block -> the bubble showing its value
 	}
 
 	open(world) {
-		const scriptingHeight = 500;
-		const paletteWidth = 200;
+		this.paletteWidth = 200;
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.color = new Color(180, 180, 180);
-		this.palette.setExtent(new Point(paletteWidth, scriptingHeight));
 		this.addBlocksToPalette(this.palette);
 		this.palette.contents.adjustBounds();
 		this.palette.contents.acceptsDrops = true;
@@ -34,13 +34,35 @@ class MB_Editor {
 			}
 		};
 
+		// The scripting pane scrolls, so a script taller than the window can
+		// be reached without dragging it off the pane.
 		this.scripts = new ScriptsMorph();
 		this.scripts.color = new Color(150, 150, 150);
-		this.scripts.setLeft(paletteWidth);
-		this.scripts.setExtent(new Point(1000, scriptingHeight));
+		this.scriptsFrame = new ScrollFrameMorph(this.scripts);
+		this.scriptsFrame.color = this.scripts.color;
+		// What FrameMorph's constructor would have set; ScriptsMorph takes no
+		// scroll frame, and adjustBounds does nothing without one.
+		this.scripts.scrollFrame = this.scriptsFrame;
 
 		world.add(this.palette);
-		world.add(this.scripts);
+		world.add(this.scriptsFrame);
+
+		// WorldMorph.fillPage hands every direct child the new bounds when the
+		// browser window resizes.
+		this.palette.reactToWorldResize = () => this.fixLayout(world);
+		this.scriptsFrame.reactToWorldResize = () => this.fixLayout(world);
+		this.fixLayout(world);
+	}
+
+	fixLayout(world) {
+		// Two panes, filling the window.
+
+		this.palette.setPosition(world.position());
+		this.palette.setExtent(new Point(this.paletteWidth, world.height()));
+		this.scriptsFrame.setPosition(
+			world.position().add(new Point(this.paletteWidth, 0)));
+		this.scriptsFrame.setExtent(
+			new Point(world.width() - this.paletteWidth, world.height()));
 	}
 
 	scriptsPane() { return this.scripts; }
@@ -56,15 +78,18 @@ class MB_Editor {
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(new Point(this.randomBetween(200, 800), this.randomBetween(10, 300)));
 		scriptsPane.add(b);
+		scriptsPane.adjustBounds();
 		scriptsPane.changed();
 	}
 
 	addBlockToScriptsAt(b, x, y) {
-		// For testing. Add the given block to the scripts pane at the given position.
+		// Add the given block to the scripts pane at the given position.
+		// x and y are relative to the pane, which is what updateProject records.
 
 		let scriptsPane = this.scriptsPane();
-		b.setPosition(new Point(300 + x, y));
+		b.setPosition(scriptsPane.position().add(new Point(x, y)));
 		scriptsPane.add(b);
+		scriptsPane.adjustBounds();
 		scriptsPane.changed();
 	}
 
@@ -189,18 +214,17 @@ console.log('unknown');
 		let newScripts = [];
 		for (const aBlockMorph of this.scriptsPane().children) {
 			if (aBlockMorph instanceof BlockMorph) {
-				if (aBlockMorph.isFunctionDefinition()) {
-					let funcName = aBlockMorph.inputValues()[0];
-console.log('func:', funcName);
-				} else {
+				// A function definition in the pane belongs to the project's
+				// functions, not to main.scripts. XXX TO DO: write an edited
+				// definition back, as GP's updateFunctionOrMethod does.
+				if (!aBlockMorph.isFunctionDefinition()) {
 					let x = Math.round(aBlockMorph.left() - this.scripts.left());
 					let y = Math.round(aBlockMorph.top() - this.scripts.top());
 					newScripts.push([x, y, aBlockMorph]);
-console.log('script:', x, y, aBlockMorph);
 				}
 			}
 		}
-//		project.main.setScripts(newScripts);
+		this.project.main.setScripts(newScripts);
 	}
 
 	// File operations
@@ -208,7 +232,31 @@ console.log('script:', x, y, aBlockMorph);
 	newProject() {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
+		this.projectName = null;
 		this.removeAllScripts();
+	}
+
+	saveProject() {
+		// Write the project to a file the browser downloads.
+
+		this.updateProject();
+		let name = this.projectName || 'untitled.ubp';
+		if (!name.endsWith('.ubp')) name += '.ubp';
+		this.saveTextAsFile(this.project.codeString(), name);
+	}
+
+	saveTextAsFile(text, fileName) {
+		// A download is all a web page can do; there is no file system to
+		// write to and no path to write it at.
+
+		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = fileName;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
 	}
 
 	openProject() {
@@ -221,6 +269,7 @@ console.log('script:', x, y, aBlockMorph);
 				MB_editor.addBlockToScriptsAt(script, x, y);
 			});
 			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+			MB_editor.projectName = fileName;
 			MB_connection.setCodeManager(MB_editor.codeManager);
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',
@@ -255,7 +304,7 @@ console.log('script:', x, y, aBlockMorph);
 
 	// Connect/Disconnect
 
-	justConnected() {
+	async justConnected() {
 		if (this.readFromBoard) {
 			this.readFromBoard = false;
 			// Not awaited: justConnected is synchronous here, and nothing after
@@ -265,7 +314,7 @@ console.log('script:', x, y, aBlockMorph);
 			const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
 			if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
 				if (reuseCodeIfPossible) console.log('Full download');
-				MB_connection.clearBoardIfConnected();
+				await MB_connection.clearBoardIfConnected();
 				this.runningChunks = new Map();
 			} else {
 				console.log('Incremental download', this.vmVersion, this.boardType);
@@ -304,8 +353,35 @@ console.log('script:', x, y, aBlockMorph);
 		console.log(msg);
 	}
 
-	showResult(chunkID, value) {
-		console.log(value);
+	showResult(chunkID, value, isError) {
+		// Show a value the board reported next to the block that reported it,
+		// or take the last one away when there is nothing to show. GP does both
+		// in this one method (MicroBlocksRuntime.gp:2730).
+		const block = this.codeManager ? this.codeManager.blockForChunkID(chunkID) : null;
+		if (!(block instanceof BlockMorph)) {
+			console.log(value); // a chunk this editor does not know
+			return;
+		}
+		this.removeResultBubble(block);
+		if ((value == null) || ('' === value)) return;
+
+		const world = block.world();
+		if (!world) return;
+		const bubble = new SpeechBubbleMorph(
+			String(value),
+			isError ? new Color(255, 190, 190) : null);
+		world.add(bubble);
+		// Bottom left of the bubble at the block's right edge, where GP puts it.
+		bubble.setPosition(block.rightCenter().add(new Point(2, -bubble.height())));
+		bubble.keepWithin(world);
+		this.resultBubbles.set(block, bubble);
+	}
+
+	removeResultBubble(aBlock) {
+		const bubble = this.resultBubbles.get(aBlock);
+		if (bubble == null) return;
+		bubble.destroy();
+		this.resultBubbles.delete(aBlock);
 	}
 
 	showError(blockMorph, errorString) {
@@ -316,7 +392,7 @@ console.log('script:', x, y, aBlockMorph);
 	showChunkError(chunkID, errorString)  {
 		// Report a runtime error from the board in the given chunk .
 
-		console.log(errorString, 'in chunk', chunkID);
+		this.showResult(chunkID, errorString, true);
 	}
 
 	addLoggedData(value) {
@@ -324,12 +400,22 @@ console.log('script:', x, y, aBlockMorph);
 		console.log(value);
 	}
 
+	clearLoggedData() {
+		// Used for debugging. A stub at the same level as addLoggedData above:
+		// GP's clearLoggedData resets a ring buffer this port does not keep yet.
+		console.log('clear graph');
+	}
+
 	showDownloadProgress(phase, percent) {
 		// XXX TO DO
 	}
 
 	clearRunningHighlights() {
-		// XXX TO DO
+		// Called on disconnect. Everything the board put on the screen goes with
+		// it, bubbles included -- GP clears them together too (:2717).
+		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		for (const block of this.runningChunks.keys()) block.removeHighlight();
+		this.runningChunks = new Map();
 	}
 }
 

@@ -1,10 +1,10 @@
-module Nezha2 Output
-author wwj718 and MicroBlocks
+module 'Nezha' Output
+author 'wwj718 and MicroBlocks'
 version 1 3 
 choices nezhaAnalogPort J1 J2 
 choices nezhaServoType '180°' '270°' '360°' 
 choices nezhaPort J1 J2 J3 J4 
-description 'Library for ELECFREAKS Nezha micro:bit expansion board.
+description 'Library for the originalELECFREAKS Nezha micro:bit expansion board.
 https://www.elecfreaks.com/learn-en/microbitExtensionModule/nezha.html
 
 The Nezha board has four DC motor ports, four servo ports, and a built-in, 900mAh rechargeable LiIon battery. It also has three Planet X I2C ports and four general Planet X ports, two of which are capable of reading analog values. Components are connected with easy-to-use RJ11 (telephone cord style) connectors. The Nezha board and Planet X components are compatible to Lego and Fischertechnik bricks.
