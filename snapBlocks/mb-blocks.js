@@ -3800,6 +3800,9 @@ ScriptsMorph.prototype.userMenu = function () {
 		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
 	menu.addItem(
 		'save project', () => { MB_editor.saveProject() }, 'save this project to a file');
+	menu.addItem(
+		'read from board', () => { MB_editor.openProjectFromBoard() },
+		'replace this project with the one\nstored on the connected board');
 	menu.addLine();
 
 	menu.addItem(

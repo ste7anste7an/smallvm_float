@@ -108,8 +108,6 @@ class MB_CodeManager {
 		for (const item of code) {
 			if (Array.isArray(item)) {
 				this.compiler.addBytesForInstructionTo(item, bytes);
-			} else if (Number.isInteger(item)) {
-				this.compiler.addBytesForIntegerLiteralTo(item, bytes);
 			} else if (typeof item === 'string') {
 				this.compiler.addBytesForStringLiteral(item, bytes);
 			} else {
