@@ -8,9 +8,9 @@
 		<meta name="apple-mobile-web-app-capable" content="yes">
 		<meta name="mobile-web-app-capable" content="yes">
 
-		<link rel="manifest" href="ui/manifest.json">
-		<link rel="icon" href="ui/favicon.ico" type="image/x-icon" />
-		<link rel="apple-touch-icon" href="ui/icons/Bunny512.png">
+		<link rel="manifest" href="manifest.json">
+		<link rel="icon" href="favicon.ico" type="image/x-icon" />
+		<link rel="apple-touch-icon" href="icons/Bunny512.png">
 
 		<meta name="theme-color" content="white"/>
 		<meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,78 +20,56 @@
 		<meta name="msapplication-TileColor" content="#FFFFFF">
 
 		<!-- Styles -->
-		<link rel="stylesheet" href="ui/styles/config/_config.css">
-		<link rel="stylesheet" href="ui/styles/generic/minireset.css">
-		<link rel="stylesheet" href="ui/styles/generic/_body.css">
-		<link rel="stylesheet" href="ui/styles/generic/_button.css">
-		<link rel="stylesheet" href="ui/styles/components/_app-preloader.css">
-		<link rel="stylesheet" href="ui/styles/components/_buttons.css">
-		<link rel="stylesheet" href="ui/styles/components/_categories-libraries.css">
-		<link rel="stylesheet" href="ui/styles/components/_ide.css">
-		<link rel="stylesheet" href="ui/styles/components/_menus.css">
-		<link rel="stylesheet" href="ui/styles/components/_scripts-pane-controls.css">
-		<link rel="stylesheet" href="ui/styles/components/_tips.css">
-		<link rel="stylesheet" href="ui/styles/components/_top-bar.css">
-		<link rel="stylesheet" href="ui/styles/components/_window.css">
-		<link rel="stylesheet" href="ui/styles/components/_overlay.css">
-		<link rel="stylesheet" href="ui/styles/components/_wysiwyg.css">
-		<link rel="stylesheet" href="ui/styles/utilities/_drag.css">
+		<link rel="stylesheet" href="styles/config/_config.css">
+		<link rel="stylesheet" href="styles/generic/minireset.css">
+		<link rel="stylesheet" href="styles/generic/_body.css">
+		<link rel="stylesheet" href="styles/generic/_button.css">
+		<link rel="stylesheet" href="styles/components/_app-preloader.css">
+		<link rel="stylesheet" href="styles/components/_buttons.css">
+		<link rel="stylesheet" href="styles/components/_categories-libraries.css">
+		<link rel="stylesheet" href="styles/components/_ide.css">
+		<link rel="stylesheet" href="styles/components/_menus.css">
+		<link rel="stylesheet" href="styles/components/_scripts-pane-controls.css">
+		<link rel="stylesheet" href="styles/components/_tips.css">
+		<link rel="stylesheet" href="styles/components/_top-bar.css">
+		<link rel="stylesheet" href="styles/components/_window.css">
+		<link rel="stylesheet" href="styles/components/_overlay.css">
+		<link rel="stylesheet" href="styles/components/_wysiwyg.css">
+		<link rel="stylesheet" href="styles/utilities/_drag.css">
 
 		<!-- Developer tools. Disable on live instances -->
-		<script type="text/javascript" src="ui/devtools.js" defer></script>
+		<script type="text/javascript" src="devtools.js" defer></script>
 
 		<!-- Localization -->
-		<script type="text/javascript" src="ui/gettext.js" defer></script>
+		<script type="text/javascript" src="gettext.js"></script>
 
 		<!-- Window Components -->
-		<script type="text/javascript" src="ui/windows.js" defer></script>
-		<script type="text/javascript" src="ui/graph.js" defer></script>
+		<script type="text/javascript" src="windows.js"></script>
+		<script type="text/javascript" src="graph.js" defer></script>
 
 		<!-- Firmware upload support -->
-		<script type="text/javascript" src="ui/lib/usbDfuDevice.js" defer></script>
-		<script type="text/javascript" src="ui/flasher.js" defer></script>
+		<script type="text/javascript" src="lib/usbDfuDevice.js"></script>
+		<script type="text/javascript" src="flasher.js"></script>
 
 	</head>
 
 	<body oncontextmenu="return false;">
-
 
 		<!-- Force HTTPS. Otherwise WebSerial can't be accessed. -->
 		<script>
 			if (location.protocol === 'http:') { location.protocol = 'https:'; }
 		</script>
 
-
-		<!-- Controls -->
-		<span id="controls" style="display: none">
-			<input type="button" value="Keyboard" id="KeyboardButton">
-			<input type="button" value="Backspace" id="BackspaceButton">
-			<input type="button" value="Toggle Fullscreen" id="FullscreenButton">
-			<input type="button" value="Upload" id="UploadButton">
-			<input type="button" value="Enable Microphone" id="EnableMicrophoneButton">
-			<input type="button" value="See Inside" id="SeeInsideButton">
-			<input type="button" value="Present" id="PresentButton">
-			<input type="button" value="Go" id="GoButton">
-			<input type="button" value="Stop" id="StopButton">
-			<input type="file" id="FileUploader" multiple style="display:none">
-		</span>
-
+		<!-- FileUploader -->
+		<input type="file" id="FileUploader" multiple style="display:none">
 
 		<!-- Loader -->
 		<div class="app-preloader" data-ide="app-preloader">
 			<div class="app-preloader__contents">
-				<img class="app-preloader__logo" src="ui/img/logo-preloader.svg" alt="MicroBlocks and Rosza logo">
+				<img class="app-preloader__logo" src="img/logo-preloader.svg" alt="MicroBlocks and Rosa logo">
 				<div class="app-preloader__spinner"></div>
 			</div>
 			<p class="app-preloader__text">Loading</p>
-		</div>
-
-
-		<!-- Emcripten -->
-		<div class="spinner" id="spinner"></div>
-		<div class="emscripten" id="status"></div>
-		<div class="emscripten">
-			<progress value="0" max="100" id="progress" hidden="1"></progress>
 		</div>
 
 
@@ -101,7 +79,7 @@
 			<nav class="top-bar" data-ide="top-bar">
 
 				<a href="https://microblocks.fun/" target="_blank" class="top-bar__logo" aria-label="MicroBlocks website">
-					<img src="ui/img/microblocks-ide-logo.svg" alt="">
+					<img src="img/microblocks-ide-logo.svg" alt="">
 				</a>
 
 				<div class="top-bar__main-menu" data-ide="main-menu"></div>
@@ -122,7 +100,6 @@
 					</div>
 					<div class="libraries">
 						<h2 class="libraries__title"><l->LIBRARIES</l-></h2>
-						<div class="libraries__list" data-ide="libraries-list"></div>
 						<nav class="libraries__add-button-wrapper">
 							<button class="button-rounded libraries__add-button" onclick="GP.apiCall('ide.showLibraryDialog');">
 								<l->Add Library</l->
@@ -133,6 +110,7 @@
 								</span>
 							</button>
 						</nav>
+						<div class="libraries__list" data-ide="libraries-list"></div>
 					</div>
 					<button class="workspace__collapse-left-btn" data-ide="collapse-left-btn" aria-label="Expand and collapse left bar">
 						<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -159,30 +137,68 @@
 					<div class="overlay__spinner" data-ide="overlay-spinner"></div>
 					<h2 class="overlay__title" data-ide="overlay-title"></h2>
 					<h3 class="overlay__subtitle" data-ide="overlay-subtitle"></h3>
+					<span class="overlay__note" data-ide="overlay-note"></span>
 				</div>
 			</div>
 
 		</div>
 
+		<!-- Canvas for Morphic world -->
+		<canvas id="world-canvas"></canvas>
 
-		<!-- Functional JS -->
-		<script type="text/javascript" src="ui/gpSupport.js"></script>
-		<script type="text/javascript" src="ui/FileSaver.js"></script>
-
+		<!-- Snap Blocks -->
+		<script type="text/javascript" src="morphic.js"></script>
+		<script type="text/javascript" src="mb-blocks.js"></script>
+		<script type="text/javascript" src="mb-code-manager.js"></script>
+		<script type="text/javascript" src="mb-comm-port.js"></script>
+		<script type="text/javascript" src="mb-compare.js"></script>
+		<script type="text/javascript" src="mb-compiler.js"></script>
+		<script type="text/javascript" src="mb-connection.js"></script>
+		<script type="text/javascript" src="mb-decompiler.js"></script>
+		<script type="text/javascript" src="mb-files.js"></script>
+		<script type="text/javascript" src="mb-function.js"></script>
+		<script type="text/javascript" src="mb-jsAPI.js"></script>
+		<script type="text/javascript" src="mb-parser.js"></script>
+		<script type="text/javascript" src="mb-project.js"></script>
+		<script type="text/javascript" src="mb-specs.js"></script>
+		<script type="text/javascript" src="mb-editor.js"></script>
 
 		<!-- IDE -->
-		<script type="text/javascript" src="ui/ide.js"></script>
-		<script type="text/javascript" src="ui/menus.js"></script>
-		<script type="text/javascript" src="ui/buttons.js"></script>
-		<script type="text/javascript" src="ui/categories.js"></script>
+		<script type="text/javascript" src="ide.js"></script>
+		<script type="text/javascript" src="menus.js"></script>
+		<script type="text/javascript" src="buttons.js"></script>
+		<script type="text/javascript" src="categories.js"></script>
 
-		<!-- GP Init -->
+		<!-- Start IDE when page is loaded -->
 		<script>
-			// emitted by GP (MicroBlocksEditor.gp → openMicroBlocksEditor)
-//			document.addEventListener('load', () => { console.log('ready'); IDE.init(); });
-			setTimeout(() => { IDE.init(); }, 500);
-		</script>
+			var world, mbEditor;
+			window.onload = function () {
+				var FPS = 60,
+					lastTime = 0,
 
+				// Morphic UI loop
+				loop = (timestamp) => {
+					requestAnimationFrame(loop);
+					if (timestamp - lastTime < 1000 / FPS) {
+						return;
+					}
+					world.doOneCycle();
+					lastTime = Math.max(
+						lastTime + 1000 / FPS,
+						timestamp - 1000 / FPS
+					);
+				};
+
+				setTimeout(() => {
+					// Hack: Wait a bit before starting to let everything finish loading...
+					IDE.init();
+					world = new WorldMorph(document.getElementById('world-canvas'));
+					world.setPosition(new Point(192, 48));
+					mbEditor = MB_editor.open(world);
+					requestAnimationFrame(loop);
+				}, 500);
+			};
+		</script>
 
 	</body>
 </html>

@@ -139,7 +139,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, MB_Specs, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -1880,7 +1880,7 @@ BlockMorph.prototype.maxInputCount = function () {
 
 	let count = 0;
 	for (let p of this.blockSpec.split(/\s+/)) {
-		if ('%' == p.at(0)) count += 1;
+		if (MB_Specs.isSlotSpec(p)) count += 1;
 	}
 	return count;
 }
@@ -1897,7 +1897,7 @@ BlockMorph.prototype.inputCountForSpecSection = function (specSection) {
 
 	let count = 0;
 	for (let p of specSection.split(/\s+/)) {
-		if ('%' == p.at(0)) count += 1;
+		if (MB_Specs.isSlotSpec(p)) count += 1;
 	}
 	return count;
 }
@@ -2067,16 +2067,29 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 			result.push('}');
 		}
 	} else if (arg instanceof BooleanSlotMorph) {
-		result.push((arg.value == true).toString());
+		// evaluate(), not value: a value the slot cannot represent is kept
+		// beside it, and it is the one GP's printer sees in the argList.
+		let value = arg.evaluate();
+		if ((typeof value) == 'string') {
+			result.push('\'' + fixEmbeddedQuotes(value) + '\'');
+		} else if ((typeof value) == 'number') {
+			result.push(value);
+		} else {
+			result.push((value == true).toString());
+		}
 	} else if (arg instanceof ReporterBlockMorph) {
 		result.push(arg.codeString());
 	} else if (arg instanceof TemplateSlotMorph) {
 		result.push(fixEmbeddedQuotes(arg.contents()));
 	} else if (arg instanceof MicroBitDisplaySlotMorph) {
-		result.push(arg.contents());
+		this.addCodeStringForValue(arg.evaluate(), result);
 	} else if (arg instanceof ColorSlotMorph) {
 		let c = arg.evaluate();
-		result.push((c.r << 16) | (c.g << 8) | c.b);
+		if (c instanceof Color) {
+			result.push((c.r << 16) | (c.g << 8) | c.b);
+		} else {
+			this.addCodeStringForValue(c, result);
+		}
 	} else if (arg instanceof InputSlotMorph) { // includes subclass TextSlotMorph
 		let isStringOnly = (arg instanceof TextSlotMorph);
 		let value = arg.contents().text;
@@ -2093,6 +2106,26 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 		console.log('unknown arg type:', arg);
 	}
 }
+
+BlockMorph.prototype.addCodeStringForValue = function (value, result) {
+	// A kept value the slot could not show: a string must go back quoted, or
+	// the next load reads it as a variable name.
+	if ((typeof value) == 'string') {
+		result.push('\'' + fixEmbeddedQuotes(value) + '\'');
+	} else {
+		result.push(value);
+	}
+}
+
+BlockMorph.prototype.argInputs = function () {
+	// My inputs up to the last one that is an argument: GP's argList. Trailing
+	// slots the source never filled show their defaults but compile and print
+	// as nothing, as they do in GP.
+	let inputs = this.inputs();
+	let n = inputs.length;
+	while ((n > 0) && (inputs[n - 1] instanceof ArgMorph) && inputs[n - 1].isUnsupplied()) n -= 1;
+	return (n == inputs.length) ? inputs : inputs.slice(0, n);
+};
 
 BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 	if (this.selector == 'v') {
@@ -2111,7 +2144,7 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 		result.push('\t'.repeat(indent));
 	}
 
-	let args = this.inputs();
+	let args = this.argInputs();
 
 	if (['=', '+=', 'local', 'for', 'to'].includes(this.selector)) {
 		let varName = (args[0] instanceof TemplateSlotMorph) ?
@@ -2126,15 +2159,13 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 		result.push(' ' + this.selector + ' ');
 		this.addCodeStringForArg(args[1], indent, result);
 	} else {
-		result.push(quoteIfNeeded(this.selector) + ' ');
+		result.push(quoteIfNeeded(this.selector));
 		for (let i = 0; i < args.length; i++) {
+			result.push(' '); // no space after the last argument, as GP's printer
 			if (this.isElseSlot(args, i)) {
 				result.push('else');
 			} else {
 				this.addCodeStringForArg(args[i], indent, result);
-			}
-			if (i < (args.length - 1)) {
-				result.push(' ');
 			}
 		}
 	}
@@ -3941,6 +3972,16 @@ ArgMorph.prototype.init = function (type) {
 
 // ArgMorph events:
 
+ArgMorph.prototype.markUnsupplied = function () {
+	// The source that built my block gave me no argument; see
+	// MB_Parser.makeBlock and BlockMorph.argInputs.
+	this.mbUnsupplied = true;
+};
+
+ArgMorph.prototype.isUnsupplied = function () {
+	return this.mbUnsupplied === true;
+};
+
 ArgMorph.prototype.setContents = function () {
 	// subclass responsibility
 	nop();
@@ -4055,6 +4096,10 @@ CommandSlotMorph.prototype.topBlock = function () {
 };
 
 // CommandSlotMorph nesting:
+
+CommandSlotMorph.prototype.isUnsupplied = function () {
+	return (this.mbUnsupplied === true) && (this.nestedBlock() == null);
+};
 
 CommandSlotMorph.prototype.nestedBlock = function (block) {
 	if (block) {
@@ -4559,6 +4604,7 @@ InputSlotMorph.prototype.setContents = function (data) {
 	// was given from one the user has since typed over.
 	this.mbValue = dta;
 	this.mbValueText = cnts.text;
+	this.mbUnsupplied = false;
 
 	cnts.fixLayout();
 
@@ -4797,6 +4843,12 @@ InputSlotMorph.prototype.evaluate = function () {
 		if (!isNaN(num)) return num;
 	}
 	return val;
+};
+
+InputSlotMorph.prototype.isUnsupplied = function () {
+	// Typing over the slot supplies the argument, the same way it replaces
+	// mbValue in evaluate().
+	return (this.mbUnsupplied === true) && (this.contents().text === this.mbValueText);
 };
 
 InputSlotMorph.prototype.isEmptySlot = function () {
@@ -5132,13 +5184,16 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 			+boolOrNull < 0 ? null
 				: ['true', 'on', 'yes', 'ok', 'y', '+'].includes(boolOrNull) ||
 					+boolOrNull > 0);
-	// A number in a boolean position stays that number. The coercion above is
-	// for the words a user can type or pick from a menu; a number is a value in
+	// A value that is not a boolean stays what it was. The coercion above is for
+	// the words a user can type or pick from a menu; anything else is a value in
 	// its own right, and GP compiles it as one because its compiler reads the
-	// parse tree and never passes it through a slot. The bytes carry such a
-	// number whenever the compiler emitted its dummy for a call it could not
-	// resolve, and coercing it to false changes the program.
-	this.mbValue = (typeof boolOrNull === 'number') ? boolOrNull : undefined;
+	// parse tree and never passes it through a slot -- its constant-pin shortcut
+	// tests `isClass (last args) 'Boolean'` (MicroBlocksCompiler.gp
+	// instructionsForCmd), which a string is not. The bytes carry such values,
+	// so coercing them here changes a program read back from a board.
+	this.mbValue = ((typeof boolOrNull === 'boolean') || isNil(boolOrNull))
+		? undefined : boolOrNull;
+	this.mbUnsupplied = false;
 	this.rerender();
 };
 
@@ -5574,6 +5629,11 @@ ColorSlotMorph.prototype.getSpec = function () {
 };
 
 ColorSlotMorph.prototype.setContents = function (clr) {
+	// Keep any value that is not a colour, as InputSlotMorph keeps mbValue.
+	// The swatch shows a default for it, but GP compiles and prints the value
+	// the source gave (Block.gp initializeForNode keeps the parse node).
+	this.mbValue = (clr instanceof Color) ? undefined : clr;
+	this.mbUnsupplied = false;
 	this.setColor(clr);
 };
 
@@ -5625,7 +5685,7 @@ ColorSlotMorph.prototype.getUserColor = function () {
 			event.pageX - posInDocument.x,
 			event.pageY - posInDocument.y
 		));
-		myself.setColor(new Color(dta[0], dta[1], dta[2]));
+		myself.setContents(new Color(dta[0], dta[1], dta[2]));
 	};
 
 	hand.processMouseDown = nop;
@@ -5647,7 +5707,7 @@ ColorSlotMorph.prototype.mouseClickLeft = function () {
 // ColorSlotMorph evaluating:
 
 ColorSlotMorph.prototype.evaluate = function () {
-	return this.color;
+	return (this.mbValue === undefined) ? this.color : this.mbValue;
 };
 
 // ColorSlotMorph drawing:
@@ -5863,7 +5923,7 @@ MicroBitDisplaySlotMorph.prototype.getSpec = function () {
 };
 
 MicroBitDisplaySlotMorph.prototype.evaluate = function() {
-	return this.contents();
+	return (this.mbValue === undefined) ? this.contents() : this.mbValue;
 }
 
 MicroBitDisplaySlotMorph.prototype.contents = function (bits) {
@@ -5887,6 +5947,11 @@ MicroBitDisplaySlotMorph.prototype.setContents = function (bits) {
 			shift += 1;
 		}
 	}
+	// A value the 25 LEDs cannot reproduce (a negative, or bits above 25) is
+	// kept, as the colour slot keeps one: GP compiles and prints the value the
+	// source gave, and its slot masks only the picture.
+	this.mbValue = (this.contents() === bits) ? undefined : bits;
+	this.mbUnsupplied = false;
 	this.rerender();
 };
 
@@ -5938,6 +6003,7 @@ MicroBitDisplaySlotMorph.prototype.mouseMove = function (pos) {
 	let i = this.pixelIndex(pos);
 	if (i >= 0) {
 		this.display[i] = this.paintMode;
+		this.mbValue = undefined; // painted, so the LEDs are the value now
 		this.rerender();
 	}
 };

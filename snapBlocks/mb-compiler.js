@@ -247,7 +247,7 @@ class MB_Compiler {
 			cmdOrReporter = func.cmdList;
 			if (!cmdOrReporter) {
 				// function hat with no body
-				cmdOrReporter = { selector: 'noop', inputs: () => [], nextBlock: () => null };
+				cmdOrReporter = { selector: 'noop', inputs: () => [], argInputs: () => [], nextBlock: () => null };
 			}
 		}
 
@@ -338,7 +338,7 @@ class MB_Compiler {
 	instructionsForCmd(cmd) {
 		const result = [];
 		const op = cmd.selector;
-		const inputs = cmd.inputs();
+		const inputs = cmd.argInputs();
 
 		if (op === '=' || op === 'local') {
 			result.push(...this.instructionsForExpression(this.exprArg(inputs, 1)));
@@ -545,7 +545,7 @@ class MB_Compiler {
 		}
 
 		const op = expr.selector;
-		const inputs = expr.inputs();
+		const inputs = expr.argInputs();
 
 		if (op === 'v') {
 			// variable reporter: name is in blockSpec

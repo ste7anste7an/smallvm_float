@@ -174,6 +174,7 @@ method initialize MicroBlocksHelp {
 		(array 'stopScrollingText' '/libraries#stop-scrolling' 'Stop scrolling and clear the display.')
 		(array 'set display color' '/libraries#set-display-color' 'Sets the color of the 5x5 LED pixel array to the given color if possible (e.g. display is a TFT or NeoPixel array).')
 		(array '_led_image' '/libraries#led-image' 'Reports a number representative of the image drawn on the 5x5 LED panel pixels.')
+        (array 'display2x5Number' '' 'Shows a number in a 2x5 font format on the 5x5 LED panel pixels.')
 		(array '_led_namedImage' '/libraries#_led_namedimage' 'Returns the integer value representing the image selected from the drop-down menu.')
 
 		// NEOPIXEL
