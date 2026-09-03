@@ -307,7 +307,10 @@ method errorResponse ESPTool {
 		print 'Incomplete response from board'
 		return true
 	}
-	statusByteIndex = ((count msg) - 1) // this must be -3 for ESP32-S3
+	// The status byte is the first after the 8-byte header for every command checked
+	// here. ESP32-family ROM bootloaders add two reserved bytes after it, so index
+	// from the start, as esptool does, not from the end.
+	statusByteIndex = 9
 	if (0 != (at msg statusByteIndex)) {
 		print 'Board reported error; msg:' msg
 		return true
