@@ -2059,7 +2059,10 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	if (arg instanceof CSlotMorph) {
 		let nested = arg.nestedBlock();
 		if (nested == null) {
-			result.push('{}');
+			// An empty `if` body is braced across a newline, as GP does at
+			// PrettyPrinter.gp printCmdList. Every other one is flat.
+			result.push(this.selector == 'if' ?
+				'{\n' + '\t'.repeat(indent) + '}' : '{}');
 		} else {
 			result.push('{\n');
 			nested.codeString(indent + 1, result);
@@ -2131,7 +2134,27 @@ BlockMorph.prototype.argInputs = function () {
 	return (n == inputs.length) ? inputs : inputs.slice(0, n);
 };
 
-BlockMorph.prototype.codeString = function (indent = 0, result = []) {
+BlockMorph.prototype.isShortIf = function (args) {
+	// A single condition and body, and a body of at most one command: GP's
+	// test for the one-line form, at PrettyPrinter.gp printCmd and isShort.
+	if (this.selector != 'if') return false;
+	if (args.length != 2 || !(args[1] instanceof CSlotMorph)) return false;
+	let body = args[1].nestedBlock();
+	return (body == null) || (body.nextBlock() == null);
+};
+
+BlockMorph.prototype.shortIfBodyString = function (cslot, indent) {
+	let body = cslot.nestedBlock();
+	if (body == null) return ' {}';
+	// GP closes the brace against whatever the body left behind, and a body
+	// ending in a nested block leaves a newline there unless it is an `if`.
+	let text = body.codeString(indent, [], false);
+	text = text.slice('\t'.repeat(indent).length); // GP does not tab the body
+	if (!text.endsWith('}\n') || (body.selector == 'if')) text = text.slice(0, -1);
+	return ' {' + text + '}';
+};
+
+BlockMorph.prototype.codeString = function (indent = 0, result = [], early = true) {
 	if (this.selector == 'v') {
 		// variable reporter
 		let varName = quoteIfNeeded(this.blockSpec);
@@ -2158,6 +2181,19 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 		args[0] = new TemplateSlotMorph(varName); // addCodeStringForArg quotes it
 	}
 
+	if (early && this.isShortIf(args)) {
+		// GP prints the condition here, so a literal true stays `true` rather
+		// than becoming the `else` the long form below writes.
+		result.push(quoteIfNeeded(this.selector));
+		result.push(' ');
+		this.addCodeStringForArg(args[0], indent, result);
+		result.push(this.shortIfBodyString(args[1], indent));
+		result.push('\n');
+		let next = this.nextBlock();
+		if (next != null) next.codeString(indent, result, true);
+		return result.join('');
+	}
+
 	if (this.isInfix(this.selector) && (args.length == 2)) { // infix operator
 		this.addCodeStringForArg(args[0], indent, result);
 		result.push(' ' + this.selector + ' ');
@@ -2180,7 +2216,9 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 		result.push('\n');
 		let next = this.nextBlock();
 		if (this instanceof HatBlockMorph) indent += 1;
-		if (next != null) next.codeString(indent, result); // recursive!
+		// Only a short `if` keeps the run going; GP feeds printCmd's return
+		// value into `early` for this.
+		if (next != null) next.codeString(indent, result, false); // recursive!
 	}
 	return result.join('');
 }
