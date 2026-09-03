@@ -584,9 +584,7 @@ void BLE_start() {
 	rxCharacteristic = BTstack.addGATTCharacteristicDynamic(new UUID(MB_CHARACTERISTIC_UUID_RX), ATT_PROPERTY_WRITE | ATT_PROPERTY_WRITE_WITHOUT_RESPONSE, BLE_BUF_MAX);
 
 	// add Nordic UART Service
-	// xxx Note: BTstack does not appear to support multiple services
-	// For now, add the UART characteristics to the MB BLE service but don't add UART service
-//	BTstack.addGATTService(new UUID(UART_SERVICE_UUID));
+	BTstack.addGATTService(new UUID(UART_SERVICE_UUID));
 	uartTxCharacteristic = BTstack.addGATTCharacteristicDynamic(new UUID(UART_UUID_TX), ATT_PROPERTY_READ | ATT_PROPERTY_NOTIFY, BLE_BUF_MAX);
 	uartRxCharacteristic = BTstack.addGATTCharacteristicDynamic(new UUID(UART_UUID_RX), ATT_PROPERTY_WRITE | ATT_PROPERTY_WRITE_WITHOUT_RESPONSE, BLE_BUF_MAX);
 
