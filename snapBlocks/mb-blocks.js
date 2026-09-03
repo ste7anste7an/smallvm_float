@@ -2055,14 +2055,26 @@ BlockMorph.prototype.isElseSlot = function (args, i) {
 	return (args[i] instanceof BooleanSlotMorph) && (args[i].value === true);
 };
 
+BlockMorph.prototype.bracesEmptyBody = function (op) {
+	// GP's printCmd (PrettyPrinter.gp:286) sends these five to
+	// printCmdListInControl (:259), which writes an empty body as '{}'. `if` is
+	// decided before this is reached, in addCodeStringForArg, because its long
+	// and short forms differ. Every other command prints a nil body as the bare
+	// word, which is what forever, repeat and repeatUntil want.
+	const braced = ['to', 'function', 'method', 'for', 'while'];
+	return braced.includes(op);
+}
+
 BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	if (arg instanceof CSlotMorph) {
 		let nested = arg.nestedBlock();
 		if (nested == null) {
 			// An empty `if` body is braced across a newline, as GP does at
-			// PrettyPrinter.gp printCmdList. Every other one is flat.
+			// PrettyPrinter.gp printCmdList. The rest divide into the ones GP
+			// braces flat and the ones it writes as the bare word.
 			result.push(this.selector == 'if' ?
-				'{\n' + '\t'.repeat(indent) + '}' : '{}');
+				'{\n' + '\t'.repeat(indent) + '}' :
+				(this.bracesEmptyBody(this.selector) ? '{}' : 'nil'));
 		} else {
 			result.push('{\n');
 			nested.codeString(indent + 1, result);
