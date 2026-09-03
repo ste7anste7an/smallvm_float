@@ -44,11 +44,49 @@ function parsedSpecs(cmdList) {
 		let slotTypes = (cmd.length > 4) ? stringArg(cmd[4]) : '';
 		let defaults = [];
 		for (let i = 5; i < cmd.length; i++) {
-			defaults.push(stringArg(cmd[i]));
+			// Keep nil as nil: specDefaultString prints a default by its slot
+			// type and needs to tell an empty slot from the word 'null'.
+			defaults.push(cmd[i] === null ? null : stringArg(cmd[i]));
 		}
 		specs.set(opName, { blockType, opName, specString, slotTypes, defaults });
 	}
 	return specs;
+}
+
+function gpString(value) {
+	// GP's toString: nil prints as the word nil, everything else as itself.
+	return (value === null || value === undefined) ? 'nil' : String(value);
+}
+
+function specDefaultString(slotType, value) {
+	// Print one spec default by its declared slot type, never by the type of
+	// the value, as specDefinitionString does at BlockSpec.gp:330. A type on
+	// neither list (any, color, cmd, var) is written as the word nil.
+	const type = String(slotType || '').split('.')[0]; // 'menu.foo' is a menu slot
+	if (['auto', 'menu', 'str', 'cmt'].includes(type)) {
+		return (typeof value === 'string') ? printString(value) : gpString(value);
+	}
+	if (['bool', 'num', 'microbitDisplay'].includes(type)) return gpString(value);
+	return 'nil';
+}
+
+function specSlotInfo(spec) {
+	// Pair each slot with its type and default, one slot per
+	// max(types, defaults, input slots), as setSlotInfo does at BlockSpec.gp:82.
+	// Walking the declared types alone would drop any default past the end of
+	// them. A slot with no declared type takes 'num' from a numeric default;
+	// anything else is an 'any' slot, whose default GP keeps as a hint only.
+	const types = String(spec.slotTypes || '').split(/\s+/).filter((t) => t.length > 0);
+	const defaults = spec.defaults || [];
+	const specString = String(spec.specString || spec.opName || '');
+	const slotCount = specString.split(/\s+/).filter((w) => w === '_').length;
+	const info = [];
+	for (let i = 0; i < Math.max(types.length, defaults.length, slotCount); i++) {
+		const value = (i < defaults.length) ? defaults[i] : null;
+		if (types[i] !== undefined) info.push([types[i], value]);
+		else info.push((typeof value === 'number') ? ['num', value] : ['any', null]);
+	}
+	return info;
 }
 
 function specDefinitionString(spec) {
@@ -58,16 +96,14 @@ function specDefinitionString(spec) {
 	parts.push("'" + (spec.blockType || ' ') + "'");
 	parts.push("'" + spec.opName + "'");
 	parts.push("'" + (spec.specString || spec.opName) + "'");
-	let slotTypes = spec.slotTypes || '';
-	if (slotTypes || (spec.defaults && spec.defaults.length > 0)) {
-		parts.push("'" + slotTypes + "'");
-		for (const d of (spec.defaults || [])) {
-			if (typeof d === 'number') {
-				parts.push(String(d));
-			} else {
-				parts.push("'" + String(d) + "'");
-			}
+	let slotInfo = specSlotInfo(spec);
+	if (slotInfo.length > 0) {
+		parts.push("'" + slotInfo.map((slot) => slot[0]).join(' ') + "'");
+		let defaults = slotInfo.map((slot) => specDefaultString(slot[0], slot[1]));
+		while (defaults.length > 0 && defaults[defaults.length - 1] === 'nil') {
+			defaults.pop(); // GP trims trailing nils, as they add nothing
 		}
+		parts.push(...defaults);
 	}
 	return parts.join(' ');
 }
