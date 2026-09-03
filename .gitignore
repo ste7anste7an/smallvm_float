@@ -35,6 +35,7 @@ JohnWorkInProgress
 snapBlocks/files.txt
 snapBlocks/Examples
 snapBlocks/Libraries
+snapBlocks/gp_wasm.*
 snapBlocks/test-pureJS
 
 # ELECTRON STUFF BELOW
