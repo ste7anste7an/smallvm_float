@@ -22,6 +22,8 @@ class MB_Connection {
 		this.vmVersion = null;
 		this.boardType = null;
 		this.codeManager = null;
+		this.fileTransferMsgs = null;  // holds the board's replies while a transfer runs
+		this.lastRcvMSecs = 0;         // when the board last answered a transfer request
 	}
 
 	// --- Process Messages Every Animation Frame (for now) ---
