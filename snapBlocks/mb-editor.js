@@ -498,6 +498,13 @@ function isMobile() {
 	return false;
 }
 
+function blockScale() {
+	// The pixels-per-unit that block morphs lay themselves out with. GP's
+	// blockScale is (global 'blockScale') * (global 'scale') and serves the
+	// same purpose: it converts between pane pixels and script-file units.
+	return SyntaxElementMorph.prototype.scale;
+}
+
 function varMustBeQuoted(varName) {
 	// Return true if varName must be enclosed in quotes when serialized.
 	// A name must be quoted if it is empty, contains a space, or starts with a digit or '-'.
