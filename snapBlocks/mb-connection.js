@@ -806,6 +806,19 @@ class MB_Connection {
 		MB_editor.inform(label + ' (' + percent + '%)');
 	}
 
+	// --- File Transfer ---
+
+	recordFileTransferMsg(msg) {
+		// Record a file transfer message sent by the board.
+		// message format: <transfer ID (4 byte int)><byte offset (4 byte int)><data...>
+
+		if (this.fileTransferMsgs) this.fileTransferMsgs.push(msg);
+		this.lastRcvMSecs = Date.now();
+		// Already stamped on handleMessage's first line, and kept anyway to match
+		// MicroBlocksRuntime.gp:2694.
+		this.lastPingRecvMSecs = Date.now();
+	}
+
 	// --- Code File Updates ---
 
 	suspendCodeFileUpdates() {
