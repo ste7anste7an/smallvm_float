@@ -749,7 +749,10 @@ class MB_Module {
 				parts.push(s);
 			}
 		}
-		return parts.join(' ') + '\n';
+		// GP adds the newline to the list and then joins with a space, so a
+		// space lands in front of it (MicroBlocksProject.gp
+		// arrayToDeclaration).
+		return parts.join(' ') + ' \n';
 	}
 
 	codeString(owningProject, newLibName) {
