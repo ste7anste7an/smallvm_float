@@ -33,6 +33,19 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_connection.sendMsg('systemResetMsg', 2, null);
 			callback(0);
 			break;
+		case 'board.connect':
+			// menus.js sends 'USB', 'BLE' or 'Boardie'; MB_CommPort.connect takes
+			// 'serial', 'BLE' or 'boardie' (mb-comm-port.js). GP's webSerialConnect
+			// matches BLE by prefix and treats the rest as serial (MicroBlocksRuntime.gp).
+			if ('Boardie' == params[0]) {
+				// Not wired: Boardie needs the iframe GP builds in GP_openBoardie
+				// (gpSupport.js), which this build does not include.
+				alert(localized('Boardie is not available in this build.'));
+			} else {
+				MB_connection.connect(String(params[0]).startsWith('BLE') ? 'BLE' : 'serial');
+			}
+			callback(0);
+			break;
 		case 'board.vmVersion':
 			// The version number the board reported, or null before it has.
 			callback(MB_connection.vmVersion);
@@ -59,7 +72,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 
 		// The following entry points are not yet implemented (noops):
-		case 'board.connect':
 		case 'board.disconnect':
 		case 'board.downloadFile':
 		case 'board.installVM':
