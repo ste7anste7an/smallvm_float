@@ -66,6 +66,18 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.stopAll();
 			callback(0);
 			break;
+		case 'ide.updateConnection':
+			// justConnected, versionReceived and disconnect() push these too, as GP does
+			// (MicroBlocksRuntime.gp). This poll stays the writer of record for a board
+			// that goes quiet or never sends a version, and for the 'Connect' fallback.
+			storeIDEProperty('board.connected',
+				'connected' == MB_connection.updateConnection());
+			storeIDEProperty('board.type',
+				(MB_connection.boardType != null) ? MB_connection.boardType : 'Connect');
+			// board.canDoBLE and board.hasFS are left alone: the port has no
+			// boardIsBLECapable or boardHasFileSystem to answer them with.
+			callback(0);
+			break;
 		case 'project.save':
 			// As saveProjectToFile (MicroBlocksEditor.gp): no prompt, the file is a download.
 			MB_editor.saveProject();
@@ -105,7 +117,6 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'ide.setSerialDelay':
 		case 'ide.showLibraryDialog':
 		case 'ide.spinnerCancelled':
-		case 'ide.updateConnection':
 		case 'ide.version':
 		case 'library.delete':
 		case 'library.export':
@@ -134,3 +145,21 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback();
 	}
 };
+
+// Mirrors primBrowserStoreIDEProperty (chromeApp/emscripten/browserPrims.c):
+// assign, then fire an event of the same name. menus.js reads the object and
+// buttons.js listens for the event, so both halves are needed.
+function storeIDEProperty(path, value) {
+	const parts = path.split('.');
+	let obj = IDE;
+	while (parts.length > 1) {
+		const part = parts.shift();
+		if (!obj.hasOwnProperty(part)) { obj[part] = {}; }
+		obj = obj[part];
+	}
+	// ide.js polls twice a second, so compare: without this the page fires 120
+	// events a minute that carry no change.
+	if (obj[parts[0]] === value) { return; }
+	obj[parts[0]] = value;
+	IDE.fireEvent(path, value);
+}

@@ -6,7 +6,7 @@
 
 // mb-connection.js - Implements MicroBlocks communication protocol.
 
-/* globals MB_CommPort, waitMSecs, isMobile, localized */
+/* globals MB_CommPort, waitMSecs, isMobile, localized, storeIDEProperty */
 
 class MB_Connection {
 	constructor() {
@@ -51,6 +51,12 @@ class MB_Connection {
 
 	bytesToString(bytes) {
 		return new TextDecoder().decode(bytes);
+	}
+
+	// storeIDEProperty is mb-jsAPI.js's; test.html loads mb-gpAPI.js instead and
+	// GP pushes its own properties there, so it is not always present.
+	pushToIDE(path, value) {
+		if (typeof storeIDEProperty === 'function') storeIDEProperty(path, value);
 	}
 
 	// --- Startup Actions ---
@@ -140,6 +146,9 @@ class MB_Connection {
 // XXX TODO These actions should be done by the editor before calling disconnect()
 // 		MB_editor.stopAndSyncScripts();
 // 		MB_editor.startAll();
+
+		// GP's closePort pushes this before it closes anything (MicroBlocksRuntime.gp:896).
+		this.pushToIDE('board.connected', false);
 
 		// As GP's closePort (MicroBlocksRuntime.gp): guard the close, then clear the
 		// connection either way. this.port can be null here, and can also be a port
@@ -262,6 +271,8 @@ class MB_Connection {
 	async justConnected() {
 		// Called when a board has just connected (browser or stand-alone).
 		console.log('Connected (' + this.portName + ')');
+		// GP sets this here rather than in updateConnection (MicroBlocksRuntime.gp:993).
+		this.pushToIDE('board.connected', true);
 		this.connectionStartTime = null;
 		this.vmVersion = null;
 		await this.sendMsgSync('getVersionMsg');
@@ -740,6 +751,10 @@ class MB_Connection {
 		const justConnected = (this.vmVersion == null);
 		this.vmVersion = this.extractVersionNumber(versionString);
 		this.boardType = this.extractBoardType(versionString);
+		// GP pushes the type from here, inside justConnected's own round trip
+		// (MicroBlocksRuntime.gp:1166), so the window in which a live board can still
+		// read 'Connect' is one board round trip rather than a 500 ms poll.
+		this.pushToIDE('board.type', this.boardType);
 	}
 
 	extractVersionNumber(versionString) {
