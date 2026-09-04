@@ -6,7 +6,7 @@
 
 // mb-function.js - MicroBlocks function representation.
 
-/* global MB_Function, MB_Parser, CommandBlockMorph, BlockMorph */
+/* global MB_Function, MB_Parser, CommandBlockMorph, BlockMorph, CommandSlotMorph */
 
 class MB_Function {
 	constructor(functionName, argNames, cmdList) {
@@ -43,7 +43,11 @@ class MB_Function {
 				if (cmd.nextBlock()) todo.push(cmd.nextBlock());
 			}
 			for (const arg of cmd.inputs()) {
-				if (arg instanceof BlockMorph) todo.push(arg);
+				if (arg instanceof BlockMorph) {
+					todo.push(arg);
+				} else if (arg instanceof CommandSlotMorph && arg.nestedBlock()) {
+					todo.push(arg.nestedBlock()); // the body of an if/repeat/forever/for
+				}
 			}
 		}
 	}

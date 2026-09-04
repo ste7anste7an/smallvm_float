@@ -1396,7 +1396,11 @@ BlockMorph.prototype.forAllBlocks = function (func) {
 			if (b.nextBlock()) todo.push(b.nextBlock());
 		}
 		for (const arg of b.inputs()) {
-			if (arg instanceof BlockMorph) todo.push(arg);
+			if (arg instanceof BlockMorph) {
+				todo.push(arg);
+			} else if (arg instanceof CommandSlotMorph && arg.nestedBlock()) {
+				todo.push(arg.nestedBlock()); // the body of an if/repeat/forever/for
+			}
 		}
 	}
 }
