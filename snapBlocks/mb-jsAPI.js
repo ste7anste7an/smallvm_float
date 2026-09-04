@@ -28,6 +28,11 @@ GP.apiCall = function (endPoint, params, callback) {
 	switch (endPoint) {
 		// Entry points the Javascript runtime serves. Each replies as the GP API
 		// dispatcher does: 0 for an action, the value for a query.
+		case 'board.compactStorage':
+			// GP sends systemResetMsg with chunk id 2 and no body (MicroBlocksAPI.gp).
+			MB_connection.sendMsg('systemResetMsg', 2, null);
+			callback(0);
+			break;
 		case 'board.vmVersion':
 			// The version number the board reported, or null before it has.
 			callback(MB_connection.vmVersion);
@@ -54,7 +59,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 
 		// The following entry points are not yet implemented (noops):
-		case 'board.compactStorage':
 		case 'board.connect':
 		case 'board.disconnect':
 		case 'board.downloadFile':
