@@ -2073,12 +2073,14 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 			// PrettyPrinter.gp printCmdList. The rest divide into the ones GP
 			// braces flat and the ones it writes as the bare word.
 			result.push(this.selector == 'if' ?
-				'{\n' + '\t'.repeat(indent) + '}' :
+				'{\n' + '  '.repeat(indent) + '}' :
 				(this.bracesEmptyBody(this.selector) ? '{}' : 'nil'));
 		} else {
 			result.push('{\n');
 			nested.codeString(indent + 1, result);
-			result.push('\t'.repeat(indent));
+			// The closing brace is indented to the block's own level, not the
+			// body's, as GP's PrettyPrinter tab does (PrettyPrinter.gp).
+			result.push('  '.repeat(indent));
 			result.push('}');
 		}
 	} else if (arg instanceof BooleanSlotMorph) {
@@ -2161,7 +2163,7 @@ BlockMorph.prototype.shortIfBodyString = function (cslot, indent) {
 	// GP closes the brace against whatever the body left behind, and a body
 	// ending in a nested block leaves a newline there unless it is an `if`.
 	let text = body.codeString(indent, [], false);
-	text = text.slice('\t'.repeat(indent).length); // GP does not tab the body
+	text = text.slice('  '.repeat(indent).length); // GP does not indent the body
 	if (!text.endsWith('}\n') || (body.selector == 'if')) text = text.slice(0, -1);
 	return ' {' + text + '}';
 };
@@ -2180,7 +2182,9 @@ BlockMorph.prototype.codeString = function (indent = 0, result = [], early = tru
 	if (this.type() == 'reporter') {
 		result.push('(');
 	} else { // command or hat block
-		result.push('\t'.repeat(indent));
+		// Two spaces per level, as GP's PrettyPrinter tab does
+		// (PrettyPrinter.gp method tab).
+		result.push('  '.repeat(indent));
 	}
 
 	let args = this.argInputs();
