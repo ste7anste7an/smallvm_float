@@ -316,6 +316,17 @@ class MB_Editor {
 		this.palette.changed();
 	}
 
+	devMode() {
+		// Developer mode. The pure Javascript build keeps it in its IDE object's
+		// preferences (userPreference, ide.js); a page without one reads off.
+
+		try {
+			return (typeof IDE != 'undefined') && (IDE.userPreference('devMode') == true);
+		} catch (e) {
+			return false;
+		}
+	}
+
 	tellIDE(path, value) {
 		// The pure Javascript build's chrome reads these from its IDE object
 		// (storeIDEProperty, mb-jsAPI.js); a page without that chrome has no one to tell.
@@ -375,6 +386,7 @@ class MB_Editor {
 			if ('-' == op) { // separator
 				this.paletteY += 15;
 			} else if ('advanced' == op) {
+				if (!this.devMode()) return; // the rest is for developer mode
 				this.paletteY += 15;
 				this.addPaletteLabel('Advanced:');
 			} else if (!op.startsWith('_')) {
@@ -395,6 +407,8 @@ class MB_Editor {
 		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
 			if ('-' == spec) { // separator
 				this.paletteY += 15;
+			} else if (('local' == spec[1]) && !this.devMode()) {
+				continue; // initialize local is offered only in developer mode
 			} else if ('v' != spec[1]) { // one reporter per variable follows instead
 				let s = spec.slice();
 				if (('=' == s[1]) || ('+=' == s[1])) s[4] = defaultVar;
@@ -427,9 +441,9 @@ class MB_Editor {
 	}
 
 	addAdvancedBlocksForCategory(cat) {
-		// The category's advanced blocks. The port has no developer mode setting
-		// and has always shown them.
+		// The category's advanced blocks, shown only in developer mode.
 
+		if (!this.devMode()) return;
 		let specs = MB_Specs.specsForCategory(cat + '-Advanced');
 		if (specs.length == 0) return;
 		this.paletteY += 15;
