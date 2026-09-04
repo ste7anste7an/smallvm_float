@@ -121,7 +121,14 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'ide.setSerialDelay':
 		case 'ide.showLibraryDialog':
 		case 'ide.spinnerCancelled':
+			callback();
+			break;
 		case 'ide.version':
+			// A value endpoint: windows.js:272 renders it as `MicroBlocks v${...}`.
+			// GP answers a field it read at startup; here the read is a fetch, so
+			// the answer waits for it.
+			MB_connection.readVersionFile().then(callback);
+			break;
 		case 'library.delete':
 		case 'library.export':
 		case 'library.hideDefs':

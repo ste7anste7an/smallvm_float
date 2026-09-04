@@ -6,11 +6,14 @@
 
 // mb-connection.js - Implements MicroBlocks communication protocol.
 
-/* globals MB_CommPort, waitMSecs, isMobile, localized, storeIDEProperty */
+/* globals MB_CommPort, MB_Files, waitMSecs, isMobile, localized, storeIDEProperty */
 
 class MB_Connection {
 	constructor() {
 		this.msgDict = null;
+		this.ideVersion = '0.0.0';     // GP's defaults until the version file is
+		this.latestVmVersion = 0;      // read (MicroBlocksRuntime.gp:1100-1101)
+		this.versionsRead = null;      // the read, once started
 		this.port = null;
 		this.portName = null;
 		this.connectionStartTime = null;
@@ -745,6 +748,24 @@ class MB_Connection {
 	}
 
 	// --- Version string parsing ---
+
+	readVersionFile() {
+		// GP reads gp/runtime/versions at startup (MicroBlocksRuntime.gp:1098).
+		// Here the read is a fetch, so it happens on demand and is kept; the
+		// build must copy the file, or this answers GP's missing-file default.
+		if (this.versionsRead == null) {
+			this.ideVersion = '0.0.0';
+			this.latestVmVersion = 0;
+			this.versionsRead = MB_Files.readFile('versions').then((data) => {
+				for (const line of (data || '').split(/\r?\n/)) {
+					if (line.startsWith('IDE ')) this.ideVersion = line.slice(4);
+					if (line.startsWith('VM ')) this.latestVmVersion = Number(line.slice(3));
+				}
+			});
+		}
+		return this.versionsRead.then(() => this.ideVersion);
+	}
+
 
 	versionReceived(versionString) {
 		if (versionString == null) return; // bad version message

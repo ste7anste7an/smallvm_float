@@ -45,6 +45,9 @@ cp ../chromeApp/webapp/emscripten.css test-pureJS
 cp ../chromeApp/webapp/favicon.ico test-pureJS
 cp ../chromeApp/webapp/manifest.json test-pureJS
 
+# copy the version file the IDE reports its version from
+cp ../gp/runtime/versions test-pureJS
+
 cp -r ../chromeApp/webapp/boardie test-pureJS
 cp -r ../chromeApp/webapp/icons test-pureJS
 cp -r ../chromeApp/webapp/img test-pureJS
