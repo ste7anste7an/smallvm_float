@@ -25,6 +25,8 @@ class MB_Editor {
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
+		this.category = null; // the selected palette category, or null while a library is
+		this.paletteY = 0; // where the next block goes while the palette is being filled
 	}
 
 	open(world) {
@@ -32,8 +34,6 @@ class MB_Editor {
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.color = new Color(180, 180, 180);
-		this.addBlocksToPalette(this.palette);
-		this.palette.contents.adjustBounds();
 		this.palette.contents.acceptsDrops = true;
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if (droppedMorph instanceof BlockMorph) {
@@ -77,6 +77,9 @@ class MB_Editor {
 		// The tip bar sits at the bottom of the window and says what the block
 		// under the pointer does.
 		if (typeof MB_Tips !== 'undefined') MB_Tips.open();
+
+		// Start on Control, the category shown whenever no library is selected.
+		this.selectCategory('cat;Control');
 		return this;
 	}
 
@@ -243,37 +246,87 @@ class MB_Editor {
 
 	// ***** Populate the blocks palette *****
 
-	addBlocksToPalette(palette) {
-		const specs = MB_Specs.mbBlockSpecs();
-		let y = 10;
-		let currentCategory = 'Output';
-		for (let i = 0; i < 169; i++) {
-			let item = specs[i];
-			if (Array.isArray(item)) { // block spec
-				let b = MB_Specs.blockForSpec(item, currentCategory);
-				b.setPosition(new Point(15, y));
-				b.isTemplate = true;
-				palette.contents.add(b);
-				y += b.height() + 10;
-			} else if ('-' == item) { // separator
-				y += 15;
+	currentCategory() { return this.category; }
+
+	selectCategory(cat) {
+		// Show one category's blocks and tell the IDE which.
+
+		this.category = cat;
+		this.updatePalette();
+		this.tellIDE('currentCategory', cat);
+	}
+
+	updatePalette() {
+		// Empty the palette and refill it from the current selection.
+
+		if (!this.palette) return;
+		let contents = this.palette.contents;
+		contents.children.slice().forEach((m) => { m.destroy(); });
+		contents.setPosition(this.palette.position()); // scroll back to the top
+		this.paletteY = contents.top() + 10;
+		this.addBlocksForCategory(this.category);
+		contents.adjustBounds();
+		this.palette.changed();
+	}
+
+	tellIDE(path, value) {
+		// The pure Javascript build's chrome reads these from its IDE object
+		// (storeIDEProperty, mb-jsAPI.js); a page without that chrome has no one to tell.
+
+		if (typeof storeIDEProperty == 'function') storeIDEProperty(path, value);
+	}
+
+	addPaletteBlock(b) {
+		b.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		b.isTemplate = true;
+		this.palette.contents.add(b);
+		this.paletteY += b.height() + 10;
+	}
+
+	addPaletteLabel(text) {
+		let label = new StringMorph(text, 14);
+		label.toggleWeight();
+		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
+		this.palette.contents.add(label);
+		this.paletteY += label.height() + 15;
+	}
+
+	addPaletteBlockForSpec(spec, category) {
+		// A spec read from a file may describe no block type blockForSpec knows.
+
+		let b = spec ? MB_Specs.blockForSpec(spec, category) : undefined;
+		if (b) this.addPaletteBlock(b);
+	}
+
+	addBlocksForSpecs(specs, category) {
+		for (const spec of specs) {
+			if ('-' == spec) { // separator
+				this.paletteY += 15;
 			} else {
-				if (item.indexOf('cat;') == 0) {
-					item = item.substring(4);
-				}
-				let fullCategoryName = item;
-				if (item.indexOf('-Advanced') > 0) {
-					item = item.substring(0, item.indexOf('-Advanced'));
-				}
-				currentCategory = item;
-				if (y > 10) y += 15;
-				let label = new StringMorph(fullCategoryName, 14);
-				label.toggleWeight();
-				label.setPosition(new Point(5, y));
-				palette.contents.add(label);
-				y += label.height() + 15;
+				this.addPaletteBlockForSpec(spec, category);
 			}
 		}
+	}
+
+	addBlocksForCategory(cat) {
+		// The category's blocks then its advanced section. No heading: the
+		// selected button in the IDE already carries the name.
+
+		if (!cat) return;
+		let name = cat.substring(4); // without the 'cat;' prefix
+		this.addBlocksForSpecs(MB_Specs.specsForCategory(cat), name);
+		this.addAdvancedBlocksForCategory(cat);
+	}
+
+	addAdvancedBlocksForCategory(cat) {
+		// The category's advanced blocks. The port has no developer mode setting
+		// and has always shown them.
+
+		let specs = MB_Specs.specsForCategory(cat + '-Advanced');
+		if (specs.length == 0) return;
+		this.paletteY += 15;
+		this.addPaletteLabel('Advanced:');
+		this.addBlocksForSpecs(specs, cat.substring(4));
 	}
 
 	// Run/stop
