@@ -11,6 +11,7 @@
 MB_Specs = {
 	selectorToSpec: {}, // cached Map for looking up specs by selector
 	selectorToCategory: {}, // cached Map for looking up block category by selector
+	cachedPaletteSpecs: null, // the shipped list, cut to what the palette shows
 }
 
 MB_Specs.initialize = function () {
@@ -199,9 +200,15 @@ MB_Specs.blockForSpec = function (spec, category) {
 			b = new ReporterBlockMorph();
 		} else if ('h' == type) {
 			b = new HatBlockMorph();
+		} else {
+			// A project's or library's spec line may declare a type with no morph here.
+			console.log('unknown block type:', JSON.stringify(type), spec[1]);
+			return undefined;
 		}
 		b.selector = spec[1];
-		b.setSpec(this.snapSpecForSelector(b.selector));
+		// From the spec we were handed, not from a lookup by selector: a
+		// library's or a project's own blocks are not in the built-in table.
+		b.setSpec(this.snapSpecForSpecArray(spec));
 		b.setCategory(category);
 		let defaults = spec.slice(4);
 		if ('v' == b.selector) {
@@ -223,7 +230,13 @@ MB_Specs.blockForSpec = function (spec, category) {
 MB_Specs.snapSpecForSelector = function (selector, isReporter, argCount) {
 	// Return a Snap! block spec string for given selector or null if not found.
 
-	let specArray = this.specArrayForSelector(selector, isReporter, argCount);
+	return this.snapSpecForSpecArray(this.specArrayForSelector(selector, isReporter, argCount));
+}
+
+MB_Specs.snapSpecForSpecArray = function (specArray) {
+	// Return a Snap! block spec string for the given MicroBlocks spec array,
+	// or null if there is none.
+
 	if (!specArray) return null; // not found
 
 	let mbSpec = specArray[2];
@@ -255,6 +268,83 @@ MB_Specs.snapTypeForMBType = function (mbType) {
 	}
 
 	return ('%' + mbType)
+}
+
+// ***** Palette categories *****
+
+MB_Specs.paletteSpecList = function (specs) {
+	// The part of the spec list the palette shows: everything before the first
+	// section marker that is not a category. The 'Prims-... (not in palette)'
+	// sections and the test entries follow it. The shipped list is cached because
+	// mbBlockSpecs rebuilds its literal on every call.
+
+	if (!specs) {
+		if (!this.cachedPaletteSpecs) this.cachedPaletteSpecs = this.paletteSpecList(this.mbBlockSpecs());
+		return this.cachedPaletteSpecs;
+	}
+	for (let i = 0; i < specs.length; i++) {
+		let item = specs[i];
+		if ((typeof item === 'string') && ('-' != item) && !item.startsWith('cat;')) {
+			return specs.slice(0, i);
+		}
+	}
+	return specs;
+}
+
+MB_Specs.paletteCategories = function (specs) {
+	// The categories the palette offers, in order. 'cat;My Blocks' holds the
+	// project's own functions and so has no spec entries of its own.
+
+	let result = [];
+	for (const item of this.paletteSpecList(specs)) {
+		if ((typeof item === 'string') && item.startsWith('cat;')) {
+			let cat = item.endsWith('-Advanced') ? item.slice(0, -9) : item;
+			if (!result.includes(cat)) result.push(cat);
+		}
+	}
+	if (!result.includes('cat;My Blocks')) result.push('cat;My Blocks');
+	return result;
+}
+
+MB_Specs.specArrayForProjectSpec = function (spec) {
+	// Convert a spec object parsed from a project or library (parsedSpecs,
+	// mb-project.js) into the array form the built-in specs use.
+
+	if (!spec) return null;
+	let result = [spec.blockType, spec.opName, spec.specString, spec.slotTypes || ''];
+	return result.concat(spec.defaults || []);
+}
+
+MB_Specs.specArrayForFunction = function (func) {
+	// A spec for a function that declares none: the function name followed by
+	// one slot per parameter.
+
+	let slots = func.argNames || [];
+	return [
+		' ',
+		func.functionName,
+		[func.functionName].concat(slots.map(() => '_')).join(' '),
+		slots.map(() => 'auto').join(' '),
+	];
+}
+
+MB_Specs.specsForCategory = function (cat, specs) {
+	// The spec arrays and '-' separators under the given category marker.
+
+	let result = [];
+	let currentCategory = '';
+	for (const item of this.paletteSpecList(specs)) {
+		if (typeof item === 'string') {
+			if ('-' == item) {
+				if (currentCategory == cat) result.push('-');
+			} else {
+				currentCategory = item;
+			}
+		} else if (currentCategory == cat) {
+			result.push(item);
+		}
+	}
+	return result;
 }
 
 // ***** MicroBlocks built-in block specs *****
