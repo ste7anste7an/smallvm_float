@@ -121,8 +121,14 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback();
 			break;
 		case 'ide.selectCategory':
+			// categories.js sends the label with its 'cat;' prefix, the form
+			// selectCategory takes.
+			MB_editor.selectCategory(params[0]);
+			callback(0);
+			break;
 		case 'ide.selectLibrary':
-			callback();
+			MB_editor.selectLibrary(params[0]);
+			callback(0);
 			break;
 		case 'ide.setSerialDelay':
 			// GP answers before acting (MicroBlocksAPI.gp:33). graph.js:338 sends
