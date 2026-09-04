@@ -747,6 +747,13 @@ class MB_Connection {
 		return true;
 	}
 
+	setSerialDelay(newDelay) {
+		// GP's setSerialDelay (MicroBlocksRuntime.gp:2016): extended message 1,
+		// with the delay as its one body byte.
+		if (newDelay === 'reset to default') newDelay = 5;
+		this.sendMsg('extendedMsg', 1, [newDelay]);
+	}
+
 	// --- Version string parsing ---
 
 	readVersionFile() {

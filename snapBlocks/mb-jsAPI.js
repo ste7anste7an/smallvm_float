@@ -118,7 +118,14 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'ide.selectCategory':
 		case 'ide.selectLibrary':
+			callback();
+			break;
 		case 'ide.setSerialDelay':
+			// GP answers before acting (MicroBlocksAPI.gp:33). graph.js:338 sends
+			// the delay the user picked from the serial delay menu.
+			callback(0);
+			MB_connection.setSerialDelay(params[0]);
+			break;
 		case 'ide.showLibraryDialog':
 		case 'ide.spinnerCancelled':
 			callback();
