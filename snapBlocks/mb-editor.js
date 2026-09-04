@@ -264,7 +264,14 @@ class MB_Editor {
 		contents.children.slice().forEach((m) => { m.destroy(); });
 		contents.setPosition(this.palette.position()); // scroll back to the top
 		this.paletteY = contents.top() + 10;
-		this.addBlocksForCategory(this.category);
+		if ('cat;Variables' == this.category) {
+			this.addVariableBlocks();
+			this.addAdvancedBlocksForCategory(this.category);
+		} else if ('cat;My Blocks' == this.category) {
+			this.addMyBlocks();
+		} else {
+			this.addBlocksForCategory(this.category);
+		}
 		contents.adjustBounds();
 		this.palette.changed();
 	}
@@ -316,6 +323,47 @@ class MB_Editor {
 		let name = cat.substring(4); // without the 'cat;' prefix
 		this.addBlocksForSpecs(MB_Specs.specsForCategory(cat), name);
 		this.addAdvancedBlocksForCategory(cat);
+	}
+
+	addVariableBlocks() {
+		// Set and change default to the project's first variable and each variable
+		// gets a reporter. Names starting with an underscore are a library's own
+		// and are not shown.
+
+		let varNames = this.project.allVariableNames().filter((v) => !v.startsWith('_'));
+		let defaultVar = (varNames.length > 0) ? varNames[0] : '';
+		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
+			if ('-' == spec) { // separator
+				this.paletteY += 15;
+			} else if ('v' != spec[1]) { // one reporter per variable follows instead
+				let s = spec.slice();
+				if (('=' == s[1]) || ('+=' == s[1])) s[4] = defaultVar;
+				this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
+			}
+		}
+		this.paletteY += 15;
+		let varSpec = MB_Specs.specArrayForSelector('v');
+		let upper = (v) => v.toUpperCase();
+		varNames.sort((a, b) => (upper(a) < upper(b)) ? -1 : ((upper(a) > upper(b)) ? 1 : 0));
+		for (const varName of varNames) {
+			let s = varSpec.slice();
+			s[4] = varName;
+			this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
+		}
+	}
+
+	addMyBlocks() {
+		// The main module's functions. A library's functions belong to the library.
+
+		for (const func of this.project.main.functions) {
+			if (func.functionName.startsWith('_')) continue; // hidden
+			this.addPaletteBlockForSpec(this.paletteSpecForFunction(func), 'My Blocks');
+		}
+	}
+
+	paletteSpecForFunction(func) {
+		return MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(func.functionName))
+			|| MB_Specs.specArrayForFunction(func);
 	}
 
 	addAdvancedBlocksForCategory(cat) {
@@ -456,6 +504,7 @@ console.log('unknown');
 	newProject() {
 		if (!this.canReplaceCurrentProject()) return;
 		this.clearProject();
+		this.selectCategory('cat;Output'); // a new project starts on Output
 	}
 
 	clearProject() {
@@ -516,6 +565,7 @@ console.log('unknown');
 		// Without the erase the project that was open keeps running on the board.
 		// Awaited: the download below must not overtake the erase.
 		await MB_connection.clearBoardIfConnected();
+		MB_editor.updatePalette(); // the project's variables and functions
 		console.log("Loaded:", name,
 			MB_editor.project.main.scripts.length, 'scripts,',
 			MB_editor.project.allFunctions().length, 'functions'
@@ -580,6 +630,7 @@ console.log('unknown');
 		// is not read; justConnected does the reading, on the next connect.
 		if (!this.canReplaceCurrentProject()) return;
 		this.clearProject();
+		this.updatePalette(); // the project's variables and functions are gone
 		this.readFromBoard = true;
 		alert(localized('Connect board to proceed.'));
 	}
@@ -602,6 +653,7 @@ console.log('unknown');
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		MB_connection.setCodeManager(this.codeManager);
+		this.updatePalette(); // the project's variables and functions
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
 	}
