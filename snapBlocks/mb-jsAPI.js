@@ -26,6 +26,33 @@ GP.apiCall = function (endPoint, params, callback) {
 	if (typeof callback == 'undefined') { callback = ()=>{}; }
 
 	switch (endPoint) {
+		// Entry points the Javascript runtime serves. Each replies as the GP API
+		// dispatcher does: 0 for an action, the value for a query.
+		case 'board.vmVersion':
+			// The version number the board reported, or null before it has.
+			callback(MB_connection.vmVersion);
+			break;
+		case 'ide.startAll':
+			// GP's startAll (MicroBlocksRuntime.gp) also refuses with a dialog when no
+			// board is connected or the code store is full; the port only logs.
+			MB_editor.startAll();
+			callback(0);
+			break;
+		case 'ide.stopAll':
+			// GP's stopAndSyncScripts (MicroBlocksRuntime.gp) also soft-resets the board.
+			MB_editor.stopAll();
+			callback(0);
+			break;
+		case 'project.save':
+			// As saveProjectToFile (MicroBlocksEditor.gp): no prompt, the file is a download.
+			MB_editor.saveProject();
+			callback(0);
+			break;
+		case 'scripts.cleanUp':
+			MB_editor.scriptsPane().cleanUp();
+			callback(0);
+			break;
+
 		// The following entry points are not yet implemented (noops):
 		case 'board.compactStorage':
 		case 'board.connect':
@@ -37,7 +64,6 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'board.retrieveProject':
 		case 'board.toggleBLE':
 		case 'board.uploadFile':
-		case 'board.vmVersion':
 		case 'edit.redo':
 		case 'edit.undo':
 		case 'ide.applyUserPreferences':
@@ -59,8 +85,6 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'ide.setSerialDelay':
 		case 'ide.showLibraryDialog':
 		case 'ide.spinnerCancelled':
-		case 'ide.startAll':
-		case 'ide.stopAll':
 		case 'ide.updateConnection':
 		case 'ide.version':
 		case 'library.delete':
@@ -76,9 +100,7 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'project.hideAllMyBlocks':
 		case 'project.new':
 		case 'project.open':
-		case 'project.save':
 		case 'project.showAllMyBlocks':
-		case 'scripts.cleanUp':
 		case 'scripts.copyToClipboard':
 		case 'scripts.copyToClipboardAsURL':
 		case 'scripts.paste':
