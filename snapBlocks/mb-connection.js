@@ -141,7 +141,11 @@ class MB_Connection {
 // 		MB_editor.stopAndSyncScripts();
 // 		MB_editor.startAll();
 
-		this.port.disconnect();
+		// As GP's closePort (MicroBlocksRuntime.gp): guard the close, then clear the
+		// connection either way. this.port can be null here, and can also be a port
+		// that was never opened, because connect() assigns one before its checks.
+		if (this.port != null) this.port.disconnect();
+		this.port = null;
 		this.portName = null;
 		this.vmVersion = null;
 		this.boardType = null;

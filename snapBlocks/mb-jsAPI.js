@@ -46,6 +46,11 @@ GP.apiCall = function (endPoint, params, callback) {
 			}
 			callback(0);
 			break;
+		case 'board.disconnect':
+			// As GP's closePort (MicroBlocksRuntime.gp).
+			MB_connection.disconnect();
+			callback(0);
+			break;
 		case 'board.vmVersion':
 			// The version number the board reported, or null before it has.
 			callback(MB_connection.vmVersion);
@@ -72,7 +77,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 
 		// The following entry points are not yet implemented (noops):
-		case 'board.disconnect':
 		case 'board.downloadFile':
 		case 'board.installVM':
 		case 'board.installVMfromRepo':
