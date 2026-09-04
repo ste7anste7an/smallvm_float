@@ -126,8 +126,20 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'project.copyURL':
 		case 'project.exportBlocksLibrary':
 		case 'project.hideAllMyBlocks':
+			callback();
+			break;
 		case 'project.new':
+			// GP answers before acting (MicroBlocksAPI.gp:70), because newProject
+			// asks 'Discard current project?' first when there is work to lose.
+			callback(0);
+			MB_editor.newProject();
+			break;
 		case 'project.open':
+			// The same order (MicroBlocksAPI.gp:74). GP's picker also offers the
+			// built-in Examples; this one is the browser's own file chooser.
+			callback(0);
+			MB_editor.openProject();
+			break;
 		case 'project.showAllMyBlocks':
 		case 'scripts.copyToClipboard':
 		case 'scripts.copyToClipboardAsURL':

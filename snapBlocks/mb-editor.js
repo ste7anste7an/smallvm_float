@@ -246,7 +246,21 @@ console.log('unknown');
 
 	// File operations
 
+	canReplaceCurrentProject() {
+		// Ask before discarding work, as GP does (MicroBlocksEditor.gp:203).
+		// updateProject() first, or a block the user has just dragged into the
+		// pane is not in the project yet and does not count as work.
+		this.updateProject();
+		if (!this.project.hasUserCode()) return true;
+		return confirm(localized('Discard current project?'));
+	}
+
 	newProject() {
+		if (!this.canReplaceCurrentProject()) return;
+		this.clearProject();
+	}
+
+	clearProject() {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
@@ -278,6 +292,9 @@ console.log('unknown');
 
 	openProject() {
 		function loadFile(fileName, contents) {
+			// GP asks after the file is chosen rather than before the picker
+			// opens, so cancelling the picker asks nothing (MicroBlocksEditor.gp:260).
+			if (!MB_editor.canReplaceCurrentProject()) return;
 			MB_editor.project = new MB_Project();
 			MB_editor.project.loadFromString(contents);
 			MB_editor.removeAllScripts();
