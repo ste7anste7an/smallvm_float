@@ -90,7 +90,14 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'board.installVM':
 		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
+			break; // do nothing for now
 		case 'board.retrieveProject':
+			// GP answers before acting (MicroBlocksAPI.gp:112). openFromBoard
+			// clears the project and waits for the NEXT board to connect; it does
+			// not read a board that is already connected.
+			callback(0);
+			MB_editor.openFromBoard();
+			break;
 		case 'board.toggleBLE':
 		case 'board.uploadFile':
 		case 'edit.redo':

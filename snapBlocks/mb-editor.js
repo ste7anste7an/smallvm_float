@@ -362,10 +362,25 @@ console.log('unknown');
 		}
 	}
 
+	openFromBoard() {
+		// GP's openFromBoard (MicroBlocksEditor.gp:296): clear the project, then
+		// wait for the NEXT board to connect. A board that is already connected
+		// is not read; justConnected does the reading, on the next connect.
+		if (!this.canReplaceCurrentProject()) return;
+		this.clearProject();
+		this.readFromBoard = true;
+		alert(localized('Connect board to proceed.'));
+	}
+
 	async openProjectFromBoard() {
 		// Read what the board is holding and show it, the way openProject shows
 		// a project read from a file. readCodeFromBoard is MB_connection's, not
 		// this class's.
+
+		// GP asks here too (MicroBlocksRuntime.gp:539), for the user who wrote
+		// something between arming the read and connecting the board.
+		if (!this.canReplaceCurrentProject()) return;
+
 		const project = await MB_connection.readCodeFromBoard();
 		if (project == null) return;
 		this.project = project;
