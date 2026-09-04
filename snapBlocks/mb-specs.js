@@ -248,8 +248,11 @@ MB_Specs.snapSpecForSpecArray = function (specArray) {
 		let p = parts[i];
 		if (p == '_') {
 			parts[i] = this.snapTypeForMBType(mbArgTypes[argIndex++]);
-		} else if (p.startsWith('#')) {
-			parts[i] = p;
+		} else if (this.isSlotSpec(p)) {
+			// Label text in a MicroBlocks spec, but a slot spec to Snap's parseSpec,
+			// and labelPart throws on one it does not know. A zero-width space in
+			// front keeps it text and shows the same.
+			parts[i] = '\u200B' + p;
 		}
 	}
 	return parts.join(' ');
