@@ -26,6 +26,7 @@ class MB_Editor {
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
 		this.category = null; // the selected palette category, or null while a library is
+		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
 	}
 
@@ -247,13 +248,50 @@ class MB_Editor {
 	// ***** Populate the blocks palette *****
 
 	currentCategory() { return this.category; }
+	currentLibrary() { return this.library; }
 
 	selectCategory(cat) {
-		// Show one category's blocks and tell the IDE which.
+		// Show one category's blocks and tell the IDE which. Deselects the library.
 
 		this.category = cat;
+		this.library = null;
 		this.updatePalette();
 		this.tellIDE('currentCategory', cat);
+	}
+
+	selectLibrary(libName) {
+		// Show one library's blocks and tell the IDE which. Deselects the category.
+
+		this.library = libName;
+		this.category = null;
+		this.updatePalette();
+		this.tellIDE('currentCategory', libName);
+	}
+
+	libraryList() {
+		// The project's libraries as the IDE's library buttons want them. An
+		// implementation library holds another library's working parts and is not offered.
+
+		let result = [];
+		for (const lib of this.project.libraries.values()) {
+			if (!lib.isImplementationLib()) {
+				result.push({ label: lib.moduleName, category: lib.moduleCategory });
+			}
+		}
+		result.sort((a, b) => (a.label < b.label) ? -1 : ((a.label > b.label) ? 1 : 0));
+		return result;
+	}
+
+	updateLibraryList() {
+		// Tell the IDE which libraries the project has and, unless a library
+		// that is still there is selected, select cat;Control. Called after a project change.
+
+		this.tellIDE('libraryList', this.libraryList());
+		if (this.library && this.project.libraryNamed(this.library)) {
+			this.updatePalette();
+		} else {
+			this.selectCategory('cat;Control');
+		}
 	}
 
 	updatePalette() {
@@ -264,7 +302,9 @@ class MB_Editor {
 		contents.children.slice().forEach((m) => { m.destroy(); });
 		contents.setPosition(this.palette.position()); // scroll back to the top
 		this.paletteY = contents.top() + 10;
-		if ('cat;Variables' == this.category) {
+		if (this.library) {
+			this.addBlocksForLibrary(this.library);
+		} else if ('cat;Variables' == this.category) {
 			this.addVariableBlocks();
 			this.addAdvancedBlocksForCategory(this.category);
 		} else if ('cat;My Blocks' == this.category) {
@@ -323,6 +363,26 @@ class MB_Editor {
 		let name = cat.substring(4); // without the 'cat;' prefix
 		this.addBlocksForSpecs(MB_Specs.specsForCategory(cat), name);
 		this.addAdvancedBlocksForCategory(cat);
+	}
+
+	addBlocksForLibrary(libName) {
+		// A library's blocks in the order its block list gives them. Names
+		// starting with an underscore are the library's own working parts.
+
+		let lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		for (const op of lib.blockList) {
+			if ('-' == op) { // separator
+				this.paletteY += 15;
+			} else if ('advanced' == op) {
+				this.paletteY += 15;
+				this.addPaletteLabel('Advanced:');
+			} else if (!op.startsWith('_')) {
+				let spec = MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(op))
+					|| MB_Specs.specArrayForSelector(op);
+				this.addPaletteBlockForSpec(spec, lib.moduleCategory);
+			}
+		}
 	}
 
 	addVariableBlocks() {
@@ -504,7 +564,9 @@ console.log('unknown');
 	newProject() {
 		if (!this.canReplaceCurrentProject()) return;
 		this.clearProject();
-		this.selectCategory('cat;Output'); // a new project starts on Output
+		// The libraries are gone, then a new project starts on Output.
+		this.updateLibraryList();
+		this.selectCategory('cat;Output');
 	}
 
 	clearProject() {
@@ -565,7 +627,7 @@ console.log('unknown');
 		// Without the erase the project that was open keeps running on the board.
 		// Awaited: the download below must not overtake the erase.
 		await MB_connection.clearBoardIfConnected();
-		MB_editor.updatePalette(); // the project's variables and functions
+		MB_editor.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log("Loaded:", name,
 			MB_editor.project.main.scripts.length, 'scripts,',
 			MB_editor.project.allFunctions().length, 'functions'
@@ -630,7 +692,7 @@ console.log('unknown');
 		// is not read; justConnected does the reading, on the next connect.
 		if (!this.canReplaceCurrentProject()) return;
 		this.clearProject();
-		this.updatePalette(); // the project's variables and functions are gone
+		this.updateLibraryList(); // no libraries left, so cat;Control
 		this.readFromBoard = true;
 		alert(localized('Connect board to proceed.'));
 	}
@@ -653,7 +715,7 @@ console.log('unknown');
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		MB_connection.setCodeManager(this.codeManager);
-		this.updatePalette(); // the project's variables and functions
+		this.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
 	}
