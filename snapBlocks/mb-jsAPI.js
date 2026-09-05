@@ -152,6 +152,10 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.removeLibraryNamed(params[0]);
 			break;
 		case 'library.export':
+			// Reply first, then act.
+			callback(0);
+			MB_editor.exportLibrary(params[0]);
+			break;
 		case 'library.hideDefs':
 		case 'library.reload':
 		case 'library.showDefs':

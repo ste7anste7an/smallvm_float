@@ -583,6 +583,14 @@ console.log('unknown');
 		this.updateLibraryList();
 	}
 
+	exportLibrary(libName) {
+		// A library's own source in a file named after it.
+
+		let lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
+	}
+
 	// File operations
 
 	canReplaceCurrentProject() {
