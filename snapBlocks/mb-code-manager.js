@@ -168,6 +168,17 @@ class MB_CodeManager {
 		await this.saveAllChunks(false);
 	}
 
+	async saveAllChunksAfterLoad() {
+		// Put a just-loaded project on the board, as GP's saveAllChunksAfterLoad
+		// does (MicroBlocksRuntime.gp:1419): nothing when no board is connected,
+		// otherwise the whole download with code file updates held off around it.
+		if (!MB_connection.connectedToBoard()) return;
+		await MB_connection.suspendCodeFileUpdates();
+		await this.saveAllChunks(true);
+		MB_connection.resumeCodeFileUpdates();
+		MB_editor.showDownloadProgress(3, 1);
+	}
+
 	lookupChunkID(key) {
 		// If the given block or function name has been assigned a chunkID, return it.
 		// Otherwise, return null.

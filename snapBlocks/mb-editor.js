@@ -296,7 +296,7 @@ console.log('unknown');
 	}
 
 	openProject() {
-		function loadFile(fileName, contents) {
+		async function loadFile(fileName, contents) {
 			// GP asks after the file is chosen rather than before the picker
 			// opens, so cancelling the picker asks nothing (MicroBlocksEditor.gp:260).
 			if (!MB_editor.canReplaceCurrentProject()) return;
@@ -313,11 +313,15 @@ console.log('unknown');
 
 			// As loadNewProjectFromData does (MicroBlocksScripter.gp:575).
 			// Without it the project that was open keeps running on the board.
-			MB_connection.clearBoardIfConnected();
+			// Awaited: the download below must not overtake the erase.
+			await MB_connection.clearBoardIfConnected();
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',
 				MB_editor.project.allFunctions().length, 'functions'
 			);
+			// GP's openProject ends by downloading the new project to a
+			// connected board (MicroBlocksEditor.gp:293).
+			await MB_editor.codeManager.saveAllChunksAfterLoad();
 		}
 		this.importLocalFile(loadFile.bind(this));
 	}
