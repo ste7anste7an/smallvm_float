@@ -156,14 +156,28 @@ class MB_Editor {
 
 	// Run/stop
 
-	startAll() {
-		this.updateProject();
-		this.codeManager.syncAndStartAll();
+	async startAll() {
+		try {
+			this.updateProject();
+			await this.codeManager.syncAndStartAll();
+		} catch (e) {
+			this.reportError(e);
+		}
 	}
 
-	stopAll() {
-		this.updateProject();
-		this.codeManager.stopAndSyncScripts();
+	async stopAll() {
+		try {
+			this.updateProject();
+			await this.codeManager.stopAndSyncScripts();
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
+	reportError(e) {
+		// Report an error the way GP's error dialog would; inform is the hook the new UI fills in.
+		console.error(e);
+		this.inform(String(e));
 	}
 
 	toggleRunning(aBlock) {
@@ -308,21 +322,44 @@ console.log('unknown');
 	// Connect/Disconnect
 
 	async justConnected() {
-		if (this.readFromBoard) {
-			this.readFromBoard = false;
-			this.readCodeFromBoard();
-		} else {
-			const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
-			if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
-				if (reuseCodeIfPossible) console.log('Full download');
-				await MB_connection.clearBoardIfConnected();
-				this.runningChunks = new Map();
+		try {
+			if (this.readFromBoard) {
+				this.readFromBoard = false;
+				// Not awaited: justConnected is synchronous here, and nothing after
+				// this branch depends on the read having finished.
+				this.openProjectFromBoard();
 			} else {
-				console.log('Incremental download', this.vmVersion, this.boardType);
+				const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
+				if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
+					if (reuseCodeIfPossible) console.log('Full download');
+					await MB_connection.clearBoardIfConnected();
+					this.runningChunks = new Map();
+				} else {
+					console.log('Incremental download', this.vmVersion, this.boardType);
+				}
+				MB_editor.showDownloadProgress(2, 0);
+				await this.codeManager.stopAndSyncScripts(true);
 			}
-			MB_editor.showDownloadProgress(2, 0);
-			this.codeManager.stopAndSyncScripts(true);
+		} catch (e) {
+			this.reportError(e);
 		}
+	}
+
+	async openProjectFromBoard() {
+		// Read what the board is holding and show it, the way openProject shows
+		// a project read from a file. readCodeFromBoard is MB_connection's, not
+		// this class's.
+		const project = await MB_connection.readCodeFromBoard();
+		if (project == null) return;
+		this.project = project;
+		this.removeAllScripts();
+		this.project.main.scripts.forEach(
+			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
+		this.codeManager = new MB_CodeManager(this.project);
+		this.projectName = null;
+		MB_connection.setCodeManager(this.codeManager);
+		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
+			this.project.allFunctions().length, 'functions');
 	}
 
 	boardHasSameProject() {

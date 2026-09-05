@@ -22,8 +22,9 @@ class MB_Connection {
 		this.vmVersion = null;
 		this.boardType = null;
 		this.codeManager = null;
+		this.decompiler = null;        // set while reading the code back from a board
 		this.fileTransferMsgs = null;  // holds the board's replies while a transfer runs
-		this.lastRcvMSecs = 0;         // when the board last answered a transfer request
+		this.lastRcvMSecs = 0;         // when the board last answered a read or transfer request
 	}
 
 	// --- Process Messages Every Animation Frame (for now) ---
@@ -66,8 +67,36 @@ class MB_Connection {
 
 	// --- Decompiler ---
 
-	readCodeFromBoard() {
-		// XXX TODO
+	async readCodeFromBoard() {
+		// Collect the board's variable names and code chunks into a decompiler,
+		// then hand back the project they decompile to.
+		// Each request is followed by a wait for the board to go QUIET rather
+		// than for a fixed count: receivedVarName and receivedChunk push
+		// lastRcvMSecs forward as each reply arrives, and the board sends one
+		// frame per variable and per chunk with no reply saying how many.
+		this.decompiler = new MB_Decompiler();
+
+		this.sendMsg('getVarNamesMsg');
+		await this.readUntilQuiet(100, 10, false);
+
+		this.sendMsg('getAllCodeMsg', 1);
+		// Longer, and pinging: a board doing a Flash read can take seconds
+		// between chunks, and the ping keeps updateConnection from timing the
+		// connection out while it does.
+		await this.readUntilQuiet(2000, 50, true);
+
+		const decompiler = this.decompiler;
+		this.decompiler = null;
+		return decompiler.decompileProject();
+	}
+
+	async readUntilQuiet(quietMSecs, stepMSecs, sendPings) {
+		this.lastRcvMSecs = Date.now();
+		while ((Date.now() - this.lastRcvMSecs) < quietMSecs) {
+			if (sendPings) this.sendMsg('pingMsg');
+			this.processMessages();
+			await waitMSecs(stepMSecs);
+		}
 	}
 
 	// --- Feature detection ---
@@ -513,7 +542,7 @@ class MB_Connection {
 			// not currently used
 			// const broadcastMsg = this.bytesToString(msg.slice(5));
 		} else if (op === this.msgNameToID('chunkCode16Msg')) {
-			this.receivedChunk(msg[2], msg[5], Array.from(msg.slice(6)));
+			this.receivedChunk(msg[2], msg[5], msg.slice(6));
 		} else if (op === this.msgNameToID('codeStoreUsedMsg')) {
 			this.receivedCodeStoreUsed(Array.from(msg.slice(5)));
 		} else if (op === this.msgNameToID('varNameMsg')) {
@@ -741,6 +770,24 @@ class MB_Connection {
 		if (this.codeManager) this.codeManager.allCRCsReceived(data);
 	}
 
+	// --- Reading Code From The Board ---
+
+	receivedChunk(chunkID, chunkType, bytecodes) {
+		// bytecodes stays a Uint8Array: MB_Decompiler.readMetadata slices it
+		// into a TextDecoder, which takes only a typed array.
+		this.lastRcvMSecs = Date.now();
+		if (bytecodes.length === 0) {
+			console.log('truncated chunk!', chunkID, chunkType, bytecodes.length); // shouldn't happen
+			return;
+		}
+		if (this.decompiler) this.decompiler.addChunk(chunkID, chunkType, bytecodes);
+	}
+
+	receivedVarName(varID, varName, byteCount) {
+		this.lastRcvMSecs = Date.now();
+		if (this.decompiler) this.decompiler.addVar(varID, varName);
+	}
+
 	// --- Program Size ---
 
 	receivedCodeStoreUsed(data) {
@@ -759,13 +806,26 @@ class MB_Connection {
 		MB_editor.inform(label + ' (' + percent + '%)');
 	}
 
+	// --- File Transfer ---
+
+	recordFileTransferMsg(msg) {
+		// Record a file transfer message sent by the board.
+		// message format: <transfer ID (4 byte int)><byte offset (4 byte int)><data...>
+
+		if (this.fileTransferMsgs) this.fileTransferMsgs.push(msg);
+		this.lastRcvMSecs = Date.now();
+		// Already stamped on handleMessage's first line, and kept anyway to match
+		// MicroBlocksRuntime.gp:2694.
+		this.lastPingRecvMSecs = Date.now();
+	}
+
 	// --- Code File Updates ---
 
 	suspendCodeFileUpdates() {
 		// The empty byte list is required, not incidental: it makes this a long
 		// message, and the VM handles extendedMsg only in processLongMessage.
 		// As GP does in SmallRuntime.suspendCodeFileUpdates.
-		this.sendMsgSync('extendedMsg', 2, []);
+		return this.sendMsgSync('extendedMsg', 2, []); // so the download can wait for it before sending code
 	}
 
 	resumeCodeFileUpdates() {

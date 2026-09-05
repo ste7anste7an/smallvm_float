@@ -25,14 +25,14 @@ class MB_CodeManager {
 
 	// --- run/stop ---
 
-	evalOnBoard(aBlock, showBytes) {
+	async evalOnBoard(aBlock, showBytes) {
 		if (this.codeStoreFull) {
 			MB_editor.showError(aBlock, 'Program is too large to store on board.');
 			return;
 		}
 		if (!(aBlock.parent instanceof ScriptsMorph)) {
 			// running a block from the palette
-			this.saveAllChunks(true, aBlock);
+			await this.saveAllChunks(true, aBlock);
 		}
 		this.runChunk(this.lookupChunkID(aBlock));
 	}
@@ -51,14 +51,14 @@ class MB_CodeManager {
 		}
 	}
 
-	syncAndStartAll() {
-		this.syncScripts();
+	async syncAndStartAll() {
+		await this.syncScripts();
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
 
-	stopAndSyncScripts() {
+	async stopAndSyncScripts() {
 		MB_connection.sendMsg('stopAllMsg');
-		this.syncScripts();
+		await this.syncScripts();
 	}
 
 	// --- compiling ---
@@ -108,8 +108,6 @@ class MB_CodeManager {
 		for (const item of code) {
 			if (Array.isArray(item)) {
 				this.compiler.addBytesForInstructionTo(item, bytes);
-			} else if (Number.isInteger(item)) {
-				this.compiler.addBytesForIntegerLiteralTo(item, bytes);
 			} else if (typeof item === 'string') {
 				this.compiler.addBytesForStringLiteral(item, bytes);
 			} else {
@@ -133,7 +131,7 @@ class MB_CodeManager {
 
 	// --- chunk management ---
 
-	syncScripts() {
+	async syncScripts() {
 		// Called by editor when anything changes.
 		if (!MB_connection.isConnected()) {
 			console.log('Board not connected!');
@@ -152,7 +150,7 @@ class MB_CodeManager {
 			}
 		}
 
-		this.saveAllChunks(false);
+		await this.saveAllChunks(false);
 	}
 
 	lookupChunkID(key) {
@@ -163,7 +161,7 @@ class MB_CodeManager {
 		return entry[0];
 	}
 
-	removeObsoleteChunks() {
+	async removeObsoleteChunks() {
 		// Remove obsolete chunks. Chunks become obsolete when they are deleted or inserted into
 		// a script so they are no longer a stand-alone chunk. Functions become obsolete when
 		// they are deleted or the library containing them is deleted.
@@ -178,7 +176,7 @@ class MB_CodeManager {
 			} else if (typeof k === 'string') {
 				isObsolete = (this.project.functionNamed(k) == null);
 			}
-			if (isObsolete) this.deleteChunkFor(k);
+			if (isObsolete) await this.deleteChunkFor(k);
 		}
 	}
 
@@ -247,19 +245,19 @@ class MB_CodeManager {
 		return 'f' + chunkID;
 	}
 
-	deleteChunkFor(key) {
+	async deleteChunkFor(key) {
 		if (key instanceof BlockMorph && key.isFunctionDefinition()) {
 			key = key.definedFunctionName();
 		}
 		const entry = this.chunkIDs.get(key);
 		if (entry != null && MB_connection.isConnected()) {
 			const chunkID = entry[0];
-			MB_connection.sendMsgSync('deleteChunkMsg', chunkID);
+			await MB_connection.sendMsgSync('deleteChunkMsg', chunkID);
 			this.chunkIDs.delete(key);
 		}
 	}
 
-	saveAllChunks(checkCRCs, paletteBlock) {
+	async saveAllChunks(checkCRCs, paletteBlock) {
 		// Save the code for all scripts and user-defined functions.
 console.log('saveAllChunks A'); // xxx
 		if (checkCRCs == null) checkCRCs = true;
@@ -272,12 +270,12 @@ this.recompileAll = true;
 		const progressInterval = Math.max(1, Math.floor(totalScripts / 20));
 		let processedScripts = 0;
 		let skipHiddenFunctions = true;
-		this.saveVariableNamesIfNeeded();
+		await this.saveVariableNamesIfNeeded();
 		this.codeStoreFull = false;
 		if (this.recompileAll) {
 			// Clear the source code field of all chunk entries to force script recompilation
 			// and possible re-download since variable offsets have changed.
-			MB_connection.suspendCodeFileUpdates();
+			await MB_connection.suspendCodeFileUpdates();
 			for (const entry of this.chunkIDs.values()) {
 				entry[3] = '';
 				entry[4] = true;
@@ -285,13 +283,13 @@ this.recompileAll = true;
 			skipHiddenFunctions = false;
 		}
 		this.assignFunctionIDs();
-		this.removeObsoleteChunks();
+		await this.removeObsoleteChunks();
 
 		const unusedFuncs = this.project.unusedFunctions(paletteBlock);
 		let functionsSaved = 0;
 		for (const aFunction of this.project.allFunctions()) {
 			if (!unusedFuncs.includes(aFunction.functionName)) {
-				if (this.saveChunk(aFunction, skipHiddenFunctions)) {
+				if (await this.saveChunk(aFunction, skipHiddenFunctions)) {
 					functionsSaved += 1;
 					if ((functionsSaved % progressInterval) === 0) {
 						MB_editor.showDownloadProgress(3, processedScripts / totalScripts);
@@ -314,12 +312,12 @@ this.recompileAll = true;
 
 		let scriptsSaved = 0;
 		if (paletteBlock != null) {
-			this.saveChunk(paletteBlock, skipHiddenFunctions);
+			await this.saveChunk(paletteBlock, skipHiddenFunctions);
 			scriptsSaved += 1;
 		}
 		for (const aBlock of this.project.allScripts()) {
 			if (!aBlock.isFunctionDefinition()) { // skip function def hat; functions get saved above
-				if (this.saveChunk(aBlock, skipHiddenFunctions)) {
+				if (await this.saveChunk(aBlock, skipHiddenFunctions)) {
 					scriptsSaved += 1;
 					if ((scriptsSaved % progressInterval) === 0) {
 						MB_editor.showDownloadProgress(3, processedScripts / totalScripts);
@@ -347,22 +345,22 @@ this.recompileAll = true;
 		}
 
 		this.recompileAll = false;
-		if (checkCRCs) this.verifyCRCs();
+		if (checkCRCs) await this.verifyCRCs();
 		MB_connection.resumeCodeFileUpdates();
 		MB_editor.showDownloadProgress(3, 1);
 	}
 
-	forceSaveChunk(aBlockOrFunction) {
+	async forceSaveChunk(aBlockOrFunction) {
 		// Save the chunk for the given block or function even if it was previously saved.
 		if (this.chunkIDs.has(aBlockOrFunction)) {
 			const entry = this.chunkIDs.get(aBlockOrFunction);
 			entry[1] = null; // clear the old CRC
 			entry[3] = '';	 // clear the old source
 		}
-		this.saveChunk(aBlockOrFunction, false);
+		await this.saveChunk(aBlockOrFunction, false);
 	}
 
-	saveChunk(aBlockOrFunction, skipHiddenFunctions) {
+	async saveChunk(aBlockOrFunction, skipHiddenFunctions) {
 		// Save the given script or function as an executable code "chunk".
 		// Also save the source code (in GP format) and the script position.
 		if (this.codeStoreFull) return;
@@ -434,7 +432,7 @@ this.recompileAll = true;
 		const chunkCRC = this.computeCRC(chunkBytes);
 console.log('saving chunk A', chunkID, 'len', chunkBytes.length, 'type', chunkType, chunkCRC); // xxx
 
-		if (this.storeChunkOnBoard(chunkID, data, chunkCRC)) {
+		if (await this.storeChunkOnBoard(chunkID, data, chunkCRC)) {
 			entry[1] = chunkCRC; // remember the CRC of the code we just saved
 		} else {
 			console.log('Failed to save chunk:', chunkID);
@@ -444,9 +442,9 @@ console.log('saving chunk A', chunkID, 'len', chunkBytes.length, 'type', chunkTy
 		// restart the chunk if it was running
 		if (restartChunk) {
 			this.stopRunningChunk(chunkID);
-			MB_connection.waitForResponse();
+			await MB_connection.waitForResponse();
 			this.runChunk(chunkID);
-			MB_connection.waitForResponse();
+			await MB_connection.waitForResponse();
 		}
 		return true;
 	}
@@ -489,7 +487,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		return true;
 	}
 
-	verifyCRCs() {
+	async verifyCRCs() {
 		// Check that the CRCs of the chunks on the board match the ones in the IDE.
 		// Resend the code of any chunks whose CRC's do not match.
 		if (!MB_connection.connectedToBoard()) return;
@@ -502,9 +500,9 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		// collect CRCs from the board
 		this.crcDict = new Map();
 		if (forceIndividual) {
-			this.collectCRCsIndividually();
+			await this.collectCRCsIndividually();
 		} else {
-			this.collectCRCsBulk();
+			await this.collectCRCsBulk();
 		}
 
 		// build dictionaries and unused function list
@@ -537,7 +535,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 			const sourceItem = ideChunks.get(chunkID);
 			if (sourceItem != null && !this.arraysEqual(this.crcDict.get(chunkID), crcForChunkID.get(chunkID))) {
 				console.log('CRC mismatch; resaving chunk:', chunkID);
-				this.forceSaveChunk(sourceItem);
+				await this.forceSaveChunk(sourceItem);
 				MB_editor.showDownloadProgress(3, processedCount / totalCount);
 			}
 			processedCount += 1;
@@ -548,7 +546,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 			if (!this.crcDict.has(chunkID)) {
 				console.log('Resaving missing chunk:', chunkID);
 				const sourceItem = ideChunks.get(chunkID);
-				this.forceSaveChunk(sourceItem);
+				await this.forceSaveChunk(sourceItem);
 				MB_editor.showDownloadProgress(3, processedCount / totalCount);
 			}
 			processedCount += 1;
@@ -556,7 +554,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		MB_editor.showDownloadProgress(3, 1);
 	}
 
-	boardHasSameProject() {
+	async boardHasSameProject() {
 		// Return true if the board appears to have the same project as the IDE.
 		if (!MB_connection.connectedToBoard()) return false;
 		if (this.chunkIDs.size === 0) return false; // empty project
@@ -564,14 +562,14 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		// update chunkIDs dictionary for script/function additions or removals while disconnected
 		this.assignFunctionIDs();
 		for (const aBlock of this.project.allScripts()) {
-			if (!aBlockisFunctionDefinition()) { // skip function def hat; functions get IDs above
+			if (!aBlock.isFunctionDefinition()) { // skip function def hat; functions get IDs above
 				this.ensureChunkIdFor(aBlock);
 			}
 		}
 
 		// collect CRCs from the board
 		this.crcDict = new Map();
-		this.collectCRCsBulk();
+		await this.collectCRCsBulk();
 
 		// build dictionaries:
 		//	 ideChunks: chunkID -> block or functionName
@@ -650,7 +648,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 		this.crcDict = null;
 
 		// request CRCs for all chunks on board
-		MB_connection.sendMsgSync('getAllCRCsMsg', 1);
+		await MB_connection.sendMsgSync('getAllCRCsMsg', 1);
 
 		// wait until crcDict is filled in or timeout
 		const startT = Date.now();
@@ -674,7 +672,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 		}
 	}
 
-	saveVariableNamesIfNeeded() {
+	async saveVariableNamesIfNeeded() {
 		// If the variables list has changed, save the new variable names.
 		// Return true if variables have changed, false otherwise.
 		const newVarNames = this.project.allVariableNames();
@@ -683,7 +681,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 		const varCount = newVarNames.length;
 		const progressInterval = Math.max(1, Math.floor(varCount / 20));
 
-		this.clearVariableNames();
+		await this.clearVariableNames();
 		for (let i = 1; i <= varCount; i++) {
 			const varName = newVarNames[i - 1];
 			const varID = this.project.indexForVar(varName);
@@ -691,7 +689,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 				const nameBytes = Array.from(new TextEncoder().encode(varName));
 				if ((i % 32) === 0) {
 					// send a sync message every 32 variables
-					MB_connection.sendMsgSync('varNameMsg', varID, nameBytes);
+					await MB_connection.sendMsgSync('varNameMsg', varID, nameBytes);
 				} else {
 					MB_connection.sendMsg('varNameMsg', varID, nameBytes);
 				}
@@ -741,8 +739,8 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 		if (body != null) MB_connection.sendMsg('setVarMsg', varID, body);
 	}
 
-	clearVariableNames() {
-		if (MB_connection.isConnected()) MB_connection.sendMsgSync('clearVarsMsg', 1);
+	async clearVariableNames() {
+		if (MB_connection.isConnected()) await MB_connection.sendMsgSync('clearVarsMsg', 1);
 		this.oldVarNames = null;
 	}
 

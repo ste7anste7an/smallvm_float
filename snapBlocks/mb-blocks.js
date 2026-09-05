@@ -2080,7 +2080,11 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	} else if (arg instanceof ReporterBlockMorph) {
 		result.push(arg.codeString());
 	} else if (arg instanceof TemplateSlotMorph) {
-		result.push(fixEmbeddedQuotes(arg.contents()));
+		// GP's PrettyPrinter quotes a local's name always (printString) and a for,
+		// = or += name only when it must (printCmd, PrettyPrinter.gp:325 and :362;
+		// varName :436; varMustBeQuoted, String.gp:613), so do the same.
+		let name = arg.contents();
+		result.push(('local' == this.selector) ? ('\'' + fixEmbeddedQuotes(name) + '\'') : quoteIfNeeded(name));
 	} else if (arg instanceof MicroBitDisplaySlotMorph) {
 		this.addCodeStringForValue(arg.evaluate(), result);
 	} else if (arg instanceof ColorSlotMorph) {
@@ -2151,7 +2155,7 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 			args[0].contents() :
 			args[0].contents().text;
 		args = args.slice(); // copy args so we can modify it
-		args[0] = new TemplateSlotMorph(quoteIfNeeded(varName));
+		args[0] = new TemplateSlotMorph(varName); // addCodeStringForArg quotes it
 	}
 
 	if (this.isInfix(this.selector) && (args.length == 2)) { // infix operator
@@ -3800,6 +3804,9 @@ ScriptsMorph.prototype.userMenu = function () {
 		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
 	menu.addItem(
 		'save project', () => { MB_editor.saveProject() }, 'save this project to a file');
+	menu.addItem(
+		'read from board', () => { MB_editor.openProjectFromBoard() },
+		'replace this project with the one\nstored on the connected board');
 	menu.addLine();
 
 	menu.addItem(
@@ -5038,7 +5045,7 @@ TemplateSlotMorph.prototype.init = function (name) {
 	template.selector = 'v';
 	TemplateSlotMorph.uber.init.call(this);
 	this.add(template);
-	this.setContents('v');
+	this.setContents((name && name.trim && name.trim()) ? name : 'v'); // 'v' stands in for a blank label
 	this.fixLayout();
 	this.isDraggable = false;
 	this.isStatic = true; // I cannot be exchanged
