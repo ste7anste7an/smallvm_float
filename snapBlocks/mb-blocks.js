@@ -6084,12 +6084,13 @@ MicroBitDisplaySlotMorph.prototype.pixelIndex = function (pos) {
 
 	let relativePoint = pos.subtract(this.topLeft());
 	let x = relativePoint.x - this.insetX;
-	if ((x % this.stride) > this.ledWidth) return -1; // between pixels
 	let y = relativePoint.y - this.insetY;
-	if ((y % this.stride) > this.ledHeight) return -1; // between pixels
+	if ((x < 0) || (y < 0)) return -1; // in the margin above or left of the grid
+	if ((x % this.stride) >= this.ledWidth) return -1; // between pixels
+	if ((y % this.stride) >= this.ledHeight) return -1; // between pixels
 
 	let col = Math.trunc(x / this.stride);
 	let row = Math.trunc(y / this.stride);
-	if ((col < 0) || (col > 4) || (row < 0) || (row > 4)) return -1;
+	if ((col > 4) || (row > 4)) return -1;
 	return (row * 5) + col;
 };
