@@ -144,7 +144,7 @@
 		</div>
 
 		<!-- Canvas for Morphic world -->
-		<canvas id="world-canvas"></canvas>
+		<canvas id="world-canvas" style="position: absolute"></canvas>
 
 		<!-- Snap Blocks -->
 		<script type="text/javascript" src="morphic.js"></script>
@@ -192,9 +192,9 @@
 				setTimeout(() => {
 					// Hack: Wait a bit before starting to let everything finish loading...
 					IDE.init();
-					world = new WorldMorph(document.getElementById('world-canvas'));
-					world.setPosition(new Point(192, 48));
+					world = new WorldMorph(document.getElementById('world-canvas'), false);
 					mbEditor = MB_editor.open(world);
+					IDE.resize(); // place the world canvas over the workspace slot
 					requestAnimationFrame(loop);
 				}, 500);
 			};
