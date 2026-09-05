@@ -863,7 +863,8 @@ class MB_Module {
 				result.push(block.codeString() + '\n');
 			} else {
 				result.push('{\n');
-				if (block) result.push(block.codeString(1));
+				// At its own column, as GP's prettyPrintList writes a script body.
+				if (block) result.push(block.codeString(0));
 				result.push('}\n');
 			}
 			result.push('\n');

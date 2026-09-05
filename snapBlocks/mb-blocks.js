@@ -2231,7 +2231,6 @@ BlockMorph.prototype.codeString = function (indent = 0, result = [], early = tru
 	} else { // command or hat block
 		result.push('\n');
 		let next = this.nextBlock();
-		if (this instanceof HatBlockMorph) indent += 1;
 		// Only a short `if` keeps the run going; GP feeds printCmd's return
 		// value into `early` for this.
 		if (next != null) next.codeString(indent, result, false); // recursive!
