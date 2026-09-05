@@ -156,14 +156,28 @@ class MB_Editor {
 
 	// Run/stop
 
-	startAll() {
-		this.updateProject();
-		this.codeManager.syncAndStartAll();
+	async startAll() {
+		try {
+			this.updateProject();
+			await this.codeManager.syncAndStartAll();
+		} catch (e) {
+			this.reportError(e);
+		}
 	}
 
-	stopAll() {
-		this.updateProject();
-		this.codeManager.stopAndSyncScripts();
+	async stopAll() {
+		try {
+			this.updateProject();
+			await this.codeManager.stopAndSyncScripts();
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
+	reportError(e) {
+		// Report an error the way GP's error dialog would; inform is the hook the new UI fills in.
+		console.error(e);
+		this.inform(String(e));
 	}
 
 	toggleRunning(aBlock) {
@@ -308,22 +322,26 @@ console.log('unknown');
 	// Connect/Disconnect
 
 	async justConnected() {
-		if (this.readFromBoard) {
-			this.readFromBoard = false;
-			// Not awaited: justConnected is synchronous here, and nothing after
-			// this branch depends on the read having finished.
-			this.openProjectFromBoard();
-		} else {
-			const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
-			if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
-				if (reuseCodeIfPossible) console.log('Full download');
-				await MB_connection.clearBoardIfConnected();
-				this.runningChunks = new Map();
+		try {
+			if (this.readFromBoard) {
+				this.readFromBoard = false;
+				// Not awaited: justConnected is synchronous here, and nothing after
+				// this branch depends on the read having finished.
+				this.openProjectFromBoard();
 			} else {
-				console.log('Incremental download', this.vmVersion, this.boardType);
+				const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
+				if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
+					if (reuseCodeIfPossible) console.log('Full download');
+					await MB_connection.clearBoardIfConnected();
+					this.runningChunks = new Map();
+				} else {
+					console.log('Incremental download', this.vmVersion, this.boardType);
+				}
+				MB_editor.showDownloadProgress(2, 0);
+				await this.codeManager.stopAndSyncScripts(true);
 			}
-			MB_editor.showDownloadProgress(2, 0);
-			this.codeManager.stopAndSyncScripts(true);
+		} catch (e) {
+			this.reportError(e);
 		}
 	}
 

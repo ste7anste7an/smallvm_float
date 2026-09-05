@@ -825,7 +825,7 @@ class MB_Connection {
 		// The empty byte list is required, not incidental: it makes this a long
 		// message, and the VM handles extendedMsg only in processLongMessage.
 		// As GP does in SmallRuntime.suspendCodeFileUpdates.
-		this.sendMsgSync('extendedMsg', 2, []);
+		return this.sendMsgSync('extendedMsg', 2, []); // so the download can wait for it before sending code
 	}
 
 	resumeCodeFileUpdates() {
