@@ -327,16 +327,10 @@ class MB_Parser {
 
 		let args = (node.args || []).map(arg => {
 			if ((arg == null) || ((typeof arg) != 'object')) return arg; // a literal
-			// A colour, which the decompiler re-spells from the packed integer
-			// the bytes carry (fixBooleanAndColorArgs). Built as a colorSwatch
-			// reporter, which compiles to the same bytes. It is NOT the corpus
-			// spelling: source writes four arguments, the fourth an alpha the
-			// bytes do not record and mb-compiler.js:556 does not read, so a
-			// decompiled colour differs from a loaded one in codeString only.
-			// Folding it back to the packed integer is the better answer and
-			// needs a colour slot that accepts one -- see js-port-value-slots.
+			// A colour the decompiler split into {r, g, b} (fixBooleanAndColorArgs).
+			// The colour slot holds the packed 0xRRGGBB integer the bytes carry.
 			if (true == arg.isColor) {
-				return this.blockWithArgs('colorSwatch', [arg.r, arg.g, arg.b], true);
+				return ((arg.r & 255) << 16) | ((arg.g & 255) << 8) | (arg.b & 255);
 			}
 			// A reporter is one node; a command in an argument position is the
 			// first block of a body, so take its whole chain.
