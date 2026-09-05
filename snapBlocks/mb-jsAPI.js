@@ -60,7 +60,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		case 'ide.stopAll':
-			// GP's stopAndSyncScripts (MicroBlocksRuntime.gp) also soft-resets the board.
 			MB_editor.stopAll();
 			callback(0);
 			break;

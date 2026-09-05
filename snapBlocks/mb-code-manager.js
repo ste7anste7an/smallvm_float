@@ -65,8 +65,14 @@ class MB_CodeManager {
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
 
-	async stopAndSyncScripts() {
-		MB_connection.sendMsg('stopAllMsg');
+	async stopAndSyncScripts(alreadyStopped) {
+		// Stop, then a soft reset, then sync, as GP's stopAndSyncScripts does. The VM
+		// clears its memory and variables on the reset, which stopAllMsg alone does not.
+		if (MB_connection.isConnected() && (alreadyStopped !== true)) {
+			MB_connection.sendMsg('stopAllMsg');
+			MB_connection.sendMsg('systemResetMsg');
+		}
+		MB_editor.clearRunningHighlights();
 		await this.syncScripts();
 	}
 
