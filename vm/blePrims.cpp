@@ -557,43 +557,78 @@ static OBJ primRadioReceive(int argCount, OBJ *args) {
 
 // Original UART code was provided by Wenji Wu. Thanks!
 
-// A board is a BLE Peripheral, so it can connect to only one BLE Central
-// at at time. Thus, if the board is connected to the IDE then it is not
-// available for connection as a BLE UART (except in Chrome/Edge, which
-// seems to share a single BLE connection between tabs).
+// A BLE client can use the UART service while the IDE holds the board over USB
+// or over BLE from another device. BLE serial is one shared stream either way:
+// BLE_UART_Send() notifies every subscriber and uartRecvBuf is a single buffer.
 
-// Receive buffer
+// Receive buffer. BLE_UART_ReceiveCallback() runs on the radio stack's task,
+// not the VM's, so both sides lock before touching uartBytesReceived.
+
 static uint8 uartRecvBuf[256];
-static int uartBytesReceived = 0;
+static volatile int uartBytesReceived = 0;
+
+#if defined(ARDUINO_ARCH_ESP32)
+	// The NimBLE host task runs on the other core, so masking interrupts on
+	// this one is not enough.
+	static portMUX_TYPE uartRecvMux = portMUX_INITIALIZER_UNLOCKED;
+	#define UART_RECV_LOCK() portENTER_CRITICAL(&uartRecvMux)
+	#define UART_RECV_UNLOCK() portEXIT_CRITICAL(&uartRecvMux)
+#elif defined(ARDUINO_ARCH_RP2040) || defined(NRF51) || defined(NRF52_SERIES)
+	// The Pico's BTstack callback and the nRF52's SoftDevice callback both
+	// reach this from the core running the VM.
+	#include <Arduino.h>
+	#define UART_RECV_LOCK() noInterrupts()
+	#define UART_RECV_UNLOCK() interrupts()
+#else
+	#define UART_RECV_LOCK()
+	#define UART_RECV_UNLOCK()
+#endif
 
 void BLE_UART_ReceiveCallback(uint8 *data, int byteCount) {
-	int spaceAvailable = sizeof(uartRecvBuf) - uartBytesReceived;
-	if (byteCount > spaceAvailable) byteCount = spaceAvailable;
-	memcpy(&uartRecvBuf[uartBytesReceived], data, byteCount);
-	uartBytesReceived += byteCount;
+	UART_RECV_LOCK();
+		int spaceAvailable = sizeof(uartRecvBuf) - uartBytesReceived;
+		if (byteCount > spaceAvailable) byteCount = spaceAvailable;
+		if (byteCount > 0) {
+			memcpy(&uartRecvBuf[uartBytesReceived], data, byteCount);
+			uartBytesReceived += byteCount;
+		}
+	UART_RECV_UNLOCK();
+}
+
+static void uartConsumeBytes(int byteCount) {
+	// Remove the first byteCount bytes, keeping any that arrived meanwhile.
+
+	UART_RECV_LOCK();
+		int remainingBytes = uartBytesReceived - byteCount;
+		if (remainingBytes < 0) remainingBytes = 0;
+		if (remainingBytes > 0) memmove(uartRecvBuf, &uartRecvBuf[byteCount], remainingBytes);
+		uartBytesReceived = remainingBytes;
+	UART_RECV_UNLOCK();
 }
 
 static OBJ primUART_read(int argCount, OBJ *args) {
 	// If optional argument is true, return a byte array. Otherwise, return a string.
 
-	if (!BLE_connected_to_IDE) uartBytesReceived = 0;
+	if (!BLE_connected_to_IDE) uartConsumeBytes(sizeof(uartRecvBuf));
 
 	int returnBytes = (argCount > 0) && (trueObj == args[0]);
-	if (uartBytesReceived <= 0) return (returnBytes ? (OBJ) &emptyByteArray : (OBJ) &emptyMBString);
+	int byteCount = uartBytesReceived; // read once; newObj() below may collect
+	if (byteCount <= 0) return (returnBytes ? (OBJ) &emptyByteArray : (OBJ) &emptyMBString);
 
+	// The callback only appends past byteCount, so those bytes do not move
+	// while newObj() runs.
 	OBJ result = falseObj;
 	if (returnBytes) { // return a ByteArray
-		int wordCount = (uartBytesReceived + 3) / 4;
-		result = newObj(ByteArrayType, wordCount, falseObj);
+		result = newObj(ByteArrayType, (byteCount + 3) / 4, falseObj);
 		if (!result) return fail(insufficientMemoryError);
-		setByteCountAdjust(result, uartBytesReceived);
-		memcpy(&FIELD(result, 0), uartRecvBuf, uartBytesReceived);
+		setByteCountAdjust(result, byteCount);
+		memcpy(&FIELD(result, 0), uartRecvBuf, byteCount);
 	} else { // return a string
 		const char *s = (const char *) uartRecvBuf;
-		result = newStringFromBytes(s, uartBytesReceived);
+		result = newStringFromBytes(s, byteCount);
 		if (!result) return fail(insufficientMemoryError);
 	}
-	uartBytesReceived = 0;
+	uartConsumeBytes(byteCount);
 	return result;
 }
 
