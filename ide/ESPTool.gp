@@ -272,7 +272,7 @@ method unescapeMsg ESPTool startIndex endIndex {
 	while (i < endIndex) {
 		b = (byteAt recvBuf i)
 		if (219 == b) { // SLIP escape byte (219 = 0xDB)
-			nextB = (byteAt recvBuf i)
+			nextB = (byteAt recvBuf (i + 1))
 			if (220 == nextB) { add result 192 } // escaped SLIP start byte (192 = 0xC0)
 			if (221 == nextB) { add result 219 } // escaped SLIP escape byte (219 = 0xDB)
 			i += 2
