@@ -56,8 +56,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(MB_connection.vmVersion);
 			break;
 		case 'ide.startAll':
-			// GP's startAll (MicroBlocksRuntime.gp) also refuses with a dialog when no
-			// board is connected or the code store is full; the port only logs.
 			MB_editor.startAll();
 			callback(0);
 			break;

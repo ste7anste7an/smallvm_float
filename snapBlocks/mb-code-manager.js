@@ -52,6 +52,15 @@ class MB_CodeManager {
 	}
 
 	async syncAndStartAll() {
+		// Refuse before sending anything, as GP's startAll does (MicroBlocksRuntime.gp).
+		if (!MB_connection.isConnected()) {
+			alert(localized('Board not connected'));
+			return;
+		}
+		if (this.codeStoreFull) {
+			alert(localized('Program is too large to store on board.'));
+			return;
+		}
 		await this.syncScripts();
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
