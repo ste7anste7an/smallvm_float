@@ -265,6 +265,11 @@ console.log('unknown');
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		this.removeAllScripts();
+
+		// GP clears the board on every project replacement, right after making
+		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
+		// here downloads, and sendMsg keeps the wire in order on its own.
+		MB_connection.clearBoardIfConnected();
 	}
 
 	saveProject() {
@@ -305,6 +310,10 @@ console.log('unknown');
 			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
 			MB_editor.projectName = fileName;
 			MB_connection.setCodeManager(MB_editor.codeManager);
+
+			// As loadNewProjectFromData does (MicroBlocksScripter.gp:575).
+			// Without it the project that was open keeps running on the board.
+			MB_connection.clearBoardIfConnected();
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',
 				MB_editor.project.allFunctions().length, 'functions'
