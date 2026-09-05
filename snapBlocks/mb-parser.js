@@ -209,7 +209,7 @@ class MB_Parser {
 
 	// ***** Converting Parse Trees to Blocks *****
 
-	makeBlock(buf, isReporter = false) {
+	makeBlock(buf, isReporter = false, inBody = false) {
 		// Make a command or reporter block from the given array of selector and arguments.
 
 		if (buf.length == 0) return null; // empty command list (e.g. in an if-else)
@@ -229,10 +229,10 @@ class MB_Parser {
 			}
 			return arg;
 		});
-		return this.blockWithArgs(selector, args, isReporter);
+		return this.blockWithArgs(selector, args, isReporter, inBody);
 	}
 
-	blockWithArgs(selector, args, isReporter = false) {
+	blockWithArgs(selector, args, isReporter = false, inBody = false) {
 		// Make a block for the given selector and already-resolved arguments.
 		// An argument is a value, a ReporterBlockMorph for a nested reporter,
 		// or a CommandBlockMorph for the first block of a body.
@@ -242,8 +242,11 @@ class MB_Parser {
 		// script read back from a board and the same script loaded from a file
 		// are the same morph, and therefore compile to the same bytes.
 
+		// A reporter written where a command goes is a command block here: it
+		// chains, prints and compiles as GP's does (the primitive, then a pop),
+		// where a ReporterBlockMorph can do none of those.
 		let b, blockType = MB_Specs.blockTypeForSelector(selector);
-		if (isReporter || ('r' == blockType)) {
+		if (!inBody && (isReporter || ('r' == blockType))) {
 			b = new ReporterBlockMorph();
 		} else if ('h' == blockType) {
 			b = new HatBlockMorph();
@@ -338,7 +341,7 @@ class MB_Parser {
 	makeBlockList(bufList) {
 		let result, previous;
 		for (const buf of bufList) {
-			let b = this.makeBlock(buf);
+			let b = this.makeBlock(buf, false, true);
 			if (!result) {
 				result = b;
 				previous = b;
