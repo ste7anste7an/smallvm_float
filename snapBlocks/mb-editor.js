@@ -52,6 +52,10 @@ class MB_Editor {
 		this.palette.reactToWorldResize = () => this.fixLayout();
 		this.scriptsFrame.reactToWorldResize = () => this.fixLayout();
 		this.fixLayout();
+
+		// The tip bar sits at the bottom of the window and says what the block
+		// under the pointer does.
+		if (typeof MB_Tips !== 'undefined') MB_Tips.open();
 		return this;
 	}
 
