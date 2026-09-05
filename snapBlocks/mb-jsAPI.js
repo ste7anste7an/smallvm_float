@@ -41,6 +41,8 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'edit.redo':
 		case 'edit.undo':
 		case 'ide.applyUserPreferences':
+			callback(0); // not implemented yet, but every request gets its reply
+			break;
 		case 'ide.resize':
 			break; // do nothing for now
 			// the following code does not work:
