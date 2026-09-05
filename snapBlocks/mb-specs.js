@@ -6,7 +6,7 @@
 
 // mb-specs.js - MicroBlocks block spec operations and specs for built-in blocks.
 
-/* global CommandBlockMorph, ReporterBlockMorph, HatBlockMorph, MB_editor */
+/* global MB_Parser, CommandBlockMorph, MB_editor */
 
 MB_Specs = {
 	selectorToSpec: {}, // cached Map for looking up specs by selector
@@ -191,40 +191,24 @@ MB_Specs.blockForSpec = function (spec, category) {
 	// Create a block in the given category from the given MicroBlocks spec array.
 	// Used to populate the block palette.
 
-	if (Array.isArray(spec)) {
-		let b;
-		let type = spec[0];
-		if (' ' == type) {
-			b = new CommandBlockMorph();
-		} else if ('r' == type) {
-			b = new ReporterBlockMorph();
-		} else if ('h' == type) {
-			b = new HatBlockMorph();
-		} else {
-			// A project's or library's spec line may declare a type with no morph here.
-			console.log('unknown block type:', JSON.stringify(type), spec[1]);
-			return undefined;
-		}
-		b.selector = spec[1];
-		// From the spec we were handed, not from a lookup by selector: a
-		// library's or a project's own blocks are not in the built-in table.
-		b.setSpec(this.snapSpecForSpecArray(spec));
-		b.setCategory(category);
-		let defaults = spec.slice(4);
-		if ('v' == b.selector) {
-			// set name (spec) for a variable block
-			if (defaults.length > 0) b.setSpec(defaults[0]);
-		} else {
-			// set default values
-			let inputs = b.inputs();
-			for (let i = 0; i < defaults.length; i++) {
-				if (i >= inputs.length) break;
-				inputs[i].setContents(defaults[i]);
-			}
-		}
-		return b;
+	if (!Array.isArray(spec)) return undefined; // error; spec should be an array
+	let type = spec[0];
+	if (![' ', 'r', 'h'].includes(type)) {
+		// A project's or library's spec line may declare a type with no morph here.
+		console.log('unknown block type:', JSON.stringify(type), spec[1]);
+		return undefined;
 	}
-	return undefined; // error; spec should be an array
+
+	// No call behind these: the block keeps the shape its spec declares, and
+	// every slot it has is an argument. The type comes from the spec, which may
+	// not be one the table carries.
+	let b = new MB_Parser('').blockWithArgs(spec[1], spec.slice(4), ('r' == type), false, false, type,
+		this.snapSpecForSpecArray(spec));
+	b.setCategory(category);
+	// A template is copied when it is dragged; a draggable one would be taken
+	// out of the palette instead (HandMorph.processMouseMove).
+	b.isDraggable = false;
+	return b;
 }
 
 MB_Specs.snapSpecForSelector = function (selector, isReporter, argCount) {
