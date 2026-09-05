@@ -564,6 +564,25 @@ console.log('unknown');
 		this.project.main.assignScriptIds();
 	}
 
+	// ***** Libraries *****
+
+	librariesChanged() {
+		// A library came or went: stop the board and forget the variable names it
+		// was told.
+
+		MB_connection.sendMsg('stopAllMsg');
+		this.clearRunningHighlights();
+		this.codeManager.clearVariableNames();
+	}
+
+	removeLibraryNamed(libName) {
+		// Take a library out of the project, then tell the board and the IDE.
+
+		this.project.removeLibraryNamed(libName);
+		this.librariesChanged();
+		this.updateLibraryList();
+	}
+
 	// File operations
 
 	canReplaceCurrentProject() {

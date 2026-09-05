@@ -147,6 +147,10 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_connection.readVersionFile().then(callback);
 			break;
 		case 'library.delete':
+			// Reply first, then act.
+			callback(0);
+			MB_editor.removeLibraryNamed(params[0]);
+			break;
 		case 'library.export':
 		case 'library.hideDefs':
 		case 'library.reload':
