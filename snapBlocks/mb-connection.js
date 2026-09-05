@@ -65,6 +65,7 @@ class MB_Connection {
 	// --- Startup Actions ---
 
 	async clearBoardIfConnected() {
+		this.sendMsg('stopAllMsg'); // stop running scripts first, as GP's sendStopAll does
 		this.sendMsg('systemResetMsg'); // send the reset message
 		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
 		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
