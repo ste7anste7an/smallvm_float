@@ -591,6 +591,27 @@ console.log('unknown');
 		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
 	}
 
+	async reloadLibrary(libName) {
+		// Replace a library with the shipped file of its name and show it. Only a
+		// library with a shipped path qualifies; one that arrived with the project
+		// or from elsewhere has none and is left alone.
+
+		let lib = this.project.libraryNamed(libName);
+		if (!lib || (lib.path == null) || lib.path.startsWith('/')) return;
+		const libFileName = '/' + libName + '.ubl';
+		for (const filePath of MB_Files.allFilesIn('Libraries')) {
+			if (!filePath.endsWith(libFileName)) continue;
+			const data = await MB_Files.readFile(filePath);
+			if (!data) return;
+			let moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
+			this.codeManager.recompileNeeded(); // its functions were loaded anew
+			this.librariesChanged();
+			this.updateLibraryList();
+			this.selectLibrary(moduleName);
+			return;
+		}
+	}
+
 	// File operations
 
 	canReplaceCurrentProject() {

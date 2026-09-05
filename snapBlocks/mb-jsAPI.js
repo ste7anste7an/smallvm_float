@@ -157,7 +157,14 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.exportLibrary(params[0]);
 			break;
 		case 'library.hideDefs':
+			callback();
+			break;
 		case 'library.reload':
+			// Reply first, then act. The reload reads a file, so it finishes after
+			// the reply.
+			callback(0);
+			MB_editor.reloadLibrary(params[0]);
+			break;
 		case 'library.showDefs':
 		case 'library.showInfoDialog':
 		case 'locale.loadCustomFile':
