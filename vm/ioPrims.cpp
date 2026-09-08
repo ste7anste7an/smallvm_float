@@ -2606,7 +2606,15 @@ extern "C" void ARDUINO_ISR_ATTR esp32_servo_IRQHandler() {
 }
 
 static void startESP32ServoTimer() {
-	esp32_servoTimer = timerBegin(0, 80, true); // divide 80 Mhz by 80, count up
+	// Use the highest timer this chip has. Board support libraries take timer 0
+	// (the CoCube sensor library calls timerBegin(0, 80, true) from its Init),
+	// and timerBegin() reconfigures a timer that is already in use without
+	// reporting it, so a fixed low number fails silently on those boards.
+	#if SOC_TIMER_GROUP_TOTAL_TIMERS > 3
+		esp32_servoTimer = timerBegin(3, 80, true); // group 1/timer 1
+	#else
+		esp32_servoTimer = timerBegin(0, 80, true); // chips with only two timers
+	#endif
 	esp32ServoTimerStarted = true;
 	if (!esp32_servoTimer) return; // timer unavailable; servos won't move but board won't crash
 	timerAttachInterrupt(esp32_servoTimer, &esp32_servo_IRQHandler, false);
