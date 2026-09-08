@@ -36,7 +36,7 @@ static void initRandomSeed(void); // forward reference
 static void stopRF(); // forward reference
 static void reservePinsForPSRAM(); // forward reference
 
-#if (defined(ARDUINO_SAMD_MKR1000) || defined(ESP32)) && !defined(ESP32_C3) && !defined(ESP32_C6)
+#if (defined(ARDUINO_SAMD_MKR1000) || defined(ESP32))
 	#include <I2S.h>
 	int I2SsampleRate = 16000;
 	#define HAS_I2S 1
@@ -2925,7 +2925,7 @@ OBJ primI2SWrite(int argCount, OBJ *args) {
 	int startTime = microsecs();
 	int timePerSample = (1000000 / I2SsampleRate);
 	int wakeTime = timePerSample * (startTime / timePerSample);
-	int sample = obj2int(args[0]);
+	int32_t sample = obj2int(args[0]);
 	I2S.write(sample);
 	I2S.write(sample);
 	taskSleepMicros((wakeTime - microsecs()) % timePerSample);
