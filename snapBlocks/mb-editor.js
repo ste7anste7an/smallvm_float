@@ -417,8 +417,8 @@ console.log('unknown');
 	}
 
 	addLoggedData(value) {
-		// One sample from the `log` block. Passed on as read: a sample carrying
-		// several series is one string with spaces in it, and the graph splits it.
+		// One sample from the `graph` block, passed on as read: several series
+		// arrive as one string with spaces in it and the graph splits it.
 		fireIDEEvent('graph.data', value);
 	}
 
@@ -428,7 +428,9 @@ console.log('unknown');
 	}
 
 	showDownloadProgress(phase, percent) {
-		// XXX TO DO
+		// phase is 1, 2 or 3 and percent is a fraction, which is the shape the
+		// progress ring reads. Callers already pass both that way.
+		fireIDEEvent('ide.downloadProgress', [phase, percent]);
 	}
 
 	clearRunningHighlights() {
@@ -440,15 +442,12 @@ console.log('unknown');
 	}
 }
 
-// Tell whatever chrome is listening that something happened. The listeners are
-// in chromeApp/webapp (graph.js takes graph.data and graph.clear); IDE.fireEvent
-// in ide.js is the same dispatch made from that side. Sent on the document
-// rather than through IDE so the port does not require the chrome to be loaded.
+// Announce something to whatever chrome is listening. Sent on the document
+// rather than through IDE.fireEvent, which is the same dispatch, so that the
+// port does not require the chrome to be loaded.
 function fireIDEEvent(name, value) {
-	// Both guards are needed. The port is loaded with no DOM at all, and it is
-	// also loaded into contexts that supply a partial one: a `document` without
-	// CustomEvent raises a ReferenceError rather than being caught by a check on
-	// document alone.
+	// Both guards: the port is also loaded with no DOM, and into contexts that
+	// supply a partial one where document exists and CustomEvent does not.
 	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }
 	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
 }
