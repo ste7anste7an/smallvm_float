@@ -918,7 +918,7 @@ static void sendNeoPixelData(int val) { // micro:bit (v1 & v2)/Calliope
 		if (val & mask) { // one bit; timing goal: high 780 nsecs, low 420 nsecs
 			#if defined(NRF52)
 				*neoPixelPinSet = neoPixelPinMask;
-				DELAY_CYCLES(7);
+				DELAY_CYCLES(9);
 				*neoPixelPinClr = neoPixelPinMask;
 				DELAY_CYCLES(2);
 			#else
@@ -933,7 +933,7 @@ static void sendNeoPixelData(int val) { // micro:bit (v1 & v2)/Calliope
 				*neoPixelPinSet = neoPixelPinMask;
 				DELAY_CYCLES(2);
 				*neoPixelPinClr = neoPixelPinMask;
-				DELAY_CYCLES(6);
+				DELAY_CYCLES(9);
 			#else
 				// Note: Use NRF_P0->OUTSET/OUTCLR form to achieve a short enough zero pulse on nRF51
 				NRF_P0->OUTSET = neoPixelPinMask;
