@@ -5345,6 +5345,10 @@ msgid "wheels break"
 msgstr ""
 
 #. CoCube library block
+msgid "wheels brake"
+msgstr ""
+
+#. CoCube library block
 msgid "X position"
 msgstr ""
 
