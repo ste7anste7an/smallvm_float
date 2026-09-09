@@ -1050,15 +1050,21 @@ void hardwareInit() {
 #elif defined(NEZHA_ESP32)
 	// Define NEZHA_ESP32 in the board's build flags to select this map.
 	// Elecfreaks Nezha ESP32. Pin map from their pinout spreadsheet (Attachment 4).
-	// Only the four RJ11 port pins and the RGB LED are exposed to the user; everything
-	// else is on-board hardware or is reserved by the chip.
-	//   RJ11 ports: 4,5 / 6,7 / 15,16 / 17,18      RGB LED: 8
-	//   External I2C (RJ11): SCL 40, SDA 41        Internal I2C: SCL 38, SDA 39
-	//   User UART via CD4052: TX 14, RX 21, select A GPIO2, B GPIO1
-	//   UART0 (flashing): TX 43, RX 44             Native USB: 19, 20
-	//   TFT: CS 42, MOSI 10, SCLK 11, DC 12, RST 13, backlight 9
-	//   I2S: MCLK 3, BCLK 0, LRCK 47, SDO 48, SDI 45, amp enable 46
-	//   35-37 are not connected (PSRAM). 0, 3, 45 and 46 are strapping pins.
+	// The four RJ11 port pins, NeoPixel (RGB) pins, CD4052 UART port select pins, and
+	// audio amplifier enable pins are exposed to MicroBlocks.
+	// Other pins are reserved by the chip or used internally for on-board hardware.
+	//	RJ11 ports: 4,5 / 6,7 / 15,16 / 17,18
+	//	Three built in NeoPixels: 8
+	//	UART CD4052 port select: A 2, B 1
+	//	External I2C (RJ11): SCL 40, SDA 41
+	//	Internal I2C: SCL 38, SDA 39
+	//	User UART (outputs to CD4052 mux): TX 14, RX 21
+	//	TFT: CS 42, MOSI 10, SCLK 11, DC 12, RST 13, backlight 9
+	//	I2S: MCLK 3, BCLK 0, LRCK 47, SDO 48, SDI 45
+	//	Audio amp enable 46
+	//	Native USB: 19, 20
+	//	UART0 (internal; for flashing/debugging): TX 43, RX 44
+	//	35-37 are not connected (PSRAM). 0, 3, 45 and 46 are strapping pins.
 	#define BOARD_TYPE "NEZHA-ESP32-S3"
 	#define DIGITAL_PINS 49
 	#define ANALOG_PINS 20
@@ -1066,11 +1072,11 @@ void hardwareInit() {
 	static const int analogPin[] = {};
 	#define PIN_LED -1 // RGB LED on 8, not a plain LED
 	static const char reservedPin[TOTAL_PINS] = {
-		1, 1, 1, 1, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 0, 0, 0, 0, 0, 1,
 		1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1};
+		1, 1, 1, 1, 1, 1, 0, 1, 1};
 
 #elif defined(ESP32_S3)
 	#define BOARD_TYPE "ESP32-S3"
