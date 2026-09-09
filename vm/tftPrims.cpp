@@ -192,6 +192,32 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			}
 		}
 
+	#elif defined(NEZHA_ESP32)
+		#define TFT_BL		9
+		#define TFT_MOSI	10
+		#define TFT_SCLK	11
+		#define TFT_DC		12
+		#define TFT_RST		13
+		#define TFT_CS		42
+		#define TFT_WIDTH	240
+		#define TFT_HEIGHT	320
+
+		void tftInit() {
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
+			tft = new Arduino_ST7789(bus, TFT_RST, 2, true,
+					TFT_WIDTH, TFT_HEIGHT);
+			if (!tft->begin()) {
+				outputString("tftInit() failed!");
+			} else {
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH); // turn on backlight
+				tftWidth = TFT_WIDTH;
+				tftHeight = TFT_HEIGHT;
+				tftClear();
+				useTFT = true;
+			}
+		}
+
 	#elif defined(ARDUINO_M5Stick_Plus)
 		#define TFT_CS		5
 		#define TFT_DC		23

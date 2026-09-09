@@ -116,7 +116,15 @@ static void startWire() {
 		Wire.setSDA(PIN_WIRE_SDA);
 		Wire.setSCL(PIN_WIRE_SCL);
 	#elif defined(ARDUINO_ARCH_ESP32)
-		Wire.setPins(PIN_WIRE_SDA, PIN_WIRE_SCL);
+		#if defined(NEZHA_ESP32)
+			// External (RJ11) bus. The internal bus, SDA 39 / SCL 38, carries the
+			// gyro, mic, speaker and expansion MCU and is not exposed here.
+			// Set at compile time rather than by i2cSetPins because 40 and 41 are
+			// reserved pins, and primI2cSetPins rejects those via mapDigitalPinNum.
+			Wire.setPins(41, 40);
+		#else
+			Wire.setPins(PIN_WIRE_SDA, PIN_WIRE_SCL);
+		#endif
 	#elif defined(ESP8266)
 		Wire.pins(PIN_WIRE_SDA, PIN_WIRE_SCL);
 	#endif
