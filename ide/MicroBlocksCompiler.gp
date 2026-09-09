@@ -598,7 +598,9 @@ method initPrimsets SmallCompiler {
 		encoder
 		sd
 		lgvl
-		h75'
+		h75
+		elfreaks
+		elfreaks_dev_sensor'
 
 	primsets = (dictionary)
 	primSetIndex = 0

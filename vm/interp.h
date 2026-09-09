@@ -461,6 +461,8 @@ typedef enum {
 	SDCardPrims,
 	LGVLPrims,
 	H75Prims,
+	EFPrims,			// Elecfreaks, supplied by their primitive package
+	EFDevSensorPrims,	// Elecfreaks, supplied by their primitive package
 	PrimitiveSetCount
 } PrimitiveSetIndex;
 
