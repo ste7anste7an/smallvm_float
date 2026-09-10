@@ -1673,9 +1673,15 @@ static int qmi8658Read16Bit(int reg) {
 
 static int readAcceleration(int registerID) {
 	int val = 0;
-	if (1 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT); // x-axis
-	if (3 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 2); // y-axis
-	if (5 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 4); // z-axis
+	#if defined(NEZHA_ESP32)
+		if (1 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 2); // x-axis
+		if (3 == registerID) val = qmi8658Read16Bit(QMI8658_ACCEL_XOUT); // y-axis
+		if (5 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 4); // z-axis
+	#else
+		if (1 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT); // x-axis
+		if (3 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 2); // y-axis
+		if (5 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 4); // z-axis
+	#endif
 	return (100 * val) >> 14;
 }
 
