@@ -69,7 +69,7 @@ SCRATCH_CHUNK = 90          # high ID, to avoid colliding with a user's project
 REPORTER_CHUNK_TYPE = 2
 
 # Opcodes, in jumpTable order (vm/interp.c)
-OP_INIT_LOCALS, OP_PUSH_IMMEDIATE, OP_RETURN_RESULT = 9, 2, 35
+OP_INIT_LOCALS, OP_PUSH_IMMEDIATE, OP_WAIT_MILLIS, OP_RETURN_RESULT = 9, 2, 33, 35
 OP_ANALOG_PINS, OP_DIGITAL_PINS, OP_ANALOG_READ = 84, 85, 86
 OP_DIGITAL_READ, OP_DIGITAL_SET, OP_DIGITAL_CLEAR = 88, 90, 91
 OP_CODE_END = 240
@@ -104,7 +104,7 @@ def clear_then_read(pin):
 
 
 def set_then_analog(pin):
-    return reporter(word(OP_DIGITAL_SET, pin) + push_int(pin) + word(OP_ANALOG_READ, 1))
+    return reporter(word(OP_DIGITAL_SET, pin) + push_int(1) + word(OP_WAIT_MILLIS, 1) + push_int(pin) + word(OP_ANALOG_READ, 1))
 
 
 def count_reporter(opcode):
