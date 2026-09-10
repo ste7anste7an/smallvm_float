@@ -1616,9 +1616,24 @@ static int databotMageneticField() {
 	return 0;
 }
 
-#elif defined(FOXBIT)
+#elif defined(FOXBIT) || defined(NEZHA_ESP32)
 
-#define QMI8658_ADDR 107
+#if defined(NEZHA_ESP32)
+	// The Nezha's QMI8658 is on the internal I2C bus, not the main one, and its
+	// address is not fixed. Elecfreaks' own driver probes 0x6A, falls back to
+	// 0x6B and then verifies the part ID (boards/Elecfreaks/drivers/Qmi8658.cpp),
+	// so this does the same. Foxbit's part is on the main bus at 0x6B.
+	#define QMI8658_PART_ID_REG 0
+	#define QMI8658_PART_ID 5
+	static int qmi8658Addr = 0x6A; // set by startQMI8658(), which probes both addresses
+	#define qmi8658WriteReg(reg, val)	writeInternalI2CReg(qmi8658Addr, (reg), (val))
+	#define qmi8658ReadReg(reg)			readInternalI2CReg(qmi8658Addr, (reg))
+#else
+	static const int qmi8658Addr = 107;
+	#define qmi8658WriteReg(reg, val)	writeI2CReg(qmi8658Addr, (reg), (val))
+	#define qmi8658ReadReg(reg)			readI2CReg(qmi8658Addr, (reg))
+#endif
+
 #define QMI8658_CTRL2 3
 #define QMI8658_CTRL3 4
 #define QMI8658_CTRL7 8
@@ -1626,12 +1641,24 @@ static int databotMageneticField() {
 #define QMI8658_ACCEL_XOUT 53
 
 static void startQMI8658() {
-	if (!wireStarted) startWire();
-	if (!wireStarted) return;
+	#if defined(NEZHA_ESP32)
+		// The internal I2C helpers start their own bus on first use. Find which
+		// address the part answers on before configuring it.
+		if (readInternalI2CReg(0x6A, QMI8658_PART_ID_REG) == QMI8658_PART_ID) {
+			qmi8658Addr = 0x6A;
+		} else if (readInternalI2CReg(0x6B, QMI8658_PART_ID_REG) == QMI8658_PART_ID) {
+			qmi8658Addr = 0x6B;
+		} else {
+			return; // no QMI8658 on the internal bus
+		}
+	#else
+		if (!wireStarted) startWire();
+		if (!wireStarted) return;
+	#endif
 
-	writeI2CReg(QMI8658_ADDR, QMI8658_CTRL2, (0 << 4) | 3);	// accel range +/- 2G, ODR = 1000
-	writeI2CReg(QMI8658_ADDR, QMI8658_CTRL3, (5 << 4) | 3);	// gyro range = 512 deg/sec, ODR = 1000
-	writeI2CReg(QMI8658_ADDR, QMI8658_CTRL7, 3);	// enable accel + gyro
+	qmi8658WriteReg(QMI8658_CTRL2, (0 << 4) | 3);	// accel range +/- 2G, ODR = 1000
+	qmi8658WriteReg(QMI8658_CTRL3, (5 << 4) | 3);	// gyro range = 512 deg/sec, ODR = 1000
+	qmi8658WriteReg(QMI8658_CTRL7, 3);	// enable accel + gyro
 	taskSleep(150); // wait for accelerometer to start up
 	accelStarted = true;
 }
@@ -1639,8 +1666,8 @@ static void startQMI8658() {
 static int qmi8658Read16Bit(int reg) {
 	if (!accelStarted) startQMI8658();
 	if (!accelStarted) return 0;
-	int lowByte = readI2CReg(QMI8658_ADDR, reg);
-	int highByte = readI2CReg(QMI8658_ADDR, reg + 1);
+	int lowByte = qmi8658ReadReg(reg);
+	int highByte = qmi8658ReadReg(reg + 1);
 	return fix16bitSign((highByte << 8) | lowByte);
 }
 
@@ -1658,7 +1685,7 @@ static void setAccelRange(int range) {
 	if (!accelStarted) startQMI8658();
 	if (!accelStarted) return;
 	if ((range < 0) || (range > 3)) return; // out of range
-	writeI2CReg(QMI8658_ADDR, QMI8658_CTRL2, (range << 4) | 3);	// ODR = 1000
+	qmi8658WriteReg(QMI8658_CTRL2, (range << 4) | 3);	// ODR = 1000
 }
 
 static int readTemperature() {
