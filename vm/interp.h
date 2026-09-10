@@ -484,6 +484,8 @@ void addOneWirePrims();
 void addEncoderPrims();
 void addSDCardPrims();
 void addH75Prims();
+void addElecfreaksPrims();
+void addElecfreaksSensorPrims();
 
 // Named Primitive Support
 

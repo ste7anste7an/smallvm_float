@@ -206,6 +206,8 @@ void primsInit() {
 	#if defined(ESP32_S3_MATRIX_PORTAL)
 		addH75Prims();
 	#endif
+	addElecfreaksPrims();
+	addElecfreaksSensorPrims();
 #endif
 }
 
