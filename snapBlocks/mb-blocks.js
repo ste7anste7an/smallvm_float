@@ -139,7 +139,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Function, MB_Project, MB_Specs, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Function, MB_Specs, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -1628,10 +1628,13 @@ BlockMorph.prototype.userMenu = function () {
 	menu.addItem(
 		'compile test',
 		() => {
-			var project = new MB_Project();
-			var compiler = new MB_Compiler(project);
-			console.log(compiler.showInstructions(this));
-			console.log(compiler.compiledBytesFor(this));
+			// Compiled against the editor's project and code manager, as compileAndRun
+			// is, so globals and calls to user functions resolve. Both logs take the top
+			// block, so a click anywhere in a stack shows the whole stack.
+			const compiler = new MB_Compiler(MB_editor.project, MB_editor.codeManager);
+			const top = this.topBlock();
+			console.log(compiler.showInstructions(top));
+			console.log(compiler.compiledBytesFor(top));
 		},
 		'test the microblocks compiler'
 	);
