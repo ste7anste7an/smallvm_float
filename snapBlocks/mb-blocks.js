@@ -3916,15 +3916,20 @@ ScriptsMorph.prototype.userMenu = function () {
 
 // ScriptsMorph user menu features:
 
+ScriptsMorph.prototype.definitionsFirst = function (a, b) {
+	// Keep the function definitions on top, then order by position. Comparing
+	// two definitions by position too is what makes this a total order, which
+	// Array.sort needs and a pane with two definitions in it can reach.
+	const ad = a.isFunctionDefinition(), bd = b.isFunctionDefinition();
+	if (ad !== bd) return ad ? -1 : 1;
+	return a.top() - b.top();
+};
+
 ScriptsMorph.prototype.cleanUp = function () {
 	var target = this.selectForEdit(), // enable copy-on-edit
 		origin = target.topLeft(),
 		y = target.cleanUpMargin;
-	target.children.sort((a, b) =>
-		// make sure the prototype hat block always stays on top
-		a.isFunctionDefinition() ? -1 :
-			(b.isFunctionDefinition() ? 1 : a.top() - b.top())
-	).forEach(child => {
+	target.children.sort(target.definitionsFirst).forEach(child => {
 		child.setPosition(origin.add(new Point(target.cleanUpMargin, y)));
 		y += child.stackHeight() + target.cleanUpSpacing;
 	});
@@ -3996,11 +4001,7 @@ ScriptsMorph.prototype.doGPCall = function (apiCall, params) {
 ScriptsMorph.prototype.sortedElements = function () {
 	// return all scripts
 	var scripts = this.children.slice(); // make a copy
-	scripts.sort((a, b) =>
-		// make sure the prototype hat block always stays on top
-		a.isFunctionDefinition() ? -1 :
-			(b.isFunctionDefinition() ? 1 : a.top() - b.top())
-	);
+	scripts.sort(this.definitionsFirst);
 	return scripts;
 };
 
