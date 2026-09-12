@@ -13,7 +13,8 @@
 	the libraries it uses.
 */
 
-/* global MB_editor, MB_Function, MB_Parser, BlockMorph, ReporterBlockMorph */
+/* global MB_editor, MB_Function, MB_Parser, MB_Specs, BlockMorph, HatBlockMorph,
+	ReporterBlockMorph */
 
 // --- Module-level helpers ---
 
@@ -106,6 +107,22 @@ function specDefinitionString(spec) {
 		parts.push(...defaults);
 	}
 	return parts.join(' ');
+}
+
+function scriptForFunction(func, body = null) {
+	// The block that shows a function definition in the scripting pane: a hat
+	// that holds the function.
+	if (func == null) return null;
+	let hat = new HatBlockMorph();
+	hat.selector = 'to';
+	hat.functionDefinition = func;
+	hat.setSpec(MB_Specs.specFor('to', [func.functionName]));
+	hat.setCategory(MB_Specs.categoryForSelector('to'));
+	hat.isDraggable = true;
+	hat.inputs()[0].setContents(func.functionName);
+	let cmdList = body || func.cmdList;
+	if (cmdList) hat.nextBlock(cmdList);
+	return hat;
 }
 
 function blockForBody(bodyArg, singleIsReporter = false) {
@@ -304,9 +321,15 @@ class MB_Project {
 
 	// Broadcasts
 
+	scriptsToScan() {
+		// The script entries a whole-project scan reads. A definition hat is left
+		// out: the body it holds is the function's, not a script's.
+		return this.main.scripts.filter(e => !(e[2] && e[2].isFunctionDefinition()));
+	}
+
 	allBroadcasts() {
 		let result = new Set();
-		for (const entry of this.main.scripts) {
+		for (const entry of this.scriptsToScan()) {
 			let block = entry[2];
 			if (!block) continue; // a script entry is [x, y, BlockMorph|null]
 			block.forAllBlocks( b => {
@@ -334,7 +357,7 @@ class MB_Project {
 			functionCalled.set(f.functionName, false);
 		}
 
-		let scriptsToScan = [...this.main.scripts];
+		let scriptsToScan = this.scriptsToScan();
 		if (paletteBlock) scriptsToScan.push([0, 0, paletteBlock]);
 
 		// collect functions called by scripts
@@ -409,7 +432,7 @@ class MB_Project {
 		}
 
 		// scan scripts
-		for (const entry of this.main.scripts) {
+		for (const entry of this.scriptsToScan()) {
 			// an entry is a three-element list: [x, y, script]
 			if (!entry[2]) continue; // a script entry is [x, y, BlockMorph|null]
 			entry[2].forAllBlocks( b => {
@@ -469,6 +492,7 @@ class MB_Project {
 		if (updateLibraries) this.checkForNewerLibraryVersions();
 		this.updatePrimitives();
 		this.fixFunctionLocals();
+		this.buildDefinitionHats(); // last: the passes above read plain script entries
 		return this;
 	}
 
@@ -556,6 +580,25 @@ class MB_Project {
 	fixFunctionLocals() {
 		// XXX TODO: would remove project variables that appear as function locals in GP.
 		// In the JS port, MB_Function.collectLocalVars() handles this separately.
+	}
+
+	buildDefinitionHats() {
+		// Build the hat each parked `to <name> {}` entry stands for. Runs once
+		// every module is read, since the function may belong to a library.
+		let bodyTaken = new Set();
+		for (const entry of this.main.scripts) {
+			let block = entry[2];
+			if (!block || block.selector !== 'to') continue;
+			let nameSlot = block.inputs()[0];
+			if (!nameSlot) continue; // a `to` with no name: keep it as it was read
+			let func = this.functionNamed(nameSlot.evaluate());
+			if (!func) continue; // a `to` naming no function: keep it as it was read
+			// A morph has one parent, so only the first hat for a function is given
+			// the function's own body; each later hat gets a copy of it.
+			let body = (bodyTaken.has(func) && func.cmdList) ? func.cmdList.fullCopy() : null;
+			bodyTaken.add(func);
+			entry[2] = scriptForFunction(func, body);
+		}
 	}
 
 	updatePrimitives() {

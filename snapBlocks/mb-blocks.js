@@ -3251,6 +3251,16 @@ HatBlockMorph.prototype.definedFunctionName = function () {
 	return this.functionDefinition.functionName;
 };
 
+HatBlockMorph.prototype.codeString = function (indent = 0, result = []) {
+	// A definition's script entry is the name-only stub `to <name> {}`. Its body
+	// is printed with the function instead.
+	if (!this.isFunctionDefinition()) {
+		return HatBlockMorph.uber.codeString.call(this, indent, result);
+	}
+	result.push('\t'.repeat(indent) + 'to ' + quoteIfNeeded(this.definedFunctionName()) + ' {}\n');
+	return result.join('');
+};
+
 HatBlockMorph.prototype.updateDefinedFunction = function () {
 	// Give my function the body it now has in the scripting pane.
 	if (!this.isFunctionDefinition()) return;

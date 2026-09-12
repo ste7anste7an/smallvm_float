@@ -242,14 +242,11 @@ console.log('unknown');
 		let newScripts = [];
 		for (const aBlockMorph of this.scriptsPane().children) {
 			if (aBlockMorph instanceof BlockMorph) {
-				// A function definition in the pane belongs to the project's
-				// functions, not to main.scripts. XXX TO DO: write an edited
-				// definition back, as GP's updateFunctionOrMethod does.
-				if (!aBlockMorph.isFunctionDefinition()) {
-					let x = Math.round(aBlockMorph.left() - this.scripts.left());
-					let y = Math.round(aBlockMorph.top() - this.scripts.top());
-					newScripts.push([x, y, aBlockMorph]);
-				}
+				// An edit to a definition in the pane goes back to its function.
+				if (aBlockMorph.isFunctionDefinition()) aBlockMorph.updateDefinedFunction();
+				let x = Math.round(aBlockMorph.left() - this.scripts.left());
+				let y = Math.round(aBlockMorph.top() - this.scripts.top());
+				newScripts.push([x, y, aBlockMorph]);
 			}
 		}
 		this.project.main.setScripts(newScripts);
