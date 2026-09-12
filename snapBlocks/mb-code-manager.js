@@ -9,7 +9,7 @@
 class MB_CodeManager {
 	constructor(aProject) {
 		this.project = aProject;
-		this.chunkIDs = new Map(); // key (Block or String) -> [id, crc, chunkType, lastSrc, functionMayHaveChanged]
+		this.chunkIDs = new Map(); // key (Block or String) -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		this.functionChunkIDs = new Map(); // function name -> chunkID
 		this.recompileAll = false;
 		this.codeStoreFull = false;
@@ -165,16 +165,16 @@ class MB_CodeManager {
 		// Remove obsolete chunks. Chunks become obsolete when they are deleted or inserted into
 		// a script so they are no longer a stand-alone chunk. Functions become obsolete when
 		// they are deleted or the library containing them is deleted.
-		for (const k of this.chunkIDs.keys()) {
+		for (const [k, entry] of this.chunkIDs.entries()) {
 			let isObsolete = false;
-			if (k instanceof BlockMorph) {
+			if (entry[5]) { // a function, keyed on its name
+				isObsolete = (this.project.functionNamed(k) == null);
+			} else if (k instanceof BlockMorph) {
 				const owner = k.parent;
 				isObsolete = (owner == null ||
 					!(owner instanceof HandMorph ||
 					owner instanceof ScriptsMorph ||
 					owner instanceof ScrollFrameMorph));
-			} else if (typeof k === 'string') {
-				isObsolete = (this.project.functionNamed(k) == null);
 			}
 			if (isObsolete) await this.deleteChunkFor(k);
 		}
@@ -198,8 +198,8 @@ class MB_CodeManager {
 		let entry = this.chunkIDs.get(aBlock);
 		if (entry == null) {
 			const id = this.unusedChunkID();
-			entry = [id, null, this.chunkTypeFor(aBlock), '', false];
-			this.chunkIDs.set(aBlock, entry); // block -> [id, crc, chunkType, lastSrc, functionMayHaveChanged]
+			entry = [id, null, this.chunkTypeFor(aBlock), '', false, false];
+			this.chunkIDs.set(aBlock, entry); // block -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		}
 		return entry[0];
 	}
@@ -212,12 +212,11 @@ class MB_CodeManager {
 		let result = null;
 		for (const [key, entry] of this.chunkIDs.entries()) {
 			if (entry[0] === chunkID) {
-				result = key;
+				// A function's entry is keyed on its name; anything else is
+				// already the thing the caller asked for.
+				result = entry[5] ? this.project.functionNamed(key) : key;
 				break;
 			}
-		}
-		if (typeof result === 'string') { // look up function
-			result = this.project.functionNamed(result);
 		}
 		return result;
 	}
@@ -230,8 +229,8 @@ class MB_CodeManager {
 			const fName = func.functionName;
 			if (!this.chunkIDs.has(fName)) {
 				const id = this.unusedChunkID();
-				const entry = [id, null, this.chunkTypeFor(func), '', true];
-				this.chunkIDs.set(fName, entry); // fName -> [id, crc, chunkType, lastSrc, functionMayHaveChanged]
+				const entry = [id, null, this.chunkTypeFor(func), '', true, true];
+				this.chunkIDs.set(fName, entry); // fName -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 				this.functionChunkIDs.set(fName, id);
 			}
 		}
@@ -514,7 +513,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		const unusedFuncs = this.project.unusedFunctions();
 		for (const [key, entry] of this.chunkIDs.entries()) {
 			const id = entry[0];
-			if (typeof key === 'string') {
+			if (entry[5]) { // a function, keyed on its name
 				if (this.project.functionNamed(key) == null) {
 					this.chunkIDs.delete(key); // remove reference to deleted function (rarely needed)
 				}
