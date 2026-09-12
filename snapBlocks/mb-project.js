@@ -597,7 +597,12 @@ class MB_Project {
 			// the function's own body; each later hat gets a copy of it.
 			let body = (bodyTaken.has(func) && func.cmdList) ? func.cmdList.fullCopy() : null;
 			bodyTaken.add(func);
-			entry[2] = scriptForFunction(func, body);
+			const hat = scriptForFunction(func, body);
+			// The hat stands for the entry that was read, so it keeps that
+			// entry's name rather than being minted a second one from a body
+			// the file does not hold.
+			hat.mbScriptId = block.mbScriptId;
+			entry[2] = hat;
 		}
 	}
 
@@ -691,6 +696,40 @@ class MB_Module {
 	setPath(aPath) { this.path = aPath; }
 	setDependencies(deps) { this.dependencies = Array.from(deps); }
 	setScripts(newScripts) { this.scripts = Array.from(newScripts); }
+
+	mintScriptId(x, y, bodyText, taken) {
+		// A name for one top-level script, from its rounded position and body text
+		// and nothing else, so the same file loaded twice mints the same names. Two
+		// scripts that agree on both get an ordinal after the name.
+		const src = Math.round(x) + ',' + Math.round(y) + '\n' + bodyText;
+		let h = 0x811c9dc5;
+		for (let i = 0; i < src.length; i++) {
+			h = Math.imul(h ^ src.charCodeAt(i), 0x01000193);
+		}
+		const base = 'script:' + (h >>> 0).toString(16);
+		if (taken == null) return base;
+		let id = base, n = 0;
+		while (taken.has(id)) id = base + '#' + (++n);
+		return id;
+	}
+
+	assignScriptIds() {
+		// Name every script that has no name yet. Minted in the order
+		// scriptString writes them, sorted by (y, x) then load order, so an
+		// ordinal does not depend on the order the file happened to list them.
+		const taken = new Set();
+		for (const e of this.scripts) {
+			if (e[2] != null && e[2].mbScriptId) taken.add(e[2].mbScriptId);
+		}
+		const order = this.scripts.map((e, i) => [e, i]).sort((a, b) =>
+			(a[0][1] - b[0][1]) || (a[0][0] - b[0][0]) || (a[1] - b[1]));
+		for (const [entry] of order) {
+			const block = entry[2];
+			if (block == null || block.mbScriptId) continue;
+			block.mbScriptId = this.mintScriptId(entry[0], entry[1], block.codeString(1), taken);
+			taken.add(block.mbScriptId);
+		}
+	}
 
 	toString() { return 'MB_Module(\'' + this.moduleName + '\')'; }
 
@@ -1075,6 +1114,7 @@ class MB_Module {
 			}
 			this.scripts.push([x, y, block]);
 		}
+		this.assignScriptIds();
 	}
 
 	// Primitive updates

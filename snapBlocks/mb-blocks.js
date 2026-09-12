@@ -2556,6 +2556,7 @@ BlockMorph.prototype.fullCopy = function () {
 		}
 	});
 	ans.cachedInputs = null;
+	ans.mbScriptId = null; // a copy is a different script; updateProject names it
 	return ans;
 };
 

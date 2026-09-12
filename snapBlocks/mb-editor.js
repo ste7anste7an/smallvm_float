@@ -254,6 +254,9 @@ console.log('unknown');
 			}
 		}
 		this.project.main.setScripts(newScripts);
+		// Name anything new here: a pasted script, a duplicate, a block dragged
+		// into its own script. Everything the pane holds comes through this.
+		this.project.main.assignScriptIds();
 	}
 
 	// File operations
