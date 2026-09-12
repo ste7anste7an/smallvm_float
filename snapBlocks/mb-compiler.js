@@ -340,6 +340,12 @@ class MB_Compiler {
 	}
 
 	instructionsForCmd(cmd) {
+		// Innermost producer wins: emitCmd has already run, so anything an
+		// inner command or expression emitted is stamped and stays stamped.
+		return this.noteProducer(this.emitCmd(cmd), cmd);
+	}
+
+	emitCmd(cmd) {
 		const result = [];
 		const op = cmd.selector;
 		const inputs = cmd.argInputs();
@@ -514,6 +520,10 @@ class MB_Compiler {
 	// instruction generation: expressions
 
 	instructionsForExpression(expr) {
+		return this.noteProducer(this.emitExpression(expr), expr);
+	}
+
+	emitExpression(expr) {
 		// immediate values
 		if (true === expr) return [['pushImmediate', this.trueObj]];
 		if (false === expr) return [['pushImmediate', this.falseObj]];
@@ -619,6 +629,71 @@ class MB_Compiler {
 		result.push(...falseCase);
 		result.push(...trueCase);
 		return result;
+	}
+
+	noteProducer(instructions, producer) {
+		// Record which block emitted each instruction. A producer has to be a
+		// block: an instruction emitted for a bare literal argument belongs to
+		// the block that holds the slot, because a literal is not something a
+		// view could point at. Whatever no block claims is the chunk's own.
+		if (producer instanceof BlockMorph) {
+			for (const instr of instructions) {
+				if (Array.isArray(instr) && instr.producer === undefined) instr.producer = producer;
+			}
+		}
+		return instructions;
+	}
+
+	nodePathsFor(aBlockOrFunction, chunkName) {
+		// A name for every block of one chunk: the chunk's own name, then the path
+		// down to the block, s<n> for the n-th command of a chain and a<n> for the
+		// n-th argument.
+		const paths = new Map();
+		const walk = (block, path) => {
+			paths.set(block, chunkName + '/' + path);
+			const inputs = (typeof block.argInputs === 'function') ? block.argInputs() : [];
+			inputs.forEach((input, i) => {
+				if (input instanceof CommandSlotMorph) walkChain(input.nestedBlock(), path + '.a' + i + '.');
+				else if (input instanceof CommandBlockMorph) walkChain(input, path + '.a' + i + '.');
+				else if (input instanceof BlockMorph) walk(input, path + '.a' + i);
+			});
+		};
+		const walkChain = (firstCmd, prefix) => {
+			let cmd = firstCmd, n = 0;
+			while (cmd != null) {
+				walk(cmd, prefix + 's' + n);
+				cmd = (typeof cmd.nextBlock === 'function') ? cmd.nextBlock() : null;
+				n += 1;
+			}
+		};
+		const root = (aBlockOrFunction instanceof MB_Function)
+			? aBlockOrFunction.cmdList : aBlockOrFunction;
+		if (root instanceof ReporterBlockMorph) walk(root, 's0');
+		else walkChain(root, '');
+		return paths;
+	}
+
+	bytesForInstructions(code, aBlockOrFunction, chunkName) {
+		// Emit the bytes and, beside them, the word range each instruction
+		// occupies and what produced it. Only here is an instruction's width
+		// known, and the VM reports a fault as a 16-bit word offset
+		// (vm/interp.c:617 runTask), so the map is built here and in words.
+		const paths = this.nodePathsFor(aBlockOrFunction, chunkName);
+		const bytes = [];
+		this.sourceMap = [];
+		for (const item of code) {
+			const start = bytes.length >> 1;
+			if (Array.isArray(item)) {
+				this.addBytesForInstructionTo(item, bytes);
+				// A null producer means the CHUNK emitted it: a prologue, an
+				// epilogue, or content a hat synthesises that no block can say.
+				const id = item.producer ? (paths.get(item.producer) ?? null) : null;
+				this.sourceMap.push([start, (bytes.length >> 1) - start, id]);
+			} else if (typeof item === 'string') {
+				this.addBytesForStringLiteral(item, bytes);
+			}
+		}
+		return bytes;
 	}
 
 	instructionsForJump(jumpOp, offset) {
@@ -957,15 +1032,9 @@ class MB_Compiler {
 			if (!aBlockOrFunction) return [];
 		}
 		const code = this.instructionsFor(aBlockOrFunction);
-		const bytes = [];
-		for (const item of code) {
-			if (Array.isArray(item)) {
-				this.addBytesForInstructionTo(item, bytes);
-			} else if (typeof item === 'string') {
-				this.addBytesForStringLiteral(item, bytes);
-			}
-		}
-		return bytes;
+		return this.bytesForInstructions(code, aBlockOrFunction,
+			(aBlockOrFunction instanceof MB_Function)
+				? aBlockOrFunction.functionName : (aBlockOrFunction.mbScriptId ?? ''));
 	}
 
 	showInstructions(aBlock) {

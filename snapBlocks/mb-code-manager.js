@@ -11,6 +11,7 @@ class MB_CodeManager {
 		this.project = aProject;
 		this.chunkIDs = new Map(); // key (Block or String) -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		this.functionChunkIDs = new Map(); // function name -> chunkID
+		this.sourceMaps = new Map(); // chunk key -> { src, map: [[wordStart, wordCount, nodeID or null], ...] }
 		this.recompileAll = false;
 		this.codeStoreFull = false;
 		this.compiler = null;
@@ -119,17 +120,78 @@ class MB_CodeManager {
 			this.compiler = new MB_Compiler(this.project, this); // needs functionID map
 		}
 		const code = this.compiler.instructionsFor(aBlockOrFunction);
-		const bytes = [];
 		for (const item of code) {
-			if (Array.isArray(item)) {
-				this.compiler.addBytesForInstructionTo(item, bytes);
-			} else if (typeof item === 'string') {
-				this.compiler.addBytesForStringLiteral(item, bytes);
-			} else {
+			if (!Array.isArray(item) && (typeof item !== 'string')) {
 				throw new Error('Instruction must be an Array or String: ' + item);
 			}
 		}
+		const key = this.sourceMapKeyFor(aBlockOrFunction);
+		const bytes = this.compiler.bytesForInstructions(code, aBlockOrFunction, key);
+		// Filed with the source it describes, so a later lookup can tell whether
+		// it still describes anything.
+		this.sourceMaps.set(key,
+			{ src: aBlockOrFunction.codeString(), map: this.compiler.sourceMap });
 		return bytes;
+	}
+
+	sourceMapKeyFor(aBlockOrFunction) {
+		// A chunk's source map is filed under the same name its chunk id is: a
+		// function's own name, a script's session name from the scripts pane.
+		if (aBlockOrFunction instanceof MB_Function) return aBlockOrFunction.functionName;
+		return this.chunkKeyFor(aBlockOrFunction);
+	}
+
+	sourceMapFor(aBlockOrFunction) {
+		// Only what a compile left here. Compiling from a lookup would assign
+		// global variable indices (MB_Project indexForVar) in the order the
+		// board's errors arrive, which is not the order the board was given.
+		const record = this.sourceMaps.get(this.sourceMapKeyFor(aBlockOrFunction));
+		return record ? record.map : null;
+	}
+
+	sourceMapIsStale(aBlockOrFunction) {
+		// A map describes the bytes of one source text. It is worth nothing once
+		// the block says something else, or once the chunk table says the board
+		// was sent something else.
+		const key = this.sourceMapKeyFor(aBlockOrFunction);
+		const record = this.sourceMaps.get(key);
+		if (record == null) return true;
+		if (record.src !== aBlockOrFunction.codeString()) return true;
+		const entry = this.chunkIDs.get(key);
+		return (entry != null) && ('' !== entry[3]) && (entry[3] !== record.src);
+	}
+
+	siteForChunkWord(chunkID, word) {
+		// What produced one word of one chunk: a block, the chunk itself, a word no
+		// map entry describes (a string literal, or past the end), a map that no
+		// longer describes what the board is running, or no map at all.
+		const thing = this.blockForChunkID(chunkID);
+		if (thing == null) return null;
+		const map = this.sourceMapFor(thing);
+		if (map == null) return null;
+		const scriptId = this.sourceMapKeyFor(thing);
+		if (this.sourceMapIsStale(thing)) {
+			return { kind: 'stale', scriptId: scriptId, nodeId: null, block: null };
+		}
+		for (const [start, count, nodeId] of map) {
+			if ((word < start) || (word >= start + count)) continue;
+			if (nodeId == null) return { kind: 'chunk', scriptId: scriptId, nodeId: null, block: null };
+			return { kind: 'block', scriptId: scriptId, nodeId: nodeId,
+				block: this.blockForNodeID(thing, nodeId) };
+		}
+		return { kind: 'unknown', scriptId: scriptId, nodeId: null, block: null };
+	}
+
+	blockForNodeID(aBlockOrFunction, nodeID) {
+		// The paths are computed from the tree on each call and never stored on a
+		// morph: fullCopy copies own properties, so a stored one would travel.
+		if (this.compiler == null) this.compiler = new MB_Compiler(this.project, this);
+		const paths = this.compiler.nodePathsFor(aBlockOrFunction,
+			this.sourceMapKeyFor(aBlockOrFunction));
+		for (const [block, id] of paths) {
+			if (id === nodeID) return block;
+		}
+		return null;
 	}
 
 	chunkBytesFor(aBlockOrFunction) {
