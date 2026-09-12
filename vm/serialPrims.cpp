@@ -228,9 +228,8 @@ static void serialOpen(int baudRate) {
 		int rxPin = mapDigitalPinNum(2);
 		SERIAL_PORT.begin(baudRate, SERIAL_8N1, rxPin, txPin);
 	#elif defined(NEZHA_ESP32)
-		// User UART runs through a CD4052 mux; the select lines on GPIO 2 (A) and
-		// GPIO 1 (B) choose which RJ11 port it reaches and are NOT driven here.
-		SERIAL_PORT.begin(baudRate, SERIAL_8N1, 21, 14);
+		// Defaults to port 1 pins. Can be changed with setPins primitive.
+		SERIAL_PORT.begin(baudRate, SERIAL_8N1, 4, 5);
 	#elif defined(COCUBE)
 		SERIAL_PORT.begin(baudRate, SERIAL_8N1, 22, 21);
 	#elif defined(ARDUINO_XIAO_ESP32S3)

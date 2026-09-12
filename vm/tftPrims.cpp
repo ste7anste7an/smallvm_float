@@ -199,13 +199,14 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		#define TFT_DC		12
 		#define TFT_RST		13
 		#define TFT_CS		42
+		#define TFT_TOP_BAR	28
 		#define TFT_WIDTH	240
-		#define TFT_HEIGHT	320
+		#define TFT_HEIGHT	(320 - TFT_TOP_BAR)
 
 		void tftInit() {
 			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
 			tft = new Arduino_ST7789(bus, TFT_RST, 2, true,
-					TFT_WIDTH, TFT_HEIGHT);
+					TFT_WIDTH, TFT_HEIGHT, 0, TFT_TOP_BAR, 0, TFT_TOP_BAR);
 			if (!tft->begin()) {
 				outputString("tftInit() failed!");
 			} else {
