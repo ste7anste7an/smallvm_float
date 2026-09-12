@@ -113,8 +113,15 @@ class MB_Editor {
 		while (true) {
 			let script = p.readCmd(false);
 			if (script === null) break;
-			if (script.length == 4) {
-				this.addBlockToScripts(MB_Parser.blockFor(script[3]));
+			if (script.length == 4 && 'script' == script[0]) {
+				// ['script', x, y, cmd], x and y the offset within the scripts
+				// pane; a top-level `to` also has four parts, with names there.
+				let body = script[3];
+				if (Array.isArray(body) && body.length > 0) {
+					// A single command came from '( ... )': an expression script.
+					this.addBlockToScriptsAt(
+						MB_Parser.blockFor(body, true), script[1], script[2]);
+				}
 			}
 		}
 	}
