@@ -139,7 +139,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, MB_Specs, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Function, MB_Project, MB_Specs, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -3210,6 +3210,7 @@ function HatBlockMorph() {
 HatBlockMorph.prototype.init = function () {
 	// additional property for generic hat block variations
 	this.isLoaded = null; // for hat blocks with event-semantics
+	this.functionDefinition = null; // the function I define, if I am a definition hat
 
 	HatBlockMorph.uber.init.call(this);
 	this.bounds.setExtent(new Point(120, 36).multiplyBy(this.scale));
@@ -3240,13 +3241,21 @@ HatBlockMorph.prototype.isCustomBlockSpecific = function () {
 };
 
 HatBlockMorph.prototype.isFunctionDefinition = function () {
-	// This is the equivalent of GP "isPrototypeHat".
-	return this.selector === 'define';
+	// A definition hat is one that carries a function. Its `define` label is
+	// localised and is not a selector.
+	return this.functionDefinition instanceof MB_Function;
 };
 
 HatBlockMorph.prototype.definedFunctionName = function () {
-	if (!this.isFunctionDefinition) return 'Not a function definition';
-	return this.inputs()[0];
+	if (!this.isFunctionDefinition()) return 'Not a function definition';
+	return this.functionDefinition.functionName;
+};
+
+HatBlockMorph.prototype.updateDefinedFunction = function () {
+	// Give my function the body it now has in the scripting pane.
+	if (!this.isFunctionDefinition()) return;
+	this.functionDefinition.cmdList = this.nextBlock();
+	this.functionDefinition.localVars = this.functionDefinition.collectLocalVars();
 };
 
 // HatBlockMorph drawing:
