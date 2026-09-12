@@ -48,6 +48,7 @@ class MB_CommPort {
 
 		// Boardie state
 		this.boardieFrame = null;
+		this.boardieListener = null;
 	}
 
 	// --- API ---
@@ -251,6 +252,29 @@ class MB_CommPort {
 
 	boardieConnect(iframe) {
 		this.boardieFrame = iframe;
+		// Boardie posts its bytes to the parent window (boardie.c sendBytes),
+		// and in the emscripten build gpSupport.js is what hears them. That
+		// file is not in the all-Javascript page, so without this listener the
+		// port can send to Boardie and never receive one byte back.
+		// `window` on purpose, and guarded: Boardie is a browser-only transport
+		// and the bare-Node seam connects to it with no DOM at all.
+		if ((this.boardieListener == null) && ('undefined' != typeof window)) {
+			this.boardieListener = (event) => {
+				// Only the frame this port connected to, and only a frame that
+				// has a message in it: gpSupport.js handleMessage gates on the
+				// same first byte, and every MicroBlocks message starts with
+				// one that is not zero.
+				const frame = this.boardieFrame;
+				if (frame == null) return;
+				if (event.source && frame.contentWindow &&
+					(event.source !== frame.contentWindow)) return;
+				const msg = event.data;
+				if ((msg instanceof Uint8Array) && msg.length && msg[0]) {
+					this.inputBuffers.push(msg);
+				}
+			};
+			window.addEventListener('message', this.boardieListener, false);
+		}
 	}
 
 	boardieIsConnected() {
@@ -259,5 +283,9 @@ class MB_CommPort {
 
 	boardieDisconnect() {
 		this.boardieFrame = null;
+		if (this.boardieListener && ('undefined' != typeof window)) {
+			window.removeEventListener('message', this.boardieListener, false);
+			this.boardieListener = null;
+		}
 	}
 }
