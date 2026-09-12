@@ -18,6 +18,11 @@ class MB_Editor {
 		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
+		this.chunkErrorListeners = []; // called with each decoded board error
+		// Turns the board's four location bytes into a site, called with the bytes
+		// and then the message's own chunk id; the chunk the fault is in is the
+		// low byte of the location. Null sends every error to the task's chunk.
+		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 	}
 
 	open(world) {
@@ -443,6 +448,10 @@ console.log('unknown');
 			console.log(value); // a chunk this editor does not know
 			return;
 		}
+		this.showResultOn(block, value, isError);
+	}
+
+	showResultOn(block, value, isError) {
 		this.removeResultBubble(block);
 		if ((value == null) || ('' === value)) return;
 
@@ -470,10 +479,46 @@ console.log('unknown');
 		console.log('Error:', errorString);
 	}
 
-	showChunkError(chunkID, errorString)  {
-		// Report a runtime error from the board in the given chunk .
-
+	showChunkError(chunkID, errorString, location)  {
+		// Report a runtime error from the board. location is the VM's four
+		// location bytes, which name the callee for a fault inside a called
+		// function. The balloon goes on the block errorDecoder names when that
+		// block is on screen, and otherwise on the chunk that started the task.
+		const decoder = this.errorDecoder;
+		const raw = (location == null) ? null : Array.from(location);
+		const site = (typeof decoder === 'function') ? decoder(raw, chunkID) : null;
+		const block = (site && (site.kind === 'block') && this.codeManager)
+			? this.codeManager.blockForSite(site.chunkID, site.nodeId) : null;
+		this.notifyChunkError({ chunkID: chunkID, errorString: errorString,
+			location: raw, decoded: site });
+		if ((block instanceof BlockMorph) && block.world()) {
+			this.showResultOn(block, errorString, true);
+			return;
+		}
 		this.showResult(chunkID, errorString, true);
+	}
+
+	decodeErrorLocation(location, taskChunkID) {
+		// The port's own errorDecoder. Plain data and no morph, so whatever
+		// records it can serialise it; blockForSite turns it back into a block.
+		const where = MB_connection.errorLocation(location);
+		if (where == null) return null;
+		const site = this.codeManager
+			? this.codeManager.siteForChunkWord(where.chunkID, where.word) : null;
+		return { taskChunkID: taskChunkID, chunkID: where.chunkID, word: where.word,
+			kind: site ? site.kind : null, scriptId: site ? site.scriptId : null,
+			nodeId: site ? site.nodeId : null };
+	}
+
+	onChunkError(fn) {
+		// Call fn with each board error as plain data: the message's chunk id,
+		// the error string, the raw location bytes and the decoder's answer or
+		// null. blockForSite turns a decoded site back into its block.
+		this.chunkErrorListeners.push(fn);
+	}
+
+	notifyChunkError(info) {
+		for (const fn of this.chunkErrorListeners) fn(info);
 	}
 
 	addLoggedData(value) {

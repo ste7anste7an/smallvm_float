@@ -162,24 +162,24 @@ class MB_CodeManager {
 	}
 
 	siteForChunkWord(chunkID, word) {
-		// What produced one word of one chunk: a block, the chunk itself, a word no
-		// map entry describes (a string literal, or past the end), a map that no
-		// longer describes what the board is running, or no map at all.
+		// What produced one word of one chunk, as plain data: a block, the chunk
+		// itself, a word no map entry describes (a string literal, or past the end),
+		// a map that no longer describes what the board is running, or no map at
+		// all. blockForSite turns a block answer back into the morph.
 		const thing = this.blockForChunkID(chunkID);
 		if (thing == null) return null;
 		const map = this.sourceMapFor(thing);
 		if (map == null) return null;
 		const scriptId = this.sourceMapKeyFor(thing);
 		if (this.sourceMapIsStale(thing)) {
-			return { kind: 'stale', scriptId: scriptId, nodeId: null, block: null };
+			return { kind: 'stale', scriptId: scriptId, nodeId: null };
 		}
 		for (const [start, count, nodeId] of map) {
 			if ((word < start) || (word >= start + count)) continue;
-			if (nodeId == null) return { kind: 'chunk', scriptId: scriptId, nodeId: null, block: null };
-			return { kind: 'block', scriptId: scriptId, nodeId: nodeId,
-				block: this.blockForNodeID(thing, nodeId) };
+			if (nodeId == null) return { kind: 'chunk', scriptId: scriptId, nodeId: null };
+			return { kind: 'block', scriptId: scriptId, nodeId: nodeId };
 		}
-		return { kind: 'unknown', scriptId: scriptId, nodeId: null, block: null };
+		return { kind: 'unknown', scriptId: scriptId, nodeId: null };
 	}
 
 	blockForNodeID(aBlockOrFunction, nodeID) {
@@ -192,6 +192,13 @@ class MB_CodeManager {
 			if (id === nodeID) return block;
 		}
 		return null;
+	}
+
+	blockForSite(chunkID, nodeID) {
+		// The block a decoded location names, taken from plain data, so nothing
+		// that carries a site around has to carry a morph with it.
+		const thing = (nodeID == null) ? null : this.blockForChunkID(chunkID);
+		return (thing == null) ? null : this.blockForNodeID(thing, nodeID);
 	}
 
 	chunkBytesFor(aBlockOrFunction) {
