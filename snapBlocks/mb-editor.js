@@ -193,6 +193,10 @@ class MB_Editor {
 
 	toggleRunning(aBlock) {
 		let top = aBlock.topBlock();
+		// A definition is not run from the pane: its code goes to the board with
+		// the function it defines, so running the hat would store the same body
+		// under a second chunk.
+		if (top.isFunctionDefinition()) return;
 		let runningChunkID = this.runningChunks.get(top);
 		if (runningChunkID !== undefined) {
 			MB_connection.sendMsg('stopChunkMsg', runningChunkID);
