@@ -1,0 +1,738 @@
+module 'LoRa SX127x'
+author MicroBlocks
+version 0 7
+choices lora_bw '7.8 kHz' '10.4 kHz' '15.6 kHz' '20.8 kHz' '31.25 kHz' '41.7 kHz' '62.5 kHz' '125 kHz' '250 kHz' '500 kHz' 
+description 'Library LoRa for SX1276/RFM95 with SPI hardware.
+Datasheet: https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE
+Semtech page: https://www.semtech.com/products/wireless-rf/lora-connect/sx1276
+
+Default configuration:
+  freq. 868 MHz
+  bw: bandwidth 125 kHz
+  sf: spread factor 7
+  CR 4/5
+  explicit header
+  CRC activated
+  sync word 0x12 (configurable with LoRa_sx127x_setSyncWord)
+  preamble 8 (configurable with LoRa_sx127x_setPreamble)
+  TX power 14 dBm
+  RX gain automatic (AGC; configurable with LoRa_sx127x_setGain).
+  
+Warning: this version does not guarantee lossless reception of message bursts. TX timeout adapts to the configured LoRa time-on-air.'
+variables _lora_bw _lora_sf _lora_cr _lora_preamble _lora_cs _lora_reset _lora_freqMHz _lora_baseMode _lora_ready _lora_xorEnabled _lora_xorKey _lora_lastRSSI _lora_lastSNR _lora_packetPending _lora_lastBytes _lora_lastText _lora_lastLength _lora_bwLabels _lora_bwHz _lora_sleeping
+
+  spec ' ' 'LoRa_sx127x_init' 'LoRa initialize CS _ RESET _ freq _ MHz : encrypt _ key _' 'num num num bool str' 5 13 868 false 'encryption key'
+  spec 'r' 'LoRa_sx127x_connected' 'LoRa connected?'
+  space
+  spec ' ' 'LoRa_sx127x_send' 'LoRa send _ : ASCII safe _' 'str bool' 'Hello LoRa!' false
+  spec 'r' 'LoRa_sx127x_new_message' 'LoRa new message?'
+  spec 'r' 'LoRa_sx127x_message' 'LoRa message'
+  spec 'r' 'LoRa_sx127x_length' 'LoRa last packet length'
+  spec 'r' 'LoRa_sx127x_last_bytes_list' 'LoRa last bytes list'
+  space
+  spec ' ' 'LoRa_sx127x_sleep' 'LoRa sleep'
+  spec ' ' 'LoRa_sx127x_wakeUp' 'LoRa wake up'
+  advanced
+  spec ' ' 'LoRa_sx127x_send_bytes' 'LoRa send bytes _' 'auto' 0
+  spec 'r' 'LoRa_sx127x_message_bytes' 'LoRa message bytes'
+  spec ' ' 'LoRa_sx127x_setBW' 'LoRa set bandwidth _' 'menu.lora_bw' '125 kHz'
+  spec ' ' 'LoRa_sx127x_setSF' 'LoRa spreading factor _ (7-12)' 'num' 7
+  spec ' ' 'LoRa_sx127x_setCR' 'LoRa coding rate _ (5-8)' 'num' 5
+  spec ' ' 'LoRa_sx127x_setSyncWord' 'LoRa sync word _ (0-255)' 'num' 18
+  spec ' ' 'LoRa_sx127x_setPreamble' 'LoRa preamble _ symbols (6-65535)' 'num' 8
+  spec ' ' 'LoRa_sx127x_XOR_encrypt' 'LoRa encrypt _ key _' 'bool str' false 'encryption key'
+  spec ' ' 'LoRa_sx127x_power' 'LoRa TX power _ dBm (2-17)' 'num' 14
+  spec ' ' 'LoRa_sx127x_setGain' 'LoRa RX gain _ (0=auto, 1-6 manual)' 'num' 0
+  spec 'r' 'LoRa_sx127x_RSSI' 'LoRa Signal Strength'
+  spec 'r' 'LoRa_sx127x_SNR' 'LoRa Signal-to-Noise Ratio'
+  space
+  spec ' ' '_LoRa_sx127x_setBWIndex' '_LoRa set BW index _' 'num' 7
+  spec ' ' '_LoRa_sx127x_ensureBWTables' '_LoRa_sx127x_ensureBWTables'
+  spec ' ' '_LoRa_sx127x_updateLDO' '_LoRa_updateLDO'
+  spec 'r' '_LoRa_sx127x_readReg' '_LoRa read reg _' 'num' 0
+  spec ' ' '_LoRa_sx127x_writeReg' '_LoRa write reg _ value _' 'num num' 0 0
+  spec ' ' '_LoRa_sx127x_setFreq' '_LoRa set freq _ MHz' 'num' 868
+  spec ' ' '_LoRa_sx127x_rxMode' '_LoRa set continuous RX mode'
+  spec ' ' '_LoRa_sx127x_sendPacket' '_LoRa send packet _' 'auto' 0
+  spec 'r' '_LoRa_sx127x_txTimeout' '_LoRa TX timeout _ bytes' 'num' 1
+  spec ' ' '_LoRa_sx127x_writeFifo' '_LoRa write FIFO _' 'auto' 0
+  spec 'r' '_LoRa_sx127x_readFifo' '_LoRa read FIFO _ bytes' 'num' 1
+  spec ' ' '_LoRa_sx127x_captureIfAvailable' '_LoRa capture if available'
+  spec 'r' '_LoRa_sx127x_xorBytes' '_LoRa XOR bytes _' 'auto' 0
+  spec 'r' '_LoRa_sx127x_textToUTF8' '_LoRa text to UTF-8 _' 'str' 'Hello'
+  spec 'r' '_LoRa_sx127x_bytesToText' '_LoRa bytes to UTF-8 text _' 'auto' 0
+  spec 'r' '_LoRa_sx127x_textToASCII' '_LoRa text to ASCII _' 'str' 'Camió'
+  spec 'r' '_LoRa_sx127x_textToCharsList' '_LoRa bytes to list _' 'auto' 0
+
+to LoRa_sx127x_RSSI {
+  comment 'Received Signal Strength Indicator of the last captured packet. This reporter does not capture a new packet, so RSSI stays associated with LoRa message/bytes/length from the same packet.'
+  return _lora_lastRSSI
+}
+
+to LoRa_sx127x_SNR {
+  comment 'Signal-to-Noise Ratio of the last captured packet, in dB. This reporter does not capture a new packet.'
+  return _lora_lastSNR
+}
+
+to LoRa_sx127x_XOR_encrypt activate key {
+  _lora_xorEnabled = activate
+  _lora_xorKey = key
+}
+
+to LoRa_sx127x_connected {
+  if (not _lora_ready) {return (booleanConstant false)}
+  return (('_LoRa_sx127x_readReg' 66) == 18)
+}
+
+to LoRa_sx127x_init cs reset freq encrypt key {
+  encrypt = (argOrDefault 4 (booleanConstant false))
+  key = (argOrDefault 5 '')
+  _lora_bw = 7
+  _lora_sf = 7
+  _lora_cr = 5
+  _lora_preamble = 8
+  _lora_cs = cs
+  _lora_reset = reset
+  _lora_freqMHz = freq
+  _lora_xorKey = key
+  _lora_xorEnabled = (and encrypt ((size key) > 0))
+  _lora_lastRSSI = -999
+  _lora_lastSNR = 0
+  _lora_ready = (booleanConstant false)
+  _lora_sleeping = (booleanConstant false)
+  _lora_packetPending = (booleanConstant false)
+  _lora_lastBytes = ('[data:newByteArray]' 0)
+  _lora_lastText = ''
+  _lora_lastLength = 0  
+  comment 'CS inactive before any SPI transaction.'
+  digitalWriteOp _lora_cs true
+  if (_lora_reset > 0) {
+    digitalWriteOp _lora_reset true
+    waitMillis 1
+    digitalWriteOp _lora_reset false
+    waitMillis 1
+    digitalWriteOp _lora_reset true
+    waitMillis 10
+  }
+  comment 'RegVersion 0x42 of SX1276/SX1278 must return 0x12.'
+  if (('_LoRa_sx127x_readReg' 66) != 18) {
+    return
+  }
+  comment 'Base RegOpMode: LongRangeMode; LowFrequencyModeOn for 433 MHz.'
+  if (freq <= 525) {
+    _lora_baseMode = 136
+  } else {
+    _lora_baseMode = 128
+  }
+  comment 'LongRangeMode can only be changed in Sleep.'
+  '_LoRa_sx127x_writeReg' 1 0
+  waitMillis 1
+  '_LoRa_sx127x_writeReg' 1 _lora_baseMode
+  waitMillis 1
+  '_LoRa_sx127x_writeReg' 1 (_lora_baseMode | 1)
+  waitMillis 1
+  '_LoRa_sx127x_setFreq' freq
+  comment 'FIFO TX base, FIFO RX base i FifoAddrPtr.'
+  '_LoRa_sx127x_writeReg' 14 0
+  '_LoRa_sx127x_writeReg' 15 0
+  '_LoRa_sx127x_writeReg' 13 0
+  LoRa_sx127x_power 14
+  comment 'LNA boost.'
+  '_LoRa_sx127x_writeReg' 12 (('_LoRa_sx127x_readReg' 12) | 3)
+   comment 'Initialize LoRa configuration with explicit header, CRC and automatic AGC.'
+  '_LoRa_sx127x_writeReg' 29 0
+  '_LoRa_sx127x_writeReg' 30 4
+  '_LoRa_sx127x_writeReg' 38 4
+  '_LoRa_sx127x_setBWIndex' _lora_bw
+  LoRa_sx127x_setCR _lora_cr
+  LoRa_sx127x_setSF _lora_sf
+  comment 'Preamble = 8 simbols'
+  '_LoRa_sx127x_writeReg' 32 ((_lora_preamble >> 8) & 255)
+  '_LoRa_sx127x_writeReg' 33 (_lora_preamble & 255)
+  comment 'MaxPayloadLength = 255'
+  '_LoRa_sx127x_writeReg' 35 255
+  comment 'SyncWord LoRa privat = 0x12'
+  '_LoRa_sx127x_writeReg' 57 18
+  comment 'Clear all IRQ flags before entering reception.'
+  '_LoRa_sx127x_writeReg' 18 255
+  _lora_ready = (booleanConstant true)
+  '_LoRa_sx127x_rxMode'
+}
+
+to LoRa_sx127x_last_bytes_list {
+  comment 'Return a stable snapshot of the last captured packet; do not trigger reception here.'
+  return ('_LoRa_sx127x_textToCharsList' _lora_lastBytes)
+}
+
+to LoRa_sx127x_length {
+  comment 'Length of the last captured packet; do not trigger reception here.'
+  return _lora_lastLength
+}
+
+to LoRa_sx127x_message {
+  comment 'Capture if necessary, return the current packet snapshot, then mark that packet consumed. Metadata remain until another receive operation captures a new packet.'
+  if (not _lora_packetPending) {
+    '_LoRa_sx127x_captureIfAvailable'
+  }
+  if _lora_packetPending {
+    _lora_packetPending = (booleanConstant false)
+  }
+  return _lora_lastText
+}
+
+to LoRa_sx127x_message_bytes {
+  comment 'Capture if necessary, return the ByteArray snapshot, then mark that packet consumed.'
+  if (not _lora_packetPending) {
+    '_LoRa_sx127x_captureIfAvailable'
+  }
+  if _lora_packetPending {
+    _lora_packetPending = (booleanConstant false)
+  }
+  return _lora_lastBytes
+}
+
+to LoRa_sx127x_new_message {
+  comment 'Mailbox semantics: true while one captured packet is waiting to be consumed by LoRa message or LoRa message bytes.'
+  if (not _lora_packetPending) {'_LoRa_sx127x_captureIfAvailable'}
+  return _lora_packetPending
+}
+
+to LoRa_sx127x_power dbm {
+  '_LoRa_sx127x_writeReg' 9 (128 | ((maximum 2 (minimum dbm 17)) - 2))
+}
+
+to LoRa_sx127x_send message asciiSafe {  
+  comment 'Encode text explicitly as UTF-8. Does not split a UTF-8 character at the 255-byte LoRa limit.
+When asciiSafe is true, accented/typographic characters are first transliterated to plain ASCII (e.g. for receivers/displays that cannot show UTF-8), then encoded normally.'
+  asciiSafe = (argOrDefault 2 (booleanConstant false))
+  if _lora_ready {
+    local 'text' message
+    if asciiSafe {
+      text = ('_LoRa_sx127x_textToASCII' text)
+    }
+    '_LoRa_sx127x_sendPacket' ('_LoRa_sx127x_textToUTF8' text)
+  }
+}
+
+to LoRa_sx127x_send_bytes data {
+  if _lora_ready {'_LoRa_sx127x_sendPacket' ('[data:asByteArray]' data)}
+}
+
+to LoRa_sx127x_setBW option {
+  comment 'Transmission bandwidth.'
+  if (isType option 'string') {
+    '_LoRa_sx127x_ensureBWTables'
+    local 'bwIndex' (('[data:find]' option _lora_bwLabels) - 1)
+    if (bwIndex >= 0) {
+      '_LoRa_sx127x_setBWIndex' bwIndex
+      '_LoRa_sx127x_updateLDO'
+    } else {
+      sayIt 'Bandwidth value not valid!
+Choose one of the list.'
+    }
+  } else {
+    sayIt 'Bandwidth type not valid!'
+  }
+}
+
+to '_LoRa_sx127x_setBWIndex' bwIndex {
+  comment 'Apply the numeric BW register index (0..9), preserving CR and HeaderMode.'
+  _lora_bw = (maximum 0 (minimum 9 bwIndex))
+  '_LoRa_sx127x_writeReg' 29 ((_lora_bw << 4) | (('_LoRa_sx127x_readReg' 29) & 15))
+}
+
+to LoRa_sx127x_setCR cr {
+  comment 'Set coding rate.
+  cr = 5 is faster and less redundancy
+  ...
+  cr = 8 is more robust and slower.'
+  local 'cur' ('_LoRa_sx127x_readReg' 29)
+  _lora_cr = (maximum 5 (minimum 8 cr))
+  comment 'RegModemConfig1: CR bits 3..1.
+  Keep bandwith bits 7..4 and HeaderMode bit 0.'
+  '_LoRa_sx127x_writeReg' 29 ((cur & 241) | ((_lora_cr - 4) << 1))
+}
+
+to LoRa_sx127x_setGain gain {
+  comment 'Receiver LNA gain. Manual gain 1 is the highest gain and 6 is the lowest.'
+  gain = (maximum 0 (minimum 6 gain))
+  local 'modem3' ('_LoRa_sx127x_readReg' 38)
+  if (gain == 0) {
+    comment 'AGC auto ON: set AgcAutoOn bit 2 without changing LowDataRateOptimize bit 3.'
+    '_LoRa_sx127x_writeReg' 38 (modem3 | 4)
+  } else {
+    comment 'Manual gain: disable AGC while preserving LowDataRateOptimize.'
+    '_LoRa_sx127x_writeReg' 38 (modem3 & 251)
+    '_LoRa_sx127x_writeReg' 12 ((gain << 5) | 3)
+  }
+}
+
+to LoRa_sx127x_setPreamble symbols {
+  comment 'Sequence of symbols sent before the payload data of a LoRa packet.
+  Preamble length is stored in RegPreambleMsb 0x20 and RegPreambleLsb 0x21.
+  Use at least 6 symbols; default is 8.'
+  _lora_preamble = (maximum 6 (minimum 65535 symbols))
+  '_LoRa_sx127x_writeReg' 32 ((_lora_preamble >> 8) & 255)
+  '_LoRa_sx127x_writeReg' 33 (_lora_preamble & 255)
+}
+
+to LoRa_sx127x_setSF sf {
+  comment 'Set spreading factor.'
+  _lora_sf = (maximum 7 (minimum 12 sf))
+  local 'cur' ('_LoRa_sx127x_readReg' 30)
+  '_LoRa_sx127x_writeReg' 30 ((_lora_sf << 4) | (cur & 15))
+  comment 'RegDetectOptimize: preserve bits 7..3, set bits 2..0 to 3 for SF7..SF12.'
+  local 'detectOptimize' ('_LoRa_sx127x_readReg' 49)
+  '_LoRa_sx127x_writeReg' 49 ((detectOptimize & 248) | 3)
+  '_LoRa_sx127x_writeReg' 55 10
+  '_LoRa_sx127x_updateLDO'
+}
+
+to LoRa_sx127x_setSyncWord syncWord {
+  comment 'LoRa group or network identifier.'
+  syncWord = (maximum 0 (minimum 255 syncWord))
+  '_LoRa_sx127x_writeReg' 57 syncWord
+}
+
+to LoRa_sx127x_sleep {
+  comment 'Put SX127x in LoRa sleep mode and prevent transmission and reception until LoRa wake up.'
+  _lora_sleeping = (booleanConstant true)
+  if _lora_ready {
+    '_LoRa_sx127x_writeReg' 1 _lora_baseMode
+  }
+}
+
+to LoRa_sx127x_wakeUp {
+  comment 'Return to LoRa continuous receive mode.'
+  if _lora_ready {
+    _lora_sleeping = (booleanConstant false)
+    '_LoRa_sx127x_rxMode'
+  }
+}
+
+to '_LoRa_sx127x_bytesToText' data {
+  comment 'The received payload is UTF-8. Reconstruct and return the MicroBlocks string without modifying its Unicode characters.'
+  return ('[data:join]' '' data)
+}
+
+to '_LoRa_sx127x_captureIfAvailable' {
+  if (or (not _lora_ready) _lora_packetPending) {
+    comment 'One-packet software mailbox: never overwrite a captured packet before LoRa message/message bytes consumes it.'
+    return
+  }
+  local 'flags' ('_LoRa_sx127x_readReg' 18)
+  comment 'No complete packet waiting.'
+  if ((flags & 64) == 0) {
+    if ((flags & 32) != 0) {
+      comment 'Clear a stray PayloadCrcError flag if present.'
+      '_LoRa_sx127x_writeReg' 18 32
+    }
+    return
+  }
+  comment 'RxDone is set. Reject corrupted payloads before touching the FIFO.'
+  if ((flags & 32) != 0) {
+    '_LoRa_sx127x_writeReg' 18 (flags & 255)
+    return
+  }
+  comment 'Snapshot ALL per-packet registers before reading the FIFO. In RxContinuous these registers describe only the latest received packet and can be replaced by the next RxDone.'
+  local 'rxAddr' ('_LoRa_sx127x_readReg' 16)
+  local 'rxLength' ('_LoRa_sx127x_readReg' 19)
+  local 'snrRaw' ('_LoRa_sx127x_readReg' 25)
+  local 'rssiRaw' ('_LoRa_sx127x_readReg' 26)
+  comment 'Clear the IRQ flags observed for this packet immediately. If another packet completes while its FIFO data are being copied, its new RxDone remains pending for the next poll.'
+  '_LoRa_sx127x_writeReg' 18 (flags & 255)
+  '_LoRa_sx127x_writeReg' 13 rxAddr
+  local 'data' ('_LoRa_sx127x_readFifo' rxLength)
+  comment 'RegPktSnrValue is signed two-complement in quarter dB.'
+  if (snrRaw > 127) {
+    snrRaw = (snrRaw - 256)
+  }
+  _lora_lastSNR = (snrRaw / 4)
+  if (_lora_freqMHz <= 525) {
+    _lora_lastRSSI = (-164 + rssiRaw)
+  } else {
+    _lora_lastRSSI = (-157 + rssiRaw)
+  }
+  if (snrRaw < 0) {
+    _lora_lastRSSI = (_lora_lastRSSI + (snrRaw / 4))
+  }
+  comment 'Do not write RegOpMode here: RxContinuous already remains active after RxDone.'
+  if _lora_xorEnabled {
+    data = ('_LoRa_sx127x_xorBytes' data)
+  }
+  _lora_lastBytes = data
+  _lora_lastLength = (size data)
+  _lora_lastText = ('_LoRa_sx127x_bytesToText' data)
+  _lora_packetPending = (booleanConstant true)
+}
+
+to '_LoRa_sx127x_readFifo' nBytes {
+  local 'data' ('[data:newByteArray]' nBytes)
+  if (nBytes <= 0) {
+    return data
+  }
+  local 'frame' ('[data:newByteArray]' (nBytes + 1))
+  atPut 1 frame 0
+  digitalWriteOp _lora_cs false
+  '[sensors:spiExchange]' frame
+  digitalWriteOp _lora_cs true
+  for i nBytes {
+    atPut i data (at (i + 1) frame)
+  }
+  return data
+}
+
+to '_LoRa_sx127x_writeFifo' data {
+  local 'nBytes' (size data)
+  local 'frame' ('[data:newByteArray]' (nBytes + 1))
+  atPut 1 frame 128
+  for i nBytes {
+    atPut (i + 1) frame ((at i data) & 255)
+  }
+  digitalWriteOp _lora_cs false
+  '[sensors:spiExchange]' frame
+  digitalWriteOp _lora_cs true
+}
+
+to '_LoRa_sx127x_readReg' reg {
+  local 'frame' ('[data:newByteArray]' 2)
+  atPut 1 frame (reg & 127)
+  atPut 2 frame 0
+  digitalWriteOp _lora_cs false
+  '[sensors:spiExchange]' frame
+  digitalWriteOp _lora_cs true
+  return (at 2 frame)
+}
+
+to '_LoRa_sx127x_writeReg' reg value {
+  local 'frame' ('[data:newByteArray]' 2)
+  atPut 1 frame ((reg & 127) | 128)
+  atPut 2 frame (value & 255)
+
+  digitalWriteOp _lora_cs false
+  '[sensors:spiExchange]' frame
+  digitalWriteOp _lora_cs true
+}
+
+to '_LoRa_sx127x_rxMode' {
+  comment 'Set continuous Rx mode. RxContinuous = mode 5.'
+  if _lora_ready {
+    '_LoRa_sx127x_writeReg' 1 (_lora_baseMode | 5)
+  }
+}
+
+to '_LoRa_sx127x_sendPacket' packet {
+  if (or (not _lora_ready) _lora_sleeping) {return}
+  local 'data' ('[data:asByteArray]' packet)
+  if _lora_xorEnabled {
+    data = ('_LoRa_sx127x_xorBytes' data)
+  }
+
+  comment 'RegPayloadLength is 8 bits: maximum 255 bytes.'
+  if ((size data) > 255) {
+    local 'curtes' ('[data:newByteArray]' 255)
+    for i 255 {
+      atPut i curtes (at i data)
+    }
+    data = curtes
+  }
+
+  if ((size data) == 0) {
+    return
+  }
+
+  comment 'Before leaving RX, preserve one completed packet that may still be waiting only in the SX127x FIFO/IRQ registers.'
+  if (not _lora_packetPending) {
+    '_LoRa_sx127x_captureIfAvailable'
+  }
+
+  comment 'Standby before write at FIFO.'
+  '_LoRa_sx127x_writeReg' 1 (_lora_baseMode | 1)
+  '_LoRa_sx127x_writeReg' 18 255
+  '_LoRa_sx127x_writeReg' 13 0
+  '_LoRa_sx127x_writeReg' 34 (size data)
+  '_LoRa_sx127x_writeFifo' data
+
+  comment 'TX Mode'
+  '_LoRa_sx127x_writeReg' 1 (_lora_baseMode | 3)
+
+  local 'timeout' ('_LoRa_sx127x_txTimeout' (size data))
+  local 'doIt' (booleanConstant false)
+  local 'elapsed' 0
+
+  repeatUntil (or _lora_sleeping (or doIt (elapsed >= timeout))) {
+    if ((('_LoRa_sx127x_readReg' 18) & 8) != 0) {
+      doIt = (booleanConstant true)
+    } else {
+      waitMillis 1
+      elapsed += 1
+    }
+  }
+
+  if _lora_sleeping {
+    comment 'LoRa sleep was requested while transmitting. Stay asleep.'
+    return
+  }
+
+  if doIt {
+    '_LoRa_sx127x_writeReg' 18 8
+  } else {
+    comment 'Timeout. Clear all IRQs to restore a known state.'
+    '_LoRa_sx127x_writeReg' 18 255
+  }
+
+  '_LoRa_sx127x_rxMode'
+}
+
+to '_LoRa_sx127x_txTimeout' payloadLength {
+  comment 'Conservative LoRa TX timeout in milliseconds. 
+The payload-symbol quotient is rounded upward, then the estimated time-on-air gets a 2x safety factor plus 250 ms.'
+  '_LoRa_sx127x_ensureBWTables'
+  local 'bwHz' (at (_lora_bw + 1) _lora_bwHz)
+  local 'symbolMs' (((1 << _lora_sf) * 1000) / bwHz)
+  local 'ldo' 0
+  if (((1 << _lora_sf) * 1000) > (bwHz * 16)) {
+    ldo = 1
+  }
+  local 'numerator' (((8 * payloadLength) - (4 * _lora_sf)) + 44)
+  local 'denominator' (4 * (_lora_sf - (2 * ldo)))
+  local 'payloadSymbols' 8
+  if (numerator > 0) {
+    payloadSymbols = (payloadSymbols + (((numerator / denominator) + 1) * _lora_cr))
+  }
+  local 'airtimeMs' ((_lora_preamble + 4.25 + payloadSymbols) * symbolMs)
+  return (maximum 1000 ((airtimeMs * 2) + 250))
+}
+
+to '_LoRa_sx127x_setFreq' mhz {
+  comment 'RF frequency (FRF) = MHz * 16384 for FXOSC=32 MHz (reference oscillator frequency).'
+  local 'frf' (mhz * 16384)
+  '_LoRa_sx127x_writeReg' 6 ((frf >> 16) & 255)
+  '_LoRa_sx127x_writeReg' 7 ((frf >> 8) & 255)
+  '_LoRa_sx127x_writeReg' 8 (frf & 255)
+}
+
+to '_LoRa_sx127x_textToASCII' text {
+  comment 'Normalize Unicode text for ASCII-only displays.
+Common accented Latin letters are converted to their base ASCII letter.
+Common typographic punctuation is simplified.
+All remaining non-printable or non-ASCII characters are discarded.'
+  local 'output' (newList (size text))
+  '[data:delete]' 'all' output
+  for i (size text) {
+    local 'char' ('[data:unicodeAt]' i text)
+    comment 'Whitespace controls -> normal space.'
+    if (char == 9) {
+      char = 32
+    }
+    if (char == 10) {
+      char = 32
+    }
+    if (char == 13) {
+      char = 32
+    }
+    if (char == 160) {
+      char = 32
+    }
+    comment 'A/a with accents.'
+    if (and (char >= 192) (char <= 197)) {
+      char = 65
+    }
+    if (and (char >= 224) (char <= 229)) {
+      char = 97
+    }
+    comment 'E/e with accents.'
+    if (and (char >= 200) (char <= 203)) {
+      char = 69
+    }
+    if (and (char >= 232) (char <= 235)) {
+      char = 101
+    }
+    comment 'I/i with accents.'
+    if (and (char >= 204) (char <= 207)) {
+      char = 73
+    }
+    if (and (char >= 236) (char <= 239)) {
+      char = 105
+    }
+    comment 'O/o with accents.'
+    if (and (char >= 210) (char <= 214)) {
+      char = 79
+    }
+    if (and (char >= 242) (char <= 246)) {
+      char = 111
+    }
+    comment 'U/u with accents.'
+    if (and (char >= 217) (char <= 220)) {
+      char = 85
+    }
+    if (and (char >= 249) (char <= 252)) {
+      char = 117
+    }
+    comment 'C cedilla, N tilde and Y variants.'
+    if (char == 199) {
+      char = 67
+    }
+    if (char == 231) {
+      char = 99
+    }
+    if (char == 209) {
+      char = 78
+    }
+    if (char == 241) {
+      char = 110
+    }
+    if (char == 221) {
+      char = 89
+    }
+    if (char == 253) {
+      char = 121
+    }
+    if (char == 255) {
+      char = 121
+    }
+    comment 'Other common Latin forms; one-character ASCII approximation.'
+    if (char == 198) {
+      char = 65
+    }
+    if (char == 230) {
+      char = 97
+    }
+    if (char == 223) {
+      char = 115
+    }
+    if (char == 338) {
+      char = 79
+    }
+    if (char == 339) {
+      char = 111
+    }
+    comment 'Catalan middle dot and common smart punctuation.'
+    if (char == 183) {
+      char = 46
+    }
+    if (char == 8216) {
+      char = 39
+    }
+    if (char == 8217) {
+      char = 39
+    }
+    if (char == 8220) {
+      char = 34
+    }
+    if (char == 8221) {
+      char = 34
+    }
+    if (char == 8211) {
+      char = 45
+    }
+    if (char == 8212) {
+      char = 45
+    }
+    if (char == 8230) {
+      char = 46
+    }
+    comment 'Only printable ASCII reaches the display.'
+    if (and (char >= 32) (char <= 126)) {
+      '[data:addLast]' char output
+    }
+  }
+  return ('[data:unicodeString]' output)
+}
+
+to '_LoRa_sx127x_textToCharsList' data {
+  local 'valors' (newList (size data))
+  for i (size data) {
+    atPut i valors (at i data)
+  }
+  return valors
+}
+
+to '_LoRa_sx127x_textToUTF8' text {
+  comment 'Encode a MicroBlocks Unicode string as UTF-8 bytes.
+Stops before 255 bytes so a multibyte UTF-8 character is never cut in half.'
+  local 'output' (newList 255)
+  '[data:delete]' 'all' output
+  local 'bytesUsed' 0
+  for i (size text) {
+    local 'char' ('[data:unicodeAt]' i text)
+    comment 'Replace invalid Unicode code points with ?'
+    if (char > 1114111) {
+      char = 63
+    }
+    if (and (char >= 55296) (char <= 57343)) {
+      char = 63
+    }
+    local 'bytesNeeded' 1
+    if (char > 127) {
+      bytesNeeded = 2
+    }
+    if (char > 2047) {
+      bytesNeeded = 3
+    }
+    if (char > 65535) {
+      bytesNeeded = 4
+    }
+    if ((bytesUsed + bytesNeeded) <= 255) {
+      if (bytesNeeded == 1) {
+        '[data:addLast]' char output
+        bytesUsed += 1
+      } (bytesNeeded == 2) {
+        '[data:addLast]' (192 | (char >> 6)) output
+        '[data:addLast]' (128 | (char & 63)) output
+        bytesUsed += 2
+      } (bytesNeeded == 3) {
+        '[data:addLast]' (224 | (char >> 12)) output
+        '[data:addLast]' (128 | ((char >> 6) & 63)) output
+        '[data:addLast]' (128 | (char & 63)) output
+        bytesUsed += 3
+      } else {
+        '[data:addLast]' (240 | (char >> 18)) output
+        '[data:addLast]' (128 | ((char >> 12) & 63)) output
+        '[data:addLast]' (128 | ((char >> 6) & 63)) output
+        '[data:addLast]' (128 | (char & 63)) output
+        bytesUsed += 4
+      }
+    }
+  }
+  return ('[data:asByteArray]' output)
+}
+
+to '_LoRa_sx127x_ensureBWTables' {
+  if ((size _lora_bwLabels) == 0) {
+    _lora_bwLabels = ('[data:makeList]' '7.8 kHz' '10.4 kHz' '15.6 kHz' '20.8 kHz' '31.25 kHz' '41.7 kHz' '62.5 kHz' '125 kHz' '250 kHz' '500 kHz')
+    _lora_bwHz = ('[data:makeList]' 7800 10400 15600 20800 31250 41700 62500 125000 250000 500000)
+  }
+}
+
+to '_LoRa_sx127x_updateLDO' {
+  comment 'Update Low Data Rate Optimization bit (LDO).
+This bit must be set when the LoRa symbols last for too long.'
+  '_LoRa_sx127x_ensureBWTables'
+  local 'bwHz' (at (_lora_bw + 1) _lora_bwHz)
+  local 'cur' ('_LoRa_sx127x_readReg' 38)
+  comment 'Activate LDO bit if Tsym > 16 ms.'
+  comment '2^SF / BW > 0.016'
+  comment 'Equivalent: (2^SF)*1000 > BW*16'
+  if (((1 << _lora_sf) * 1000) > (bwHz * 16)) {
+    '_LoRa_sx127x_writeReg' 38 (cur | 8)
+  } else {
+    '_LoRa_sx127x_writeReg' 38 (cur & 247)
+  }
+}
+
+to '_LoRa_sx127x_xorBytes' data {
+  if (not _lora_xorEnabled) {return data}
+  local 'keyBytes' ('[data:asByteArray]' _lora_xorKey)
+  local 'keyLength' (size keyBytes)
+  if (keyLength == 0) {
+    return data
+  }
+  local 'output' ('[data:newByteArray]' (size data))
+  for i (size data) {
+    local 'j' (((i - 1) % keyLength) + 1)
+    atPut i output ((at i data) ^ (at j keyBytes))
+  }
+  return output
+}
+
