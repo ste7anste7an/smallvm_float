@@ -130,6 +130,14 @@ function allBlocksIn(root) {
 	return result;
 }
 
+function blockForBody(bodyArg, singleIsReporter = false) {
+	// Build the block for a script or function body as the parser left it: an
+	// array of commands, a single command or reporter, or empty. Null when there
+	// is nothing to build, which is what loadFunctions() and loadScripts() check.
+	if (!Array.isArray(bodyArg) || bodyArg.length === 0) return null;
+	return MB_Parser.blockFor(bodyArg, singleIsReporter);
+}
+
 // --- MB_Project class ---
 
 class MB_Project {
@@ -697,6 +705,14 @@ class MB_Module {
 		this.blockList = this.blockList.filter(op => !superceded.has(op));
 	}
 
+	defineFunction(funcName, parameterNames, body) {
+		// Define or replace a function in this module. body is a command block
+		// or null; loadFunctions() builds an MB_Function the same way.
+		let f = new MB_Function(funcName, [...parameterNames], body);
+		this.functions = this.appendFunction(this.functions, f);
+		return f;
+	}
+
 	appendFunction(functionsArray, f) {
 		let idx = functionsArray.findIndex(existing => existing.functionName === f.functionName);
 		if (idx >= 0) {
@@ -1141,10 +1157,12 @@ class MB_Module {
 // MB_ScriptExchange - export and import scripts between projects.
 // Ported from MicroBlocksExchange.gp.
 //
-// *** NOTE: MB_ScriptExchange hoat not yet been cleaned up or tested! ***
-// *** There are still some unresolved global references. ***
+// GP passes Commands around; MB_Parser.parse() returns nested arrays and the
+// scripts pane holds morphs, so the two sides of a script are read differently
+// here: a morph by selector/argList on export, an array by [0] and slice(1) on
+// import. See misc/tests/js/regression/script-exchange.test.mjs.
 
-/* global blockScale, varMustBeQuoted, scriptForFunction, smallRuntime */
+/* global blockScale, varMustBeQuoted, fixEmbeddedQuotes, quoteIfNeeded */
 
 class MB_ScriptExchange {
 	constructor(mbProject) {
@@ -1168,17 +1186,16 @@ class MB_ScriptExchange {
 		const scale = blockScale();
 		for (const block of blockList) {
 			if (!(block instanceof BlockMorph)) continue;
-			let expr = block;
-			if (expr.selector === 'to') {
-				// Save a function-definition hat as a stub 'to' with nil body;
-				// the full definition is saved separately by functionDefinitions().
-				const callArgs = ['to', ...expr.argList()];
-				callArgs[callArgs.length - 1] = null; // replace body with null
-				expr = MB_Parser.commandFromArray(callArgs);
-			}
 			const x = Math.round(block.left() / scale);
 			const y = Math.round(block.top() / scale);
-			result.push(this.scriptText(expr, x, y));
+			if (block.selector === 'to') {
+				// A function-definition hat is saved as a stub 'to' with an empty
+				// body; functionDefinitions() saves the definition itself.
+				result.push('script ' + x + ' ' + y + ' {\n' +
+					this.stubDefinitionText(block) + '}\n\n');
+			} else {
+				result.push(this.scriptText(block, x, y));
+			}
 		}
 		return result.join('');
 	}
@@ -1194,11 +1211,22 @@ class MB_ScriptExchange {
 		const result = [];
 		for (const funcName of this.functionsUsed) {
 			const spec = this.mbProject.blockSpecs.get(funcName);
-			if (spec != null) result.push(spec.definitionString() + '\n');
+			if (spec != null) result.push(specDefinitionString(spec) + '\n');
 			const func = this.mbProject.functionNamed(funcName);
 			if (func != null) result.push(func.codeString() + '\n');
 		}
 		return result;
+	}
+
+	stubDefinitionText(block) {
+		// GP builds a 'to' Command with a nil body and prints it. The port has no
+		// Command to build, and its 'to' block prints its name as 'v' and drops
+		// its parameters, so the stub is written from the function itself.
+		const funcName = block.argList()[0];
+		const func = this.mbProject.functionNamed(funcName);
+		const params = func ? func.argNames : [];
+		return 'to ' + quoteIfNeeded(String(funcName)) +
+			params.map(p => ' ' + quoteIfNeeded(String(p))).join('') + ' {}\n';
 	}
 
 	scriptText(cmdOrReporter, x, y, useSemicolons = false) {
@@ -1208,11 +1236,13 @@ class MB_ScriptExchange {
 		const parts = ['script ' + x + ' ' + y + ' '];
 		if (cmdOrReporter instanceof ReporterBlockMorph) {
 			if (cmdOrReporter.selector === 'v') {
-				let varName = cmdOrReporter.argList()[0];
-				if (varMustBeQuoted(varName)) varName = JSON.stringify(varName);
+				// The name of a variable reporter is its blockSpec; argList() is empty.
+				let varName = cmdOrReporter.blockSpec;
+				if (varMustBeQuoted(varName)) varName = "'" + fixEmbeddedQuotes(varName) + "'";
 				parts.push('(v ' + varName + ')');
 			} else {
-				parts.push('(' + cmdOrReporter.codeString() + ')');
+				// codeString() already parenthesises a reporter; GP's prettyPrint does not.
+				parts.push(cmdOrReporter.codeString());
 			}
 			parts.push(nl);
 		} else {
@@ -1246,19 +1276,21 @@ class MB_ScriptExchange {
 		const main = this.mbProject.main;
 		const todo = [cmdOrReporter];
 		while (todo.length > 0) {
-			for (const b of todo.shift().allBlocks()) {
+			// allBlocksIn(), not BlockMorph.allBlocks(): only the former descends
+			// into a CommandSlotMorph, so calls inside a loop or an if are seen.
+			for (const b of allBlocksIn(todo.shift())) {
 				const op = b.selector;
 				if (this.isFunctionCall(op)) {
 					if (this.libraryDefines(main, op)) {
 						if (!functionsUsedSet.has(op)) {
 							functionsUsedSet.add(op);
 							const func = main.functionNamed(op);
-							if (func != null && func.cmdList() != null) {
-								todo.push(func.cmdList());
+							if (func != null && func.cmdList != null) {
+								todo.push(func.cmdList);
 							}
 						}
 					} else {
-						for (const lib of this.mbProject.libraries) {
+						for (const lib of this.mbProject.libraries.values()) {
 							if (this.libraryDefines(lib, op)) {
 								libsUsedSet.add(lib.moduleName);
 							}
@@ -1296,16 +1328,17 @@ class MB_ScriptExchange {
 
 		// Add libraries and function definitions
 		for (const entry of scriptCmds) {
-			const op = entry.selector;
-			const args = entry.argList();
+			if (!Array.isArray(entry)) continue;
+			const op = entry[0];
+			const args = entry.slice(1);
 			if (op === 'depends') {
 				for (const libName of args) {
-					scripter.installLibraryNamed(libName);
+					scripter.installLibraryNamed(stringArg(libName));
 				}
 			} else if (op === 'to') {
-				const funcName = args[0];
-				const parameterNames = args.slice(1, args.length - 1);
-				const body = args[args.length - 1];
+				const funcName = stringArg(args[0]);
+				const parameterNames = args.slice(1, args.length - 1).map(a => String(stringArg(a)));
+				const body = blockForBody(args[args.length - 1]);
 				this.addGlobalsFor(body, parameterNames);
 				this.mbProject.main.defineFunction(funcName, parameterNames, body);
 			}
@@ -1315,8 +1348,9 @@ class MB_ScriptExchange {
 		let scriptsX = 10000;
 		let scriptsY = 10000;
 		for (const entry of scriptCmds) {
-			const args = entry.argList();
-			if (entry.selector === 'script' && args.length === 3) {
+			if (!Array.isArray(entry)) continue;
+			const args = entry.slice(1);
+			if (entry[0] === 'script' && args.length === 3) {
 				scriptsX = Math.min(scriptsX, args[0]);
 				scriptsY = Math.min(scriptsY, args[1]);
 			}
@@ -1325,7 +1359,8 @@ class MB_ScriptExchange {
 		// Add scripts to the scripts pane
 		const scriptsPane = scripter.scriptEditor();
 		for (const entry of scriptCmds) {
-			let args = entry.argList();
+			if (!Array.isArray(entry)) continue;
+			let args = entry.slice(1);
 			if (args.length === 4 && args[0] == null) {
 				// Fix old Wiki scripts saved as "script nil x y { ...code... }"
 				args = args.slice(1);
@@ -1333,25 +1368,18 @@ class MB_ScriptExchange {
 				args[1] = scriptsY;
 				console.log('fixed args:', args);
 			}
-			if (entry.selector === 'script' && args.length === 3 && args[2] != null) {
-				const script = args[2];
-				this.addGlobalsFor(script);
-				let block;
-				if (script.selector === 'to') {
-					const func = this.mbProject.functionNamed(script.argList()[0]);
-					block = scriptForFunction(func);
-				} else {
-					block = MB_Parser.blockFor(script);
-				}
+			if (entry[0] === 'script' && args.length === 3) {
+				const block = blockForBody(args[2], true);
+				if (block == null) continue;
+				this.addGlobalsFor(block);
 				block.fixBlockColor();
 				const scale = blockScale();
 				const blockX = Math.round(dstX + scale * (args[0] - scriptsX));
 				const blockY = Math.round(dstY + scale * (args[1] - scriptsY));
-				block.setPosition(blockX, blockY);
+				block.setPosition(new Point(blockX, blockY));
 				scriptsPane.add(block);
 			}
 		}
-		smallRuntime().saveAllChunksAfterLoad();
 	}
 
 	addGlobalsFor(script, parameterNames) {
@@ -1360,14 +1388,14 @@ class MB_ScriptExchange {
 		const globalVars = this.mbProject.allVariableNames();
 		const varRefs = [];
 		const localVars = parameterNames ? [...parameterNames] : [];
-		for (const b of script.allBlocks()) {
+		for (const b of allBlocksIn(script)) {
+			const op = b.selector;
+			if (op === 'v') { varRefs.push(b.blockSpec); continue; } // name is the spec
 			const args = b.argList();
-			if (args.length > 0) {
-				const varName = args[0];
-				const op = b.selector;
-				if (['v', '=', '+='].includes(op)) varRefs.push(varName);
-				if (['local', 'for'].includes(op)) localVars.push(varName);
-			}
+			if (args.length === 0) continue;
+			const varName = args[0];
+			if (['=', '+='].includes(op)) varRefs.push(varName);
+			if (['local', 'for'].includes(op)) localVars.push(varName);
 		}
 		for (const v of varRefs) {
 			if (!globalVars.includes(v) && !localVars.includes(v)) {
