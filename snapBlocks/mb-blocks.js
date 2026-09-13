@@ -2055,15 +2055,32 @@ BlockMorph.prototype.isElseSlot = function (args, i) {
 	return (args[i] instanceof BooleanSlotMorph) && (args[i].value === true);
 };
 
+BlockMorph.prototype.bracesEmptyBody = function (op) {
+	// GP's printCmd (PrettyPrinter.gp:286) sends these five to
+	// printCmdListInControl (:259), which writes an empty body as '{}'. `if` is
+	// decided before this is reached, in addCodeStringForArg, because its long
+	// and short forms differ. Every other command prints a nil body as the bare
+	// word, which is what forever, repeat and repeatUntil want.
+	const braced = ['to', 'function', 'method', 'for', 'while'];
+	return braced.includes(op);
+}
+
 BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	if (arg instanceof CSlotMorph) {
 		let nested = arg.nestedBlock();
 		if (nested == null) {
-			result.push('{}');
+			// An empty `if` body is braced across a newline, as GP does at
+			// PrettyPrinter.gp printCmdList. The rest divide into the ones GP
+			// braces flat and the ones it writes as the bare word.
+			result.push(this.selector == 'if' ?
+				'{\n' + '  '.repeat(indent) + '}' :
+				(this.bracesEmptyBody(this.selector) ? '{}' : 'nil'));
 		} else {
 			result.push('{\n');
 			nested.codeString(indent + 1, result);
-			result.push('\t'.repeat(indent));
+			// The closing brace is indented to the block's own level, not the
+			// body's, as GP's PrettyPrinter tab does (PrettyPrinter.gp).
+			result.push('  '.repeat(indent));
 			result.push('}');
 		}
 	} else if (arg instanceof BooleanSlotMorph) {
@@ -2096,15 +2113,24 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 		}
 	} else if (arg instanceof InputSlotMorph) { // includes subclass TextSlotMorph
 		let isStringOnly = (arg instanceof TextSlotMorph);
-		let value = arg.contents().text;
-		if (arg.isNumeric && !arg.isAlphanumeric && (value.length == 0)) {
+		let text = arg.contents().text;
+		// GP prints a literal by the class of the VALUE, quoting only a String
+		// (PrettyPrinter.gp printValue:160). The slot has kept that value since
+		// input slots became value preserving; reading the type back out of the
+		// text cannot tell 'false' from false, or '0' from 0.
+		let value = arg.evaluate();
+		if (arg.isNumeric && !arg.isAlphanumeric && (text.length == 0)) {
 			result.push('0'); // treat an empty numeric slot as zero
-		} else if (!isStringOnly && /^-?\d+$/.test(value)) { // value is an integer, slot is not 'str'
-			result.push(value);
-		} else if ((typeof value) == 'boolean') {
-			result.push(value);
-		} else { // string
+		} else if (isNil(value)) {
+			result.push('nil');
+		} else if (((typeof value) == 'number') || ((typeof value) == 'boolean')) {
+			result.push(value.toString());
+		} else if ((typeof value) == 'string') {
 			result.push('\'' + fixEmbeddedQuotes(value) + '\'');
+		} else if (!isStringOnly && /^-?\d+$/.test(text)) { // value is an integer, slot is not 'str'
+			result.push(text);
+		} else { // string
+			result.push('\'' + fixEmbeddedQuotes(text) + '\'');
 		}
 	} else {
 		console.log('unknown arg type:', arg);
@@ -2131,7 +2157,27 @@ BlockMorph.prototype.argInputs = function () {
 	return (n == inputs.length) ? inputs : inputs.slice(0, n);
 };
 
-BlockMorph.prototype.codeString = function (indent = 0, result = []) {
+BlockMorph.prototype.isShortIf = function (args) {
+	// A single condition and body, and a body of at most one command: GP's
+	// test for the one-line form, at PrettyPrinter.gp printCmd and isShort.
+	if (this.selector != 'if') return false;
+	if (args.length != 2 || !(args[1] instanceof CSlotMorph)) return false;
+	let body = args[1].nestedBlock();
+	return (body == null) || (body.nextBlock() == null);
+};
+
+BlockMorph.prototype.shortIfBodyString = function (cslot, indent) {
+	let body = cslot.nestedBlock();
+	if (body == null) return ' {}';
+	// GP closes the brace against whatever the body left behind, and a body
+	// ending in a nested block leaves a newline there unless it is an `if`.
+	let text = body.codeString(indent, [], false);
+	text = text.slice('  '.repeat(indent).length); // GP does not indent the body
+	if (!text.endsWith('}\n') || (body.selector == 'if')) text = text.slice(0, -1);
+	return ' {' + text + '}';
+};
+
+BlockMorph.prototype.codeString = function (indent = 0, result = [], early = true) {
 	if (this.selector == 'v') {
 		// variable reporter
 		let varName = quoteIfNeeded(this.blockSpec);
@@ -2145,7 +2191,9 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 	if (this.type() == 'reporter') {
 		result.push('(');
 	} else { // command or hat block
-		result.push('\t'.repeat(indent));
+		// Two spaces per level, as GP's PrettyPrinter tab does
+		// (PrettyPrinter.gp method tab).
+		result.push('  '.repeat(indent));
 	}
 
 	let args = this.argInputs();
@@ -2156,6 +2204,19 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 			args[0].contents().text;
 		args = args.slice(); // copy args so we can modify it
 		args[0] = new TemplateSlotMorph(varName); // addCodeStringForArg quotes it
+	}
+
+	if (early && this.isShortIf(args)) {
+		// GP prints the condition here, so a literal true stays `true` rather
+		// than becoming the `else` the long form below writes.
+		result.push(quoteIfNeeded(this.selector));
+		result.push(' ');
+		this.addCodeStringForArg(args[0], indent, result);
+		result.push(this.shortIfBodyString(args[1], indent));
+		result.push('\n');
+		let next = this.nextBlock();
+		if (next != null) next.codeString(indent, result, true);
+		return result.join('');
 	}
 
 	if (this.isInfix(this.selector) && (args.length == 2)) { // infix operator
@@ -2179,8 +2240,9 @@ BlockMorph.prototype.codeString = function (indent = 0, result = []) {
 	} else { // command or hat block
 		result.push('\n');
 		let next = this.nextBlock();
-		if (this instanceof HatBlockMorph) indent += 1;
-		if (next != null) next.codeString(indent, result); // recursive!
+		// Only a short `if` keeps the run going; GP feeds printCmd's return
+		// value into `early` for this.
+		if (next != null) next.codeString(indent, result, false); // recursive!
 	}
 	return result.join('');
 }
