@@ -13,7 +13,7 @@
 	the libraries it uses.
 */
 
-/* global MB_editor, MB_Function, MB_Parser, BlockMorph, CommandBlockMorph, ReporterBlockMorph */
+/* global MB_editor, MB_Function, MB_Parser, BlockMorph, ReporterBlockMorph */
 
 // --- Module-level helpers ---
 
@@ -106,28 +106,6 @@ function specDefinitionString(spec) {
 		parts.push(...defaults);
 	}
 	return parts.join(' ');
-}
-
-function allBlocksIn(root) {
-	// Return all blocks in the tree rooted at root (a BlockMorph or CommandBlockMorph).
-	if (!root) return [];
-	let result = [];
-	let todo = [root];
-	while (todo.length > 0) {
-		let b = todo.pop();
-		result.push(b);
-		if (b.nextBlock && b.nextBlock()) todo.push(b.nextBlock());
-		if (b.inputs) {
-			for (const inp of b.inputs()) {
-				if (inp instanceof BlockMorph) {
-					todo.push(inp);
-				} else if (inp instanceof CommandSlotMorph && inp.nestedBlock()) {
-					todo.push(inp.nestedBlock()); // the body of an if/repeat/forever/for
-				}
-			}
-		}
-	}
-	return result;
 }
 
 function blockForBody(bodyArg, singleIsReporter = false) {
@@ -330,12 +308,13 @@ class MB_Project {
 		let result = new Set();
 		for (const entry of this.main.scripts) {
 			let block = entry[2];
-			for (const b of allBlocksIn(block)) {
+			if (!block) continue; // a script entry is [x, y, BlockMorph|null]
+			block.forAllBlocks( b => {
 				if (b.selector === 'sendBroadcast' || b.selector === 'whenBroadcastReceived') {
 					let inputs = b.inputs();
 					if (inputs.length > 0) result.add(inputs[0].evaluate());
 				}
-			}
+			});
 		}
 		return Array.from(result).sort();
 	}
@@ -363,7 +342,10 @@ class MB_Project {
 		for (const entry of scriptsToScan) {
 			// an entry is a three-element list: [x, y, script]
 			let block = entry[2];
-			for (const b of allBlocksIn(block)) {
+			if (!block) continue; // a script entry is [x, y, BlockMorph|null]
+			// allBlocks(), not forAllBlocks(): an untraceable call returns from
+			// this method, which a callback cannot do.
+			for (const b of block.allBlocks()) {
 				let op = b.selector;
 				if (['callCustomCommand', 'callCustomReporter', 'sendBroadcast'].includes(op)) {
 					// if argument is a string the callee is known; otherwise any function could be called
@@ -386,7 +368,7 @@ class MB_Project {
 		while (todo.length > 0) {
 			let f = this.functionNamed(todo.shift());
 			if (!f || !f.cmdList) continue;
-			for (const b of allBlocksIn(f.cmdList)) {
+			for (const b of f.cmdList.allBlocks()) { // allBlocks(), as above
 				let op = b.selector;
 				if (['callCustomCommand', 'callCustomReporter', 'sendBroadcast'].includes(op)) {
 					let inputs = b.inputs();
@@ -429,19 +411,20 @@ class MB_Project {
 		// scan scripts
 		for (const entry of this.main.scripts) {
 			// an entry is a three-element list: [x, y, script]
-			for (const b of allBlocksIn(entry[2])) {
+			if (!entry[2]) continue; // a script entry is [x, y, BlockMorph|null]
+			entry[2].forAllBlocks( b => {
 				if (['v', '=', '+='].includes(b.selector)) {
 					let inputs = b.inputs();
 					if (inputs.length > 0) unusedGlobals.delete(inputs[0].evaluate());
 				}
-			}
+			});
 		}
 
 		// scan functions
 		for (const f of this.allFunctions()) {
 			let localAndArgs = new Set([...f.argNames, ...f.localVars]);
 			if (!f.cmdList) continue;
-			for (const b of allBlocksIn(f.cmdList)) {
+			f.cmdList.forAllBlocks( b => {
 				if (['v', '=', '+='].includes(b.selector)) {
 					let inputs = b.inputs();
 					if (inputs.length > 0) {
@@ -449,7 +432,7 @@ class MB_Project {
 						if (!localAndArgs.has(varName)) unusedGlobals.delete(varName);
 					}
 				}
-			}
+			});
 		}
 
 		return Array.from(unusedGlobals);
@@ -1056,18 +1039,18 @@ class MB_Module {
 	updatePrimitives() {
 		for (const f of this.functions) {
 			if (!f.cmdList) continue;
-			for (const b of allBlocksIn(f.cmdList)) {
+			f.cmdList.forAllBlocks( b => {
 				let newPrim = this.newPrimFor(b.selector);
 				if (newPrim) b.selector = newPrim;
-			}
+			});
 		}
 		for (const entry of this.scripts) {
 			let block = entry[2];
 			if (!block) continue;
-			for (const b of allBlocksIn(block)) {
+			block.forAllBlocks( b => {
 				let newPrim = this.newPrimFor(b.selector);
 				if (newPrim) b.selector = newPrim;
-			}
+			});
 		}
 	}
 
@@ -1280,9 +1263,7 @@ class MB_ScriptExchange {
 		const main = this.mbProject.main;
 		const todo = [cmdOrReporter];
 		while (todo.length > 0) {
-			// allBlocksIn(), not BlockMorph.allBlocks(): only the former descends
-			// into a CommandSlotMorph, so calls inside a loop or an if are seen.
-			for (const b of allBlocksIn(todo.shift())) {
+			todo.shift().forAllBlocks( b => {
 				const op = b.selector;
 				if (this.isFunctionCall(op)) {
 					if (this.libraryDefines(main, op)) {
@@ -1303,7 +1284,7 @@ class MB_ScriptExchange {
 				} else if (op === 'to') {
 					functionsUsedSet.add(b.argList()[0]);
 				}
-			}
+			});
 		}
 	}
 
@@ -1392,15 +1373,15 @@ class MB_ScriptExchange {
 		const globalVars = this.mbProject.allVariableNames();
 		const varRefs = [];
 		const localVars = parameterNames ? [...parameterNames] : [];
-		for (const b of allBlocksIn(script)) {
+		script.forAllBlocks( b => {
 			const op = b.selector;
-			if (op === 'v') { varRefs.push(b.blockSpec); continue; } // name is the spec
+			if (op === 'v') { varRefs.push(b.blockSpec); return; } // name is the spec
 			const args = b.argList();
-			if (args.length === 0) continue;
+			if (args.length === 0) return;
 			const varName = args[0];
 			if (['=', '+='].includes(op)) varRefs.push(varName);
 			if (['local', 'for'].includes(op)) localVars.push(varName);
-		}
+		});
 		for (const v of varRefs) {
 			if (!globalVars.includes(v) && !localVars.includes(v)) {
 				this.mbProject.main.addVariable(v);
