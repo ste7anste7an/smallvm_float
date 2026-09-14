@@ -6,7 +6,7 @@
 
 // mb-function.js - MicroBlocks function representation.
 
-/* global MB_Function, MB_Parser, CommandBlockMorph, BlockMorph, CommandSlotMorph */
+/* global MB_Function, MB_Parser */
 
 class MB_Function {
 	constructor(functionName, argNames, cmdList) {
@@ -33,23 +33,7 @@ class MB_Function {
 	forAllBlocks(f) {
 		// Call the given function on all command and reporter blocks in this function.
 
-		if (!this.cmdList) return;
-
-		let todo = [this.cmdList];
-		while (todo.length > 0) {
-			let cmd = todo.pop();
-			f(cmd);
-			if (cmd instanceof CommandBlockMorph) {
-				if (cmd.nextBlock()) todo.push(cmd.nextBlock());
-			}
-			for (const arg of cmd.inputs()) {
-				if (arg instanceof BlockMorph) {
-					todo.push(arg);
-				} else if (arg instanceof CommandSlotMorph && arg.nestedBlock()) {
-					todo.push(arg.nestedBlock()); // the body of an if/repeat/forever/for
-				}
-			}
-		}
+		if (this.cmdList) this.cmdList.forAllBlocks(f);
 	}
 
 	allVariableCmds() {
