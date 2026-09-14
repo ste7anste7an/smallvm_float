@@ -65,7 +65,9 @@ GET_VERSION_MSG, CHUNK_CRC_MSG = 12, 23
 TASK_RETURNED_VALUE_MSG, TASK_DONE_MSG, TASK_ERROR_MSG = 18, 17, 19
 VERSION_MSG = 22
 
-SCRATCH_CHUNK = 90          # high ID, to avoid colliding with a user's project
+# The highest chunk ID the VM accepts (MAX_CHUNKS is 255). The IDE hands out the
+# lowest free ID first, so a stored project only reaches 254 when it has all 255.
+SCRATCH_CHUNK = 254
 REPORTER_CHUNK_TYPE = 2
 
 # Opcodes, in jumpTable order (vm/interp.c)
