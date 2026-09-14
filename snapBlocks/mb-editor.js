@@ -14,6 +14,7 @@ class MB_Editor {
 		this.scripts = null;
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
+		MB_connection.setCodeManager(this.codeManager); // so chunk CRCs from the board reach it
 		this.readFromBoard = false;
 		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
@@ -386,6 +387,7 @@ console.log('unknown');
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
+		MB_connection.setCodeManager(this.codeManager);
 		this.removeAllScripts();
 
 		// GP clears the board on every project replacement, right after making
