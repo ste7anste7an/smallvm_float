@@ -926,7 +926,8 @@ class MB_Decompiler {
 		// through the same builder the parser uses.
 		const mbFunc = new MB_Function(
 			fName, aFunc.argNames, MB_Parser.blockForDecompiled(aFunc.cmdList));
-		targetModule.functions.push(mbFunc);
+		// addFunction replaces: a shipped library may already define this name.
+		targetModule.addFunction(mbFunc);
 		if (!targetModule.blockList.includes(fName)) {
 			targetModule.blockList.push(fName);
 		}
