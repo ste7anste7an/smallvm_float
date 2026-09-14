@@ -52,6 +52,10 @@ class MB_Connection {
 			requestAnimationFrame(processMsgCB);
 		}
 		requestAnimationFrame(processMsgCB);
+		// browsers run no animation frames in a hidden tab, so use a timer while hidden
+		setInterval(() => {
+			if (document.hidden && commPort.isConnected()) MB_connection.updateConnection();
+		}, 50);
 	}
 
 	// --- Helpers ---
