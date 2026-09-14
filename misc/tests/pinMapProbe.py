@@ -33,8 +33,12 @@ cases, and conflating them produces false alarms:
                                        makes analogRead return exactly 0. So it
                                        is input-only or held by on-board
                                        hardware.
-    will not drive, analogRead == 0 .. ambiguous: refused, or an input-only pin
-                                       sitting at 0
+    will not drive, analogRead == 0,
+      but varies over 10 reads ....... also provably NOT refused: a refused pin
+                                       returns 0 every time, a floating input
+                                       does not
+    will not drive, 10 reads all 0 ... ambiguous: refused, or an input-only pin
+                                       held at 0
 
 Only one finding is both provable and worth failing on: a pin the table
 declares RESERVED that the board nonetheless drives. That means the guard is
@@ -48,6 +52,13 @@ The analog range is checked the same way: drive a pin high, then read it with
 the ADC. Pins inside ANALOG_PINS report near full scale; pins outside report
 exactly 0 because the range guard refuses them. A plain analogRead could not
 tell that apart from a grounded pin.
+
+Input-only pins cannot be driven high, so for those the ADC reads whatever the
+floating pin sits at, and after the 12-to-10-bit shift that is often exactly
+0. The probe then takes ten plain reads. Noise on a real ADC input gives a
+spread; a refused pin gives ten identical zeros. A spread is proof the pin is
+not refused, but ten zeros are not proof that it is: a pin grounded or held by
+on-board hardware reads the same way.
 """
 
 import sys
@@ -65,11 +76,14 @@ GET_VERSION_MSG, CHUNK_CRC_MSG = 12, 23
 TASK_RETURNED_VALUE_MSG, TASK_DONE_MSG, TASK_ERROR_MSG = 18, 17, 19
 VERSION_MSG = 22
 
-SCRATCH_CHUNK = 90          # high ID, to avoid colliding with a user's project
+# The highest chunk ID the VM accepts (MAX_CHUNKS is 255). The IDE hands out the
+# lowest free ID first, so a stored project only reaches 254 when it has all 255.
+SCRATCH_CHUNK = 254
 REPORTER_CHUNK_TYPE = 2
 
 # Opcodes, in jumpTable order (vm/interp.c)
 OP_INIT_LOCALS, OP_PUSH_IMMEDIATE, OP_WAIT_MILLIS, OP_RETURN_RESULT = 9, 2, 33, 35
+OP_MINIMUM, OP_MAXIMUM = 72, 73
 OP_ANALOG_PINS, OP_DIGITAL_PINS, OP_ANALOG_READ = 84, 85, 86
 OP_DIGITAL_READ, OP_DIGITAL_SET, OP_DIGITAL_CLEAR = 88, 90, 91
 OP_CODE_END = 240
@@ -105,6 +119,16 @@ def clear_then_read(pin):
 
 def set_then_analog(pin):
     return reporter(word(OP_DIGITAL_SET, pin) + push_int(1) + word(OP_WAIT_MILLIS, 1) + push_int(pin) + word(OP_ANALOG_READ, 1))
+
+
+ADC_SAMPLES = 10
+
+
+def analog_extreme(pin, opcode):
+    """Read the pin ADC_SAMPLES times, a millisecond apart, and reduce with
+    OP_MINIMUM or OP_MAXIMUM, which take their count in the arg byte."""
+    one_read = push_int(pin) + word(OP_ANALOG_READ, 1) + push_int(1) + word(OP_WAIT_MILLIS, 1)
+    return reporter(one_read * ADC_SAMPLES + word(opcode, ADC_SAMPLES))
 
 
 def count_reporter(opcode):
@@ -243,17 +267,18 @@ def main():
     print('digitalPins %s   analogPins %s\n' % (pin_count, analog_count))
 
     drivable, wont_drive, unsafe, unknown = [], [], [], []
-    print('%4s %9s %10s   %s' % ('pin', 'follows', 'adc(high)', 'reading'))
+    print('%4s %9s %10s %11s   %s' % ('pin', 'follows', 'adc(high)', 'adc(reads)', 'reading'))
     for pin in range(pin_count):
         s_hi, v_hi = board.run(set_then_read(pin))
         s_lo, v_lo = board.run(clear_then_read(pin))
         s_ad, v_ad = board.run(set_then_analog(pin))
         if s_hi != 'ok' or s_lo != 'ok':
             unknown.append(pin)
-            print('%4d %9s %10s   could not test' % (pin, '?', '?'))
+            print('%4d %9s %10s %11s   could not test' % (pin, '?', '?', ''))
             continue
         follows = (v_hi is True) and (v_lo is False)
         adc = v_ad if (s_ad == 'ok' and isinstance(v_ad, int)) else None
+        spread = ''
         if follows:
             drivable.append(pin)
             note = 'drivable'
@@ -261,12 +286,22 @@ def main():
             wont_drive.append(pin)
             note = 'input-only or board-held (analogRead proves it was not refused)'
         else:
+            # Cannot be driven high, so read it as it sits. A refused pin
+            # returns 0 every time; a floating ADC input does not.
+            s_min, lo = board.run(analog_extreme(pin, OP_MINIMUM))
+            s_max, hi = board.run(analog_extreme(pin, OP_MAXIMUM))
+            sampled = s_min == 'ok' and s_max == 'ok' and isinstance(lo, int) and isinstance(hi, int)
             wont_drive.append(pin)
-            note = 'refused, or an input-only pin reading 0'
+            if sampled:
+                spread = '%d..%d' % (lo, hi)
+            if sampled and lo != hi:
+                note = 'input-only or board-held (analogRead varied, so not refused)'
+            else:
+                note = 'refused, or an input-only pin held at 0'
         if declared is not None and pin in declared and follows:
             unsafe.append(pin)
             note += '   *** DECLARED RESERVED BUT DRIVABLE ***'
-        print('%4d %9s %10s   %s' % (pin, follows, adc, note))
+        print('%4d %9s %10s %11s   %s' % (pin, follows, adc, spread, note))
         sys.stdout.flush()
 
     board.delete_scratch()
