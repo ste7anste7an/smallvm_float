@@ -231,6 +231,8 @@ void readScriptsFromURL() {
 
 void addBLEPrims() {}
 void addCameraPrims() {}
+void addElecfreaksPrims() {}
+void addElecfreaksSensorPrims() {}
 void addEncoderPrims() {}
 void addHIDPrims() {}
 void addOneWirePrims() {}
