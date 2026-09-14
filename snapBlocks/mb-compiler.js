@@ -251,6 +251,10 @@ class MB_Compiler {
 			}
 		}
 
+		// Assign chunk IDs first. A function defined since the code manager was built
+		// otherwise has no ID, and its calls fall through to the primitive path instead
+		// of compiling as calls.
+		this.codeManager.assignFunctionIDs();
 		this.collectVars(cmdOrReporter);
 
 		const result = [['initLocals', this.localVars.size]];
