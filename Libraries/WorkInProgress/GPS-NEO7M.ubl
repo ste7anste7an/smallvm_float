@@ -5,7 +5,7 @@ choices gpsDateFormat 'yyyy-mm-dd' 'yyyy/mm/dd' 'dd-mm-yyyy' 'dd/mm/yyyy'
 choices gpsTimeFormat 'hh:mm:ss' 'hh:mm'
 choices gpsCoordinate 'gps;latitude (deg x 10⁶)' 'gps;longitude (deg x 10⁶)'
 choices gpsSpeedUnit 'km/h (x100)' 'mph (x100)'
-choices gpsDateTimePart gps;day gps;month gps;year 'gps;hour UTC' 'gps;minute UTC' 'gps;second UTC'
+choices gpsDateTimePart 'gps;day' 'gps;month' 'gps;year' 'gps;hour UTC' 'gps;minute UTC' 'gps;second UTC'
 description 'Library for GPS (NEO-7M) device.
 
 Decimal measurements use fixed-point integers and can be displayed aas text with "decimals":
