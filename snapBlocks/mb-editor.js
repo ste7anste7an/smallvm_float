@@ -60,10 +60,13 @@ class MB_Editor {
 	}
 
 	fixLayout() {
-		// Two panes, filling the world canvas.
+		// Two panes, filling the world canvas above the tip bar, if there is one.
+		// open lays out before MB_Tips.open builds the bar, so this uses its fixed height.
 
+		let height = world.height();
+		if (typeof MB_Tips !== 'undefined') height -= MB_Tips.height;
 		this.palette.setPosition(world.position());
-		this.palette.setExtent(new Point(this.paletteWidth, world.height()));
+		this.palette.setExtent(new Point(this.paletteWidth, height));
 		this.scriptsFrame.setPosition(
 			world.position().add(new Point(this.paletteWidth, 0)));
 		this.scriptsFrame.setExtent(
