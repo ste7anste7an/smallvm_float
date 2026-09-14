@@ -664,6 +664,10 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 				if (unusedFuncs.includes(key)) {
 					this.chunkIDs.delete(key); // unused function; does not need to be saved to board
 				}
+				if (this.chunkIDs.has(key)) { // function is still in use, so verify it like any other chunk
+					ideChunks.set(id, key);
+					crcForChunkID.set(id, entry[1]);
+				}
 			} else {
 				ideChunks.set(id, key);
 				crcForChunkID.set(id, entry[1]);
