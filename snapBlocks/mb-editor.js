@@ -428,18 +428,20 @@ console.log('unknown');
 	}
 
 	addLoggedData(value) {
-		// Used for debugging.
-		console.log(value);
+		// One sample from the `graph` block, passed on as read: several series
+		// arrive as one string with spaces in it and the graph splits it.
+		fireIDEEvent('graph.data', value);
 	}
 
 	clearLoggedData() {
-		// Used for debugging. A stub at the same level as addLoggedData above:
-		// GP's clearLoggedData resets a ring buffer this port does not keep yet.
-		console.log('clear graph');
+		// From the `clear graph` block, which sends clearGraphMsg unprompted.
+		fireIDEEvent('graph.clear');
 	}
 
 	showDownloadProgress(phase, percent) {
-		// XXX TO DO
+		// phase is 1, 2 or 3 and percent is a fraction, which is the shape the
+		// progress ring reads. Callers already pass both that way.
+		fireIDEEvent('ide.downloadProgress', [phase, percent]);
 	}
 
 	clearRunningHighlights() {
@@ -449,6 +451,16 @@ console.log('unknown');
 		for (const block of this.runningChunks.keys()) block.removeHighlight();
 		this.runningChunks = new Map();
 	}
+}
+
+// Announce something to whatever chrome is listening. Sent on the document
+// rather than through IDE.fireEvent, which is the same dispatch, so that the
+// port does not require the chrome to be loaded.
+function fireIDEEvent(name, value) {
+	// Both guards: the port is also loaded with no DOM, and into contexts that
+	// supply a partial one where document exists and CustomEvent does not.
+	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }
+	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
 }
 
 // Global singleton instance
