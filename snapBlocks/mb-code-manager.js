@@ -75,7 +75,11 @@ class MB_CodeManager {
 			MB_connection.sendMsg('systemResetMsg');
 		}
 		MB_editor.clearRunningHighlights();
-		await this.syncScripts();
+		// Check the board's CRCs as well, with code file updates held off during the sync.
+		await MB_connection.suspendCodeFileUpdates();
+		await this.syncScripts(true);
+		MB_connection.resumeCodeFileUpdates();
+		MB_editor.showDownloadProgress(3, 1);
 	}
 
 	// --- compiling ---
@@ -223,7 +227,7 @@ class MB_CodeManager {
 
 	// --- chunk management ---
 
-	async syncScripts() {
+	async syncScripts(checkCRCs) {
 		// Called by editor when anything changes.
 		if (!MB_connection.isConnected()) {
 			console.log('Board not connected!');
@@ -242,7 +246,7 @@ class MB_CodeManager {
 			}
 		}
 
-		await this.saveAllChunks(false);
+		await this.saveAllChunks(checkCRCs === true);
 	}
 
 	async saveAllChunksAfterLoad() {
