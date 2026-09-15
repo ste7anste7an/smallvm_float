@@ -6,7 +6,7 @@
 
 // mb-specs.js - MicroBlocks block spec operations and specs for built-in blocks.
 
-/* global CommandBlockMorph, ReporterBlockMorph, HatBlockMorph */
+/* global CommandBlockMorph, ReporterBlockMorph, HatBlockMorph, MB_editor */
 
 MB_Specs = {
 	selectorToSpec: {}, // cached Map for looking up specs by selector
@@ -39,9 +39,54 @@ MB_Specs.initialize = function () {
 	}
 }
 
-MB_Specs.specArrayForSelector = function (selector) {
+MB_Specs.specArrayForSelector = function (selector, isReporter, argCount) {
+	// Return a spec array for the given selector, or undefined. A spec defined
+	// by the project is the first candidate and the built-in table's the second.
+	// Pass the type and argument count of the call being built to choose
+	// between them.
+
 	this.initialize();
-	return this.selectorToSpec.get(selector);
+	let projectSpec = this.projectSpecArrayForSelector(selector);
+	let tableSpec = this.selectorToSpec.get(selector);
+	let spec = projectSpec || tableSpec;
+	if (undefined === isReporter) return spec; // nothing to match, so no filtering
+
+	if (projectSpec && tableSpec) {
+		// Two candidates: narrow by block type, then by slot count, keeping the
+		// first survivor of each.
+		let candidates = [projectSpec, tableSpec];
+		let byType = candidates.filter(each => (isReporter == ('r' == each[0])));
+		if (0 == byType.length) byType = candidates; // revert if no matches
+		let byArgs = byType.filter(each => (argCount == this.slotCountForSpecArray(each)));
+		spec = (byArgs.length > 0) ? byArgs[0] : byType[0];
+	}
+	// A spec that cannot hold every argument is not used at all; the block is
+	// built from the call instead.
+	if (spec && (argCount > this.slotCountForSpecArray(spec))) return undefined;
+	return spec;
+}
+
+MB_Specs.slotCountForSpecArray = function (specArray) {
+	// Return the number of input slots the given spec array declares: optional
+	// sections included, and unlimited when the last one repeats.
+
+	let parts = specArray[2].split(/\s+/);
+	if ('...' == parts[parts.length - 1]) return Infinity;
+	let slots = parts.filter(each => ('_' == each)).length;
+	let types = (specArray.length > 3) ? specArray[3].split(/\s+/).length : 0;
+	return Math.max(slots, types, specArray.length - 4); // slots, types, defaults
+}
+
+MB_Specs.projectSpecArrayForSelector = function (selector) {
+	// Return a spec array for the current project's own 'spec' line for the
+	// given selector, or undefined.
+
+	if ((typeof MB_editor === 'undefined') || !MB_editor.project) return undefined;
+	let spec = MB_editor.project.blockSpecs.get(selector);
+	if (!spec) return undefined;
+	let result = [spec.blockType || ' ', selector, spec.specString || selector];
+	if (spec.slotTypes) result.push(spec.slotTypes, ...(spec.defaults || []));
+	return result;
 }
 
 MB_Specs.categoryForSelector = function (selector) {
@@ -50,19 +95,18 @@ MB_Specs.categoryForSelector = function (selector) {
 	return (result === undefined) ? 'other' : result;
 }
 
-MB_Specs.blockTypeForSelector = function (selector) {
-	this.initialize();
-	let spec = this.selectorToSpec.get(selector);
+MB_Specs.blockTypeForSelector = function (selector, isReporter, argCount) {
+	let spec = this.specArrayForSelector(selector, isReporter, argCount);
 	return spec ? spec[0] : ' ';
 }
 
-MB_Specs.specFor = function (selector, args) {
+MB_Specs.specFor = function (selector, args, isReporter) {
 	// Return a block spec for the command or reporter the given selector and arguments.
 	// Use the MicroBlocks spec for the given selector, if possible.
 	// Otherwise, generate a spec based on the argument types.
 
 	let spec = '';
-	let specArray = this.specArrayForSelector(selector);
+	let specArray = this.specArrayForSelector(selector, isReporter, args.length);
 	if (specArray) { // selector is known; use existing spec
 		if (specArray.length > 2) {
 			let specParts = specArray[2].split(/\s+/);
@@ -176,10 +220,10 @@ MB_Specs.blockForSpec = function (spec, category) {
 	return undefined; // error; spec should be an array
 }
 
-MB_Specs.snapSpecForSelector = function (selector) {
+MB_Specs.snapSpecForSelector = function (selector, isReporter, argCount) {
 	// Return a Snap! block spec string for given selector or null if not found.
 
-	let specArray = this.specArrayForSelector(selector);
+	let specArray = this.specArrayForSelector(selector, isReporter, argCount);
 	if (!specArray) return null; // not found
 
 	let mbSpec = specArray[2];
