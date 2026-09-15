@@ -388,7 +388,8 @@ https://tls-v1-2.badssl.com:1012 (specific port)'
 
 module TFT Output
 author MicroBlocks
-version 1 19 
+version 1 20 
+choices tft_orientation '0' '90' '180' '270' 
 description 'Draw graphics and write text on boards with a TFT display, such as the M5Stack, M5Stick, Citilab ED1 or (discontinued) IoT-Bus.'
 
   spec ' ' '[tft:clear]' 'clear TFT display'
@@ -425,6 +426,7 @@ Line 2' 50 20 nil 2
   space
   spec ' ' '[tft:setBacklight]' 'set TFT backlight _ (0-10)' 'num' 10
   spec ' ' '[tft:invertDisplay]' 'invert TFT display _' 'bool' false
+  spec ' ' 'tft_rotate' 'set TFT display rotation to _ °' 'menu.tft_orientation' 90
   advanced
   spec ' ' 'tft_deferOLEDDisplayUpdates' 'defer OLED display updates'
   spec ' ' 'tft_resumeOLEDDisplayUpdates' 'resume OLED display updates'
@@ -518,6 +520,10 @@ to tft_resumeOLEDDisplayUpdates {
   '[tft:resumeUpdates]'
 }
 
+to tft_rotate degrees {
+  '[tft:rotateDisplay]' (degrees / 90)
+}
+
 
 module WiFi Comm
 author MicroBlocks
@@ -594,4 +600,3 @@ to wifiCreateHotspot ssid password {
   '[net:setDomainName]' 'microblocks'
   sayIt 'My IP address is:' ('[net:myIPAddress]')
 }
-
