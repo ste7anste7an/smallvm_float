@@ -306,6 +306,8 @@ class MB_Connection {
 		this.vmVersion = null;
 		await this.sendMsgSync('getVersionMsg');
 		this.sendMsg('stopAllMsg');
+		MB_editor.clearRunningHighlights();
+		this.setSerialDelay('reset to default');
 		this.processMessages(); // process incoming version message
 		await this.waitForVersion();
 		await MB_editor.justConnected();

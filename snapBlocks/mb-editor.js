@@ -491,6 +491,7 @@ console.log('unknown');
 				}
 				MB_editor.showDownloadProgress(2, 0);
 				await this.codeManager.stopAndSyncScripts(true);
+				MB_connection.sendMsg('systemResetMsg'); // start the board clean with the code it now holds
 			}
 		} catch (e) {
 			this.reportError(e);
