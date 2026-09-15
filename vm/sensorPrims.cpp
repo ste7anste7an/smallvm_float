@@ -2943,18 +2943,29 @@ static OBJ primMicrophone(int argCount, OBJ *args) {
 
 #if defined (COCUBE)
 	#include <CoCubeSensor.h>
+	#include "soc/rtc_cntl_reg.h" // for brownout control
 	CoCubeSensor cocube;
 
-	void cocubeSensorInit() {
+	// CoCube board hooks (see boardHooks.h)
+
+	void boardEarlyInit() { }
+
+	void boardInit() {
+		WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
 		cocube.Init();
 	}
 
-	void cocubeSensorUpdate() {
+	void boardAddPrims() { }
+
+	void boardPoll() {
 		cocube.Update();
 		#if !defined(COCUBE_SOCCER)
 			cocube.EncoderUpdate();
 		#endif
 	}
+
+	void boardStopAll() { }
+	void boardIDEConnectionChanged(int isConnected) { }
 
 	static OBJ primPositionX(int argCount, OBJ *args) {
 		int result = cocube.GetX();

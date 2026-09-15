@@ -403,11 +403,6 @@ void tftClear();
 void tftSetHugePixel(int x, int y, int state);
 void tftSetHugePixelBits(int bits);
 
-// CoCube Sensor Support
-
-void cocubeSensorInit();
-void cocubeSensorUpdate();
-
 // Databat V3 Support
 
 void databotV3Init();
@@ -503,3 +498,5 @@ void primsInit();
 #ifdef __cplusplus
 }
 #endif
+
+#include "boardHooks.h"

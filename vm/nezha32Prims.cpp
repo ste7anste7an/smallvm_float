@@ -15,7 +15,7 @@
 #include "mem.h"
 #include "interp.h"
 
-#if defined(BOARD_NEZHA_FOR_ESP32)
+#if defined(NEZHA_ESP32)
 
 static OBJ primNezhaButtonA(int argCount, OBJ *args) {
 	// Elecfreaks TODO: insert implementation or call Elecfreaks library here
@@ -30,7 +30,7 @@ static OBJ primNezhaButtonA(int argCount, OBJ *args) {
 // Elecfreaks Primitives
 
 static PrimEntry elfreaksPrimEntries[] = {
-	#if defined(BOARD_NEZHA_FOR_ESP32)
+	#if defined(NEZHA_ESP32)
 		{"buttonA", primNezhaButtonA},
 		// Elecfreaks TODO: Add entries for other Elecfreaks primitives here...
 	#endif
@@ -44,7 +44,7 @@ void addElecfreaksPrims() {
 // Elecfreaks Sensor Primitives
 
 static PrimEntry elfreaksSensorPrimEntries[] = {
-	#if defined(BOARD_NEZHA_FOR_ESP32)
+	#if defined(NEZHA_ESP32)
 		// Elecfreaks TODO: Add entries for Elecfreaks Sensor primitives here...
 	#endif
 };
@@ -53,3 +53,41 @@ void addElecfreaksSensorPrims() {
 	addPrimitiveSet(EFDevSensorPrims, "elfreaks_dev_sensor",
 		sizeof(elfreaksSensorPrimEntries) / sizeof(PrimEntry), elfreaksSensorPrimEntries);
 }
+
+#if defined(NEZHA_ESP32)
+
+// Nezha ESP32 board hooks (see boardHooks.h)
+// The VM calls these at fixed points, so the Elecfreaks library does not need to include
+// vm.ino, patch the VM sources, or call VM functions from its own tasks.
+
+void boardEarlyInit() {
+	// Elecfreaks TODO: work that must happen before the VM starts, such as waiting for
+	// power-on. (Currently BoardInit(), called from Arduino's initVariant().)
+}
+
+void boardInit() {
+	// Elecfreaks TODO: start the board services once pins and the display are set up.
+}
+
+void boardAddPrims() {
+	// Elecfreaks TODO: add or fill in the EFPrims and EFDevSensorPrims sets here if the
+	// library provides its own tables. (Currently registerPrims(), called after setup().)
+}
+
+void boardPoll() {
+	// Elecfreaks TODO: periodic work that must run on the VM thread.
+	// (Currently userProgramsPoll().)
+}
+
+void boardStopAll() {
+	// Elecfreaks TODO: stop the motors and other outputs the library owns.
+	// To stop everything from another task, such as on power-off, call vmRequestStopAll().
+	// (Currently StopPowerOutputs() calls stopPWM(), stopServos() and stopTone() directly.)
+}
+
+void boardIDEConnectionChanged(int isConnected) {
+	// Elecfreaks TODO: update the UI when the IDE connects or disconnects.
+	// (Currently a patch to processMessage() in runtime.c calls notifyIDEActivity().)
+}
+
+#endif

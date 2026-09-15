@@ -192,11 +192,6 @@ void hardwareInit() {
 	#if defined(HAS_LED_MATRIX) && !defined(GNUBLOCKS)
 		mbDisplayColor = (150 << 16); // red (not full brightness)
 	#endif
-	#if defined(COCUBE)
-		#include "soc/rtc_cntl_reg.h" // for brownout control
-		WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
-		cocubeSensorInit();
-	#endif
 	#if defined(DUELink)
 		// Ping the DUELink address so any connected DUELink modules will use I2C mode.
 		// This must be the first I2C transaction after power up.
@@ -207,6 +202,7 @@ void hardwareInit() {
 		isSpringbotGold = (readI2CReg(87, 0) >= 0);
 		useTFT = isSpringbotGold;
 	#endif
+	boardInit();
 }
 
 // General Purpose I/O Pins
