@@ -133,6 +133,12 @@ function blockForBody(bodyArg, singleIsReporter = false) {
 	return MB_Parser.blockFor(bodyArg, singleIsReporter);
 }
 
+function recompileNeeded() {
+	// Called when compiled code can change without its source changing: a call
+	// compiles to its function's chunk id, and a variable to its global index.
+	if (typeof MB_editor !== 'undefined' && MB_editor.codeManager) MB_editor.codeManager.recompileNeeded();
+}
+
 // --- MB_Project class ---
 
 class MB_Project {
@@ -312,7 +318,7 @@ class MB_Project {
 			// Recompile all scripts, to re-assign all global variable indices.
 			this.varIndices = new Map();
 			this.nextVarIndex = 0;
-			// XXX TODO: set the compiler "recompileNeeded" flag
+			recompileNeeded();
 		}
 		let varIndex = this.nextVarIndex++;
 		this.varIndices.set(varName, varIndex);
@@ -758,15 +764,19 @@ class MB_Module {
 		if (this.functions.includes(f)) return;
 		this.functions = this.functions.filter(existing => existing.functionName !== f.functionName);
 		this.functions.push(f);
+		recompileNeeded();
 	}
 
 	removeFunction(f) {
 		this.functions = this.functions.filter(existing => existing !== f);
+		recompileNeeded();
 	}
 
 	removeSupercededFunctions(superceded) {
 		// superceded is a Set of function names.
+		const count = this.functions.length;
 		this.functions = this.functions.filter(f => !superceded.has(f.functionName));
+		if (this.functions.length !== count) recompileNeeded();
 		this.blockList = this.blockList.filter(op => !superceded.has(op));
 	}
 
@@ -1098,6 +1108,7 @@ class MB_Module {
 			let f = new MB_Function(funcName, argNames, cmdListMorph);
 			this.functions = this.appendFunction(this.functions, f);
 		}
+		recompileNeeded();
 	}
 
 	loadScripts(cmdList) {

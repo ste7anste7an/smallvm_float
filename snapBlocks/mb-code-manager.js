@@ -12,7 +12,7 @@ class MB_CodeManager {
 		this.chunkIDs = new Map(); // key (Block or String) -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		this.functionChunkIDs = new Map(); // function name -> chunkID
 		this.sourceMaps = new Map(); // chunk key -> { src, map: [[wordStart, wordCount, nodeID or null], ...] }
-		this.recompileAll = false;
+		this.recompileAll = true; // recompile and hold off code file updates on the first sync, as loading a project does
 		this.codeStoreFull = false;
 		this.compiler = null;
 		this.oldVarNames = null;
@@ -405,12 +405,9 @@ class MB_CodeManager {
 
 	async saveAllChunks(checkCRCs, paletteBlock) {
 		// Save the code for all scripts and user-defined functions.
-console.log('saveAllChunks A'); // xxx
 		if (checkCRCs == null) checkCRCs = true;
 		if (!MB_connection.connectedToBoard()) return;
 		if (MB_connection.vmTooOld()) return;
-console.log('saveAllChunks B'); // xxx
-this.recompileAll = true;
 
 		const t = Date.now();
 		const totalScripts = this.project.allFunctions().length + this.project.allScripts().length;
