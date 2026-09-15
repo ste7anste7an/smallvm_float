@@ -206,8 +206,9 @@ static int serialWriteBytes(uint8 *buf, uint32 byteCount) {
 #else // use Serial1 or Serial2
 
 // Use Serial2 on original ESP32 and Pico:ed boards, Serial1 on others
-#if defined(ESP32_ORIGINAL) || defined(ESP32_S3) || defined(PICO_ED) || \
-	defined(COCUBE) || defined(DUELink) || defined(ARDUINO_WEACT)
+// Nezha ESP32 uses Serial1 because its motor library owns UART 2 (TX 14, RX 21).
+#if (defined(ESP32_ORIGINAL) || defined(ESP32_S3) || defined(PICO_ED) || \
+	defined(COCUBE) || defined(DUELink) || defined(ARDUINO_WEACT)) && !defined(NEZHA_ESP32)
 	#define SERIAL_PORT Serial2
 #else
 	#define SERIAL_PORT Serial1
