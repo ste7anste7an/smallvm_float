@@ -150,7 +150,7 @@ to setAccelRange n {
 
 module 'LED Display' Output
 author MicroBlocks
-version 1 15 
+version 1 20 
 choices led_imageMenu heart 'small heart' yes no happy sad confused angry asleep surprised silly fabulous meh 't-shirt' 'roller skate' duck house tortoise butterfly 'stick figure' ghost sword giraffe skull umbrella snake rabbit cow 'quarter note' 'eight note' pitchfork target triangle 'left triangle' 'chess board' diamond 'small diamond' square 'small square' scissors 
 description 'Display primitives for the 5x5 LED display on the BBC micro:bit, Calliope mini and M5Atom Matrix. Boards with TFT displays (such as the Citilab ED1 or the M5Stack family) support these primitives with a simulated "fat pixel" display.
 '
@@ -169,6 +169,7 @@ variables _stop_scrolling_text
   advanced
   spec ' ' 'set display color' 'set display color _' 'color'
   spec 'r' 'led_image' 'LED image #BR# _' 'microbitDisplay' 15237440
+  spec ' ' 'display2x5Number' 'display number (0-99)  _' 'num' 10
   space
   spec 'r' '_led_namedImage' '_led_namedImage _' 'menu.led_imageMenu' 'happy'
   spec 'r' '_led_imageData' '_led_imageData'
@@ -187,6 +188,16 @@ to '_led_namedImage' name {
   local 'start' (('[data:find]' ':' data i) + 1)
   local 'end' (('[data:find]' ',' data i) - 1)
   return ('[data:convertType]' ('[data:copyFromTo]' data start end) 'number')
+}
+
+to display2x5Number number {
+  local 'font' ('[data:makeList]' 3247203 2164802 3181635 3214403 2165793 3214371 3247139 2164803 3244131 3214435)
+  local 'temp' ('[data:convertType]' number 'string')
+  if ((size temp) == 1) {
+    temp = ('[data:join]' '0' temp)
+  }
+  led_displayImage (at ((at 1 temp) + 1) font)
+  led_displayImage (at ((at 2 temp) + 1) font) 4 1
 }
 
 to displayCharacter s {
@@ -254,4 +265,3 @@ to stopScrollingText {
   waitMillis 10
   '[display:mbDisplayOff]'
 }
-
