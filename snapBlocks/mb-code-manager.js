@@ -53,6 +53,7 @@ class MB_CodeManager {
 	}
 
 	async syncAndStartAll() {
+		if (MB_connection.vmTooOld()) return;
 		// Refuse before sending anything, as GP's startAll does (MicroBlocksRuntime.gp).
 		if (!MB_connection.isConnected()) {
 			alert(localized('Board not connected'));
@@ -403,6 +404,7 @@ class MB_CodeManager {
 console.log('saveAllChunks A'); // xxx
 		if (checkCRCs == null) checkCRCs = true;
 		if (!MB_connection.connectedToBoard()) return;
+		if (MB_connection.vmTooOld()) return;
 console.log('saveAllChunks B'); // xxx
 this.recompileAll = true;
 
@@ -854,6 +856,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 	}
 
 	runChunk(chunkID) {
+		if (MB_connection.vmTooOld()) return;
 		MB_connection.sendMsg('startChunkMsg', chunkID);
 	}
 

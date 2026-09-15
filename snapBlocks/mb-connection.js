@@ -82,6 +82,7 @@ class MB_Connection {
 	async clearBoardIfConnected() {
 		this.sendMsg('stopAllMsg'); // stop running scripts first, as GP's sendStopAll does
 		this.sendMsg('systemResetMsg'); // send the reset message
+		if (this.vmTooOld()) return; // nothing could be downloaded to replace what an erase removes
 		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
 		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
 		// Awaited, because the caller downloads the project next and an erase
@@ -824,6 +825,9 @@ class MB_Connection {
 		// (MicroBlocksRuntime.gp:1166), so the window in which a live board can still
 		// read 'Connect' is one board round trip rather than a 500 ms poll.
 		this.pushToIDE('board.type', this.boardType);
+		if (justConnected && this.vmTooOld()) {
+			MB_editor.inform(localized('The firmware on the board is not compatible with this version of MicroBlocks.'));
+		}
 	}
 
 	extractVersionNumber(versionString) {
@@ -846,6 +850,12 @@ class MB_Connection {
 		const words = versionString.substring(1).trim().split(/\s+/);
 		if (words.length === 0 || words[0] === '') return 'Unknown';
 		return words.slice(1).join(' ');
+	}
+
+	vmTooOld() {
+		// Firmware before v300 cannot run the code this IDE sends.
+		// A version not reported yet (null) or not readable (0 or -1) does not count as old.
+		return (this.vmVersion > 0) && (this.vmVersion < 300);
 	}
 
 	// --- CRC Reception ---

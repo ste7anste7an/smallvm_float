@@ -316,6 +316,7 @@ class MB_Editor {
 
 	async compileAndRun(aBlock, chunkID) {
 		// Compile and run the given block.
+		if (MB_connection.vmTooOld()) return;
 
 		let code = new MB_Compiler(this.project, this.codeManager).compiledBytesFor(aBlock);
 		while ((code.length % 4) !== 0) {
