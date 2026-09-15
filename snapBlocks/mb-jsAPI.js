@@ -15,7 +15,7 @@
 //
 // NOTE: Either this file or mb-gpAPI.js should be loaded, not both.
 
-GP = {}
+GP = { apiResponses: {} } // windows.js stores a dialog's answer in apiResponses
 GP.apiCall = function (endPoint, params, callback) {
 	// example, get a random number from 10 to 20:
 	// GP.apiCall('random', [10, 20], function (value) { console.log(value) });

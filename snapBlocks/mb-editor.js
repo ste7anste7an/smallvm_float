@@ -533,8 +533,10 @@ console.log('unknown');
 	// Placeholder functions for UI actopms
 
 	inform(msg) {
-		// XXX TO DO
+		// Shown by the chrome's window.inform dialog, which answers into GP.apiResponses[id].
 		console.log(msg);
+		this.informCount = (this.informCount || 0) + 1;
+		fireIDEEvent('window.inform', { title: null, text: String(msg), id: 'inform' + this.informCount });
 	}
 
 	showResult(chunkID, value, isError) {
