@@ -23,8 +23,9 @@
 //
 //  1. Primitives go in the two Elecfreaks sets, EFPrims ("elfreaks") and EFDevSensorPrims
 //     ("elfreaks_dev_sensor"). Either write them below, calling the library as buttonA shows,
-//     or register the library's own tables from boardAddPrims(). Use one approach, not both,
-//     and do not register over the MicroBlocks core sets such as tft.
+//     or register the library's own tables from boardAddPrims(). Use one approach, not both.
+//     For now Nezha also replaces the tft set with the library's LVGL primitives, so the
+//     library needs to add any new TFT primitives MicroBlocks adds.
 //  2. Startup, periodic work, stop and IDE connection go in the board hooks at the end of
 //     this file. Each has an example of the library call it replaces.
 //  3. Code on the library's own tasks talks to the VM only through the functions in the
@@ -95,8 +96,7 @@ void boardInit() {
 void boardAddPrims() {
 	// Elecfreaks TODO: register the library's primitive tables, if you use that approach.
 	// Example: Blocks::Instance().registerPrims();
-	// Register only the EFPrims and EFDevSensorPrims sets here. In 1.0.7, registerPrims() also
-	// registers a tft set, which would replace the MicroBlocks TFT primitives.
+	// This registers the EFPrims and EFDevSensorPrims sets, and for now the tft set too.
 }
 
 void boardPoll() {
