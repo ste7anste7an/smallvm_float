@@ -403,10 +403,15 @@ void tftClear();
 void tftSetHugePixel(int x, int y, int state);
 void tftSetHugePixelBits(int bits);
 
-// CoCube Sensor Support
+// CoCube Position Primitives (cocubePrims.cpp)
 
-void cocubeSensorInit();
-void cocubeSensorUpdate();
+OBJ primCoCubePositionX(int argCount, OBJ *args);
+OBJ primCoCubePositionY(int argCount, OBJ *args);
+OBJ primCoCubePositionYaw(int argCount, OBJ *args);
+OBJ primCoCubeIndex(int argCount, OBJ *args);
+OBJ primCoCubeStatus(int argCount, OBJ *args);
+OBJ primCoCubeSpeedLeft(int argCount, OBJ *args);
+OBJ primCoCubeSpeedRight(int argCount, OBJ *args);
 
 // Databat V3 Support
 
@@ -503,3 +508,5 @@ void primsInit();
 #ifdef __cplusplus
 }
 #endif
+
+#include "boardHooks.h"

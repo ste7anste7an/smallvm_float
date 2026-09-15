@@ -283,11 +283,7 @@ void BLE_start() {
 	if (bleRunning) return; // BLE already running
 
 	// Initialize three letter ID and name
-	#if defined(COCUBE)
-		initBLEDeviceName("CoCube");
-	#else
-		initBLEDeviceName("MicroBlocks");
-	#endif
+	initBLEDeviceName(BOARD_BLE_NAME);
 
 	// Create BLE Device
 	NimBLEDevice::init(bleDeviceName);

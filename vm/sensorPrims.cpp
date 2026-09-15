@@ -2939,67 +2939,6 @@ static OBJ primMicrophone(int argCount, OBJ *args) {
 	return int2obj(result);
 }
 
-// CoCube Position Sensor
-
-#if defined (COCUBE)
-	#include <CoCubeSensor.h>
-	CoCubeSensor cocube;
-
-	void cocubeSensorInit() {
-		cocube.Init();
-	}
-
-	void cocubeSensorUpdate() {
-		cocube.Update();
-		#if !defined(COCUBE_SOCCER)
-			cocube.EncoderUpdate();
-		#endif
-	}
-
-	static OBJ primPositionX(int argCount, OBJ *args) {
-		int result = cocube.GetX();
-		return int2obj(result);
-	}
-
-	static OBJ primPositionY(int argCount, OBJ *args) {
-			int result = cocube.GetY();
-			return int2obj(result);
-		}
-
-	static OBJ primPositionYaw(int argCount, OBJ *args) {
-			int result = cocube.GetAngle();
-			return int2obj(result);
-	}
-
-	static OBJ primIndex(int argCount, OBJ *args) {
-			int result = cocube.GetIndex();
-			return int2obj(result);
-	}
-
-	static OBJ primCubeStatus(int argCount, OBJ *args) {
-		if (cocube.GetState())
-			return trueObj;
-		else
-			return falseObj;
-	}
-
-	static OBJ primPositionSpeedLeft(int argCount, OBJ *args) {
-		#if defined(COCUBE_SOCCER)
-			return zeroObj;
-		#else
-			return int2obj((int) cocube.GetSpeedLeft());
-		#endif
-	}
-
-	static OBJ primPositionSpeedRight(int argCount, OBJ *args) {
-		#if defined(COCUBE_SOCCER)
-			return zeroObj;
-		#else
-			return int2obj((int) cocube.GetSpeedRight());
-		#endif
-	}
-#endif
-
 // Signal Capture
 
 #define MAX_PULSE_TIMES 128
@@ -3087,14 +3026,14 @@ static PrimEntry entries[] = {
 	{"captureCount", primCaptureCount},
 	{"captureEnd", primCaptureEnd},
 
-	#if defined(COCUBE)
-	{"position_x", primPositionX},
-	{"position_y", primPositionY},
-	{"position_yaw", primPositionYaw},
-	{"cube_index", primIndex},
-	{"cube_status", primCubeStatus},
-	{"speed_left", primPositionSpeedLeft},
-	{"speed_right", primPositionSpeedRight},
+	#if defined(COCUBE) // implemented in cocubePrims.cpp
+	{"position_x", primCoCubePositionX},
+	{"position_y", primCoCubePositionY},
+	{"position_yaw", primCoCubePositionYaw},
+	{"cube_index", primCoCubeIndex},
+	{"cube_status", primCoCubeStatus},
+	{"speed_left", primCoCubeSpeedLeft},
+	{"speed_right", primCoCubeSpeedRight},
 	#endif
 
 	#if defined(DATABOT_V3)

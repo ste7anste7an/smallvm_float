@@ -1379,6 +1379,17 @@ static inline int napIfPossible() {
 
 #endif
 
+static void checkIDEConnectionChange() {
+	// Tell the board when the IDE connects or disconnects.
+
+	static int wasConnected = false;
+	int isConnected = ideConnected();
+	if (isConnected != wasConnected) {
+		wasConnected = isConnected;
+		boardIDEConnectionChanged(isConnected);
+	}
+}
+
 void vmLoop() {
 	// Run the next runnable task. Wake up any waiting tasks whose wakeup time has arrived.
 
@@ -1393,8 +1404,10 @@ void vmLoop() {
 				updateMicrobitDisplay();
 			#endif
 			handleMicosecondClockWrap();
-			#if defined(COCUBE)
-				cocubeSensorUpdate();
+			processVMRequests();
+			checkIDEConnectionChange();
+			boardPoll();
+			#if defined(STARTUP_GESTURE_ALWAYS)
 				processStartupGesture();
 			#else
 				if (totalMicrosecs() < (15 * 1000000)) { // first N seconds after startup

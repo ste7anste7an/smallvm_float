@@ -209,6 +209,7 @@ void primsInit() {
 	addElecfreaksPrims();
 	addElecfreaksSensorPrims();
 #endif
+	boardAddPrims();
 }
 
 // Task Ops
@@ -523,6 +524,13 @@ static void processExtendedMessage(uint8 msgID, int byteCount, uint8 *data) {
 
 // Soft Reset
 
+void stopAllAndSoftReset() {
+	// Stop all tasks and reset outputs, as the IDE stop button does.
+
+	stopAllTasks();
+	softReset(false);
+}
+
 static void softReset(int clearMemoryFlag) {
 	// Reset the hardware and, optionally, clear memory.
 	// Do not reload scripts from persistent memory.
@@ -545,6 +553,7 @@ static void softReset(int clearMemoryFlag) {
 	stopPWM();
 	stopServos();
 	stopTone();
+	boardStopAll();
 	#if !(defined(DATABOT) || defined(DATABOT_V3))
 		turnOffInternalNeoPixels();
 	#endif
@@ -1216,8 +1225,7 @@ static void processShortMessage() {
 		startAll();
 		break;
 	case stopAllMsg:
-		stopAllTasks();
-		softReset(false);
+		stopAllAndSoftReset();
 		outputString("All tasks stopped");
 		break;
 	case getVarMsg:
