@@ -763,6 +763,27 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		return (matchCount > 3 && matchCount > changedOrMissingCount);
 	}
 
+	async deleteChunksOnlyOnBoard() {
+		// Delete the chunks in the board's CRC list that no script or used function in this
+		// IDE owns, so an incremental download leaves the board as a full download would.
+		if (MB_connection.vmVersion == null) return;
+		const unusedFuncs = this.project.unusedFunctions(); // never saved, as in verifyCRCs
+		const knownIDs = new Set();
+		const unusedKeys = new Map(); // chunkID -> unused function name
+		for (const [key, entry] of this.chunkIDs.entries()) {
+			if (unusedFuncs.includes(key)) unusedKeys.set(entry[0], key);
+			else knownIDs.add(entry[0]);
+		}
+		for (const chunkID of Array.from(this.crcDict.keys())) {
+			if (!knownIDs.has(chunkID)) {
+				console.log('Deleting chunk not in project:', chunkID);
+				if (!(await MB_connection.sendMsgSync('deleteChunkMsg', chunkID))) return;
+				// forget it too, so a later call to the function sends it again
+				if (unusedKeys.has(chunkID)) this.chunkIDs.delete(unusedKeys.get(chunkID));
+			}
+		}
+	}
+
 	async collectCRCsIndividually() {
 		// Collect the CRC's from all chunks on the board by requesting them individually
 		this.crcDict = new Map();

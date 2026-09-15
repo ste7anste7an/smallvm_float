@@ -488,6 +488,7 @@ console.log('unknown');
 					this.runningChunks = new Map();
 				} else {
 					console.log('Incremental download', MB_connection.vmVersion, MB_connection.boardType);
+					await this.codeManager.deleteChunksOnlyOnBoard(); // uses the CRCs boardHasSameProject just read
 				}
 				MB_editor.showDownloadProgress(2, 0);
 				await this.codeManager.stopAndSyncScripts(true);
