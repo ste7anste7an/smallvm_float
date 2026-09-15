@@ -15,6 +15,26 @@
 #include "mem.h"
 #include "interp.h"
 
+// How the Elecfreaks library connects to MicroBlocks
+//
+// This file is the only place MicroBlocks calls the Elecfreaks library (the same pattern as
+// cocubePrims.cpp). The library should not include vm.ino, patch files in vm/, or call VM
+// functions from its own FreeRTOS tasks. Instead:
+//
+//  1. Primitives go in the two Elecfreaks sets, EFPrims ("elfreaks") and EFDevSensorPrims
+//     ("elfreaks_dev_sensor"). Either write them below, calling the library as buttonA shows,
+//     or register the library's own tables from boardAddPrims(). Use one approach, not both,
+//     and do not register over the MicroBlocks core sets such as tft.
+//  2. Startup, periodic work, stop and IDE connection go in the board hooks at the end of
+//     this file. Each has an example of the library call it replaces.
+//  3. Code on the library's own tasks talks to the VM only through the functions in the
+//     "VM thread requests" section of boardHooks.h: vmRequestStopAll() to stop everything,
+//     vmCallOnVMThread() to run anything else on the VM thread, and vmIDEConnected() to read
+//     the connection state.
+//
+// With that in place the library no longer needs its vm.cpp or the change to processMessage()
+// in runtime.c.
+
 #if defined(NEZHA_ESP32)
 
 static OBJ primNezhaButtonA(int argCount, OBJ *args) {
@@ -57,37 +77,48 @@ void addElecfreaksSensorPrims() {
 #if defined(NEZHA_ESP32)
 
 // Nezha ESP32 board hooks (see boardHooks.h)
-// The VM calls these at fixed points, so the Elecfreaks library does not need to include
-// vm.ino, patch the VM sources, or call VM functions from its own tasks.
+// All hooks run on the VM thread. The examples are the calls the library makes today from its
+// vm.cpp, runtime.c change and power-off code (nezha_for_esp32_microblocks 1.0.7).
 
 void boardEarlyInit() {
-	// Elecfreaks TODO: work that must happen before the VM starts, such as waiting for
-	// power-on. (Currently BoardInit(), called from Arduino's initVariant().)
+	// Elecfreaks TODO: board setup that must happen before the VM starts.
+	// Example: BoardInit();
+	// BoardInit() currently runs from Arduino's initVariant(), just before setup().
+	// This hook runs at the start of setup(). Please tell us if that is too late.
 }
 
 void boardInit() {
-	// Elecfreaks TODO: start the board services once pins and the display are set up.
+	// Elecfreaks TODO: setup that needs the MicroBlocks pins and display initialized first.
+	// Nothing is needed here if all of the setup is in boardEarlyInit().
 }
 
 void boardAddPrims() {
-	// Elecfreaks TODO: add or fill in the EFPrims and EFDevSensorPrims sets here if the
-	// library provides its own tables. (Currently registerPrims(), called after setup().)
+	// Elecfreaks TODO: register the library's primitive tables, if you use that approach.
+	// Example: Blocks::Instance().registerPrims();
+	// Register only the EFPrims and EFDevSensorPrims sets here. In 1.0.7, registerPrims() also
+	// registers a tft set, which would replace the MicroBlocks TFT primitives.
 }
 
 void boardPoll() {
 	// Elecfreaks TODO: periodic work that must run on the VM thread.
-	// (Currently userProgramsPoll().)
+	// Example: userProgramsPoll();
+	// Code here may call VM functions directly, including stopAllAndSoftReset() to stop the
+	// current program before loading another one.
 }
 
 void boardStopAll() {
 	// Elecfreaks TODO: stop the motors and other outputs the library owns.
-	// To stop everything from another task, such as on power-off, call vmRequestStopAll().
-	// (Currently StopPowerOutputs() calls stopPWM(), stopServos() and stopTone() directly.)
+	// Example: NezhaRobot::Instance().Stop(); NezhaMotor::Instance().StopAll();
+	// These run on the VM thread, so they must be safe to call alongside the library's tasks.
+	// The VM calls this whenever it stops all tasks: the IDE stop button, starting a program,
+	// and reset. To stop everything from the library's own task, such as on power-off, call
+	// vmRequestStopAll() rather than stopPWM(), stopServos() and stopTone().
 }
 
 void boardIDEConnectionChanged(int isConnected) {
 	// Elecfreaks TODO: update the UI when the IDE connects or disconnects.
-	// (Currently a patch to processMessage() in runtime.c calls notifyIDEActivity().)
+	// Example: if (isConnected) smallmvUIOnIDEConnected();
+	// isConnected becomes false a few seconds after the IDE stops sending messages.
 }
 
 #endif
