@@ -47,6 +47,19 @@ class MB_Editor {
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
 
+		// A block released on the world rather than on a pane, as under the tip bar, slides back
+		// to where it was picked up. A duplicate with nowhere to return to is discarded, and one
+		// grabbed again mid-slide comes back here with no hand, so it is kept in view.
+		world.reactToDropOf = (morph, hand) => {
+			if (!(morph instanceof BlockMorph)) return;
+			if (hand && hand.grabOrigin) morph.slideBackTo(hand.grabOrigin);
+			else if (hand) morph.destroy();
+			else {
+				this.scripts.add(morph);
+				morph.keepWithin(this.scriptsFrame);
+			}
+		};
+
 		// WorldMorph.fillPage hands every direct child the new bounds when the
 		// browser window resizes.
 		this.palette.reactToWorldResize = () => this.fixLayout();
