@@ -9,7 +9,7 @@
 // CoCube and the Elecfreaks Nezha ESP32 get most of their support from a library pulled in
 // through lib_deps. Instead of adding #if blocks to the VM core for each one, the VM calls
 // these hooks at fixed points and the board implements them in its glue file in vm/
-// (for example, nezha32Prims.cpp), which calls into the library. Boards without a glue file
+// (cocubePrims.cpp, nezha32Prims.cpp), which calls into the library. Boards without a glue file
 // get empty versions from boardHooks.c.
 //
 // The glue file makes ordinary calls into the library. That matters: PlatformIO links
