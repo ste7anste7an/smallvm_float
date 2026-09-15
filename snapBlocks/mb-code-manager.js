@@ -196,8 +196,11 @@ class MB_CodeManager {
 			if (entry[5]) { // a function, keyed on its name
 				isObsolete = (this.project.functionNamed(k) == null);
 			} else if (k instanceof BlockMorph) {
+				// Asked of children as well as parent: morphic's Node.removeChild
+				// (morphic.js:3096) leaves parent pointing at the morph it removed it from.
 				const owner = k.parent;
 				isObsolete = (owner == null ||
+					!owner.children.includes(k) ||
 					!(owner instanceof HandMorph ||
 					owner instanceof ScriptsMorph ||
 					owner instanceof ScrollFrameMorph));
