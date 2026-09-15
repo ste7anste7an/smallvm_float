@@ -25,4 +25,3 @@ sayIt (v 'reaction time') 'msecs.' remark
 waitUntil (not (buttonA))
 setUserLED false
 }
-
