@@ -88,6 +88,7 @@ class MB_Connection {
 		// that arrives after the download takes the download with it.
 		await this.sendMsgSync('deleteAllCodeMsg', 1); // delete all code from board
 		await this.sendMsgSync('clearVarsMsg', 1); // delete all variable names from board
+		if (this.codeManager) this.codeManager.boardCleared();
 	}
 
 	// --- Decompiler ---

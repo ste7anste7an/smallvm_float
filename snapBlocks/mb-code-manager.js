@@ -81,6 +81,13 @@ class MB_CodeManager {
 
 	recompileNeeded() { this.recompileAll = true; }
 
+	boardCleared() {
+		// The board has just been erased, so it holds nothing this code manager sent it.
+		this.chunkIDs = new Map();
+		this.functionChunkIDs = new Map();
+		this.oldVarNames = null;
+	}
+
 	chunkTypeFor(aBlockOrFunction) {
 		// Order matters, and it is GP's: SmallRuntime.chunkTypeFor tests the hat
 		// selectors BEFORE falling through to Command and Reporter. A hat is a
