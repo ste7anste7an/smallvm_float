@@ -2295,6 +2295,44 @@ BlockMorph.prototype.codeString = function (indent = 0, result = [], early = tru
 	return result.join('');
 }
 
+// BlockMorph model projection:
+
+BlockMorph.prototype.expression = function () {
+	// Answer me as a model node: what this block is, with no morph in it. The
+	// shape is MB_Decompiler's, and MB_Parser.blockForDecompiled reads it back.
+	if ('v' == this.selector) {
+		return { selector: 'v', args: [this.blockSpec], isReporter: true, next: null };
+	}
+	// argInputs(), not inputs(): a slot the source never filled is not an
+	// argument, and blockWithArgs marks the same trailing slots again on the
+	// way back.
+	let args = this.argInputs().map(input => this.expressionForArg(input));
+	let isReporter = !(this instanceof CommandBlockMorph);
+	let next = (!isReporter && this.nextBlock()) ? this.nextBlock().expression() : null;
+	return { selector: this.selector, args, isReporter, next };
+};
+
+BlockMorph.prototype.expressionForArg = function (arg) {
+	if (arg instanceof CommandSlotMorph) {
+		let nested = arg.nestedBlock();
+		// An empty body has no first block, and null already says an absent
+		// argument, so it goes out named, as MB_Specs.emptyCommandList is.
+		return nested ? nested.expression() : { isEmptyCommandList: true };
+	}
+	if (arg instanceof BlockMorph) return arg.expression();
+	let value = arg.evaluate();
+	// A colour goes out spelled, the way the decompiler spells one, so a node
+	// never holds a live Color.
+	if (value instanceof Color) return { isColor: true, r: value.r, g: value.g, b: value.b };
+	// A slot showing a block or a symbol answers something no node can carry,
+	// and codeString never sees it. Say so rather than put it in the tree.
+	if ((value != null) && ('object' == (typeof value))) {
+		throw new Error('expression: a slot of the ' + this.selector +
+			' block holds a block or a symbol, which is not a value');
+	}
+	return value;
+};
+
 // BlockMorph drawing
 
 BlockMorph.prototype.render = function (ctx) {
@@ -3324,6 +3362,20 @@ HatBlockMorph.prototype.codeString = function (indent = 0, result = []) {
 	}
 	result.push('\t'.repeat(indent) + 'to ' + quoteIfNeeded(this.definedFunctionName()) + ' {}\n');
 	return result.join('');
+};
+
+HatBlockMorph.prototype.expression = function () {
+	// A definition's node is the name-only stub its codeString writes. The body
+	// goes out with the function, which answers a node of its own, and putting
+	// it here as well would be the same code twice.
+	if (!this.isFunctionDefinition()) {
+		return HatBlockMorph.uber.expression.call(this);
+	}
+	return {
+		selector: 'to',
+		args: [this.definedFunctionName(), { isEmptyCommandList: true }],
+		isReporter: false, next: null,
+	};
 };
 
 HatBlockMorph.prototype.updateDefinedFunction = function () {
