@@ -733,9 +733,17 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 			crcForChunkID.set(chunkID, crc2);
 		}
 
+		// whether the board holds an unused function says nothing either way
+		const unusedFuncs = this.project.unusedFunctions();
+		const unusedIDs = new Set();
+		for (const [key, entry] of this.chunkIDs.entries()) {
+			if (unusedFuncs.includes(key)) unusedIDs.add(entry[0]);
+		}
+
 		// count matching chunks
 		let matchCount = 0;
 		for (const chunkID of this.crcDict.keys()) {
+			if (unusedIDs.has(chunkID)) continue;
 			const entry = ideChunks.get(chunkID);
 			if (entry != null && this.arraysEqual(this.crcDict.get(chunkID), crcForChunkID.get(chunkID))) {
 				matchCount += 1;
@@ -745,6 +753,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		// count chunks that have changed or are entirely missing from the board
 		let changedOrMissingCount = 0;
 		for (const chunkID of ideChunks.keys()) {
+			if (unusedIDs.has(chunkID)) continue;
 			if (!this.crcDict.has(chunkID) ||
 				!this.arraysEqual(this.crcDict.get(chunkID), crcForChunkID.get(chunkID))) {
 				changedOrMissingCount += 1;

@@ -482,13 +482,12 @@ console.log('unknown');
 				// this branch depends on the read having finished.
 				this.openProjectFromBoard();
 			} else {
-				const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
-				if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
-					if (reuseCodeIfPossible) console.log('Full download');
+				if (!(await this.codeManager.boardHasSameProject())) {
+					console.log('Full download');
 					await MB_connection.clearBoardIfConnected();
 					this.runningChunks = new Map();
 				} else {
-					console.log('Incremental download', this.vmVersion, this.boardType);
+					console.log('Incremental download', MB_connection.vmVersion, MB_connection.boardType);
 				}
 				MB_editor.showDownloadProgress(2, 0);
 				await this.codeManager.stopAndSyncScripts(true);
@@ -528,11 +527,6 @@ console.log('unknown');
 		MB_connection.setCodeManager(this.codeManager);
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
-	}
-
-	boardHasSameProject() {
-		// XXX TODO
-		return false;
 	}
 
 	// Placeholder functions for UI actopms
