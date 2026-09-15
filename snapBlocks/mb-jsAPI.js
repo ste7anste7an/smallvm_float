@@ -71,8 +71,7 @@ GP.apiCall = function (endPoint, params, callback) {
 				'connected' == MB_connection.updateConnection());
 			storeIDEProperty('board.type',
 				(MB_connection.boardType != null) ? MB_connection.boardType : 'Connect');
-			// board.canDoBLE and board.hasFS are left alone: the port has no
-			// boardIsBLECapable or boardHasFileSystem to answer them with.
+			// board.canDoBLE and board.hasFS are pushed on first contact and on disconnect.
 			callback(0);
 			break;
 		case 'project.save':
