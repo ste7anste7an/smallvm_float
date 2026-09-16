@@ -978,6 +978,13 @@ class MB_Connection {
 		}
 	}
 
+	snapshotCode(codeFileName) {
+		// Ask the board to save its code to a file.
+		if (!codeFileName) return;
+		if (!codeFileName.endsWith('.ucode')) codeFileName += '.ucode';
+		return this.sendMsg('snapshotCodeToFileMsg', 0, Array.from(new TextEncoder().encode(codeFileName)));
+	}
+
 	abortFileTransfer() {
 		if (!this.fileTransferCompleted()) this.fileTransferProgress = null;
 	}
