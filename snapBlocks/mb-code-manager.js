@@ -52,12 +52,27 @@ class MB_CodeManager {
 	}
 
 	async syncAndStartAll() {
+		// Refuse before sending anything, as GP's startAll does (MicroBlocksRuntime.gp).
+		if (!MB_connection.isConnected()) {
+			alert(localized('Board not connected'));
+			return;
+		}
+		if (this.codeStoreFull) {
+			alert(localized('Program is too large to store on board.'));
+			return;
+		}
 		await this.syncScripts();
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
 
-	async stopAndSyncScripts() {
-		MB_connection.sendMsg('stopAllMsg');
+	async stopAndSyncScripts(alreadyStopped) {
+		// Stop, then a soft reset, then sync, as GP's stopAndSyncScripts does. The VM
+		// clears its memory and variables on the reset, which stopAllMsg alone does not.
+		if (MB_connection.isConnected() && (alreadyStopped !== true)) {
+			MB_connection.sendMsg('stopAllMsg');
+			MB_connection.sendMsg('systemResetMsg');
+		}
+		MB_editor.clearRunningHighlights();
 		await this.syncScripts();
 	}
 
@@ -151,6 +166,17 @@ class MB_CodeManager {
 		}
 
 		await this.saveAllChunks(false);
+	}
+
+	async saveAllChunksAfterLoad() {
+		// Put a just-loaded project on the board, as GP's saveAllChunksAfterLoad
+		// does (MicroBlocksRuntime.gp:1419): nothing when no board is connected,
+		// otherwise the whole download with code file updates held off around it.
+		if (!MB_connection.connectedToBoard()) return;
+		await MB_connection.suspendCodeFileUpdates();
+		await this.saveAllChunks(true);
+		MB_connection.resumeCodeFileUpdates();
+		MB_editor.showDownloadProgress(3, 1);
 	}
 
 	lookupChunkID(key) {

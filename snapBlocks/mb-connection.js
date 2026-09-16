@@ -6,11 +6,14 @@
 
 // mb-connection.js - Implements MicroBlocks communication protocol.
 
-/* globals MB_CommPort, waitMSecs, isMobile, localized */
+/* globals MB_CommPort, MB_Files, waitMSecs, isMobile, localized, storeIDEProperty */
 
 class MB_Connection {
 	constructor() {
 		this.msgDict = null;
+		this.ideVersion = '0.0.0';     // GP's defaults until the version file is
+		this.latestVmVersion = 0;      // read (MicroBlocksRuntime.gp:1100-1101)
+		this.versionsRead = null;      // the read, once started
 		this.port = null;
 		this.portName = null;
 		this.connectionStartTime = null;
@@ -53,9 +56,16 @@ class MB_Connection {
 		return new TextDecoder().decode(bytes);
 	}
 
+	// storeIDEProperty is mb-jsAPI.js's; test.html loads mb-gpAPI.js instead and
+	// GP pushes its own properties there, so it is not always present.
+	pushToIDE(path, value) {
+		if (typeof storeIDEProperty === 'function') storeIDEProperty(path, value);
+	}
+
 	// --- Startup Actions ---
 
 	async clearBoardIfConnected() {
+		this.sendMsg('stopAllMsg'); // stop running scripts first, as GP's sendStopAll does
 		this.sendMsg('systemResetMsg'); // send the reset message
 		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
 		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
@@ -141,7 +151,14 @@ class MB_Connection {
 // 		MB_editor.stopAndSyncScripts();
 // 		MB_editor.startAll();
 
-		this.port.disconnect();
+		// GP's closePort pushes this before it closes anything (MicroBlocksRuntime.gp:896).
+		this.pushToIDE('board.connected', false);
+
+		// As GP's closePort (MicroBlocksRuntime.gp): guard the close, then clear the
+		// connection either way. this.port can be null here, and can also be a port
+		// that was never opened, because connect() assigns one before its checks.
+		if (this.port != null) this.port.disconnect();
+		this.port = null;
 		this.portName = null;
 		this.vmVersion = null;
 		this.boardType = null;
@@ -258,6 +275,8 @@ class MB_Connection {
 	async justConnected() {
 		// Called when a board has just connected (browser or stand-alone).
 		console.log('Connected (' + this.portName + ')');
+		// GP sets this here rather than in updateConnection (MicroBlocksRuntime.gp:993).
+		this.pushToIDE('board.connected', true);
 		this.connectionStartTime = null;
 		this.vmVersion = null;
 		await this.sendMsgSync('getVersionMsg');
@@ -729,13 +748,42 @@ class MB_Connection {
 		return true;
 	}
 
+	setSerialDelay(newDelay) {
+		// GP's setSerialDelay (MicroBlocksRuntime.gp:2016): extended message 1,
+		// with the delay as its one body byte.
+		if (newDelay === 'reset to default') newDelay = 5;
+		this.sendMsg('extendedMsg', 1, [newDelay]);
+	}
+
 	// --- Version string parsing ---
+
+	readVersionFile() {
+		// GP reads gp/runtime/versions at startup (MicroBlocksRuntime.gp:1098).
+		// Here the read is a fetch, so it happens on demand and is kept; the
+		// build must copy the file, or this answers GP's missing-file default.
+		if (this.versionsRead == null) {
+			this.ideVersion = '0.0.0';
+			this.latestVmVersion = 0;
+			this.versionsRead = MB_Files.readFile('versions').then((data) => {
+				for (const line of (data || '').split(/\r?\n/)) {
+					if (line.startsWith('IDE ')) this.ideVersion = line.slice(4);
+					if (line.startsWith('VM ')) this.latestVmVersion = Number(line.slice(3));
+				}
+			});
+		}
+		return this.versionsRead.then(() => this.ideVersion);
+	}
+
 
 	versionReceived(versionString) {
 		if (versionString == null) return; // bad version message
 		const justConnected = (this.vmVersion == null);
 		this.vmVersion = this.extractVersionNumber(versionString);
 		this.boardType = this.extractBoardType(versionString);
+		// GP pushes the type from here, inside justConnected's own round trip
+		// (MicroBlocksRuntime.gp:1166), so the window in which a live board can still
+		// read 'Connect' is one board round trip rather than a 500 ms poll.
+		this.pushToIDE('board.type', this.boardType);
 	}
 
 	extractVersionNumber(versionString) {

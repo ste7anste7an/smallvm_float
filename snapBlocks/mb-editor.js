@@ -257,11 +257,30 @@ console.log('unknown');
 
 	// File operations
 
+	canReplaceCurrentProject() {
+		// Ask before discarding work, as GP does (MicroBlocksEditor.gp:203).
+		// updateProject() first, or a block the user has just dragged into the
+		// pane is not in the project yet and does not count as work.
+		this.updateProject();
+		if (!this.project.hasUserCode()) return true;
+		return confirm(localized('Discard current project?'));
+	}
+
 	newProject() {
+		if (!this.canReplaceCurrentProject()) return;
+		this.clearProject();
+	}
+
+	clearProject() {
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		this.removeAllScripts();
+
+		// GP clears the board on every project replacement, right after making
+		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
+		// here downloads, and sendMsg keeps the wire in order on its own.
+		MB_connection.clearBoardIfConnected();
 	}
 
 	saveProject() {
@@ -288,7 +307,10 @@ console.log('unknown');
 	}
 
 	openProject() {
-		function loadFile(fileName, contents) {
+		async function loadFile(fileName, contents) {
+			// GP asks after the file is chosen rather than before the picker
+			// opens, so cancelling the picker asks nothing (MicroBlocksEditor.gp:260).
+			if (!MB_editor.canReplaceCurrentProject()) return;
 			MB_editor.project = new MB_Project();
 			MB_editor.project.loadFromString(contents);
 			MB_editor.removeAllScripts();
@@ -299,10 +321,18 @@ console.log('unknown');
 			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
 			MB_editor.projectName = fileName;
 			MB_connection.setCodeManager(MB_editor.codeManager);
+
+			// As loadNewProjectFromData does (MicroBlocksScripter.gp:575).
+			// Without it the project that was open keeps running on the board.
+			// Awaited: the download below must not overtake the erase.
+			await MB_connection.clearBoardIfConnected();
 			console.log("Loaded:", fileName,
 				MB_editor.project.main.scripts.length, 'scripts,',
 				MB_editor.project.allFunctions().length, 'functions'
 			);
+			// GP's openProject ends by downloading the new project to a
+			// connected board (MicroBlocksEditor.gp:293).
+			await MB_editor.codeManager.saveAllChunksAfterLoad();
 		}
 		this.importLocalFile(loadFile.bind(this));
 	}
@@ -356,10 +386,25 @@ console.log('unknown');
 		}
 	}
 
+	openFromBoard() {
+		// GP's openFromBoard (MicroBlocksEditor.gp:296): clear the project, then
+		// wait for the NEXT board to connect. A board that is already connected
+		// is not read; justConnected does the reading, on the next connect.
+		if (!this.canReplaceCurrentProject()) return;
+		this.clearProject();
+		this.readFromBoard = true;
+		alert(localized('Connect board to proceed.'));
+	}
+
 	async openProjectFromBoard() {
 		// Read what the board is holding and show it, the way openProject shows
 		// a project read from a file. readCodeFromBoard is MB_connection's, not
 		// this class's.
+
+		// GP asks here too (MicroBlocksRuntime.gp:539), for the user who wrote
+		// something between arming the read and connecting the board.
+		if (!this.canReplaceCurrentProject()) return;
+
 		const project = await MB_connection.readCodeFromBoard();
 		if (project == null) return;
 		this.project = project;
