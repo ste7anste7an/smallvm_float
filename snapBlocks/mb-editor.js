@@ -656,6 +656,49 @@ console.log('unknown');
 		return uniqueNameNotIn(taken, varName);
 	}
 
+	createVariable(name) {
+		// Add a global to main under a unique form of name. Answers the name
+		// added, or null for a blank answer.
+		const varName = String(name).trim();
+		if ('' === varName) return null;
+		const result = this.uniqueVarName(varName);
+		this.project.addVariable(result);
+		return result;
+	}
+
+	createFunction(name, isReporter) {
+		// Define a function with no inputs under a unique form of name and park
+		// its definition below the scripts. Answers the definition hat.
+		if ('' === name) return null;
+		this.updateProject();
+		const opName = this.uniqueFunctionName(name);
+		const func = this.project.main.defineFunction(opName, [], null);
+		this.project.recordBlockSpec(opName, { blockType: isReporter ? 'r' : ' ',
+			opName, specString: opName, slotTypes: '', defaults: [] });
+		const hat = scriptForFunction(func);
+		if (isReporter) hat.nextBlock(MB_Parser.blockForDecompiled(
+			{ selector: 'return', args: [0], isReporter: false, next: null }));
+		this.addToBottom(hat);
+		return hat;
+	}
+
+	addToBottom(aBlock) {
+		// Put aBlock in the pane, below the lowest script and level with the
+		// leftmost one.
+		const pane = this.scriptsPane();
+		const scripts = pane.children.filter((m) => m instanceof BlockMorph);
+		let left = pane.left() + (50 * blockScale());
+		let bottom = pane.top();
+		for (const script of scripts) {
+			left = Math.min(left, script.fullBounds().left());
+			bottom = Math.max(bottom, script.fullBounds().bottom());
+		}
+		aBlock.setPosition(new Point(left, bottom + (10 * blockScale())));
+		pane.add(aBlock);
+		pane.adjustBounds();
+		this.updateProject();
+	}
+
 	// File operations
 
 	async canReplaceCurrentProject() {
