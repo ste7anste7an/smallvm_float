@@ -31,6 +31,9 @@ class MB_Connection {
 		this.fileTransferID = null;    // the transfer ID a read takes, or null for any
 		this.fileTransferProgress = null; // percent done while a transfer runs, else null
 		this.lastRcvMSecs = 0;         // when the board last answered a read or transfer request
+		this.pingMark = 0;             // the chunk ID of the last marked ping
+		this.pingMarksSent = [];       // the marks sent since the current wait began
+		this.pingMarkHeard = false;    // whether the board has echoed one of them
 	}
 
 	// --- Process Messages Every Animation Frame (for now) ---
@@ -542,7 +545,10 @@ class MB_Connection {
 		} else if (op === this.msgNameToID('outputValueMsg')) {
 			const chunkID = msg[2];
 			if (chunkID === 255) {
-				console.log(this.returnedValue(msg)); // OutputString (used for debugging)
+				const output = this.returnedValue(msg);
+				console.log(output); // OutputString (used for debugging)
+				// The board says it has cancelled a write only by printing this.
+				if (output === 'Communication error; file transfer cancelled') this.fileTransferProgress = null;
 			} else if (chunkID === 254) {
 				MB_editor.addLoggedData(String(this.returnedValue(msg))); // used for debugging
 			} else {
@@ -560,6 +566,7 @@ class MB_Connection {
 			this.allCRCsReceived(Array.from(msg).slice(5));
 		} else if (op === this.msgNameToID('pingMsg')) {
 			this.lastPingRecvMSecs = Date.now();
+			if (this.pingMarksSent.includes(msg[2])) this.pingMarkHeard = true; // the board echoes a ping's chunk ID
 		} else if (op === this.msgNameToID('codeStoreFullMsg')) {
 			// inform code store manager that code store is full
 			MB_editor.codeManager.codeStoreFull = true;
@@ -899,6 +906,76 @@ class MB_Connection {
 			startIndex += m.length - 8;
 		}
 		return result;
+	}
+
+	writeFileToBoard(srcFileName, fileData) {
+		// This keeps 30 characters and the board keeps 30 bytes, so a longer
+		// non-ASCII name is cut again on the board, possibly inside a character.
+		const targetFileName = srcFileName.split('/').pop().substring(0, 30);
+		return this.sendFileData(targetFileName, fileData);
+	}
+
+	async sendFileData(fileName, fileData) {
+		// Send the file as 950-byte chunks and then an empty one. Return true if
+		// every chunk was sent, false if the user or the board aborted the write.
+		this.fileTransferProgress = 0;
+		const totalBytes = fileData.length;
+		const id = this.newTransferID();
+		let bytesSent = 0;
+
+		let msg = [];
+		this.appendInt32(msg, id);
+		msg.push(...new TextEncoder().encode(fileName));
+		let ok = await this.sendMsgSync('startWritingFile', 0, msg);
+
+		while (ok) {
+			this.processMessages();
+			if (this.fileTransferProgress == null) {
+				console.log('File transfer aborted.');
+				return false;
+			}
+			const chunkByteCount = Math.min(950, totalBytes - bytesSent);
+			msg = [];
+			this.appendInt32(msg, id);
+			this.appendInt32(msg, bytesSent);
+			for (let i = 0; i < chunkByteCount; i++) msg.push(fileData[bytesSent + i]);
+			ok = await this.sendMsgSync('fileChunk', 0, msg);
+			if (chunkByteCount === 0) break; // the final, empty chunk
+			bytesSent += chunkByteCount;
+			// Leave a Stop pressed while the chunk was sent for the check above.
+			if (this.fileTransferProgress != null) this.fileTransferProgress = Math.round((100 * bytesSent) / totalBytes);
+		}
+		// A cancel of the final chunk can take several reads to arrive, and the
+		// wait above ends on the first. The board sends it before it answers a
+		// ping sent after the chunk.
+		if (ok) await this.readUntilBoardCaughtUp(500);
+		ok = ok && (this.fileTransferProgress != null);
+		this.fileTransferProgress = null;
+		return ok;
+	}
+
+	async readUntilBoardCaughtUp(maxMSecs) {
+		// Send a ping marked with a new chunk ID and read until the board echoes it, so
+		// everything it sent before that has been handled. False if stopped or out of time.
+		// A board with a full output buffer drops the echo, so send a new mark every 200 ms.
+		this.pingMarksSent = [];
+		this.pingMarkHeard = false;
+		const start = Date.now();
+		let sentAt = null;
+		while (true) {
+			if ((sentAt == null) || ((Date.now() - sentAt) >= 200)) {
+				// Marks count down from 254 to 128: variable IDs stay below 128 and chunk IDs are given
+				// out from 0, and the board echoes those IDs in its own pings.
+				this.pingMark = (this.pingMark > 128 && this.pingMark < 255) ? this.pingMark - 1 : 254;
+				this.pingMarksSent.push(this.pingMark);
+				this.sendMsg('pingMsg', this.pingMark);
+				sentAt = Date.now();
+			}
+			this.processMessages();
+			if (this.pingMarkHeard) return true;
+			if ((this.fileTransferProgress == null) || ((Date.now() - start) >= maxMSecs)) return false;
+			await waitMSecs(10);
+		}
 	}
 
 	abortFileTransfer() {
