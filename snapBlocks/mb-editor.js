@@ -697,6 +697,92 @@ console.log('unknown');
 		this.project.deleteBlockSpecFor(name);
 	}
 
+	changeFunctionPrototype(op, blockType, specString, typeString, defaults, argNames) {
+		// Give the function op the prototype the user edited, then fix every
+		// call to it in main to match.
+		this.updateProject();
+		const func = this.project.functionNamed(op);
+		if (func) {
+			func.argNames = argNames.slice();
+			func.localVars = func.collectLocalVars();
+		}
+		const oldSpec = this.project.blockSpecs.get(op);
+		const colourSlots = oldSpec
+			? specSlotInfo(oldSpec).map(([type]) => 'color' === type.split('.')[0]) : [];
+		// Recorded first: rebuilt calls read their slots from the project's spec.
+		this.project.recordBlockSpec(op, { blockType, opName: op, specString,
+			slotTypes: typeString, defaults: defaults.slice() });
+		this.updateCallsOf(op, colourSlots);
+	}
+
+	updateCallsOf(op, colourSlots = []) {
+		// Pad or cut every call to op in main's functions and scripts to the
+		// inputs its spec declares, and replace a literal of the wrong type with
+		// the slot's default. colourSlots says which inputs were colour slots.
+		const spec = this.project.blockSpecs.get(op);
+		if (spec == null) return;
+		const { sections, repeatLast } = specSections(spec);
+		const rule = {
+			colourSlots,
+			minArgs: sections[0].split(/\s+/).filter((w) => '_' === w).length,
+			isVariadic: (sections.length > 1) || repeatLast,
+			slots: specSlotInfo(spec).map(([type, value]) => {
+				type = type.split('.')[0];
+				if (('color' === type) && (value == null)) {
+					value = { selector: 'colorSwatch', args: [35, 190, 30, 255], isReporter: true, next: null };
+				}
+				if (('auto' === type) && (typeof value === 'string') && /^-?\d+$/.test(value)) {
+					value = Number(value);
+				}
+				return [type, value];
+			}),
+		};
+		const fixCalls = (node) => {
+			let changed = false;
+			forEachExpression(node, (n) => {
+				if (n.selector === op) changed = fixedCallArgs(n, rule) || changed;
+			});
+			return changed;
+		};
+
+		for (const func of this.project.main.functions) {
+			if (!func.cmdList) continue;
+			const node = func.cmdList.expression();
+			if (!fixCalls(node)) continue;
+			func.cmdList = MB_Parser.blockForDecompiled(node);
+			this.rehangDefinitionsOf(func);
+		}
+		// A rebuilt script keeps its id, so its chunk is replaced, not deleted.
+		for (const old of this.scriptsPane().children.slice()) {
+			if (!(old instanceof BlockMorph) || old.isFunctionDefinition()) continue;
+			const node = old.expression();
+			if (!fixCalls(node)) continue;
+			const fresh = MB_Parser.blockForDecompiled(node);
+			fresh.mbScriptId = old.mbScriptId;
+			fresh.setPosition(old.position());
+			old.destroy();
+			this.scriptsPane().add(fresh);
+			if (this.runningChunks.has(old)) {
+				this.runningChunks.set(fresh, this.runningChunks.get(old));
+				this.runningChunks.delete(old);
+				fresh.addHighlight();
+			}
+		}
+		this.updateProject();
+	}
+
+	rehangDefinitionsOf(func) {
+		// Give each definition of func in the pane the function's current body.
+		let first = true;
+		for (const hat of this.scriptsPane().children) {
+			if (!(hat instanceof BlockMorph) || (hat.functionDefinition !== func)) continue;
+			if (hat.nextBlock()) hat.removeChild(hat.nextBlock());
+			const body = (first || !func.cmdList) ? func.cmdList : func.cmdList.fullCopy();
+			if (body) hat.nextBlock(body);
+			first = false;
+		}
+	}
+
 	addToBottom(aBlock) {
 		// Put aBlock in the pane, below the lowest script and level with the
 		// leftmost one.
@@ -1186,6 +1272,30 @@ function forEachExpression(node, fn) {
 			if ((arg != null) && (typeof arg === 'object')) forEachExpression(arg, fn);
 		}
 	}
+}
+
+function fixedCallArgs(call, rule) {
+	// Fix one call node's arguments in place by rule; answer whether any changed.
+	// The call's shape, command or reporter, is left as it is.
+	const before = JSON.stringify(call.args);
+	const args = call.args;
+	while (args.length < rule.minArgs) args.push(rule.slots[args.length][1]);
+	if (!rule.isVariadic) args.length = rule.minArgs;
+	const checked = Math.min(rule.minArgs, args.length, rule.slots.length);
+	for (let i = 0; i < checked; i++) {
+		const arg = args[i];
+		if ((arg != null) && arg.isReporter) continue;
+		const [type, value] = rule.slots[i];
+		const fits = ('auto' === type) ? ['number', 'string'].includes(typeof arg)
+			: ('bool' === type) ? ('boolean' === typeof arg)
+			// A rebuilt colour slot holds its colour as a packed number, and a
+			// number from any other slot is not a colour.
+			: ('color' === type) ? ((('number' === typeof arg) && rule.colourSlots[i]) ||
+				((arg != null) && (true === arg.isColor)))
+			: true;
+		if (!fits) args[i] = value;
+	}
+	return JSON.stringify(args) !== before;
 }
 
 function varMustBeQuoted(varName) {
