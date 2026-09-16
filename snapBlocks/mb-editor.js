@@ -627,6 +627,35 @@ console.log('unknown');
 		}
 	}
 
+	// Custom blocks and variables. Each takes the answer the chrome's dialog
+	// collected; none asks the user anything.
+
+	uniqueFunctionName(baseSpec) {
+		// Make the first word of baseSpec unlike any block op, built in or the
+		// project's. A spec that starts with an input gets the word 'f' first.
+		MB_Specs.initialize();
+		const taken = [...MB_Specs.selectorToSpec.keys(), ...this.project.blockSpecs.keys()];
+		let words = String(baseSpec).split(/\s+/).filter((w) => w.length > 0);
+		if ('_' === words[0]) words.unshift('f');
+		words[0] = uniqueNameNotIn(taken, words[0]);
+		return words.join(' ');
+	}
+
+	uniqueVarName(varName, forScriptVar = false) {
+		// Make varName unlike any global, and unless forScriptVar, unlike any
+		// local or for-loop variable in a script. Function bodies are not read.
+		this.updateProject();
+		const taken = this.project.allVariableNames();
+		if (!forScriptVar) {
+			for (const entry of this.project.scriptsToScan()) {
+				if (entry[2]) forEachExpression(entry[2].expression(), (node) => {
+					if (['local', 'for'].includes(node.selector)) taken.push(node.args[0]);
+				});
+			}
+		}
+		return uniqueNameNotIn(taken, varName);
+	}
+
 	// File operations
 
 	async canReplaceCurrentProject() {
@@ -1081,6 +1110,24 @@ function blockScale() {
 	// blockScale is (global 'blockScale') * (global 'scale') and serves the
 	// same purpose: it converts between pane pixels and script-file units.
 	return SyntaxElementMorph.prototype.scale;
+}
+
+function uniqueNameNotIn(names, baseName) {
+	// baseName, or baseName followed by the first of 2, 3, 4... not in names.
+	let result = baseName;
+	for (let i = 2; names.includes(result); i++) result = baseName + i;
+	return result;
+}
+
+function forEachExpression(node, fn) {
+	// Call fn on every block node in a model node tree: arguments, bodies and
+	// the blocks that follow.
+	for (let n = node; (n != null) && (typeof n.selector === 'string'); n = n.next) {
+		fn(n);
+		for (const arg of n.args || []) {
+			if ((arg != null) && (typeof arg === 'object')) forEachExpression(arg, fn);
+		}
+	}
 }
 
 function varMustBeQuoted(varName) {
