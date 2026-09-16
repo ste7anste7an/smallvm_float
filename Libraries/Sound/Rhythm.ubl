@@ -53,14 +53,14 @@ to 'rhy wait until bar' 'bar number' {
   local 'bar duration' (_rhy_measures * _rhy_beat_duration)
   local 'round duration' ((v 'bar duration') * _rhy_bars)
   local 'wakeTime' ((((v 'round duration') * (((millisOp) / (v 'round duration')) + 1)) + (((v 'bar number') - 1) * (v 'bar duration'))) + _rhy_start_time)
-  waitMillis ((wakeTime - (millisOp)) % (v 'round duration'))
+  waitMillis (((wakeTime - (millisOp)) % (v 'round duration')) + 1)
 }
 
 to 'rhy wait until beat' 'beat number' {
   if (_rhy_beat_duration == 0) {'rhy_set tempo' 120 4 4}
   local 'bar duration' (_rhy_measures * _rhy_beat_duration)
   local 'wakeTime' ((((v 'bar duration') * (((millisOp) / (v 'bar duration')) + 1)) + (((v 'beat number') - 1) * _rhy_beat_duration)) + _rhy_start_time)
-  waitMillis ((wakeTime - (millisOp)) % (v 'bar duration'))
+  waitMillis (((wakeTime - (millisOp)) % (v 'bar duration')) + 1)
 }
 
 to 'rhy_current bar' {
@@ -117,7 +117,7 @@ to rhy_triplet duration {
 
 to 'rhy_wait until next' duration {
   local 'wakeTime' ((duration * (((millisOp) / duration) + 1)) + _rhy_start_time)
-  waitMillis ((wakeTime - (millisOp)) % duration)
+  waitMillis (((wakeTime - (millisOp)) % duration) + 1)
 }
 
 to 'rhy_whole duration' {
