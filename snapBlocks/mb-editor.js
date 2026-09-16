@@ -122,28 +122,84 @@ class MB_Editor {
 		return Math.floor(Math.random() * (max - min + 1)) + min;
 	}
 
+	// ***** Copy and paste *****
+
+	exchangeScripter() {
+		// What MB_ScriptExchange asks of the scripter it imports into and exports from.
+		return {
+			project: () => this.project,
+			scriptEditor: () => this.scriptsPane(),
+			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
+			blockScale: () => 1, // the pane holds script-file units unscaled
+		};
+	}
+
+	installLibraryNamed(libName) {
+		if (this.project.libraryNamed(libName)) return;
+		console.log('XXX TO DO: install library by name:', libName);
+	}
+
+	scriptStringFor(aBlock) {
+		// The text that copying the script aBlock is in writes.
+
+		const exporter = new MB_ScriptExchange(this.project);
+		return 'GP Script\n' + exporter.exportScripts(this.exchangeScripter(), [aBlock.topBlock()]);
+	}
+
+	allScriptsString() {
+		// The text that copying the whole scripts pane writes.
+
+		const blocks = this.scriptsPane().children.filter((m) => m instanceof BlockMorph);
+		const exporter = new MB_ScriptExchange(this.project);
+		return 'GP Scripts\n' + exporter.exportScripts(this.exchangeScripter(), blocks);
+	}
+
 	handlePaste(event) {
 		let s = event.data;
 		if (!s.startsWith('GP Script')) return; // ignore non-script paste
+		return this.pasteScripts(s.slice(s.indexOf('\n') + 1));
+	}
 
-		let i = s.indexOf('script'); // find first script
-		if (i < 0) return; // no scripts
+	async pasteScripts(scriptString, dst) {
+		// Add the scripts and custom blocks in scriptString to the project, keeping the
+		// distances between scripts. dst is the pane-relative top-left of the group;
+		// by default the group goes below the lowest script.
 
-		let p = new MB_Parser(s.slice(i));
-		while (true) {
-			let script = p.readCmd(false);
-			if (script === null) break;
-			if (script.length == 4 && 'script' == script[0]) {
-				// ['script', x, y, cmd], x and y the offset within the scripts
-				// pane; a top-level `to` also has four parts, with names there.
-				let body = script[3];
-				if (Array.isArray(body) && body.length > 0) {
-					// A single command came from '( ... )': an expression script.
-					this.addBlockToScriptsAt(
-						MB_Parser.blockFor(body, true), script[1], script[2]);
-				}
-			}
+		let pane = this.scriptsPane();
+		scriptString = scriptString.replace(/\r\n?/g, '\n');
+		for (const entry of MB_Parser.parse(scriptString) || []) {
+			let script = Array.isArray(entry) && entry[0] === 'script' ? entry[entry.length - 1] : null;
+			if (Array.isArray(script) && Array.isArray(script[0])) script = script[0];
+			if (Array.isArray(script) && script[0] === 'to') this.hideDefinition(stringArg(script[1]));
 		}
+		if (!dst) dst = new Point(100, this.scriptsBottom() - pane.top() + (30 * blockScale()));
+		const importer = new MB_ScriptExchange(this.project);
+		importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		pane.adjustBounds();
+		pane.changed();
+
+		this.updateProject();
+		try {
+			await this.codeManager.saveAllChunksAfterLoad();
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
+	hideDefinition(funcName) {
+		// Remove the pane's definition hat for funcName; a paste that defines it brings its own.
+		for (const m of this.scriptsPane().children.slice()) {
+			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) m.destroy();
+		}
+	}
+
+	scriptsBottom() {
+		// The bottom of the lowest script in the pane, or the pane's top if it has none.
+		let result = this.scriptsPane().top();
+		for (const m of this.scriptsPane().children) {
+			if (m instanceof BlockMorph) result = Math.max(result, m.fullBounds().bottom());
+		}
+		return result;
 	}
 
 	// ***** Populate the blocks palette *****

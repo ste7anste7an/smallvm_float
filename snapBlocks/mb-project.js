@@ -1149,7 +1149,7 @@ class MB_Module {
 // here: a morph by selector/argList on export, an array by [0] and slice(1) on
 // import. See misc/tests/js/regression/script-exchange.test.mjs.
 
-/* global blockScale, varMustBeQuoted, fixEmbeddedQuotes, quoteIfNeeded */
+/* global varMustBeQuoted, fixEmbeddedQuotes, quoteIfNeeded */
 
 class MB_ScriptExchange {
 	constructor(mbProject) {
@@ -1170,11 +1170,13 @@ class MB_ScriptExchange {
 		result.push('\n');
 		result.push(...this.functionDefinitions());
 
-		const scale = blockScale();
+		const scale = scripter.blockScale(); // pane pixels per script-file unit
+		const pane = scripter.scriptEditor();
+		const origin = pane ? pane.topLeft() : new Point(0, 0);
 		for (const block of blockList) {
 			if (!(block instanceof BlockMorph)) continue;
-			const x = Math.round(block.left() / scale);
-			const y = Math.round(block.top() / scale);
+			const x = Math.round((block.left() - origin.x) / scale);
+			const y = Math.round((block.top() - origin.y) / scale);
 			if (block.selector === 'to') {
 				// A function-definition hat is saved as a stub 'to' with an empty
 				// body; functionDefinitions() saves the definition itself.
@@ -1358,7 +1360,7 @@ class MB_ScriptExchange {
 				if (block == null) continue;
 				this.addGlobalsFor(block);
 				block.fixBlockColor();
-				const scale = blockScale();
+				const scale = scripter.blockScale(); // pane pixels per script-file unit
 				const blockX = Math.round(dstX + scale * (args[0] - scriptsX));
 				const blockY = Math.round(dstY + scale * (args[1] - scriptsY));
 				block.setPosition(new Point(blockX, blockY));
