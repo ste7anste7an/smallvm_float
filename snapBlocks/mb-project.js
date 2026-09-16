@@ -1448,6 +1448,88 @@ class MB_ScriptExchange {
 	}
 }
 
+// MB_ScriptPicture - the script text a PNG file carries, in a tEXt chunk keyed
+// 'script' holding UTF-8, which is what the MicroBlocks wiki's pictures use.
+
+class MB_ScriptPicture {
+	static addScriptText(pngBytes, text) {
+		// Return a copy of pngBytes with a script chunk before its first IDAT chunk.
+		const data = [...MB_ScriptPicture.latin1('script'), 0, ...new TextEncoder().encode(text)];
+		const chunk = MB_ScriptPicture.chunkBytes('tEXt', data);
+		let i = 8;
+		while (i + 12 <= pngBytes.length) {
+			const type = MB_ScriptPicture.chunkType(pngBytes, i);
+			if (type === 'IDAT' || type === 'IEND') break;
+			i += 12 + MB_ScriptPicture.uint32(pngBytes, i);
+		}
+		const result = new Uint8Array(pngBytes.length + chunk.length);
+		result.set(pngBytes.subarray(0, i));
+		result.set(chunk, i);
+		result.set(pngBytes.subarray(i), i + chunk.length);
+		return result;
+	}
+
+	static getScriptText(pngBytes) {
+		// Return the script text in pngBytes, or null. Only a tEXt chunk with a valid
+		// CRC counts, and a later script chunk replaces an earlier one.
+		const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+		if (signature.some((b, i) => pngBytes[i] !== b)) return null;
+		let result = null;
+		let i = 8;
+		while (i + 12 <= pngBytes.length) {
+			const length = MB_ScriptPicture.uint32(pngBytes, i);
+			const end = i + 8 + length;
+			if (end + 4 > pngBytes.length) break;
+			const typeAndData = pngBytes.subarray(i + 4, end);
+			const crcOK = MB_ScriptPicture.crc32(typeAndData) === MB_ScriptPicture.uint32(pngBytes, end);
+			if (crcOK && (MB_ScriptPicture.chunkType(pngBytes, i) === 'tEXt')) {
+				const data = pngBytes.subarray(i + 8, end);
+				const nul = data.indexOf(0);
+				// The key must be exactly 'script', six bytes, so a longer one is never spread.
+				if ((nul === 6) && (String.fromCharCode(...data.subarray(0, nul)) === 'script')) {
+					let value = data.subarray(nul + 1);
+					if (value.indexOf(0) >= 0) value = value.subarray(0, value.indexOf(0));
+					result = new TextDecoder().decode(value);
+				}
+			}
+			i = end + 4;
+		}
+		return result;
+	}
+
+	static chunkBytes(type, data) {
+		const result = new Uint8Array(12 + data.length);
+		const view = new DataView(result.buffer);
+		view.setUint32(0, data.length);
+		result.set(MB_ScriptPicture.latin1(type), 4);
+		result.set(data, 8);
+		view.setUint32(8 + data.length, MB_ScriptPicture.crc32(result.subarray(4, 8 + data.length)));
+		return result;
+	}
+
+	static chunkType(bytes, i) { return String.fromCharCode(...bytes.subarray(i + 4, i + 8)); }
+
+	static uint32(bytes, i) {
+		return ((bytes[i] << 24) | (bytes[i + 1] << 16) | (bytes[i + 2] << 8) | bytes[i + 3]) >>> 0;
+	}
+
+	static latin1(s) { return Array.from(s, (c) => c.charCodeAt(0)); }
+
+	static crc32(bytes) {
+		if (!MB_ScriptPicture.crcTable) {
+			MB_ScriptPicture.crcTable = new Uint32Array(256);
+			for (let n = 0; n < 256; n++) {
+				let c = n;
+				for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+				MB_ScriptPicture.crcTable[n] = c >>> 0;
+			}
+		}
+		let crc = 0xFFFFFFFF;
+		for (const b of bytes) crc = MB_ScriptPicture.crcTable[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+		return (crc ^ 0xFFFFFFFF) >>> 0;
+	}
+}
+
 // Testing...
 
 function testLoad() {

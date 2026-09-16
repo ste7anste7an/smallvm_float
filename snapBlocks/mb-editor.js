@@ -209,6 +209,13 @@ class MB_Editor {
 		}
 	}
 
+	importFromPNG(pngBytes) {
+		// Paste the scripts a picture carries, if it carries any.
+		let s = MB_ScriptPicture.getScriptText(pngBytes);
+		if (s == null) return;
+		return this.pasteScripts(s.slice(s.indexOf('\n') + 1));
+	}
+
 	hideDefinition(funcName) {
 		// Remove the pane's definition hat for funcName; a paste that defines it brings its own.
 		for (const m of this.scriptsPane().children.slice()) {
