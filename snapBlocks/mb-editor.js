@@ -682,6 +682,21 @@ console.log('unknown');
 		return hat;
 	}
 
+	deleteFunction(name) {
+		// Remove the function from the module that holds it, library or main,
+		// with its spec and any definition of it in the pane. Calls to it stay.
+		for (const m of this.scriptsPane().children.slice()) {
+			if ((m instanceof BlockMorph) && m.isFunctionDefinition() &&
+				(m.definedFunctionName() === name)) m.destroy();
+		}
+		this.updateProject();
+		const func = this.project.functionNamed(name);
+		if (func == null) return;
+		const modules = [this.project.main, ...this.project.libraries.values()];
+		modules.find((m) => m.functions.includes(func)).removeFunction(func);
+		this.project.deleteBlockSpecFor(name);
+	}
+
 	addToBottom(aBlock) {
 		// Put aBlock in the pane, below the lowest script and level with the
 		// leftmost one.
