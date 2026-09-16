@@ -27,6 +27,9 @@ class MB_Connection {
 		this.codeManager = null;
 		this.decompiler = null;        // set while reading the code back from a board
 		this.fileTransferMsgs = null;  // holds the board's replies while a transfer runs
+		this.fileTransferMsgName = null; // the reply type that transfer takes, or null for any
+		this.fileTransferID = null;    // the transfer ID a read takes, or null for any
+		this.fileTransferProgress = null; // percent done while a transfer runs, else null
 		this.lastRcvMSecs = 0;         // when the board last answered a read or transfer request
 	}
 
@@ -100,11 +103,14 @@ class MB_Connection {
 		return decompiler.decompileProject();
 	}
 
-	async readUntilQuiet(quietMSecs, stepMSecs, sendPings) {
+	async readUntilQuiet(quietMSecs, stepMSecs, sendPings, isDone = null) {
+		// Process messages until the board has been quiet for quietMSecs,
+		// or until isDone, when given, answers true.
 		this.lastRcvMSecs = Date.now();
 		while ((Date.now() - this.lastRcvMSecs) < quietMSecs) {
 			if (sendPings) this.sendMsg('pingMsg');
 			this.processMessages();
+			if (isDone && isDone()) return;
 			await waitMSecs(stepMSecs);
 		}
 	}
@@ -567,9 +573,9 @@ class MB_Connection {
 		} else if (op === this.msgNameToID('varNameMsg')) {
 			this.receivedVarName(msg[2], this.bytesToString(msg.slice(5)), msg.length - 5);
 		} else if (op === this.msgNameToID('fileInfo')) {
-			this.recordFileTransferMsg(msg.slice(5));
+			this.recordFileTransferMsg(msg.slice(5), 'fileInfo');
 		} else if (op === this.msgNameToID('fileChunk')) {
-			this.recordFileTransferMsg(msg.slice(5));
+			this.recordFileTransferMsg(msg.slice(5), 'fileChunk');
 		} else if (op === this.msgNameToID('clearGraphMsg')) {
 			MB_editor.clearLoggedData();
 		} else {
@@ -856,11 +862,105 @@ class MB_Connection {
 
 	// --- File Transfer ---
 
-	recordFileTransferMsg(msg) {
-		// Record a file transfer message sent by the board.
-		// message format: <transfer ID (4 byte int)><byte offset (4 byte int)><data...>
+	deleteFileOnBoard(fileName) {
+		return this.sendMsg('deleteFile', 0, Array.from(new TextEncoder().encode(fileName)));
+	}
 
-		if (this.fileTransferMsgs) this.fileTransferMsgs.push(msg);
+	async getFileListFromBoard() {
+		// Return an object mapping the board's file names to their sizes,
+		// or null if the board did not finish answering.
+		this.sendMsg('listFiles');
+		const msgs = await this.collectFileTransferResponses(null, 'fileInfo');
+		if (!msgs) return null;
+		const result = {};
+		for (const msg of msgs) {
+			// format: <entry index (4 byte int)><file size (4 byte int)><file name...>
+			result[this.bytesToString(msg.slice(8))] = this.readInt32(msg, 4);
+		}
+		return result;
+	}
+
+	async readFileFromBoard(remoteFileName, remoteFileSize) {
+		// Return the file's contents, or null if the board did not send all of it.
+		this.fileTransferProgress = 0;
+		const id = this.newTransferID();
+		const msg = [];
+		this.appendInt32(msg, id);
+		msg.push(...new TextEncoder().encode(remoteFileName));
+		this.sendMsg('startReadingFile', 0, msg);
+		const msgs = await this.collectFileTransferResponses(remoteFileSize, 'fileChunk', id);
+		if (!msgs) return null;
+
+		const totalBytes = msgs.reduce((sum, m) => sum + (m.length - 8), 0);
+		const result = new Uint8Array(totalBytes);
+		let startIndex = 0;
+		for (const m of msgs) {
+			result.set(m.subarray(8), startIndex);
+			startIndex += m.length - 8;
+		}
+		return result;
+	}
+
+	abortFileTransfer() {
+		if (!this.fileTransferCompleted()) this.fileTransferProgress = null;
+	}
+
+	fileTransferCompleted() {
+		// Return true if the file transfer is complete or aborted.
+		return (this.fileTransferProgress == null) || (this.fileTransferProgress === 100);
+	}
+
+	newTransferID() {
+		// Never 0: the board takes a transfer ID of 0 to mean no write is open.
+		return 1 + Math.floor(Math.random() * ((1 << 24) - 2));
+	}
+
+	appendInt32(msg, n) {
+		msg.push(n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >> 24) & 255);
+	}
+
+	readInt32(msg, i) {
+		return msg[i] | (msg[i + 1] << 8) | (msg[i + 2] << 16) | (msg[i + 3] << 24);
+	}
+
+	async collectFileTransferResponses(remoteFileSize, msgName = null, transferID = null) {
+		// Collect the board's replies until one with no data bytes ends them.
+		// Return them without that last one, or null if the transfer was aborted
+		// or the board went quiet first. msgName and transferID, when given, say
+		// which replies are this transfer's; a stopped read's go on arriving.
+		this.fileTransferProgress = 0;
+		const msgs = [];
+		this.fileTransferMsgs = msgs;
+		this.fileTransferMsgName = msgName;
+		this.fileTransferID = transferID;
+		const ended = () => (msgs.length > 0) && (msgs[msgs.length - 1].length === 8);
+		await this.readUntilQuiet(2000, 10, false, () => {
+			if (this.fileTransferProgress == null) return true; // aborted
+			if (remoteFileSize && (msgs.length > 0)) {
+				const offset = this.readInt32(msgs[msgs.length - 1], 4);
+				this.fileTransferProgress = Math.round((100 * offset) / remoteFileSize);
+			}
+			return ended();
+		});
+		const completed = (this.fileTransferProgress != null) && ended();
+		this.fileTransferMsgs = null;
+		this.fileTransferMsgName = null;
+		this.fileTransferID = null;
+		this.fileTransferProgress = null;
+		if (!completed) return null;
+		msgs.pop(); // remove the final message
+		return msgs;
+	}
+
+	recordFileTransferMsg(msg, msgName) {
+		// Record a file transfer message sent by the board, if it is one the
+		// running transfer takes.
+		// fileChunk: <transfer ID (4 byte int)><byte offset (4 byte int)><data...>
+		// fileInfo: <entry index (4 byte int)><file size (4 byte int)><file name...>
+
+		const wanted = ((this.fileTransferMsgName == null) || (msgName === this.fileTransferMsgName)) &&
+			((this.fileTransferID == null) || (this.readInt32(msg, 0) === this.fileTransferID));
+		if (this.fileTransferMsgs && wanted) this.fileTransferMsgs.push(msg);
 		this.lastRcvMSecs = Date.now();
 		// Already stamped on handleMessage's first line, and kept anyway to match
 		// MicroBlocksRuntime.gp:2694.
