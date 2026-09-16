@@ -197,6 +197,8 @@ class MB_Connection {
 		if (this.lastPingRecvMSecs == null) this.lastPingRecvMSecs = 0;
 
 		if (this.portName == null) return 'not connected';
+		// A file transfer reads the board itself and gives up on a silent board itself.
+		if (this.busy()) return this.isConnected() ? 'connected' : 'not connected';
 
 		this.sendPeriodicPing();
 		this.processMessages();
@@ -868,6 +870,8 @@ class MB_Connection {
 	}
 
 	// --- File Transfer ---
+	// A transfer refused because another is running returns what a failed one does.
+	// A caller tells them apart by checking busy() first.
 
 	deleteFileOnBoard(fileName) {
 		return this.sendMsg('deleteFile', 0, Array.from(new TextEncoder().encode(fileName)));
@@ -876,6 +880,17 @@ class MB_Connection {
 	async getFileListFromBoard() {
 		// Return an object mapping the board's file names to their sizes,
 		// or null if the board did not finish answering.
+		if (this.busy()) return null;
+		// A stopped list's entries go on arriving, and its terminator would end this one.
+		// A terminator carries no transfer ID, so let the board finish sending them first.
+		this.fileTransferProgress = 0; // busy, and stoppable, while it waits
+		let caughtUp = false;
+		try {
+			caughtUp = await this.readUntilBoardCaughtUp(2000);
+		} finally {
+			this.fileTransferProgress = null;
+		}
+		if (!caughtUp) return null;
 		this.sendMsg('listFiles');
 		const msgs = await this.collectFileTransferResponses(null, 'fileInfo');
 		if (!msgs) return null;
@@ -889,7 +904,8 @@ class MB_Connection {
 
 	async readFileFromBoard(remoteFileName, remoteFileSize) {
 		// Return the file's contents, or null if the board did not send all of it.
-		this.fileTransferProgress = 0;
+		// The collector marks the transfer running, so a throw before it leaves busy() false.
+		if (this.busy()) return null;
 		const id = this.newTransferID();
 		const msg = [];
 		this.appendInt32(msg, id);
@@ -918,40 +934,43 @@ class MB_Connection {
 	async sendFileData(fileName, fileData) {
 		// Send the file as 950-byte chunks and then an empty one. Return true if
 		// every chunk was sent, false if the user or the board aborted the write.
+		if (this.busy()) return false;
 		this.fileTransferProgress = 0;
-		const totalBytes = fileData.length;
-		const id = this.newTransferID();
-		let bytesSent = 0;
+		try {
+			const totalBytes = fileData.length;
+			const id = this.newTransferID();
+			let bytesSent = 0;
 
-		let msg = [];
-		this.appendInt32(msg, id);
-		msg.push(...new TextEncoder().encode(fileName));
-		let ok = await this.sendMsgSync('startWritingFile', 0, msg);
-
-		while (ok) {
-			this.processMessages();
-			if (this.fileTransferProgress == null) {
-				console.log('File transfer aborted.');
-				return false;
-			}
-			const chunkByteCount = Math.min(950, totalBytes - bytesSent);
-			msg = [];
+			let msg = [];
 			this.appendInt32(msg, id);
-			this.appendInt32(msg, bytesSent);
-			for (let i = 0; i < chunkByteCount; i++) msg.push(fileData[bytesSent + i]);
-			ok = await this.sendMsgSync('fileChunk', 0, msg);
-			if (chunkByteCount === 0) break; // the final, empty chunk
-			bytesSent += chunkByteCount;
-			// Leave a Stop pressed while the chunk was sent for the check above.
-			if (this.fileTransferProgress != null) this.fileTransferProgress = Math.round((100 * bytesSent) / totalBytes);
+			msg.push(...new TextEncoder().encode(fileName));
+			let ok = await this.sendMsgSync('startWritingFile', 0, msg);
+
+			while (ok) {
+				this.processMessages();
+				if (this.fileTransferProgress == null) {
+					console.log('File transfer aborted.');
+					return false;
+				}
+				const chunkByteCount = Math.min(950, totalBytes - bytesSent);
+				msg = [];
+				this.appendInt32(msg, id);
+				this.appendInt32(msg, bytesSent);
+				for (let i = 0; i < chunkByteCount; i++) msg.push(fileData[bytesSent + i]);
+				ok = await this.sendMsgSync('fileChunk', 0, msg);
+				if (chunkByteCount === 0) break; // the final, empty chunk
+				bytesSent += chunkByteCount;
+				// Leave a Stop pressed while the chunk was sent for the check above.
+				if (this.fileTransferProgress != null) this.fileTransferProgress = Math.round((100 * bytesSent) / totalBytes);
+			}
+			// A cancel of the final chunk can take several reads to arrive, and the
+			// wait above ends on the first. The board sends it before it answers a
+			// ping sent after the chunk.
+			if (ok) await this.readUntilBoardCaughtUp(500);
+			return ok && (this.fileTransferProgress != null);
+		} finally {
+			this.fileTransferProgress = null; // the message pump waits while this is set
 		}
-		// A cancel of the final chunk can take several reads to arrive, and the
-		// wait above ends on the first. The board sends it before it answers a
-		// ping sent after the chunk.
-		if (ok) await this.readUntilBoardCaughtUp(500);
-		ok = ok && (this.fileTransferProgress != null);
-		this.fileTransferProgress = null;
-		return ok;
 	}
 
 	async readUntilBoardCaughtUp(maxMSecs) {
@@ -985,8 +1004,15 @@ class MB_Connection {
 		return this.sendMsg('snapshotCodeToFileMsg', 0, Array.from(new TextEncoder().encode(codeFileName)));
 	}
 
+	busy() {
+		// True while a file transfer runs. Another does not start until it ends:
+		// they would share fileTransferProgress and fileTransferMsgs.
+		return this.fileTransferProgress != null;
+	}
+
 	abortFileTransfer() {
-		if (!this.fileTransferCompleted()) this.fileTransferProgress = null;
+		// A write at 100% is still waiting for the board's answer to its final chunk.
+		if (this.busy()) this.fileTransferProgress = null;
 	}
 
 	fileTransferCompleted() {
@@ -1018,19 +1044,23 @@ class MB_Connection {
 		this.fileTransferMsgName = msgName;
 		this.fileTransferID = transferID;
 		const ended = () => (msgs.length > 0) && (msgs[msgs.length - 1].length === 8);
-		await this.readUntilQuiet(2000, 10, false, () => {
-			if (this.fileTransferProgress == null) return true; // aborted
-			if (remoteFileSize && (msgs.length > 0)) {
-				const offset = this.readInt32(msgs[msgs.length - 1], 4);
-				this.fileTransferProgress = Math.round((100 * offset) / remoteFileSize);
-			}
-			return ended();
-		});
-		const completed = (this.fileTransferProgress != null) && ended();
-		this.fileTransferMsgs = null;
-		this.fileTransferMsgName = null;
-		this.fileTransferID = null;
-		this.fileTransferProgress = null;
+		let completed = false;
+		try {
+			await this.readUntilQuiet(2000, 10, false, () => {
+				if (this.fileTransferProgress == null) return true; // aborted
+				if (remoteFileSize && (msgs.length > 0)) {
+					const offset = this.readInt32(msgs[msgs.length - 1], 4);
+					this.fileTransferProgress = Math.round((100 * offset) / remoteFileSize);
+				}
+				return ended();
+			});
+			completed = (this.fileTransferProgress != null) && ended();
+		} finally {
+			this.fileTransferMsgs = null;
+			this.fileTransferMsgName = null;
+			this.fileTransferID = null;
+			this.fileTransferProgress = null; // the message pump waits while this is set
+		}
 		if (!completed) return null;
 		msgs.pop(); // remove the final message
 		return msgs;
