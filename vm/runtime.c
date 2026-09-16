@@ -90,14 +90,48 @@ typedef struct {
 	const char *setName;
 	int entryCount;
 	PrimEntry *entries;
+	#if defined(HAS_BOARD_HOOKS)
+		int replacedCount; // entries of the set that a board replaced, if any
+		PrimEntry *replaced;
+	#endif
 } PrimitiveSet;
 
 PrimitiveSet primSets[PrimitiveSetCount];
 
 void addPrimitiveSet(PrimitiveSetIndex primSetIndex, const char *setName, int entryCount, PrimEntry *entries) {
-	primSets[primSetIndex].setName = setName;
-	primSets[primSetIndex].entryCount = entryCount;
-	primSets[primSetIndex].entries = entries;
+	// A board with a glue file (see boardHooks.h) can replace a primitive set with its own
+	// implementation from boardAddPrims(). The set it replaces is kept, so a primitive the
+	// board does not implement still works. Boards without hooks pay nothing for this.
+
+	PrimitiveSet *primSet = &primSets[primSetIndex];
+	#if defined(HAS_BOARD_HOOKS)
+		if (primSet->entries && (primSet->entries != entries)) {
+			primSet->replaced = primSet->entries;
+			primSet->replacedCount = primSet->entryCount;
+		}
+	#endif
+	primSet->setName = setName;
+	primSet->entryCount = entryCount;
+	primSet->entries = entries;
+}
+
+static PrimitiveFunction findInSet(PrimitiveSet *primSet, const char *primName) {
+	// Return the named primitive of the given set, or NULL. If a board replaced this set,
+	// fall back to the replaced entries for a primitive the board does not implement.
+
+	for (int i = 0; i < primSet->entryCount; i++) {
+		if (primSet->entries[i].primName && (0 == strcmp(primSet->entries[i].primName, primName))) {
+			return primSet->entries[i].primFunc;
+		}
+	}
+	#if defined(HAS_BOARD_HOOKS)
+		for (int i = 0; i < primSet->replacedCount; i++) {
+			if (primSet->replaced[i].primName && (0 == strcmp(primSet->replaced[i].primName, primName))) {
+				return primSet->replaced[i].primFunc;
+			}
+		}
+	#endif
+	return NULL;
 }
 
 PrimitiveFunction findPrimitive(char *primName) {
@@ -127,14 +161,9 @@ PrimitiveFunction findPrimitive(char *primName) {
 
 	for (int i = 0; i < PrimitiveSetCount; i++) {
 		if ((primSets[i].setName != NULL) && (0 == strcmp(primSets[i].setName, setName))) {
-			PrimEntry *entries = primSets[i].entries;
-			if (!entries) continue; // uninitialized primitive set
-			int entryCount = primSets[i].entryCount;
-			for (int j = 0; j < entryCount; j++) {
-				if (0 == strcmp(entries[j].primName, opName)) {
-					return entries[j].primFunc;
-				}
-			}
+			if (!primSets[i].entries) continue; // uninitialized primitive set
+			PrimitiveFunction primFunc = findInSet(&primSets[i], opName);
+			if (primFunc) return primFunc;
 		}
 	}
 	return NULL;
@@ -147,14 +176,11 @@ OBJ doPrimitiveCall(PrimitiveSetIndex setIndex, const char *primName, int argCou
 		return fail(primitiveNotImplemented);
 	}
 
-	PrimEntry *entries = primSets[setIndex].entries;
-	int entryCount = primSets[setIndex].entryCount;
-	for (int i = 0; i < entryCount; i++) {
-		if ((entries[i].primName != NULL) && (0 == strcmp(entries[i].primName, primName))) {
-			OBJ result = (entries[i].primFunc)(argCount, args); // call the primitive
-			tempGCRoot = NULL; // clear tempGCRoot in case it was used
-			return result;
-		}
+	PrimitiveFunction primFunc = findInSet(&primSets[setIndex], primName);
+	if (primFunc) {
+		OBJ result = primFunc(argCount, args); // call the primitive
+		tempGCRoot = NULL; // clear tempGCRoot in case it was used
+		return result;
 	}
 	char s[200];
 	snprintf(s, sizeof(s), "Unknown primitive %d:%s", setIndex, primName);
