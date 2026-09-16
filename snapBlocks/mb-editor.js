@@ -154,6 +154,29 @@ class MB_Editor {
 		return 'GP Scripts\n' + exporter.exportScripts(this.exchangeScripter(), blocks);
 	}
 
+	scriptsURL(pageURL) {
+		// A link that pastes every script in the pane when opened.
+		return this.urlPrefix(pageURL) + '#scripts=' + MB_ScriptExchange.urlEncode(this.allScriptsString());
+	}
+
+	projectURL(pageURL) {
+		// A link that opens this project when opened.
+		this.updateProject();
+		let code = this.project.codeString();
+		if (this.projectName) {
+			const title = this.projectName.replace(/\.ubp$/, '');
+			code = "projectName '" + fixEmbeddedQuotes(title) + "'\n\n" + code;
+		}
+		return this.urlPrefix(pageURL) + '?project=' + MB_ScriptExchange.urlEncode(code);
+	}
+
+	urlPrefix(pageURL) {
+		// The page address up to and including .html, else without its query and fragment.
+		const i = pageURL.indexOf('.html');
+		if (i >= 0) return pageURL.slice(0, i + 5);
+		return pageURL.split(/[?#]/)[0];
+	}
+
 	handlePaste(event) {
 		let s = event.data;
 		if (!s.startsWith('GP Script')) return; // ignore non-script paste
@@ -379,34 +402,32 @@ console.log('unknown');
 	}
 
 	openProject() {
-		async function loadFile(fileName, contents) {
-			// GP asks after the file is chosen rather than before the picker
-			// opens, so cancelling the picker asks nothing (MicroBlocksEditor.gp:260).
-			if (!MB_editor.canReplaceCurrentProject()) return;
-			MB_editor.project = new MB_Project();
-			MB_editor.project.loadFromString(contents);
-			MB_editor.removeAllScripts();
-			MB_editor.project.main.scripts.forEach( (entry) => {
-				let x = entry[0], y = entry[1], script = entry[2];
-				MB_editor.addBlockToScriptsAt(script, x, y);
-			});
-			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
-			MB_editor.projectName = fileName;
-			MB_connection.setCodeManager(MB_editor.codeManager);
+		// Cancelling the picker asks nothing: openProjectFromString asks once a file is chosen.
+		this.importLocalFile((fileName, contents) => this.openProjectFromString(contents, fileName));
+	}
 
-			// As loadNewProjectFromData does (MicroBlocksScripter.gp:575).
-			// Without it the project that was open keeps running on the board.
-			// Awaited: the download below must not overtake the erase.
-			await MB_connection.clearBoardIfConnected();
-			console.log("Loaded:", fileName,
-				MB_editor.project.main.scripts.length, 'scripts,',
-				MB_editor.project.allFunctions().length, 'functions'
-			);
-			// GP's openProject ends by downloading the new project to a
-			// connected board (MicroBlocksEditor.gp:293).
-			await MB_editor.codeManager.saveAllChunksAfterLoad();
-		}
-		this.importLocalFile(loadFile.bind(this));
+	async openProjectFromString(contents, name) {
+		if (!MB_editor.canReplaceCurrentProject()) return;
+		MB_editor.project = new MB_Project();
+		MB_editor.project.loadFromString(contents);
+		MB_editor.removeAllScripts();
+		MB_editor.project.main.scripts.forEach( (entry) => {
+			let x = entry[0], y = entry[1], script = entry[2];
+			MB_editor.addBlockToScriptsAt(script, x, y);
+		});
+		MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+		MB_editor.projectName = name;
+		MB_connection.setCodeManager(MB_editor.codeManager);
+
+		// Without the erase the project that was open keeps running on the board.
+		// Awaited: the download below must not overtake the erase.
+		await MB_connection.clearBoardIfConnected();
+		console.log("Loaded:", name,
+			MB_editor.project.main.scripts.length, 'scripts,',
+			MB_editor.project.allFunctions().length, 'functions'
+		);
+		// Opening a project ends by downloading it to a connected board.
+		await MB_editor.codeManager.saveAllChunksAfterLoad();
 	}
 
 	importLocalFile(callback) {

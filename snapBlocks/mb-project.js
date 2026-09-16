@@ -1369,6 +1369,62 @@ class MB_ScriptExchange {
 		}
 	}
 
+	// --- Links ---
+
+	static urlEncode(s) {
+		// Percent-encode every UTF-8 byte except A-Z a-z 0-9 - _ . ~, in uppercase hex.
+		return encodeURIComponent(s).replace(/[!'()*]/g,
+			(c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+	}
+
+	static urlDecode(s) {
+		// Unlike decodeURIComponent, a malformed escape is kept as it is and + stays +.
+		const bytes = [];
+		const encoder = new TextEncoder();
+		for (let i = 0; i < s.length; i++) {
+			if (s[i] === '%' && /^[0-9a-fA-F]{2}$/.test(s.slice(i + 1, i + 3))) {
+				bytes.push(parseInt(s.slice(i + 1, i + 3), 16));
+				i += 2;
+			} else {
+				const cp = s.codePointAt(i);
+				if (cp > 0xFFFF) i++;
+				bytes.push(...encoder.encode(String.fromCodePoint(cp)));
+			}
+		}
+		return new TextDecoder().decode(new Uint8Array(bytes));
+	}
+
+	static urlParameter(url, name) {
+		// The raw value of name in the query or the fragment, or null. As in GP the
+		// value runs to the next & or the end, so a project link keeps its own query.
+		const m = url.match(new RegExp('[?#&]' + name + '=([^&]*)'));
+		return m ? m[1] : null;
+	}
+
+	static fromURL(url) {
+		// What a link carries. Scripts win over a project; a project link is left for the caller to fetch.
+		const scripts = MB_ScriptExchange.urlParameter(url, 'scripts');
+		if (scripts != null) return { kind: 'scripts', text: MB_ScriptExchange.urlDecode(scripts) };
+		const proj = MB_ScriptExchange.urlParameter(url, 'project');
+		if (proj == null) return null;
+		if (proj.startsWith('http')) {
+			// Named as GP's importFromURL names it: after the last / to before the last dot, or ''.
+			const slash = proj.lastIndexOf('/');
+			const dot = proj.lastIndexOf('.');
+			const name = (dot > slash) ? proj.slice(slash + 1, dot) : '';
+			return { kind: 'projectLink', url: proj, name };
+		}
+		const text = MB_ScriptExchange.urlDecode(proj);
+		return { kind: 'project', text, name: MB_ScriptExchange.extractProjectName(text) };
+	}
+
+	static extractProjectName(projectString) {
+		for (const line of projectString.split('\n')) {
+			if (line.startsWith('projectName')) return String(stringArg(MB_Parser.parse(line)[0][1]));
+		}
+		return '';
+	}
+
 	addGlobalsFor(script, parameterNames) {
 		// Add any new global variables referenced in script that aren't already declared.
 		if (script == null) return;
