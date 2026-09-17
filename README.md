@@ -14,7 +14,7 @@ It runs on the micro:bit, Raspberry Pi Pico (RP2040), Calliope mini,
 Adafruit CircuitPlayground Express and Bluefruit,
 ESP8266, ESP32, many other microcontrollers.
 
-The MicroBlock firmware (or *virtual machine*) runs on 32-bit embedded processors
+The MicroBlocks firmware (or *virtual machine*) runs on 32-bit embedded processors
 with as little as 16k of RAM. It is intended to be simple,
 easily ported and extended, and offer decent performance.
 It includes a low-latency task scheduler that works at timescales down to ~50 microseconds
