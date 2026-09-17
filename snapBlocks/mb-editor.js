@@ -55,6 +55,12 @@ class MB_Editor {
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
 
+		// While a chrome dialog's field has the keys, a click on the world does not take them
+		// back, as gpSupport.js passes GP no keys while GP.delegateKeyboardEvents is set.
+		if (world.keyboardHandler) world.keyboardHandler.focus = function () {
+			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents)) HTMLTextAreaElement.prototype.focus.call(this);
+		};
+
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
 		// to where it was picked up. A duplicate with nowhere to return to is discarded, and one
 		// grabbed again mid-slide comes back here with no hand, so it is kept in view.
@@ -406,6 +412,14 @@ console.log('unknown');
 		if (typeof FloatingWindow === 'undefined') return Promise.resolve(confirm(question));
 		return new Promise((resolve) => askChrome('window.confirm',
 			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve));
+	}
+
+	prompt(question, defaultValue, editRule) {
+		// Answer a promise of the text entered, or null, from the chrome's dialog, as GP's
+		// Page prompt does, or from the browser's own on a page without the chrome.
+		if (typeof FloatingWindow === 'undefined') return Promise.resolve(prompt(question, defaultValue));
+		return new Promise((resolve) => askChrome('window.prompt',
+			{ title: question, text: null, default: defaultValue, editRule: editRule }, resolve));
 	}
 
 	async newProject() {

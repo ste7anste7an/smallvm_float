@@ -3528,8 +3528,9 @@ ReporterBlockMorph.prototype.determineSlotSpec = function () {
 
 ReporterBlockMorph.prototype.mouseClickLeft = function (pos) {
 	if (this.parent instanceof TemplateSlotMorph) {
-		let newName = prompt('Variable name?', this.blockSpec);
-		if (newName != null) this.userSetSpec(newName);
+		MB_editor.prompt('Variable Name?', this.blockSpec, 'line').then((newName) => {
+			if (newName) this.userSetSpec(newName); // an empty name is ignored, as in GP
+		});
 	} else {
 		ReporterBlockMorph.uber.mouseClickLeft.call(this, pos);
 	}
