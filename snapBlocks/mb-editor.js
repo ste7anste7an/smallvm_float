@@ -38,6 +38,7 @@ class MB_Editor {
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if (droppedMorph instanceof BlockMorph) {
 				droppedMorph.destroy();
+				this.scriptChanged(); // its chunk is deleted at the next step
 			}
 		};
 
@@ -214,6 +215,7 @@ class MB_Editor {
 		} catch (e) {
 			this.reportError(e);
 		}
+		this.scriptChanged();
 	}
 
 	importFromPNG(pngBytes) {
