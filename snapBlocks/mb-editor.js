@@ -669,6 +669,7 @@ console.log('unknown');
 	createFunction(name, isReporter) {
 		// Define a function with no inputs under a unique form of name and park
 		// its definition below the scripts. Answers the definition hat.
+		name = String(name).trim();
 		if ('' === name) return null;
 		this.updateProject();
 		const opName = this.uniqueFunctionName(name);
