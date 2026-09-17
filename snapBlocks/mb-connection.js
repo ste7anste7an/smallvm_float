@@ -958,6 +958,7 @@ class MB_Connection {
 				this.appendInt32(msg, bytesSent);
 				for (let i = 0; i < chunkByteCount; i++) msg.push(fileData[bytesSent + i]);
 				ok = await this.sendMsgSync('fileChunk', 0, msg);
+				await this.sendQueue; // on a board that prints, sendMsgSync returns before the chunk is written
 				if (chunkByteCount === 0) break; // the final, empty chunk
 				bytesSent += chunkByteCount;
 				// Leave a Stop pressed while the chunk was sent for the check above.
