@@ -674,6 +674,7 @@ console.log('unknown');
 		this.updateProject();
 		const opName = this.uniqueFunctionName(name);
 		const func = this.project.main.defineFunction(opName, [], null);
+		if (this.hasCallsTo(opName)) recompileNeeded(); // a caller of a deleted function of this name
 		this.project.recordBlockSpec(opName, { blockType: isReporter ? 'r' : ' ',
 			opName, specString: opName, slotTypes: '', defaults: [] });
 		const hat = scriptForFunction(func);
@@ -681,6 +682,15 @@ console.log('unknown');
 			{ selector: 'return', args: [0], isReporter: false, next: null }));
 		this.addToBottom(hat);
 		return hat;
+	}
+
+	hasCallsTo(op) {
+		// Answer whether any function or script calls op.
+		let found = false;
+		const scan = (node) => forEachExpression(node, (n) => { found = found || (n.selector === op); });
+		for (const f of this.project.allFunctions()) if (f.cmdList) scan(f.cmdList.expression());
+		for (const entry of this.project.scriptsToScan()) if (entry[2]) scan(entry[2].expression());
+		return found;
 	}
 
 	deleteFunction(name) {
