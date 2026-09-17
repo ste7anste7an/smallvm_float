@@ -139,7 +139,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Project, MB_Specs, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Function, MB_Project, MB_Specs, world */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -2556,6 +2556,7 @@ BlockMorph.prototype.fullCopy = function () {
 		}
 	});
 	ans.cachedInputs = null;
+	ans.mbScriptId = null; // a copy is a different script; updateProject names it
 	return ans;
 };
 
@@ -3210,6 +3211,7 @@ function HatBlockMorph() {
 HatBlockMorph.prototype.init = function () {
 	// additional property for generic hat block variations
 	this.isLoaded = null; // for hat blocks with event-semantics
+	this.functionDefinition = null; // the function I define, if I am a definition hat
 
 	HatBlockMorph.uber.init.call(this);
 	this.bounds.setExtent(new Point(120, 36).multiplyBy(this.scale));
@@ -3240,13 +3242,31 @@ HatBlockMorph.prototype.isCustomBlockSpecific = function () {
 };
 
 HatBlockMorph.prototype.isFunctionDefinition = function () {
-	// This is the equivalent of GP "isPrototypeHat".
-	return this.selector === 'define';
+	// A definition hat is one that carries a function. Its `define` label is
+	// localised and is not a selector.
+	return this.functionDefinition instanceof MB_Function;
 };
 
 HatBlockMorph.prototype.definedFunctionName = function () {
-	if (!this.isFunctionDefinition) return 'Not a function definition';
-	return this.inputs()[0];
+	if (!this.isFunctionDefinition()) return 'Not a function definition';
+	return this.functionDefinition.functionName;
+};
+
+HatBlockMorph.prototype.codeString = function (indent = 0, result = []) {
+	// A definition's script entry is the name-only stub `to <name> {}`. Its body
+	// is printed with the function instead.
+	if (!this.isFunctionDefinition()) {
+		return HatBlockMorph.uber.codeString.call(this, indent, result);
+	}
+	result.push('\t'.repeat(indent) + 'to ' + quoteIfNeeded(this.definedFunctionName()) + ' {}\n');
+	return result.join('');
+};
+
+HatBlockMorph.prototype.updateDefinedFunction = function () {
+	// Give my function the body it now has in the scripting pane.
+	if (!this.isFunctionDefinition()) return;
+	this.functionDefinition.cmdList = this.nextBlock();
+	this.functionDefinition.localVars = this.functionDefinition.collectLocalVars();
 };
 
 // HatBlockMorph drawing:
@@ -3897,15 +3917,20 @@ ScriptsMorph.prototype.userMenu = function () {
 
 // ScriptsMorph user menu features:
 
+ScriptsMorph.prototype.definitionsFirst = function (a, b) {
+	// Keep the function definitions on top, then order by position. Comparing
+	// two definitions by position too is what makes this a total order, which
+	// Array.sort needs and a pane with two definitions in it can reach.
+	const ad = a.isFunctionDefinition(), bd = b.isFunctionDefinition();
+	if (ad !== bd) return ad ? -1 : 1;
+	return a.top() - b.top();
+};
+
 ScriptsMorph.prototype.cleanUp = function () {
 	var target = this.selectForEdit(), // enable copy-on-edit
 		origin = target.topLeft(),
 		y = target.cleanUpMargin;
-	target.children.sort((a, b) =>
-		// make sure the prototype hat block always stays on top
-		a.isFunctionDefinition() ? -1 :
-			(b.isFunctionDefinition() ? 1 : a.top() - b.top())
-	).forEach(child => {
+	target.children.sort(target.definitionsFirst).forEach(child => {
 		child.setPosition(origin.add(new Point(target.cleanUpMargin, y)));
 		y += child.stackHeight() + target.cleanUpSpacing;
 	});
@@ -3977,11 +4002,7 @@ ScriptsMorph.prototype.doGPCall = function (apiCall, params) {
 ScriptsMorph.prototype.sortedElements = function () {
 	// return all scripts
 	var scripts = this.children.slice(); // make a copy
-	scripts.sort((a, b) =>
-		// make sure the prototype hat block always stays on top
-		a.isFunctionDefinition() ? -1 :
-			(b.isFunctionDefinition() ? 1 : a.top() - b.top())
-	);
+	scripts.sort(this.definitionsFirst);
 	return scripts;
 };
 

@@ -9,6 +9,11 @@
 /* globals MB_CommPort, MB_Files, waitMSecs, isMobile, localized, storeIDEProperty */
 
 class MB_Connection {
+	// The 16-bit words a chunk's persistent record spends on its header before
+	// the first instruction: PERSISTENT_HEADER_WORDS is 2 (vm/persist.h:23) and
+	// an OBJ is int* (vm/mem.h:101), so the VM's word 4 is the compiler's 0.
+	static CHUNK_HEADER_WORDS = 4;
+
 	constructor() {
 		this.msgDict = null;
 		this.ideVersion = '0.0.0';     // GP's defaults until the version file is
@@ -346,6 +351,18 @@ class MB_Connection {
 		return msgType;
 	}
 
+	errorLocation(location) {
+		// What the board's four location bytes say: ((ip - task->code) << 8) |
+		// currentChunkIndex (vm/interp.c:617 runTask). The low byte is the chunk
+		// the fault is IN, which is not the message's own chunk, and the word is
+		// the VM's, so it is converted here before the source map is asked.
+		if ((location == null) || (location.length < 4)) return null;
+		const where = location[0] | (location[1] << 8) | (location[2] << 16) | (location[3] << 24);
+		const word = ((where >> 8) & 0xFFFF) - MB_Connection.CHUNK_HEADER_WORDS - 1;
+		if (word < 0) return null;
+		return { chunkID: where & 0xFF, word: word };
+	}
+
 	errorString(errID) {
 		// Return an error string for the given errID from error definitions copied and pasted from interp.h
 		const defsFromHeaderFile = `
@@ -531,7 +548,10 @@ class MB_Connection {
 			MB_editor.updateRunning(chunkID, false);
 		} else if (op === this.msgNameToID('taskErrorMsg')) {
 			const chunkID = msg[2];
-			MB_editor.showChunkError(chunkID, this.errorString(msg[5]));
+			// msg[6..9] are the four location bytes: the chunk the fault is in,
+			// then the word within it.
+			MB_editor.showChunkError(chunkID, this.errorString(msg[5]),
+				Array.from(msg).slice(6, 10));
 			MB_editor.updateRunning(chunkID, false);
 		} else if (op === this.msgNameToID('outputValueMsg')) {
 			const chunkID = msg[2];

@@ -13,7 +13,8 @@
 	the libraries it uses.
 */
 
-/* global MB_editor, MB_Function, MB_Parser, BlockMorph, ReporterBlockMorph */
+/* global MB_editor, MB_Function, MB_Parser, MB_Specs, BlockMorph, HatBlockMorph,
+	ReporterBlockMorph */
 
 // --- Module-level helpers ---
 
@@ -106,6 +107,22 @@ function specDefinitionString(spec) {
 		parts.push(...defaults);
 	}
 	return parts.join(' ');
+}
+
+function scriptForFunction(func, body = null) {
+	// The block that shows a function definition in the scripting pane: a hat
+	// that holds the function.
+	if (func == null) return null;
+	let hat = new HatBlockMorph();
+	hat.selector = 'to';
+	hat.functionDefinition = func;
+	hat.setSpec(MB_Specs.specFor('to', [func.functionName]));
+	hat.setCategory(MB_Specs.categoryForSelector('to'));
+	hat.isDraggable = true;
+	hat.inputs()[0].setContents(func.functionName);
+	let cmdList = body || func.cmdList;
+	if (cmdList) hat.nextBlock(cmdList);
+	return hat;
 }
 
 function blockForBody(bodyArg, singleIsReporter = false) {
@@ -304,9 +321,15 @@ class MB_Project {
 
 	// Broadcasts
 
+	scriptsToScan() {
+		// The script entries a whole-project scan reads. A definition hat is left
+		// out: the body it holds is the function's, not a script's.
+		return this.main.scripts.filter(e => !(e[2] && e[2].isFunctionDefinition()));
+	}
+
 	allBroadcasts() {
 		let result = new Set();
-		for (const entry of this.main.scripts) {
+		for (const entry of this.scriptsToScan()) {
 			let block = entry[2];
 			if (!block) continue; // a script entry is [x, y, BlockMorph|null]
 			block.forAllBlocks( b => {
@@ -334,7 +357,7 @@ class MB_Project {
 			functionCalled.set(f.functionName, false);
 		}
 
-		let scriptsToScan = [...this.main.scripts];
+		let scriptsToScan = this.scriptsToScan();
 		if (paletteBlock) scriptsToScan.push([0, 0, paletteBlock]);
 
 		// collect functions called by scripts
@@ -409,7 +432,7 @@ class MB_Project {
 		}
 
 		// scan scripts
-		for (const entry of this.main.scripts) {
+		for (const entry of this.scriptsToScan()) {
 			// an entry is a three-element list: [x, y, script]
 			if (!entry[2]) continue; // a script entry is [x, y, BlockMorph|null]
 			entry[2].forAllBlocks( b => {
@@ -469,6 +492,7 @@ class MB_Project {
 		if (updateLibraries) this.checkForNewerLibraryVersions();
 		this.updatePrimitives();
 		this.fixFunctionLocals();
+		this.buildDefinitionHats(); // last: the passes above read plain script entries
 		return this;
 	}
 
@@ -556,6 +580,30 @@ class MB_Project {
 	fixFunctionLocals() {
 		// XXX TODO: would remove project variables that appear as function locals in GP.
 		// In the JS port, MB_Function.collectLocalVars() handles this separately.
+	}
+
+	buildDefinitionHats() {
+		// Build the hat each parked `to <name> {}` entry stands for. Runs once
+		// every module is read, since the function may belong to a library.
+		let bodyTaken = new Set();
+		for (const entry of this.main.scripts) {
+			let block = entry[2];
+			if (!block || block.selector !== 'to') continue;
+			let nameSlot = block.inputs()[0];
+			if (!nameSlot) continue; // a `to` with no name: keep it as it was read
+			let func = this.functionNamed(nameSlot.evaluate());
+			if (!func) continue; // a `to` naming no function: keep it as it was read
+			// A morph has one parent, so only the first hat for a function is given
+			// the function's own body; each later hat gets a copy of it.
+			let body = (bodyTaken.has(func) && func.cmdList) ? func.cmdList.fullCopy() : null;
+			bodyTaken.add(func);
+			const hat = scriptForFunction(func, body);
+			// The hat stands for the entry that was read, so it keeps that
+			// entry's name rather than being minted a second one from a body
+			// the file does not hold.
+			hat.mbScriptId = block.mbScriptId;
+			entry[2] = hat;
+		}
 	}
 
 	updatePrimitives() {
@@ -648,6 +696,40 @@ class MB_Module {
 	setPath(aPath) { this.path = aPath; }
 	setDependencies(deps) { this.dependencies = Array.from(deps); }
 	setScripts(newScripts) { this.scripts = Array.from(newScripts); }
+
+	mintScriptId(x, y, bodyText, taken) {
+		// A name for one top-level script, from its rounded position and body text
+		// and nothing else, so the same file loaded twice mints the same names. Two
+		// scripts that agree on both get an ordinal after the name.
+		const src = Math.round(x) + ',' + Math.round(y) + '\n' + bodyText;
+		let h = 0x811c9dc5;
+		for (let i = 0; i < src.length; i++) {
+			h = Math.imul(h ^ src.charCodeAt(i), 0x01000193);
+		}
+		const base = 'script:' + (h >>> 0).toString(16);
+		if (taken == null) return base;
+		let id = base, n = 0;
+		while (taken.has(id)) id = base + '#' + (++n);
+		return id;
+	}
+
+	assignScriptIds() {
+		// Name every script that has no name yet. Minted in the order
+		// scriptString writes them, sorted by (y, x) then load order, so an
+		// ordinal does not depend on the order the file happened to list them.
+		const taken = new Set();
+		for (const e of this.scripts) {
+			if (e[2] != null && e[2].mbScriptId) taken.add(e[2].mbScriptId);
+		}
+		const order = this.scripts.map((e, i) => [e, i]).sort((a, b) =>
+			(a[0][1] - b[0][1]) || (a[0][0] - b[0][0]) || (a[1] - b[1]));
+		for (const [entry] of order) {
+			const block = entry[2];
+			if (block == null || block.mbScriptId) continue;
+			block.mbScriptId = this.mintScriptId(entry[0], entry[1], block.codeString(1), taken);
+			taken.add(block.mbScriptId);
+		}
+	}
 
 	toString() { return 'MB_Module(\'' + this.moduleName + '\')'; }
 
@@ -1032,6 +1114,7 @@ class MB_Module {
 			}
 			this.scripts.push([x, y, block]);
 		}
+		this.assignScriptIds();
 	}
 
 	// Primitive updates

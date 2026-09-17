@@ -11,6 +11,7 @@ class MB_CodeManager {
 		this.project = aProject;
 		this.chunkIDs = new Map(); // key (Block or String) -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		this.functionChunkIDs = new Map(); // function name -> chunkID
+		this.sourceMaps = new Map(); // chunk key -> { src, map: [[wordStart, wordCount, nodeID or null], ...] }
 		this.recompileAll = false;
 		this.codeStoreFull = false;
 		this.compiler = null;
@@ -119,17 +120,85 @@ class MB_CodeManager {
 			this.compiler = new MB_Compiler(this.project, this); // needs functionID map
 		}
 		const code = this.compiler.instructionsFor(aBlockOrFunction);
-		const bytes = [];
 		for (const item of code) {
-			if (Array.isArray(item)) {
-				this.compiler.addBytesForInstructionTo(item, bytes);
-			} else if (typeof item === 'string') {
-				this.compiler.addBytesForStringLiteral(item, bytes);
-			} else {
+			if (!Array.isArray(item) && (typeof item !== 'string')) {
 				throw new Error('Instruction must be an Array or String: ' + item);
 			}
 		}
+		const key = this.sourceMapKeyFor(aBlockOrFunction);
+		const bytes = this.compiler.bytesForInstructions(code, aBlockOrFunction, key);
+		// Filed with the source it describes, so a later lookup can tell whether
+		// it still describes anything.
+		this.sourceMaps.set(key,
+			{ src: aBlockOrFunction.codeString(), map: this.compiler.sourceMap });
 		return bytes;
+	}
+
+	sourceMapKeyFor(aBlockOrFunction) {
+		// A chunk's source map is filed under the same name its chunk id is: a
+		// function's own name, a script's session name from the scripts pane.
+		if (aBlockOrFunction instanceof MB_Function) return aBlockOrFunction.functionName;
+		return this.chunkKeyFor(aBlockOrFunction);
+	}
+
+	sourceMapFor(aBlockOrFunction) {
+		// Only what a compile left here. Compiling from a lookup would assign
+		// global variable indices (MB_Project indexForVar) in the order the
+		// board's errors arrive, which is not the order the board was given.
+		const record = this.sourceMaps.get(this.sourceMapKeyFor(aBlockOrFunction));
+		return record ? record.map : null;
+	}
+
+	sourceMapIsStale(aBlockOrFunction) {
+		// A map describes the bytes of one source text. It is worth nothing once
+		// the block says something else, or once the chunk table says the board
+		// was sent something else.
+		const key = this.sourceMapKeyFor(aBlockOrFunction);
+		const record = this.sourceMaps.get(key);
+		if (record == null) return true;
+		if (record.src !== aBlockOrFunction.codeString()) return true;
+		const entry = this.chunkIDs.get(key);
+		return (entry != null) && ('' !== entry[3]) && (entry[3] !== record.src);
+	}
+
+	siteForChunkWord(chunkID, word) {
+		// What produced one word of one chunk, as plain data: a block, the chunk
+		// itself, a word no map entry describes (a string literal, or past the end),
+		// a map that no longer describes what the board is running, or no map at
+		// all. blockForSite turns a block answer back into the morph.
+		const thing = this.blockForChunkID(chunkID);
+		if (thing == null) return null;
+		const map = this.sourceMapFor(thing);
+		if (map == null) return null;
+		const scriptId = this.sourceMapKeyFor(thing);
+		if (this.sourceMapIsStale(thing)) {
+			return { kind: 'stale', scriptId: scriptId, nodeId: null };
+		}
+		for (const [start, count, nodeId] of map) {
+			if ((word < start) || (word >= start + count)) continue;
+			if (nodeId == null) return { kind: 'chunk', scriptId: scriptId, nodeId: null };
+			return { kind: 'block', scriptId: scriptId, nodeId: nodeId };
+		}
+		return { kind: 'unknown', scriptId: scriptId, nodeId: null };
+	}
+
+	blockForNodeID(aBlockOrFunction, nodeID) {
+		// The paths are computed from the tree on each call and never stored on a
+		// morph: fullCopy copies own properties, so a stored one would travel.
+		if (this.compiler == null) this.compiler = new MB_Compiler(this.project, this);
+		const paths = this.compiler.nodePathsFor(aBlockOrFunction,
+			this.sourceMapKeyFor(aBlockOrFunction));
+		for (const [block, id] of paths) {
+			if (id === nodeID) return block;
+		}
+		return null;
+	}
+
+	blockForSite(chunkID, nodeID) {
+		// The block a decoded location names, taken from plain data, so nothing
+		// that carries a site around has to carry a morph with it.
+		const thing = (nodeID == null) ? null : this.blockForChunkID(chunkID);
+		return (thing == null) ? null : this.blockForNodeID(thing, nodeID);
 	}
 
 	chunkBytesFor(aBlockOrFunction) {
@@ -179,10 +248,42 @@ class MB_CodeManager {
 		MB_editor.showDownloadProgress(3, 1);
 	}
 
+	chunkKeyFor(aBlockOrFunction) {
+		// A script is keyed on its own name where it has one, so its chunk
+		// survives the scripts being rebuilt from the project text.
+		if (aBlockOrFunction instanceof BlockMorph && aBlockOrFunction.mbScriptId) {
+			const name = aBlockOrFunction.mbScriptId;
+			const entry = this.chunkIDs.get(aBlockOrFunction);
+			if (entry && !this.chunkIDs.has(name)) { // clicked before it was named: keep that chunk
+				this.chunkIDs.delete(aBlockOrFunction);
+				this.chunkIDs.set(name, entry);
+			}
+			return name;
+		}
+		return aBlockOrFunction;
+	}
+
+	scriptForChunkKey(key) {
+		// The script a key names, wherever the user has it, or null if it is
+		// gone. A script being dragged is out of main.scripts and its chunk is
+		// still live, so the hand is looked in as well as the project.
+		if (key instanceof BlockMorph) return key;
+		const named = (b) => b != null && b.mbScriptId === key;
+		return this.project.allScripts().find(named) || this.grabbedScripts().find(named) || null;
+	}
+
+	grabbedScripts() {
+		// What the hand is holding, which is one of the three places
+		// removeObsoleteChunks accepts a script.
+		const pane = (typeof MB_editor === 'undefined') ? null : MB_editor.scriptsPane();
+		const world = (pane == null) ? null : pane.world();
+		return (world == null || world.hand == null) ? [] : world.hand.children;
+	}
+
 	lookupChunkID(key) {
 		// If the given block or function name has been assigned a chunkID, return it.
 		// Otherwise, return null.
-		const entry = this.chunkIDs.get(key);
+		const entry = this.chunkIDs.get(this.chunkKeyFor(key));
 		if (entry == null) return null;
 		return entry[0];
 	}
@@ -195,12 +296,19 @@ class MB_CodeManager {
 			let isObsolete = false;
 			if (entry[5]) { // a function, keyed on its name
 				isObsolete = (this.project.functionNamed(k) == null);
-			} else if (k instanceof BlockMorph) {
-				const owner = k.parent;
+			} else {
+				// A script, keyed on its name or its morph, is obsolete unless the pane, the
+				// hand or the palette holds it. Asked of children too: morphic's removeChild
+				// (morphic.js:3096) leaves parent set.
+				const block = this.scriptForChunkKey(k);
+				const owner = (block == null) ? null : block.parent;
 				isObsolete = (owner == null ||
+					!owner.children.includes(block) ||
 					!(owner instanceof HandMorph ||
 					owner instanceof ScriptsMorph ||
-					owner instanceof ScrollFrameMorph));
+					owner instanceof ScrollFrameMorph)) ||
+					// keyed on the morph by a click, and its name already has a chunk
+					(k === block && this.chunkIDs.has(block.mbScriptId));
 			}
 			if (isObsolete) await this.deleteChunkFor(k);
 		}
@@ -221,26 +329,27 @@ class MB_CodeManager {
 	ensureChunkIdFor(aBlock) {
 		// Return the chunkID for the given block. Functions are handled by assignFunctionIDs.
 		// If necessary, register the block in the chunkIDs dictionary.
-		let entry = this.chunkIDs.get(aBlock);
+		const key = this.chunkKeyFor(aBlock);
+		let entry = this.chunkIDs.get(key);
 		if (entry == null) {
 			const id = this.unusedChunkID();
 			entry = [id, null, this.chunkTypeFor(aBlock), '', false, false];
-			this.chunkIDs.set(aBlock, entry); // block -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
+			this.chunkIDs.set(key, entry); // key -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		}
 		return entry[0];
 	}
 
 	chunkEntryForBlock(aBlock) {
-		return this.chunkIDs.get(aBlock) || null;
+		return this.chunkIDs.get(this.chunkKeyFor(aBlock)) || null;
 	}
 
 	blockForChunkID(chunkID) {
 		let result = null;
 		for (const [key, entry] of this.chunkIDs.entries()) {
 			if (entry[0] === chunkID) {
-				// A function's entry is keyed on its name; anything else is
-				// already the thing the caller asked for.
-				result = entry[5] ? this.project.functionNamed(key) : key;
+				// A function's entry is keyed on its name, a script's by its own
+				// name; either way the caller wants the thing, not the key.
+				result = entry[5] ? this.project.functionNamed(key) : this.scriptForChunkKey(key);
 				break;
 			}
 		}
@@ -377,8 +486,9 @@ this.recompileAll = true;
 
 	async forceSaveChunk(aBlockOrFunction) {
 		// Save the chunk for the given block or function even if it was previously saved.
-		if (this.chunkIDs.has(aBlockOrFunction)) {
-			const entry = this.chunkIDs.get(aBlockOrFunction);
+		const key = this.chunkKeyFor(aBlockOrFunction);
+		if (this.chunkIDs.has(key)) {
+			const entry = this.chunkIDs.get(key);
 			entry[1] = null; // clear the old CRC
 			entry[3] = '';	 // clear the old source
 		}
@@ -392,7 +502,8 @@ this.recompileAll = true;
 		if (skipHiddenFunctions == null) skipHiddenFunctions = true; // optimize by default
 
 		if (typeof aBlockOrFunction === 'string') {
-			aBlockOrFunction = this.project.functionNamed(aBlockOrFunction);
+			aBlockOrFunction = this.scriptForChunkKey(aBlockOrFunction) ||
+				this.project.functionNamed(aBlockOrFunction);
 			if (aBlockOrFunction == null) return false;
 		}
 
@@ -407,7 +518,7 @@ this.recompileAll = true;
 		} else {
 			currentSrc = aBlockOrFunction.codeString();
 			chunkID = this.ensureChunkIdFor(aBlockOrFunction);
-			entry = this.chunkIDs.get(aBlockOrFunction);
+			entry = this.chunkIDs.get(this.chunkKeyFor(aBlockOrFunction));
 			if (entry[2] !== this.chunkTypeFor(aBlockOrFunction)) {
 				// user changed A/B/A+B button hat type with menu
 				entry[2] = this.chunkTypeFor(aBlockOrFunction);
