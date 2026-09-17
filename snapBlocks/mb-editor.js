@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_Files, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -447,7 +447,7 @@ console.log('unknown');
 	}
 
 	async openProjectFromString(contents, name) {
-		if (!MB_editor.canReplaceCurrentProject()) return;
+		if (!(await MB_editor.canReplaceCurrentProject())) return;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project = new MB_Project();
 		MB_editor.project.loadFromString(contents);
@@ -469,6 +469,43 @@ console.log('unknown');
 		);
 		// Opening a project ends by downloading it to a connected board.
 		await MB_editor.codeManager.saveAllChunksAfterLoad();
+	}
+
+	async openProjectFromFile(location) {
+		// Open a built-in project, such as one chosen in the file picker.
+
+		this.lastProjectFolder = location.slice(0, location.lastIndexOf('/') + 1);
+		const data = await MB_Files.readFile(location);
+		if (data === undefined) {
+			alert(localized('Could not read: ') + location);
+			return;
+		}
+		await this.openProjectFromString(data, location.slice(location.lastIndexOf('/') + 1));
+	}
+
+	browserReadFile(ext) {
+		// Let the user choose a file with the browser's file chooser, limited to
+		// the extension if one is given. The file goes to processDroppedFile.
+
+		const inp = document.createElement('input');
+		inp.type = 'file';
+		inp.style.display = 'none';
+		if (ext) inp.accept = '.' + ext;
+		inp.addEventListener('cancel', () => inp.remove());
+		inp.addEventListener('change', async () => {
+			inp.remove();
+			const file = inp.files[0];
+			if (file) await this.processDroppedFile(file.name, await file.text());
+		});
+		document.body.appendChild(inp);
+		inp.click();
+	}
+
+	async processDroppedFile(fileName, data) {
+		// Act on a file by its extension. Only projects are handled so far.
+
+		const name = fileName.toLowerCase();
+		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName);
 	}
 
 	importLocalFile(callback) {
