@@ -7,12 +7,15 @@
 // mb-tips.js - the bar under the panes that says what a block does.
 //
 // Plain HTML, not morphs, as the category selector is. It reads the block
-// under the pointer and MB_Help, and nothing reads it.
+// under the pointer and MB_Help, and nothing reads it. On a page with the
+// chrome, the chrome's own tip bar shows the tip instead.
 
-/* global MB_Help, world */
+/* global MB_Help, world, IDE, HatBlockMorph, storeIDEProperty */
 
 MB_Tips = {
-	height: 28,
+	get height() {
+		return this.usesChrome() ? 0 : 28; // the chrome's bar is outside the world
+	},
 	element: null,
 	textElement: null,
 	linkElement: null,
@@ -20,9 +23,17 @@ MB_Tips = {
 	timer: null,
 };
 
+MB_Tips.usesChrome = function () {
+	return (typeof IDE === 'object') && !!IDE.tipBar && !!IDE.tipBar.tipsContainer;
+}
+
 MB_Tips.open = function () {
 	// Build the bar, or put it back if something removed it.
 
+	if (this.usesChrome()) {
+		this.start();
+		return;
+	}
 	if (!this.element) {
 		this.element = document.createElement('div');
 		this.element.setAttribute('data-mb', 'tip-bar');
@@ -58,25 +69,54 @@ MB_Tips.start = function () {
 	this.timer = setInterval(() => { this.update(); }, 100);
 }
 
-MB_Tips.opUnderPointer = function () {
-	// The selector of the innermost block under the pointer, or null. A block
-	// is recognised by the two members every one carries rather than by its
-	// class, so this file names nothing in mb-blocks.js.
+MB_Tips.blockUnderPointer = function () {
+	// The innermost block under the pointer, or null. A block is recognised by
+	// the two members every one carries rather than by its class.
 
 	if ((typeof world === 'undefined') || !world.hand) return null;
 	let m = world.hand.morphAtPointer();
 	while (m) {
-		if (m.selector && (typeof m.blockSpec === 'string')) return m.selector;
+		if (m.selector && (typeof m.blockSpec === 'string')) return m;
 		m = m.parent;
 	}
 	return null;
+}
+
+MB_Tips.opUnderPointer = function () {
+	let block = this.blockUnderPointer();
+	return block ? block.selector : null;
+}
+
+MB_Tips.chromeTipFor = function (block) {
+	// [title, text] for the chrome's tip bar, as GP's MicroBlocksTipBar contentsFor.
+
+	if (!block) return ['', ''];
+	let top = block.topBlock();
+	let next = block.nextBlock ? block.nextBlock() : null;
+	let tip = ['Script', '[l] to run. [r] menu.'];
+	if ((typeof HatBlockMorph !== 'undefined') && (block instanceof HatBlockMorph) && !next) {
+		tip = ['Hat Block', '[l] to run, or drag to build scripts. [r] menu.'];
+	} else if ('reporter' === block.type()) {
+		if (block === top) tip = ['Reporter Block', '[l] to see value, or drop into an input slot. [r] menu.'];
+	} else if ((block === top) && !next) {
+		tip = ['Command Block', '[l] to run, or drag to build scripts. [r] menu.'];
+	}
+	let description = ('Script' === tip[0]) ? '' : MB_Help.descriptionFor(block.selector);
+	return description ? [tip[0], description + '    ' + tip[1]] : tip;
 }
 
 MB_Tips.update = function () {
 	// The op is remembered only after the bar has been rewritten, so a lookup
 	// that throws leaves the bar to retry rather than freeze on the last block.
 
-	if (!this.element || (typeof MB_Help === 'undefined')) return;
+	if (typeof MB_Help === 'undefined') return;
+	if (this.usesChrome()) {
+		let tip = this.chromeTipFor(this.blockUnderPointer());
+		if (JSON.stringify(tip) !== JSON.stringify(this.op)) storeIDEProperty('ide.tip', tip);
+		this.op = tip;
+		return;
+	}
+	if (!this.element) return;
 	let op = this.opUnderPointer();
 	if (op === this.op) return;
 
