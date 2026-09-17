@@ -96,14 +96,22 @@ IDE.fireEvent = function (name, value) {
 
 
 // User preferences, settable via the gear menu
+
+// The stored preferences, or an empty object: the key is absent until one is
+// first changed. GP's readUserPreferences answers the same (MicroBlocksEditor.gp).
+IDE.readUserPreferences = function () {
+	let prefs = JSON.parse(localStorage['user-prefs'] || '{}');
+	return (prefs && prefs.constructor === Object) ? prefs : {};
+};
+
 IDE.userPreference = function (pref) {
-	let value = JSON.parse(localStorage['user-prefs'])[pref];
+	let value = this.readUserPreferences()[pref];
 	if (value == undefined) { value = false; }
 	return value;
 };
 
 IDE.setUserPreference = function (pref, value) {
-	let prefs = JSON.parse(localStorage['user-prefs']);
+	let prefs = this.readUserPreferences();
 	prefs[pref] = value;
 	localStorage['user-prefs'] = JSON.stringify(prefs);
 	this.applyUserPreferences();
@@ -116,7 +124,7 @@ IDE.toggleUserPreference = function (pref) {
 
 IDE.applyUserPreferences = function () {
 	GP.apiCall('ide.applyUserPreferences');
-	let prefs = JSON.parse(localStorage['user-prefs']);
+	let prefs = this.readUserPreferences();
 	Object.keys(prefs).forEach(
 		pref => this.fireEvent('preference.' + pref, prefs[pref])
 	);

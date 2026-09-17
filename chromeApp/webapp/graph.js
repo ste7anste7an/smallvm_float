@@ -162,7 +162,11 @@ Graph.drawData = function () {
 
 Graph.addDataPoints = function (values) {
 	for (let i = 0; i < this.dataTracks.length; i++) {
-		if (values[i]) {
+		if (values[i] == 'true') {
+			this.dataTracks[i].push(100); // map true to 100 (useful for graphing digital pins)
+		} else if (values[i] == 'false') {
+			this.dataTracks[i].push(0); // map false to 0
+		} else if (values[i]) {
 			this.dataTracks[i].push(parseInt(values[i]));
 		} else {
 			// did I actually find a use case for NaN? I did!

@@ -103,18 +103,23 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'edit.redo':
 		case 'edit.undo':
 		case 'ide.applyUserPreferences':
+			callback(0); // not implemented yet, but every request gets its reply
+			break;
 		case 'ide.resize':
-			break; // do nothing for now
-			// the following code does not work:
-			if ((params != '') && (world != undefined)) {
-				const worldLeft = 192;
-				const worldTop = 48;
-				const cnv = document.getElementById('world-canvas');
-				cnv.width = params[0] - worldLeft;
-				cnv.height = params[1] - worldTop;
-				world.setExtent(new Point(cnv.width, cnv.height));
-				mbEditor.fixLayout();
+			// IDE.resize has just sized #canvas, the workspace slot; place the world canvas over it
+			if (typeof world === 'object') {
+				const slot = document.getElementById('canvas').getBoundingClientRect();
+				const cnv = world.worldCanvas;
+				cnv.style.left = slot.left + 'px';
+				cnv.style.top = slot.top + 'px';
+				cnv.style.width = slot.width + 'px';
+				cnv.style.height = slot.height + 'px';
+				cnv.width = slot.width;
+				cnv.height = slot.height;
+				world.setExtent(new Point(slot.width, slot.height));
+				if (typeof mbEditor === 'object') { mbEditor.fixLayout(); }
 			}
+			callback();
 			break;
 		case 'ide.selectCategory':
 		case 'ide.selectLibrary':
