@@ -61,6 +61,15 @@ class MB_Editor {
 			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents)) HTMLTextAreaElement.prototype.focus.call(this);
 		};
 
+		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
+		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
+		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
+			if (('Escape' === event.key) && !world.keyboardFocus &&
+				[document.body, world.keyboardHandler].includes(event.target)) {
+				fireIDEEvent('ide.keyPressed', 'ESC');
+			}
+		});
+
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
 		// to where it was picked up. A duplicate with nowhere to return to is discarded, and one
 		// grabbed again mid-slide comes back here with no hand, so it is kept in view.
