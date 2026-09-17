@@ -10,7 +10,8 @@
 // user's own computer comes through the browser's file chooser instead,
 // which the Computer button opens.
 
-/* global MB_editor, MB_Files, localized */
+/* global MB_editor, MB_Files, localized, isString, BoxMorph, Color, HandleMorph, ListMorph, Morph, Point,
+	StringMorph, TriggerMorph */
 
 class MB_FilePicker {
 	constructor(anAction, defaultPath, extensionList) {
@@ -27,7 +28,7 @@ class MB_FilePicker {
 		this.fileSelectAction = null;
 		this.folderSelectAction = null;
 		this.cloudSelectAction = null;
-		this.morph = null;
+		this.morph = null; // the dialog, once open() has drawn it
 
 		this.folderTranslationPrefix = '';
 		if (this.extensions && (this.extensions.includes('.ubl') || this.extensions.includes('.ubp'))) {
@@ -86,6 +87,7 @@ class MB_FilePicker {
 		this.currentDir = path;
 		if (isTop) this.topDir = path;
 		this.selection = null;
+		if (this.morph) this.updateView();
 		if (this.folderSelectAction) this.folderSelectAction(path);
 	}
 
@@ -168,7 +170,145 @@ class MB_FilePicker {
 	removeFromOwner() {
 		if (this.morph) this.morph.destroy();
 	}
+
+	// drawing
+
+	open(aWorld) {
+		// Draw the dialog and put it on aWorld, centred near the top.
+
+		const colors = MB_FilePicker.colors;
+		const width = Math.min(520, Math.round(0.9 * aWorld.width()));
+		const height = Math.min(465, Math.round(0.8 * aWorld.height()));
+
+		const box = new BoxMorph(4, 0);
+		box.color = colors.frame;
+		box.isDraggable = true;
+		box.picker = this;
+		box.fixLayout = () => this.fixLayout();
+		this.morph = box;
+
+		this.client = new Morph();
+		this.client.color = colors.client;
+		box.add(this.client);
+		this.titleLabel = new StringMorph(localized('File Open'), 12, null, true, false, false, null, null, colors.client);
+		box.add(this.titleLabel);
+		this.closeButton = this.textButton('X', 'removeFromOwner');
+		this.closeButton.color = colors.frame;
+		this.closeButton.label.color = colors.client;
+		this.closeButton.label.rerender();
+
+		this.shortcutButtons = this.shortcuts().map((name) => this.shortcutButton(name));
+		this.folderReadout = new StringMorph('', 16);
+		box.add(this.folderReadout);
+		this.parentButton = this.textButton('<', 'parentFolder');
+		this.okayButton = this.textButton(localized('Open'), 'okay', true);
+		this.cancelButton = this.textButton(localized('Cancel'), 'removeFromOwner');
+
+		box.setExtent(new Point(width, height));
+		box.setPosition(new Point(aWorld.left() + Math.round((aWorld.width() - width) / 2), aWorld.top() + 40));
+		this.resizer = new HandleMorph(box, width, height, 6, 6);
+		this.updateView();
+		aWorld.add(box);
+		box.fullChanged(); // its parts were laid out off the world, so none of them is damaged yet
+		return this;
+	}
+
+	textButton(label, selector, isDefault) {
+		const colors = MB_FilePicker.colors;
+		const button = new TriggerMorph(this, selector, label, 14, null, null, null,
+			isDefault ? colors.client : colors.frame);
+		button.color = isDefault ? colors.frame : colors.button;
+		button.highlightColor = colors.highlight;
+		button.setExtent(new Point(Math.max(30, button.label.width() + 20), 26));
+		this.morph.add(button);
+		return button;
+	}
+
+	shortcutButton(name) {
+		const selector = { Examples: 'setExamples', Libraries: 'setLibraries',
+			Computer: 'setComputer', Cloud: 'cloudAction' }[name];
+		const button = new TriggerMorph(this, selector, localized(name), 12);
+		button.color = MB_FilePicker.colors.client;
+		button.highlightColor = MB_FilePicker.colors.highlight;
+		button.setExtent(new Point(70, 50));
+		this.morph.add(button);
+		return button;
+	}
+
+	updateView() {
+		// Show currentDir: its name, the parent button, and its rows.
+
+		const readout = this.folderReadout;
+		readout.text = this.localizeDir(this.currentDir.slice(this.currentDir.lastIndexOf('/') + 1));
+		readout.fixLayout();
+		readout.rerender();
+		const below = this.currentDir.startsWith(this.topDir) && (this.currentDir.length > this.topDir.length);
+		if (below) this.parentButton.show(); else this.parentButton.hide();
+
+		if (this.listPane) this.listPane.destroy();
+		const list = new ListMorph(this.folderContents(), (row) => (isString(row) ? row : row[0]));
+		list.color = MB_FilePicker.colors.list;
+		list.action = (row) => { if (!isString(row)) this.fileOrFolderSelected(row[1]); };
+		const shownAt = Date.now();
+		for (const item of list.listContents.children) {
+			item.doubleClickAction = () => {
+				// Ignore a double click whose first click replaced the list.
+				if ((Date.now() - shownAt < 500) || isString(item.action)) return;
+				this.fileOrFolderDoubleClicked(item.action[1]);
+			};
+		}
+		this.listPane = list;
+		this.morph.add(list);
+		this.fixLayout();
+	}
+
+	fixLayout() {
+		// Place the parts for the dialog's current size.
+
+		if (!this.listPane) return;
+		const box = this.morph, left = box.left(), top = box.top();
+		const inset = 6, titleHeight = 24;
+		this.client.setPosition(new Point(left + inset, top + titleHeight));
+		this.client.setExtent(new Point(box.width() - (2 * inset), box.height() - (titleHeight + inset)));
+		this.titleLabel.setPosition(new Point(left + 10, top + 5));
+		this.closeButton.setExtent(new Point(30, 20));
+		this.closeButton.setPosition(new Point(box.right() - (inset + 30), top + 2));
+
+		const leftInset = 113, topInset = 60, rightInset = 20, bottomInset = 48;
+		this.listPane.setPosition(new Point(left + leftInset, top + topInset));
+		this.listPane.setExtent(new Point(box.width() - (leftInset + rightInset), box.height() - (topInset + bottomInset)));
+		this.folderReadout.setPosition(new Point(this.listPane.left(), top + 32));
+		this.parentButton.setPosition(new Point(this.listPane.left() - (this.parentButton.width() + 13), top + 28));
+
+		let y = top + 60;
+		for (const button of this.shortcutButtons) {
+			button.setPosition(new Point(left + 17, y));
+			y += 66;
+		}
+
+		y = box.bottom() - 35;
+		let x = box.right() - (this.okayButton.width() + 20);
+		this.okayButton.setPosition(new Point(x, y));
+		x -= this.cancelButton.width() + 10;
+		this.cancelButton.setPosition(new Point(x, y));
+		if (this.resizer) this.resizer.fixLayout();
+	}
 }
+
+MB_FilePicker.colors = {
+	frame: new Color(38, 41, 56),
+	client: new Color(236, 237, 241),
+	button: new Color(207, 209, 220),
+	list: new Color(255, 255, 255),
+	highlight: new Color(254, 215, 34),
+};
+
+MB_FilePicker.findOpen = function (aWorld) {
+	// The picker open on aWorld, or null.
+
+	const morph = aWorld.children.find((m) => m.picker instanceof MB_FilePicker);
+	return morph ? morph.picker : null;
+};
 
 MB_FilePicker.listFolder = function (dir) {
 	// The folders and files directly inside dir, from the built-in file list.
