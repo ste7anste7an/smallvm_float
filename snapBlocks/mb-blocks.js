@@ -2695,6 +2695,26 @@ BlockMorph.prototype.justDropped = function () {
 	delete this.alpha;
 };
 
+// The chrome lets a dragged block pass over its panels between the 'dragstart' and 'dragend'
+// that GP's Block aboutToBeGrabbed and justDropped send. Hooked on the hand, because a block
+// also prepares to be grabbed when it is deleted, and would leave the chrome dragging.
+
+HandMorph.prototype.grabWithoutTellingChrome = HandMorph.prototype.grab;
+HandMorph.prototype.grab = function (aMorph) {
+	var wasEmpty = this.children.length === 0;
+	this.grabWithoutTellingChrome(aMorph);
+	if (wasEmpty && (aMorph instanceof BlockMorph) && (aMorph.parent === this)) {
+		fireIDEEvent('dragstart');
+	}
+};
+
+HandMorph.prototype.dropWithoutTellingChrome = HandMorph.prototype.drop;
+HandMorph.prototype.drop = function () {
+	var dragged = this.children[0];
+	this.dropWithoutTellingChrome();
+	if (dragged instanceof BlockMorph) fireIDEEvent('dragend');
+};
+
 BlockMorph.prototype.destroy = function (justThis) {
 	// private - use IDE_Morph.removeBlock() to first stop all my processes
 	BlockMorph.uber.destroy.call(this);
