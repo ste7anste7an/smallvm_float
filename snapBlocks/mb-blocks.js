@@ -1605,6 +1605,10 @@ BlockMorph.prototype.userMenu = function () {
 	var menu = new MenuMorph(this),
 		shiftClicked = this.world().currentKey === 16;
 
+	if (!shiftClicked && (typeof Menus !== 'undefined')) {
+		return this.chromeMenu(); // shift-right-click keeps this Morphic menu
+	}
+
 	menu.addItem(
 		'copy to clipboard',
 		() => {
@@ -1657,6 +1661,36 @@ BlockMorph.prototype.userMenu = function () {
 	);
 
 	return menu;
+};
+
+BlockMorph.prototype.chromeMenu = function () {
+	// The items of GP's block menu (Block.gp contextMenu) that the port can act on.
+	var world = this.world(),
+		isCommand = this instanceof CommandBlockMorph,
+		items = [],
+		copy = () => {
+			var dup = this.fullCopy();
+			dup.isTemplate = false; // as the hand does for a copy of a palette block
+			return dup;
+		};
+
+	items.push(['duplicate', () => {
+		var dup = copy();
+		if (isCommand && dup.nextBlock()) dup.nextBlock().destroy();
+		dup.pickUp(world);
+	}, 'duplicate this block']);
+	if (isCommand && this.nextBlock()) {
+		items.push(['duplicate all', () => copy().pickUp(world),
+			'duplicate this block and all blocks below it']);
+	}
+	if (!this.isTemplate) {
+		items.push('-');
+		if (isCommand) {
+			items.push(['extract block', () => this.userExtractJustThis(), 'pull out this block']);
+		}
+		items.push(['delete block', () => this.userDestroy(), 'delete this block']);
+	}
+	return chromeMenuFor(world, items);
 };
 
 BlockMorph.prototype.type = function () {

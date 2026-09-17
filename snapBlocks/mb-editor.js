@@ -692,6 +692,53 @@ function chromePoint(aWorld) {
 // What contextMenu answers when the chrome draws the menu, so the hand opens no Morphic one.
 const chromeDrawnMenu = { popUpAtHand() {} };
 
+// Questions put to the chrome and not yet answered, by id. Its menus and dialogs answer
+// by writing JSON into GP.apiResponses[id], which GP polls for in its UI loop.
+const chromeQuestions = new Map();
+let chromeQuestionsPolled = false;
+
+function askChrome(eventName, options, callback) {
+	// Fire a menu or dialog event and call back with the chrome's answer.
+	const id = nextCallId();
+	fireIDEEvent(eventName, Object.assign({ id: id }, options));
+	const shown = ('menu' === eventName) ? Menus.current() : [...document.querySelectorAll('win-')].pop();
+	chromeQuestions.set(id, { shown: shown, callback: callback });
+	if (!chromeQuestionsPolled) {
+		chromeQuestionsPolled = true;
+		requestAnimationFrame(checkChromeAnswers);
+	}
+}
+
+function checkChromeAnswers() {
+	// A menu or window closed without an answer never gets one, so it is forgotten.
+	try {
+		for (const [id, question] of chromeQuestions) {
+			const json = GP.apiResponses[id];
+			if (json !== undefined) {
+				delete GP.apiResponses[id];
+				chromeQuestions.delete(id);
+				question.callback(JSON.parse(json));
+			} else if (!(question.shown && question.shown.isConnected)) {
+				chromeQuestions.delete(id);
+			}
+		}
+	} finally { // an answer whose action throws must not stop the answers after it
+		chromeQuestionsPolled = (chromeQuestions.size > 0);
+		if (chromeQuestionsPolled) requestAnimationFrame(checkChromeAnswers);
+	}
+}
+
+function chromeMenuFor(aWorld, items) {
+	// Show items, each '-' or [label, action, tip], as GP's menuFor does.
+	const p = chromePoint(aWorld);
+	const descriptors = items.map((item) => ('-' === item) ? { label: '-' } : { label: item[0], tip: item[2] });
+	askChrome('menu', { x: p.x, y: p.y, class: null, items: descriptors }, (label) => {
+		const chosen = items.find((item) => item[0] === label);
+		if (chosen) chosen[1]();
+	});
+	return chromeDrawnMenu;
+}
+
 // Global singleton instance
 const MB_editor = new MB_Editor();
 
