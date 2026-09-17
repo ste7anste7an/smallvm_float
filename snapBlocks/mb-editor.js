@@ -581,7 +581,15 @@ console.log('unknown');
 		// something between arming the read and connecting the board.
 		if (!(await this.canReplaceCurrentProject())) return;
 
-		const project = await MB_connection.readCodeFromBoard();
+		// The chrome's spinner, with what GP's MicroBlocksSpinner shows while it reads.
+		fireIDEEvent('spinner.show', { title: localized('Reading project from board...'),
+			subtitle: localized('Do not switch browser tabs!'), note: localized('(press ESC to cancel)'), percent: 0 });
+		let project;
+		try {
+			project = await MB_connection.readCodeFromBoard();
+		} finally {
+			fireIDEEvent('spinner.hide');
+		}
 		if (project == null) return;
 		this.project = project;
 		this.removeAllScripts();
