@@ -680,6 +680,18 @@ function fireIDEEvent(name, value) {
 	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
 }
 
+// The hand's position as the chrome expects GP's: menus.js adds the offset of
+// #canvas.emscripten, while the hand is relative to the world's own canvas.
+function chromePoint(aWorld) {
+	const page = aWorld.worldCanvas.getBoundingClientRect();
+	const canvas = document.querySelector('#canvas.emscripten');
+	const hand = aWorld.hand.position();
+	return { x: hand.x + page.left - canvas.offsetLeft, y: hand.y + page.top - canvas.offsetTop };
+}
+
+// What contextMenu answers when the chrome draws the menu, so the hand opens no Morphic one.
+const chromeDrawnMenu = { popUpAtHand() {} };
+
 // Global singleton instance
 const MB_editor = new MB_Editor();
 
