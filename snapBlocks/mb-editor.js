@@ -127,28 +127,114 @@ class MB_Editor {
 		return Math.floor(Math.random() * (max - min + 1)) + min;
 	}
 
+	// ***** Copy and paste *****
+
+	exchangeScripter() {
+		// What MB_ScriptExchange asks of the scripter it imports into and exports from.
+		return {
+			project: () => this.project,
+			scriptEditor: () => this.scriptsPane(),
+			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
+			blockScale: () => 1, // the pane holds script-file units unscaled
+		};
+	}
+
+	installLibraryNamed(libName) {
+		if (this.project.libraryNamed(libName)) return;
+		console.log('XXX TO DO: install library by name:', libName);
+	}
+
+	scriptStringFor(aBlock) {
+		// The text that copying the script aBlock is in writes.
+
+		const exporter = new MB_ScriptExchange(this.project);
+		return 'GP Script\n' + exporter.exportScripts(this.exchangeScripter(), [aBlock.topBlock()]);
+	}
+
+	allScriptsString() {
+		// The text that copying the whole scripts pane writes.
+
+		const blocks = this.scriptsPane().children.filter((m) => m instanceof BlockMorph);
+		const exporter = new MB_ScriptExchange(this.project);
+		return 'GP Scripts\n' + exporter.exportScripts(this.exchangeScripter(), blocks);
+	}
+
+	scriptsURL(pageURL) {
+		// A link that pastes every script in the pane when opened.
+		return this.urlPrefix(pageURL) + '#scripts=' + MB_ScriptExchange.urlEncode(this.allScriptsString());
+	}
+
+	projectURL(pageURL) {
+		// A link that opens this project when opened.
+		this.updateProject();
+		let code = this.project.codeString();
+		if (this.projectName) {
+			const title = this.projectName.replace(/\.ubp$/, '');
+			code = "projectName '" + fixEmbeddedQuotes(title) + "'\n\n" + code;
+		}
+		return this.urlPrefix(pageURL) + '?project=' + MB_ScriptExchange.urlEncode(code);
+	}
+
+	urlPrefix(pageURL) {
+		// The page address up to and including .html, else without its query and fragment.
+		const i = pageURL.indexOf('.html');
+		if (i >= 0) return pageURL.slice(0, i + 5);
+		return pageURL.split(/[?#]/)[0];
+	}
+
 	handlePaste(event) {
 		let s = event.data;
 		if (!s.startsWith('GP Script')) return; // ignore non-script paste
+		return this.pasteScripts(s.slice(s.indexOf('\n') + 1));
+	}
 
-		let i = s.indexOf('script'); // find first script
-		if (i < 0) return; // no scripts
+	async pasteScripts(scriptString, dst) {
+		// Add the scripts and custom blocks in scriptString to the project, keeping the
+		// distances between scripts. dst is the pane-relative top-left of the group;
+		// by default the group goes below the lowest script.
 
-		let p = new MB_Parser(s.slice(i));
-		while (true) {
-			let script = p.readCmd(false);
-			if (script === null) break;
-			if (script.length == 4 && 'script' == script[0]) {
-				// ['script', x, y, cmd], x and y the offset within the scripts
-				// pane; a top-level `to` also has four parts, with names there.
-				let body = script[3];
-				if (Array.isArray(body) && body.length > 0) {
-					// A single command came from '( ... )': an expression script.
-					this.addBlockToScriptsAt(
-						MB_Parser.blockFor(body, true), script[1], script[2]);
-				}
-			}
+		let pane = this.scriptsPane();
+		scriptString = scriptString.replace(/\r\n?/g, '\n');
+		for (const entry of MB_Parser.parse(scriptString) || []) {
+			let script = Array.isArray(entry) && entry[0] === 'script' ? entry[entry.length - 1] : null;
+			if (Array.isArray(script) && Array.isArray(script[0])) script = script[0];
+			if (Array.isArray(script) && script[0] === 'to') this.hideDefinition(stringArg(script[1]));
 		}
+		if (!dst) dst = new Point(100, this.scriptsBottom() - pane.top() + (30 * blockScale()));
+		const importer = new MB_ScriptExchange(this.project);
+		importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		pane.adjustBounds();
+		pane.changed();
+
+		this.updateProject();
+		try {
+			await this.codeManager.saveAllChunksAfterLoad();
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
+	importFromPNG(pngBytes) {
+		// Paste the scripts a picture carries, if it carries any.
+		let s = MB_ScriptPicture.getScriptText(pngBytes);
+		if (s == null) return;
+		return this.pasteScripts(s.slice(s.indexOf('\n') + 1));
+	}
+
+	hideDefinition(funcName) {
+		// Remove the pane's definition hat for funcName; a paste that defines it brings its own.
+		for (const m of this.scriptsPane().children.slice()) {
+			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) m.destroy();
+		}
+	}
+
+	scriptsBottom() {
+		// The bottom of the lowest script in the pane, or the pane's top if it has none.
+		let result = this.scriptsPane().top();
+		for (const m of this.scriptsPane().children) {
+			if (m instanceof BlockMorph) result = Math.max(result, m.fullBounds().bottom());
+		}
+		return result;
 	}
 
 	// ***** Populate the blocks palette *****
@@ -332,34 +418,32 @@ console.log('unknown');
 	}
 
 	openProject() {
-		async function loadFile(fileName, contents) {
-			// GP asks after the file is chosen rather than before the picker
-			// opens, so cancelling the picker asks nothing (MicroBlocksEditor.gp:260).
-			if (!MB_editor.canReplaceCurrentProject()) return;
-			MB_editor.project = new MB_Project();
-			MB_editor.project.loadFromString(contents);
-			MB_editor.removeAllScripts();
-			MB_editor.project.main.scripts.forEach( (entry) => {
-				let x = entry[0], y = entry[1], script = entry[2];
-				MB_editor.addBlockToScriptsAt(script, x, y);
-			});
-			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
-			MB_editor.projectName = fileName;
-			MB_connection.setCodeManager(MB_editor.codeManager);
+		// Cancelling the picker asks nothing: openProjectFromString asks once a file is chosen.
+		this.importLocalFile((fileName, contents) => this.openProjectFromString(contents, fileName));
+	}
 
-			// As loadNewProjectFromData does (MicroBlocksScripter.gp:575).
-			// Without it the project that was open keeps running on the board.
-			// Awaited: the download below must not overtake the erase.
-			await MB_connection.clearBoardIfConnected();
-			console.log("Loaded:", fileName,
-				MB_editor.project.main.scripts.length, 'scripts,',
-				MB_editor.project.allFunctions().length, 'functions'
-			);
-			// GP's openProject ends by downloading the new project to a
-			// connected board (MicroBlocksEditor.gp:293).
-			await MB_editor.codeManager.saveAllChunksAfterLoad();
-		}
-		this.importLocalFile(loadFile.bind(this));
+	async openProjectFromString(contents, name) {
+		if (!MB_editor.canReplaceCurrentProject()) return;
+		MB_editor.project = new MB_Project();
+		MB_editor.project.loadFromString(contents);
+		MB_editor.removeAllScripts();
+		MB_editor.project.main.scripts.forEach( (entry) => {
+			let x = entry[0], y = entry[1], script = entry[2];
+			MB_editor.addBlockToScriptsAt(script, x, y);
+		});
+		MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+		MB_editor.projectName = name;
+		MB_connection.setCodeManager(MB_editor.codeManager);
+
+		// Without the erase the project that was open keeps running on the board.
+		// Awaited: the download below must not overtake the erase.
+		await MB_connection.clearBoardIfConnected();
+		console.log("Loaded:", name,
+			MB_editor.project.main.scripts.length, 'scripts,',
+			MB_editor.project.allFunctions().length, 'functions'
+		);
+		// Opening a project ends by downloading it to a connected board.
+		await MB_editor.codeManager.saveAllChunksAfterLoad();
 	}
 
 	importLocalFile(callback) {

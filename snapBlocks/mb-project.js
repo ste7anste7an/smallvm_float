@@ -1232,7 +1232,7 @@ class MB_Module {
 // here: a morph by selector/argList on export, an array by [0] and slice(1) on
 // import. See misc/tests/js/regression/script-exchange.test.mjs.
 
-/* global blockScale, varMustBeQuoted, fixEmbeddedQuotes, quoteIfNeeded */
+/* global varMustBeQuoted, fixEmbeddedQuotes, quoteIfNeeded */
 
 class MB_ScriptExchange {
 	constructor(mbProject) {
@@ -1253,11 +1253,13 @@ class MB_ScriptExchange {
 		result.push('\n');
 		result.push(...this.functionDefinitions());
 
-		const scale = blockScale();
+		const scale = scripter.blockScale(); // pane pixels per script-file unit
+		const pane = scripter.scriptEditor();
+		const origin = pane ? pane.topLeft() : new Point(0, 0);
 		for (const block of blockList) {
 			if (!(block instanceof BlockMorph)) continue;
-			const x = Math.round(block.left() / scale);
-			const y = Math.round(block.top() / scale);
+			const x = Math.round((block.left() - origin.x) / scale);
+			const y = Math.round((block.top() - origin.y) / scale);
 			if (block.selector === 'to') {
 				// A function-definition hat is saved as a stub 'to' with an empty
 				// body; functionDefinitions() saves the definition itself.
@@ -1441,13 +1443,69 @@ class MB_ScriptExchange {
 				if (block == null) continue;
 				this.addGlobalsFor(block);
 				block.fixBlockColor();
-				const scale = blockScale();
+				const scale = scripter.blockScale(); // pane pixels per script-file unit
 				const blockX = Math.round(dstX + scale * (args[0] - scriptsX));
 				const blockY = Math.round(dstY + scale * (args[1] - scriptsY));
 				block.setPosition(new Point(blockX, blockY));
 				scriptsPane.add(block);
 			}
 		}
+	}
+
+	// --- Links ---
+
+	static urlEncode(s) {
+		// Percent-encode every UTF-8 byte except A-Z a-z 0-9 - _ . ~, in uppercase hex.
+		return encodeURIComponent(s).replace(/[!'()*]/g,
+			(c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+	}
+
+	static urlDecode(s) {
+		// Unlike decodeURIComponent, a malformed escape is kept as it is and + stays +.
+		const bytes = [];
+		const encoder = new TextEncoder();
+		for (let i = 0; i < s.length; i++) {
+			if (s[i] === '%' && /^[0-9a-fA-F]{2}$/.test(s.slice(i + 1, i + 3))) {
+				bytes.push(parseInt(s.slice(i + 1, i + 3), 16));
+				i += 2;
+			} else {
+				const cp = s.codePointAt(i);
+				if (cp > 0xFFFF) i++;
+				bytes.push(...encoder.encode(String.fromCodePoint(cp)));
+			}
+		}
+		return new TextDecoder().decode(new Uint8Array(bytes));
+	}
+
+	static urlParameter(url, name) {
+		// The raw value of name in the query or the fragment, or null. As in GP the
+		// value runs to the next & or the end, so a project link keeps its own query.
+		const m = url.match(new RegExp('[?#&]' + name + '=([^&]*)'));
+		return m ? m[1] : null;
+	}
+
+	static fromURL(url) {
+		// What a link carries. Scripts win over a project; a project link is left for the caller to fetch.
+		const scripts = MB_ScriptExchange.urlParameter(url, 'scripts');
+		if (scripts != null) return { kind: 'scripts', text: MB_ScriptExchange.urlDecode(scripts) };
+		const proj = MB_ScriptExchange.urlParameter(url, 'project');
+		if (proj == null) return null;
+		if (proj.startsWith('http')) {
+			// Named as GP's importFromURL names it: after the last / to before the last dot, or ''.
+			const slash = proj.lastIndexOf('/');
+			const dot = proj.lastIndexOf('.');
+			const name = (dot > slash) ? proj.slice(slash + 1, dot) : '';
+			return { kind: 'projectLink', url: proj, name };
+		}
+		const text = MB_ScriptExchange.urlDecode(proj);
+		return { kind: 'project', text, name: MB_ScriptExchange.extractProjectName(text) };
+	}
+
+	static extractProjectName(projectString) {
+		for (const line of projectString.split('\n')) {
+			if (line.startsWith('projectName')) return String(stringArg(MB_Parser.parse(line)[0][1]));
+		}
+		return '';
 	}
 
 	addGlobalsFor(script, parameterNames) {
@@ -1470,6 +1528,88 @@ class MB_ScriptExchange {
 				this.mbProject.main.addVariable(v);
 			}
 		}
+	}
+}
+
+// MB_ScriptPicture - the script text a PNG file carries, in a tEXt chunk keyed
+// 'script' holding UTF-8, which is what the MicroBlocks wiki's pictures use.
+
+class MB_ScriptPicture {
+	static addScriptText(pngBytes, text) {
+		// Return a copy of pngBytes with a script chunk before its first IDAT chunk.
+		const data = [...MB_ScriptPicture.latin1('script'), 0, ...new TextEncoder().encode(text)];
+		const chunk = MB_ScriptPicture.chunkBytes('tEXt', data);
+		let i = 8;
+		while (i + 12 <= pngBytes.length) {
+			const type = MB_ScriptPicture.chunkType(pngBytes, i);
+			if (type === 'IDAT' || type === 'IEND') break;
+			i += 12 + MB_ScriptPicture.uint32(pngBytes, i);
+		}
+		const result = new Uint8Array(pngBytes.length + chunk.length);
+		result.set(pngBytes.subarray(0, i));
+		result.set(chunk, i);
+		result.set(pngBytes.subarray(i), i + chunk.length);
+		return result;
+	}
+
+	static getScriptText(pngBytes) {
+		// Return the script text in pngBytes, or null. Only a tEXt chunk with a valid
+		// CRC counts, and a later script chunk replaces an earlier one.
+		const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+		if (signature.some((b, i) => pngBytes[i] !== b)) return null;
+		let result = null;
+		let i = 8;
+		while (i + 12 <= pngBytes.length) {
+			const length = MB_ScriptPicture.uint32(pngBytes, i);
+			const end = i + 8 + length;
+			if (end + 4 > pngBytes.length) break;
+			const typeAndData = pngBytes.subarray(i + 4, end);
+			const crcOK = MB_ScriptPicture.crc32(typeAndData) === MB_ScriptPicture.uint32(pngBytes, end);
+			if (crcOK && (MB_ScriptPicture.chunkType(pngBytes, i) === 'tEXt')) {
+				const data = pngBytes.subarray(i + 8, end);
+				const nul = data.indexOf(0);
+				// The key must be exactly 'script', six bytes, so a longer one is never spread.
+				if ((nul === 6) && (String.fromCharCode(...data.subarray(0, nul)) === 'script')) {
+					let value = data.subarray(nul + 1);
+					if (value.indexOf(0) >= 0) value = value.subarray(0, value.indexOf(0));
+					result = new TextDecoder().decode(value);
+				}
+			}
+			i = end + 4;
+		}
+		return result;
+	}
+
+	static chunkBytes(type, data) {
+		const result = new Uint8Array(12 + data.length);
+		const view = new DataView(result.buffer);
+		view.setUint32(0, data.length);
+		result.set(MB_ScriptPicture.latin1(type), 4);
+		result.set(data, 8);
+		view.setUint32(8 + data.length, MB_ScriptPicture.crc32(result.subarray(4, 8 + data.length)));
+		return result;
+	}
+
+	static chunkType(bytes, i) { return String.fromCharCode(...bytes.subarray(i + 4, i + 8)); }
+
+	static uint32(bytes, i) {
+		return ((bytes[i] << 24) | (bytes[i + 1] << 16) | (bytes[i + 2] << 8) | bytes[i + 3]) >>> 0;
+	}
+
+	static latin1(s) { return Array.from(s, (c) => c.charCodeAt(0)); }
+
+	static crc32(bytes) {
+		if (!MB_ScriptPicture.crcTable) {
+			MB_ScriptPicture.crcTable = new Uint32Array(256);
+			for (let n = 0; n < 256; n++) {
+				let c = n;
+				for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+				MB_ScriptPicture.crcTable[n] = c >>> 0;
+			}
+		}
+		let crc = 0xFFFFFFFF;
+		for (const b of bytes) crc = MB_ScriptPicture.crcTable[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+		return (crc ^ 0xFFFFFFFF) >>> 0;
 	}
 }
 
