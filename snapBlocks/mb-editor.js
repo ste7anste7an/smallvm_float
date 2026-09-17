@@ -24,6 +24,7 @@ class MB_Editor {
 		// and then the message's own chunk id; the chunk the fault is in is the
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
+		this.saveNeeded = false; // the scripts changed since the last step
 	}
 
 	open(world) {
@@ -349,6 +350,24 @@ console.log('unknown');
 
 	// Project updating
 
+	scriptChanged() {
+		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
+		this.saveNeeded = true;
+	}
+
+	async step() {
+		// Called four times a second. Send the scripts to a connected board if they
+		// changed, as GP's MicroBlocksScripter step does. Wait while another download runs.
+		if (!this.saveNeeded || this.codeManager.savesInProgress > 0) return;
+		this.saveNeeded = false; // an edit made during the sync below sets it again
+		try {
+			this.updateProject();
+			await this.codeManager.syncScripts();
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
 	updateProject() {
 		// Replace the project scripts with the scripts in the scripting pane.
 
@@ -427,6 +446,7 @@ console.log('unknown');
 
 	async openProjectFromString(contents, name) {
 		if (!MB_editor.canReplaceCurrentProject()) return;
+		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project = new MB_Project();
 		MB_editor.project.loadFromString(contents);
 		MB_editor.removeAllScripts();
