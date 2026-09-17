@@ -76,16 +76,16 @@ GP code that will need to ported:
 	1266	ide/MicroBlocksEditor.gp
 	1542	ide/MicroBlocksScripter.gp
 
-	380		ide/MicroBlocksDataGraph.gp
+	380		ide/MicroBlocksDataGraph.gp (done!)
 	1071	ide/MicroBlocksFilePicker.gp
 	637		ide/MicroBlocksLibraryWidgets.gp
 
-	133		ide/MicroBlocksTipBar.gp
+	133		ide/MicroBlocksTipBar.gp (done!)
 	456		ide/MicroBlocksHelp.gp
 
 	295		ide/MicroBlocksSelection.gp
 	237		ide/MicroBlocksFlasher.gp
-	108		ide/MicroBlocksSpinner.gp
+	108		ide/MicroBlocksSpinner.gp (done!)
 
 	17		ide/MicroBlocksPatches.gp
  	215		ide/MicroBlocksAppMaker.gp
