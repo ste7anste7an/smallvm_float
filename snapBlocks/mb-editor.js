@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_Files, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_Files, MB_FilePicker, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -17,6 +17,7 @@ class MB_Editor {
 		MB_connection.setCodeManager(this.codeManager); // so chunk CRCs from the board reach it
 		this.readFromBoard = false;
 		this.projectName = null; // the file name a save should use
+		this.lastProjectFolder = 'Examples'; // where the file picker opens
 		this.runningChunks = new Map(); // used for block highlighting
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
 		this.chunkErrorListeners = []; // called with each decoded board error
@@ -439,6 +440,15 @@ console.log('unknown');
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
+	}
+
+	openProjectMenu() {
+		// Show the file picker on the built-in projects. Its Computer button
+		// leads to the browser's chooser.
+
+		const open = MB_FilePicker.findOpen(world);
+		if (open) open.removeFromOwner();
+		new MB_FilePicker((path) => this.openProjectFromFile(path), this.lastProjectFolder, ['.ubp', '.gpp']).open(world);
 	}
 
 	openProject() {
