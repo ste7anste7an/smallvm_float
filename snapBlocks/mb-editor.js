@@ -391,17 +391,25 @@ console.log('unknown');
 
 	// File operations
 
-	canReplaceCurrentProject() {
+	async canReplaceCurrentProject() {
 		// Ask before discarding work, as GP does (MicroBlocksEditor.gp:203).
 		// updateProject() first, or a block the user has just dragged into the
 		// pane is not in the project yet and does not count as work.
 		this.updateProject();
 		if (!this.project.hasUserCode()) return true;
-		return confirm(localized('Discard current project?'));
+		return this.confirm(localized('Discard current project?'));
 	}
 
-	newProject() {
-		if (!this.canReplaceCurrentProject()) return;
+	confirm(question) {
+		// Answer a promise of true or false from the chrome's dialog, as GP's Page confirm
+		// does, or from the browser's own on a page without the chrome.
+		if (typeof FloatingWindow === 'undefined') return Promise.resolve(confirm(question));
+		return new Promise((resolve) => askChrome('window.confirm',
+			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve));
+	}
+
+	async newProject() {
+		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
 	}
 
@@ -447,7 +455,7 @@ console.log('unknown');
 	}
 
 	async openProjectFromString(contents, name) {
-		if (!MB_editor.canReplaceCurrentProject()) return;
+		if (!(await MB_editor.canReplaceCurrentProject())) return;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project = new MB_Project();
 		MB_editor.project.loadFromString(contents);
@@ -521,11 +529,11 @@ console.log('unknown');
 		}
 	}
 
-	openFromBoard() {
+	async openFromBoard() {
 		// GP's openFromBoard (MicroBlocksEditor.gp:296): clear the project, then
 		// wait for the NEXT board to connect. A board that is already connected
 		// is not read; justConnected does the reading, on the next connect.
-		if (!this.canReplaceCurrentProject()) return;
+		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
 		this.readFromBoard = true;
 		alert(localized('Connect board to proceed.'));
@@ -538,7 +546,7 @@ console.log('unknown');
 
 		// GP asks here too (MicroBlocksRuntime.gp:539), for the user who wrote
 		// something between arming the read and connecting the board.
-		if (!this.canReplaceCurrentProject()) return;
+		if (!(await this.canReplaceCurrentProject())) return;
 
 		const project = await MB_connection.readCodeFromBoard();
 		if (project == null) return;
