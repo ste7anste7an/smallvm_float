@@ -433,11 +433,20 @@ console.log('unknown');
 		this.projectName = null;
 		MB_connection.setCodeManager(this.codeManager);
 		this.removeAllScripts();
+		this.updateProjectProperties();
 
 		// GP clears the board on every project replacement, right after making
 		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
 		// here downloads, and sendMsg keeps the wire in order on its own.
 		MB_connection.clearBoardIfConnected();
+	}
+
+	updateProjectProperties() {
+		// The chrome shows the title without its extension and offers the custom block
+		// items when there are any, as GP's updateTitle and setProperty calls do.
+		if (typeof storeIDEProperty !== 'function') return; // test.html has no chrome
+		storeIDEProperty('project.title', (this.projectName || '').replace(/\.[^.]*$/, ''));
+		storeIDEProperty('project.hasCustomBlocks', this.project.main.functions.length > 0);
 	}
 
 	saveProject() {
@@ -481,6 +490,7 @@ console.log('unknown');
 		MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
 		MB_editor.projectName = name;
 		MB_connection.setCodeManager(MB_editor.codeManager);
+		MB_editor.updateProjectProperties();
 
 		// Without the erase the project that was open keeps running on the board.
 		// Awaited: the download below must not overtake the erase.
@@ -570,6 +580,7 @@ console.log('unknown');
 			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
+		this.updateProjectProperties();
 		MB_connection.setCodeManager(this.codeManager);
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
