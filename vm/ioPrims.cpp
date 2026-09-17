@@ -1062,7 +1062,7 @@ void hardwareInit() {
 	//	Native USB: 19, 20
 	//	UART0 (internal; for flashing/debugging): TX 43, RX 44
 	//	35-37 are not connected (PSRAM). 0, 3, 45 and 46 are strapping pins.
-	#define BOARD_TYPE "NEZHA-ESP32-S3"
+	#define BOARD_TYPE "Nezha for ESP32"
 	#define DIGITAL_PINS 49
 	#define ANALOG_PINS 20
 	#define TOTAL_PINS 49
