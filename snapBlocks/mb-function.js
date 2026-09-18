@@ -133,6 +133,17 @@ class MB_Function {
 			(this.cmdList == null ? '' : this.cmdList.codeString()));
 	}
 
+	expression() {
+		// Answer me as a model node, the shape MB_Decompiler emits for a
+		// function definition (mb-decompiler.js addHatBlock, chunk type 3).
+		return {
+			isFunction: true,
+			functionName: this.functionName,
+			argNames: this.argNames.slice(),
+			cmdList: this.cmdList ? this.cmdList.expression() : null,
+		};
+	}
+
 	codeString() {
 		let result = 'to ' + quoteIfNeeded(this.functionName) + ' ';
 		for (const arg of this.argNames) {

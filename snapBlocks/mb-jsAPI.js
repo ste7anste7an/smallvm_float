@@ -181,10 +181,9 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.newProject();
 			break;
 		case 'project.open':
-			// The same order (MicroBlocksAPI.gp:74). GP's picker also offers the
-			// built-in Examples; this one is the browser's own file chooser.
+			// The same order: answer, then show the file picker.
 			callback(0);
-			MB_editor.openProject();
+			MB_editor.openProjectMenu();
 			break;
 		case 'project.showAllMyBlocks':
 		case 'scripts.copyToClipboard':

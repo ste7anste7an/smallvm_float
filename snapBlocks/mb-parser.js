@@ -348,6 +348,9 @@ class MB_Parser {
 
 		let args = (node.args || []).map(arg => {
 			if ((arg == null) || ((typeof arg) != 'object')) return arg; // a literal
+			// An empty body, which is not an absent argument: a body slot has to
+			// be built for it either way, and specForArg reads the same name.
+			if (true == arg.isEmptyCommandList) return MB_Specs.emptyCommandList;
 			// A colour the decompiler split into {r, g, b} (fixBooleanAndColorArgs).
 			// The colour slot holds the packed 0xRRGGBB integer the bytes carry.
 			if (true == arg.isColor) {
