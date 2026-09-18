@@ -224,9 +224,9 @@ class MB_Parser {
 		if ('v' == selector) {
 			return this.makeVariableReporter(buf[1]);
 		}
-		// Resolve the source tokens, then build the block. Everything after
-		// this point is shared with blockForDecompiled(), which arrives with
-		// its arguments already resolved.
+		// Resolve the source tokens, then build the block with blockWithArgs,
+		// which blockFromDecompiled() and MB_Specs.blockForSpec call with their
+		// arguments already resolved.
 		let args = buf.slice(1).map((arg, i) => {
 			if ((typeof arg) == 'string') {
 				return this.argOrVarRef(selector, arg, (i == 0));
@@ -238,20 +238,30 @@ class MB_Parser {
 		return this.blockWithArgs(selector, args, isReporter, inBody);
 	}
 
-	blockWithArgs(selector, args, isReporter = false, inBody = false) {
+	blockWithArgs(selector, args, isReporter = false, inBody = false, fromSource = true, blockType = null,
+		specString = null) {
 		// Make a block for the given selector and already-resolved arguments.
 		// An argument is a value, a ReporterBlockMorph for a nested reporter,
 		// or a CommandBlockMorph for the first block of a body.
 		//
 		// This is the one place a block gets built. The text parser reaches it
-		// through makeBlock and the decompiler through blockForDecompiled, so a
-		// script read back from a board and the same script loaded from a file
-		// are the same morph, and therefore compile to the same bytes.
+		// through makeBlock, the decompiler through blockFromDecompiled and the
+		// palette through MB_Specs.blockForSpec, so a script read back from a
+		// board, the same script loaded from a file and a block dragged from the
+		// palette are the same morph. The palette passes fromSource false and
+		// the blockType its spec array declares. specString is the block's label
+		// when the caller holds it, as the palette does for a library's or a
+		// project's spec arrays, which may have no table entry.
+
+		// A variable reporter is labelled with its own name, so it has no slot
+		// and the expansion below would never finish.
+		if ('v' == selector) return this.makeVariableReporter(args.length > 0 ? args[0] : '');
 
 		// A reporter written where a command goes is a command block here: it
 		// chains, prints and compiles as GP's does (the primitive, then a pop),
 		// where a ReporterBlockMorph can do none of those.
-		let b, blockType = MB_Specs.blockTypeForSelector(selector, isReporter, args.length);
+		let b;
+		if (!blockType) blockType = MB_Specs.blockTypeForSelector(selector, isReporter, args.length);
 		if (!inBody && (isReporter || ('r' == blockType))) {
 			b = new ReporterBlockMorph();
 		} else if ('h' == blockType) {
@@ -262,10 +272,11 @@ class MB_Parser {
 		b.selector = selector;
 		// snapSpecForSelector returns no spec with fewer slots than the call has
 		// arguments. Any argument still without a slot is given one here, so
-		// none is dropped.
-		let spec = MB_Specs.snapSpecForSelector(selector, isReporter, args.length);
-		spec = spec ? MB_Specs.extendSpecForArgs(spec, args)
-			: MB_Specs.specFor(selector, args, isReporter); // no usable spec; specFor extends its own
+		// none is dropped. A palette block has no call behind it, so it keeps
+		// the slots its spec declares.
+		let spec = specString || MB_Specs.snapSpecForSelector(selector, isReporter, args.length);
+		if (!spec) spec = MB_Specs.specFor(selector, args, isReporter); // no usable spec; specFor extends its own
+		else if (fromSource) spec = MB_Specs.extendSpecForArgs(spec, args);
 		b.setSpec(spec);
 		let cat = MB_Specs.categoryForSelector(selector);
 		if (cat.includes('Display')) cat = 'Output'; // xxx remove when libraries work
@@ -273,7 +284,15 @@ class MB_Parser {
 		b.isDraggable = true;
 		let inputs = b.inputs();
 
-		while ((inputs.length < args.length) && b.canExpand()) {
+		// Only a call can ask for more arguments than the spec declares slots. A
+		// palette block keeps its spec's shape, except that a spec that repeats its
+		// last section and has no slot in its first shows one slot.
+		if (fromSource) {
+			while ((inputs.length < args.length) && b.canExpand()) {
+				b.expand();
+				inputs = b.inputs();
+			}
+		} else if (b.blockSpec.endsWith('...') && (0 == b.minInputCount())) {
 			b.expand();
 			inputs = b.inputs();
 		}
@@ -286,7 +305,10 @@ class MB_Parser {
 		// A slot the source did not fill is not an argument. GP keeps the parse
 		// node beside the block (Block.gp initializeForNode :1747) and compiles
 		// and prints its argList, so `sayIt` stays `sayIt 0` and `return` stays bare.
-		for (let i = args.length; i < inputs.length; i++) inputs[i].markUnsupplied();
+		// A palette block has no source, so every slot it shows is an argument.
+		if (fromSource) {
+			for (let i = args.length; i < inputs.length; i++) inputs[i].markUnsupplied();
+		}
 		return b;
 	}
 

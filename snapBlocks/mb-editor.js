@@ -25,6 +25,9 @@ class MB_Editor {
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
+		this.category = null; // the selected palette category, or null while a library is
+		this.library = null; // the selected library's name, or null while a category is
+		this.paletteY = 0; // where the next block goes while the palette is being filled
 	}
 
 	open(world) {
@@ -32,8 +35,6 @@ class MB_Editor {
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.color = new Color(180, 180, 180);
-		this.addBlocksToPalette(this.palette);
-		this.palette.contents.adjustBounds();
 		this.palette.contents.acceptsDrops = true;
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if (droppedMorph instanceof BlockMorph) {
@@ -92,6 +93,9 @@ class MB_Editor {
 		// The tip bar sits at the bottom of the window and says what the block
 		// under the pointer does.
 		if (typeof MB_Tips !== 'undefined') MB_Tips.open();
+
+		// Start on Control, the category shown whenever no library is selected.
+		this.selectCategory('cat;Control');
 		return this;
 	}
 
@@ -258,37 +262,208 @@ class MB_Editor {
 
 	// ***** Populate the blocks palette *****
 
-	addBlocksToPalette(palette) {
-		const specs = MB_Specs.mbBlockSpecs();
-		let y = 10;
-		let currentCategory = 'Output';
-		for (let i = 0; i < 169; i++) {
-			let item = specs[i];
-			if (Array.isArray(item)) { // block spec
-				let b = MB_Specs.blockForSpec(item, currentCategory);
-				b.setPosition(new Point(15, y));
-				b.isTemplate = true;
-				palette.contents.add(b);
-				y += b.height() + 10;
-			} else if ('-' == item) { // separator
-				y += 15;
-			} else {
-				if (item.indexOf('cat;') == 0) {
-					item = item.substring(4);
-				}
-				let fullCategoryName = item;
-				if (item.indexOf('-Advanced') > 0) {
-					item = item.substring(0, item.indexOf('-Advanced'));
-				}
-				currentCategory = item;
-				if (y > 10) y += 15;
-				let label = new StringMorph(fullCategoryName, 14);
-				label.toggleWeight();
-				label.setPosition(new Point(5, y));
-				palette.contents.add(label);
-				y += label.height() + 15;
+	currentCategory() { return this.category; }
+	currentLibrary() { return this.library; }
+
+	selectCategory(cat) {
+		// Show one category's blocks and tell the IDE which. Deselects the library.
+
+		this.category = cat;
+		this.library = null;
+		this.updatePalette();
+		this.tellIDE('currentCategory', cat);
+	}
+
+	selectLibrary(libName) {
+		// Show one library's blocks and tell the IDE which. Deselects the category.
+
+		this.library = libName;
+		this.category = null;
+		this.updatePalette();
+		this.tellIDE('currentCategory', libName);
+	}
+
+	libraryList() {
+		// The project's libraries as the IDE's library buttons want them. An
+		// implementation library holds another library's working parts and is not offered.
+
+		let result = [];
+		for (const lib of this.project.libraries.values()) {
+			if (!lib.isImplementationLib()) {
+				result.push({ label: lib.moduleName, category: lib.moduleCategory });
 			}
 		}
+		result.sort((a, b) => (a.label < b.label) ? -1 : ((a.label > b.label) ? 1 : 0));
+		return result;
+	}
+
+	updateLibraryList() {
+		// Tell the IDE which libraries the project has and, unless a library
+		// that is still there is selected, select cat;Control. Called after a project change.
+
+		this.tellIDE('libraryList', this.libraryList());
+		if (this.library && this.project.libraryNamed(this.library)) {
+			this.updatePalette();
+		} else {
+			this.selectCategory('cat;Control');
+		}
+	}
+
+	updatePalette() {
+		// Empty the palette and refill it from the current selection.
+
+		if (!this.palette) return;
+		let contents = this.palette.contents;
+		contents.children.slice().forEach((m) => { m.destroy(); });
+		contents.setPosition(this.palette.position()); // scroll back to the top
+		this.paletteY = contents.top() + 10;
+		if (this.library) {
+			this.addBlocksForLibrary(this.library);
+		} else if ('cat;Variables' == this.category) {
+			this.addVariableBlocks();
+			this.addAdvancedBlocksForCategory(this.category);
+		} else if ('cat;My Blocks' == this.category) {
+			this.addMyBlocks();
+		} else {
+			this.addBlocksForCategory(this.category);
+		}
+		contents.adjustBounds();
+		this.palette.changed();
+	}
+
+	devMode() {
+		// Developer mode. The pure Javascript build keeps it in its IDE object's
+		// preferences (userPreference, ide.js); a page without one reads off.
+
+		try {
+			return (typeof IDE != 'undefined') && (IDE.userPreference('devMode') == true);
+		} catch (e) {
+			return false;
+		}
+	}
+
+	tellIDE(path, value) {
+		// The pure Javascript build's chrome reads these from its IDE object
+		// (storeIDEProperty, mb-jsAPI.js); a page without that chrome has no one to tell.
+
+		if (typeof storeIDEProperty == 'function') storeIDEProperty(path, value);
+	}
+
+	addPaletteBlock(b) {
+		b.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		b.isTemplate = true;
+		this.palette.contents.add(b);
+		this.paletteY += b.height() + 10;
+	}
+
+	addPaletteLabel(text) {
+		let label = new StringMorph(text, 14);
+		label.toggleWeight();
+		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
+		this.palette.contents.add(label);
+		this.paletteY += label.height() + 15;
+	}
+
+	addPaletteBlockForSpec(spec, category) {
+		// A spec read from a file may describe no block type blockForSpec knows.
+
+		let b = spec ? MB_Specs.blockForSpec(spec, category) : undefined;
+		if (b) this.addPaletteBlock(b);
+	}
+
+	addBlocksForSpecs(specs, category) {
+		for (const spec of specs) {
+			if ('-' == spec) { // separator
+				this.paletteY += 15;
+			} else {
+				this.addPaletteBlockForSpec(spec, category);
+			}
+		}
+	}
+
+	addBlocksForCategory(cat) {
+		// The category's blocks then its advanced section. No heading: the
+		// selected button in the IDE already carries the name.
+
+		if (!cat) return;
+		let name = cat.substring(4); // without the 'cat;' prefix
+		this.addBlocksForSpecs(MB_Specs.specsForCategory(cat), name);
+		this.addAdvancedBlocksForCategory(cat);
+	}
+
+	addBlocksForLibrary(libName) {
+		// A library's blocks in the order its block list gives them. Names
+		// starting with an underscore are the library's own working parts.
+
+		let lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		for (const op of lib.blockList) {
+			if ('-' == op) { // separator
+				this.paletteY += 15;
+			} else if ('advanced' == op) {
+				if (!this.devMode()) return; // the rest is for developer mode
+				this.paletteY += 15;
+				this.addPaletteLabel('Advanced:');
+			} else if (!op.startsWith('_')) {
+				let spec = MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(op))
+					|| MB_Specs.specArrayForSelector(op);
+				this.addPaletteBlockForSpec(spec, lib.moduleCategory);
+			}
+		}
+	}
+
+	addVariableBlocks() {
+		// Set and change default to the project's first variable and each variable
+		// gets a reporter. Names starting with an underscore are a library's own
+		// and are not shown.
+
+		let varNames = this.project.allVariableNames().filter((v) => !v.startsWith('_'));
+		let defaultVar = (varNames.length > 0) ? varNames[0] : '';
+		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
+			if ('-' == spec) { // separator
+				this.paletteY += 15;
+			} else if (('local' == spec[1]) && !this.devMode()) {
+				continue; // initialize local is offered only in developer mode
+			} else if ('v' != spec[1]) { // one reporter per variable follows instead
+				let s = spec.slice();
+				if (('=' == s[1]) || ('+=' == s[1])) s[4] = defaultVar;
+				this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
+			}
+		}
+		this.paletteY += 15;
+		let varSpec = MB_Specs.specArrayForSelector('v');
+		let upper = (v) => v.toUpperCase();
+		varNames.sort((a, b) => (upper(a) < upper(b)) ? -1 : ((upper(a) > upper(b)) ? 1 : 0));
+		for (const varName of varNames) {
+			let s = varSpec.slice();
+			s[4] = varName;
+			this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
+		}
+	}
+
+	addMyBlocks() {
+		// The main module's functions. A library's functions belong to the library.
+
+		for (const func of this.project.main.functions) {
+			if (func.functionName.startsWith('_')) continue; // hidden
+			this.addPaletteBlockForSpec(this.paletteSpecForFunction(func), 'My Blocks');
+		}
+	}
+
+	paletteSpecForFunction(func) {
+		return MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(func.functionName))
+			|| MB_Specs.specArrayForFunction(func);
+	}
+
+	addAdvancedBlocksForCategory(cat) {
+		// The category's advanced blocks, shown only in developer mode.
+
+		if (!this.devMode()) return;
+		let specs = MB_Specs.specsForCategory(cat + '-Advanced');
+		if (specs.length == 0) return;
+		this.paletteY += 15;
+		this.addPaletteLabel('Advanced:');
+		this.addBlocksForSpecs(specs, cat.substring(4));
 	}
 
 	// Run/stop
@@ -404,6 +579,54 @@ console.log('unknown');
 		this.project.main.assignScriptIds();
 	}
 
+	// ***** Libraries *****
+
+	librariesChanged() {
+		// A library came or went: stop the board and forget the variable names it
+		// was told.
+
+		MB_connection.sendMsg('stopAllMsg');
+		this.clearRunningHighlights();
+		this.codeManager.clearVariableNames();
+	}
+
+	removeLibraryNamed(libName) {
+		// Take a library out of the project, then tell the board and the IDE.
+
+		this.project.removeLibraryNamed(libName);
+		this.librariesChanged();
+		this.updateLibraryList();
+	}
+
+	exportLibrary(libName) {
+		// A library's own source in a file named after it.
+
+		let lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
+	}
+
+	async reloadLibrary(libName) {
+		// Replace a library with the shipped file of its name and show it. Only a
+		// library with a shipped path qualifies; one that arrived with the project
+		// or from elsewhere has none and is left alone.
+
+		let lib = this.project.libraryNamed(libName);
+		if (!lib || (lib.path == null) || lib.path.startsWith('/')) return;
+		const libFileName = '/' + libName + '.ubl';
+		for (const filePath of MB_Files.allFilesIn('Libraries')) {
+			if (!filePath.endsWith(libFileName)) continue;
+			const data = await MB_Files.readFile(filePath);
+			if (!data) return;
+			let moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
+			this.codeManager.recompileNeeded(); // its functions were loaded anew
+			this.librariesChanged();
+			this.updateLibraryList();
+			this.selectLibrary(moduleName);
+			return;
+		}
+	}
+
 	// File operations
 
 	async canReplaceCurrentProject() {
@@ -434,6 +657,9 @@ console.log('unknown');
 	async newProject() {
 		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
+		// The libraries are gone, then a new project starts on Output.
+		this.updateLibraryList();
+		this.selectCategory('cat;Output');
 	}
 
 	clearProject() {
@@ -504,6 +730,7 @@ console.log('unknown');
 		// Without the erase the project that was open keeps running on the board.
 		// Awaited: the download below must not overtake the erase.
 		await MB_connection.clearBoardIfConnected();
+		MB_editor.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log("Loaded:", name,
 			MB_editor.project.main.scripts.length, 'scripts,',
 			MB_editor.project.allFunctions().length, 'functions'
@@ -568,6 +795,7 @@ console.log('unknown');
 		// is not read; justConnected does the reading, on the next connect.
 		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
+		this.updateLibraryList(); // no libraries left, so cat;Control
 		this.readFromBoard = true;
 		alert(localized('Connect board to proceed.'));
 	}
@@ -599,6 +827,7 @@ console.log('unknown');
 		this.projectName = null;
 		this.updateProjectProperties();
 		MB_connection.setCodeManager(this.codeManager);
+		this.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
 	}
