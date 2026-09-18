@@ -121,8 +121,14 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback();
 			break;
 		case 'ide.selectCategory':
+			// categories.js sends the label with its 'cat;' prefix, the form
+			// selectCategory takes.
+			MB_editor.selectCategory(params[0]);
+			callback(0);
+			break;
 		case 'ide.selectLibrary':
-			callback();
+			MB_editor.selectLibrary(params[0]);
+			callback(0);
 			break;
 		case 'ide.setSerialDelay':
 			// GP answers before acting (MicroBlocksAPI.gp:33). graph.js:338 sends
@@ -141,9 +147,24 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_connection.readVersionFile().then(callback);
 			break;
 		case 'library.delete':
+			// Reply first, then act.
+			callback(0);
+			MB_editor.removeLibraryNamed(params[0]);
+			break;
 		case 'library.export':
+			// Reply first, then act.
+			callback(0);
+			MB_editor.exportLibrary(params[0]);
+			break;
 		case 'library.hideDefs':
+			callback();
+			break;
 		case 'library.reload':
+			// Reply first, then act. The reload reads a file, so it finishes after
+			// the reply.
+			callback(0);
+			MB_editor.reloadLibrary(params[0]);
+			break;
 		case 'library.showDefs':
 		case 'library.showInfoDialog':
 		case 'locale.loadCustomFile':
@@ -179,6 +200,20 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback();
 	}
 };
+
+// menus.js reads the clipboard through these, which gpSupport.js defines in the wasm build.
+// Nothing here fills clipboardBytes yet, so the chrome's paste items stay hidden.
+GP.clipboardBytes = [];
+function clipboardText() {
+	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes));
+}
+
+// The id the chrome answers a menu or a dialog under, counted as primBrowserNextCallId
+// counts it (chromeApp/emscripten/browserPrims.c).
+function nextCallId() {
+	GP.lastCallId = ((GP.lastCallId || 0) + 1) % 100000;
+	return GP.lastCallId;
+}
 
 // Mirrors primBrowserStoreIDEProperty (chromeApp/emscripten/browserPrims.c):
 // assign, then fire an event of the same name. menus.js reads the object and

@@ -6,11 +6,12 @@
 
 // mb-specs.js - MicroBlocks block spec operations and specs for built-in blocks.
 
-/* global CommandBlockMorph, ReporterBlockMorph, HatBlockMorph, MB_editor */
+/* global MB_Parser, CommandBlockMorph, MB_editor */
 
 MB_Specs = {
 	selectorToSpec: {}, // cached Map for looking up specs by selector
 	selectorToCategory: {}, // cached Map for looking up block category by selector
+	cachedPaletteSpecs: null, // the shipped list, cut to what the palette shows
 }
 
 MB_Specs.initialize = function () {
@@ -190,40 +191,36 @@ MB_Specs.blockForSpec = function (spec, category) {
 	// Create a block in the given category from the given MicroBlocks spec array.
 	// Used to populate the block palette.
 
-	if (Array.isArray(spec)) {
-		let b;
-		let type = spec[0];
-		if (' ' == type) {
-			b = new CommandBlockMorph();
-		} else if ('r' == type) {
-			b = new ReporterBlockMorph();
-		} else if ('h' == type) {
-			b = new HatBlockMorph();
-		}
-		b.selector = spec[1];
-		b.setSpec(this.snapSpecForSelector(b.selector));
-		b.setCategory(category);
-		let defaults = spec.slice(4);
-		if ('v' == b.selector) {
-			// set name (spec) for a variable block
-			if (defaults.length > 0) b.setSpec(defaults[0]);
-		} else {
-			// set default values
-			let inputs = b.inputs();
-			for (let i = 0; i < defaults.length; i++) {
-				if (i >= inputs.length) break;
-				inputs[i].setContents(defaults[i]);
-			}
-		}
-		return b;
+	if (!Array.isArray(spec)) return undefined; // error; spec should be an array
+	let type = spec[0];
+	if (![' ', 'r', 'h'].includes(type)) {
+		// A project's or library's spec line may declare a type with no morph here.
+		console.log('unknown block type:', JSON.stringify(type), spec[1]);
+		return undefined;
 	}
-	return undefined; // error; spec should be an array
+
+	// No call behind these: the block keeps the shape its spec declares, and
+	// every slot it has is an argument. The type comes from the spec, which may
+	// not be one the table carries.
+	let b = new MB_Parser('').blockWithArgs(spec[1], spec.slice(4), ('r' == type), false, false, type,
+		this.snapSpecForSpecArray(spec));
+	b.setCategory(category);
+	// A template is copied when it is dragged; a draggable one would be taken
+	// out of the palette instead (HandMorph.processMouseMove).
+	b.isDraggable = false;
+	return b;
 }
 
 MB_Specs.snapSpecForSelector = function (selector, isReporter, argCount) {
 	// Return a Snap! block spec string for given selector or null if not found.
 
-	let specArray = this.specArrayForSelector(selector, isReporter, argCount);
+	return this.snapSpecForSpecArray(this.specArrayForSelector(selector, isReporter, argCount));
+}
+
+MB_Specs.snapSpecForSpecArray = function (specArray) {
+	// Return a Snap! block spec string for the given MicroBlocks spec array,
+	// or null if there is none.
+
 	if (!specArray) return null; // not found
 
 	let mbSpec = specArray[2];
@@ -235,8 +232,11 @@ MB_Specs.snapSpecForSelector = function (selector, isReporter, argCount) {
 		let p = parts[i];
 		if (p == '_') {
 			parts[i] = this.snapTypeForMBType(mbArgTypes[argIndex++]);
-		} else if (p.startsWith('#')) {
-			parts[i] = p;
+		} else if (this.isSlotSpec(p)) {
+			// Label text in a MicroBlocks spec, but a slot spec to Snap's parseSpec,
+			// and labelPart throws on one it does not know. A zero-width space in
+			// front keeps it text and shows the same.
+			parts[i] = '\u200B' + p;
 		}
 	}
 	return parts.join(' ');
@@ -255,6 +255,83 @@ MB_Specs.snapTypeForMBType = function (mbType) {
 	}
 
 	return ('%' + mbType)
+}
+
+// ***** Palette categories *****
+
+MB_Specs.paletteSpecList = function (specs) {
+	// The part of the spec list the palette shows: everything before the first
+	// section marker that is not a category. The 'Prims-... (not in palette)'
+	// sections and the test entries follow it. The shipped list is cached because
+	// mbBlockSpecs rebuilds its literal on every call.
+
+	if (!specs) {
+		if (!this.cachedPaletteSpecs) this.cachedPaletteSpecs = this.paletteSpecList(this.mbBlockSpecs());
+		return this.cachedPaletteSpecs;
+	}
+	for (let i = 0; i < specs.length; i++) {
+		let item = specs[i];
+		if ((typeof item === 'string') && ('-' != item) && !item.startsWith('cat;')) {
+			return specs.slice(0, i);
+		}
+	}
+	return specs;
+}
+
+MB_Specs.paletteCategories = function (specs) {
+	// The categories the palette offers, in order. 'cat;My Blocks' holds the
+	// project's own functions and so has no spec entries of its own.
+
+	let result = [];
+	for (const item of this.paletteSpecList(specs)) {
+		if ((typeof item === 'string') && item.startsWith('cat;')) {
+			let cat = item.endsWith('-Advanced') ? item.slice(0, -9) : item;
+			if (!result.includes(cat)) result.push(cat);
+		}
+	}
+	if (!result.includes('cat;My Blocks')) result.push('cat;My Blocks');
+	return result;
+}
+
+MB_Specs.specArrayForProjectSpec = function (spec) {
+	// Convert a spec object parsed from a project or library (parsedSpecs,
+	// mb-project.js) into the array form the built-in specs use.
+
+	if (!spec) return null;
+	let result = [spec.blockType, spec.opName, spec.specString, spec.slotTypes || ''];
+	return result.concat(spec.defaults || []);
+}
+
+MB_Specs.specArrayForFunction = function (func) {
+	// A spec for a function that declares none: the function name followed by
+	// one slot per parameter.
+
+	let slots = func.argNames || [];
+	return [
+		' ',
+		func.functionName,
+		[func.functionName].concat(slots.map(() => '_')).join(' '),
+		slots.map(() => 'auto').join(' '),
+	];
+}
+
+MB_Specs.specsForCategory = function (cat, specs) {
+	// The spec arrays and '-' separators under the given category marker.
+
+	let result = [];
+	let currentCategory = '';
+	for (const item of this.paletteSpecList(specs)) {
+		if (typeof item === 'string') {
+			if ('-' == item) {
+				if (currentCategory == cat) result.push('-');
+			} else {
+				currentCategory = item;
+			}
+		} else if (currentCategory == cat) {
+			result.push(item);
+		}
+	}
+	return result;
 }
 
 // ***** MicroBlocks built-in block specs *****
