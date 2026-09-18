@@ -14,6 +14,7 @@ class MB_Editor {
 		this.scripts = null;
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
+		MB_connection.setCodeManager(this.codeManager); // so chunk CRCs from the board reach it
 		this.readFromBoard = false;
 		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
@@ -23,6 +24,7 @@ class MB_Editor {
 		// and then the message's own chunk id; the chunk the fault is in is the
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
+		this.saveNeeded = false; // the scripts changed since the last step
 	}
 
 	open(world) {
@@ -36,6 +38,7 @@ class MB_Editor {
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if (droppedMorph instanceof BlockMorph) {
 				droppedMorph.destroy();
+				this.scriptChanged(); // its chunk is deleted at the next step
 			}
 		};
 
@@ -212,6 +215,7 @@ class MB_Editor {
 		} catch (e) {
 			this.reportError(e);
 		}
+		this.scriptChanged();
 	}
 
 	importFromPNG(pngBytes) {
@@ -315,6 +319,7 @@ class MB_Editor {
 
 	async compileAndRun(aBlock, chunkID) {
 		// Compile and run the given block.
+		if (MB_connection.vmTooOld()) return;
 
 		let code = new MB_Compiler(this.project, this.codeManager).compiledBytesFor(aBlock);
 		while ((code.length % 4) !== 0) {
@@ -346,6 +351,24 @@ console.log('unknown');
 	}
 
 	// Project updating
+
+	scriptChanged() {
+		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
+		this.saveNeeded = true;
+	}
+
+	async step() {
+		// Called four times a second. Send the scripts to a connected board if they
+		// changed, as GP's MicroBlocksScripter step does. Wait while another download runs.
+		if (!this.saveNeeded || this.codeManager.savesInProgress > 0) return;
+		this.saveNeeded = false; // an edit made during the sync below sets it again
+		try {
+			this.updateProject();
+			await this.codeManager.syncScripts();
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
 
 	updateProject() {
 		// Replace the project scripts with the scripts in the scripting pane.
@@ -386,6 +409,7 @@ console.log('unknown');
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
+		MB_connection.setCodeManager(this.codeManager);
 		this.removeAllScripts();
 
 		// GP clears the board on every project replacement, right after making
@@ -424,6 +448,7 @@ console.log('unknown');
 
 	async openProjectFromString(contents, name) {
 		if (!MB_editor.canReplaceCurrentProject()) return;
+		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project = new MB_Project();
 		MB_editor.project.loadFromString(contents);
 		MB_editor.removeAllScripts();
@@ -479,16 +504,17 @@ console.log('unknown');
 				// this branch depends on the read having finished.
 				this.openProjectFromBoard();
 			} else {
-				const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
-				if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
-					if (reuseCodeIfPossible) console.log('Full download');
+				if (!(await this.codeManager.boardHasSameProject())) {
+					console.log('Full download');
 					await MB_connection.clearBoardIfConnected();
 					this.runningChunks = new Map();
 				} else {
-					console.log('Incremental download', this.vmVersion, this.boardType);
+					console.log('Incremental download', MB_connection.vmVersion, MB_connection.boardType);
+					await this.codeManager.deleteChunksOnlyOnBoard(); // uses the CRCs boardHasSameProject just read
 				}
 				MB_editor.showDownloadProgress(2, 0);
 				await this.codeManager.stopAndSyncScripts(true);
+				MB_connection.sendMsg('systemResetMsg'); // start the board clean with the code it now holds
 			}
 		} catch (e) {
 			this.reportError(e);
@@ -527,16 +553,13 @@ console.log('unknown');
 			this.project.allFunctions().length, 'functions');
 	}
 
-	boardHasSameProject() {
-		// XXX TODO
-		return false;
-	}
-
 	// Placeholder functions for UI actopms
 
 	inform(msg) {
-		// XXX TO DO
+		// Shown by the chrome's window.inform dialog, which answers into GP.apiResponses[id].
 		console.log(msg);
+		this.informCount = (this.informCount || 0) + 1;
+		fireIDEEvent('window.inform', { title: null, text: String(msg), id: 'inform' + this.informCount });
 	}
 
 	showResult(chunkID, value, isError) {

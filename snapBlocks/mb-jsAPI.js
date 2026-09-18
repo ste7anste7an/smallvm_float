@@ -15,7 +15,7 @@
 //
 // NOTE: Either this file or mb-gpAPI.js should be loaded, not both.
 
-GP = {}
+GP = { apiResponses: {} } // windows.js stores a dialog's answer in apiResponses
 GP.apiCall = function (endPoint, params, callback) {
 	// example, get a random number from 10 to 20:
 	// GP.apiCall('random', [10, 20], function (value) { console.log(value) });
@@ -71,8 +71,7 @@ GP.apiCall = function (endPoint, params, callback) {
 				'connected' == MB_connection.updateConnection());
 			storeIDEProperty('board.type',
 				(MB_connection.boardType != null) ? MB_connection.boardType : 'Connect');
-			// board.canDoBLE and board.hasFS are left alone: the port has no
-			// boardIsBLECapable or boardHasFileSystem to answer them with.
+			// board.canDoBLE and board.hasFS are pushed on first contact and on disconnect.
 			callback(0);
 			break;
 		case 'project.save':
