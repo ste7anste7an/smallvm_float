@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_Files, MB_FilePicker, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -17,6 +17,7 @@ class MB_Editor {
 		MB_connection.setCodeManager(this.codeManager); // so chunk CRCs from the board reach it
 		this.readFromBoard = false;
 		this.projectName = null; // the file name a save should use
+		this.lastProjectFolder = 'Examples'; // where the file picker opens
 		this.runningChunks = new Map(); // used for block highlighting
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
 		this.chunkErrorListeners = []; // called with each decoded board error
@@ -891,6 +892,15 @@ console.log('unknown');
 		URL.revokeObjectURL(url);
 	}
 
+	openProjectMenu() {
+		// Show the file picker on the built-in projects. Its Computer button
+		// leads to the browser's chooser.
+
+		const open = MB_FilePicker.findOpen(world);
+		if (open) open.removeFromOwner();
+		new MB_FilePicker((path) => this.openProjectFromFile(path), this.lastProjectFolder, ['.ubp', '.gpp']).open(world);
+	}
+
 	openProject() {
 		// Cancelling the picker asks nothing: openProjectFromString asks once a file is chosen.
 		this.importLocalFile((fileName, contents) => this.openProjectFromString(contents, fileName));
@@ -921,6 +931,43 @@ console.log('unknown');
 		);
 		// Opening a project ends by downloading it to a connected board.
 		await MB_editor.codeManager.saveAllChunksAfterLoad();
+	}
+
+	async openProjectFromFile(location) {
+		// Open a built-in project, such as one chosen in the file picker.
+
+		this.lastProjectFolder = location.slice(0, location.lastIndexOf('/') + 1);
+		const data = await MB_Files.readFile(location);
+		if (data === undefined) {
+			alert(localized('Could not read: ') + location);
+			return;
+		}
+		await this.openProjectFromString(data, location.slice(location.lastIndexOf('/') + 1));
+	}
+
+	browserReadFile(ext) {
+		// Let the user choose a file with the browser's file chooser, limited to
+		// the extension if one is given. The file goes to processDroppedFile.
+
+		const inp = document.createElement('input');
+		inp.type = 'file';
+		inp.style.display = 'none';
+		if (ext) inp.accept = '.' + ext;
+		inp.addEventListener('cancel', () => inp.remove());
+		inp.addEventListener('change', async () => {
+			inp.remove();
+			const file = inp.files[0];
+			if (file) await this.processDroppedFile(file.name, await file.text());
+		});
+		document.body.appendChild(inp);
+		inp.click();
+	}
+
+	async processDroppedFile(fileName, data) {
+		// Act on a file by its extension. Only projects are handled so far.
+
+		const name = fileName.toLowerCase();
+		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName);
 	}
 
 	importLocalFile(callback) {
