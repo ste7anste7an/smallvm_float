@@ -90,6 +90,15 @@ function specSlotInfo(spec) {
 	return info;
 }
 
+function specSections(spec) {
+	// The spec string split at ':' into sections, less a final '...', which
+	// says the last section repeats.
+	const sections = String(spec.specString || spec.opName || '').split(':').map((s) => s.trim());
+	const repeatLast = (sections.length > 0) && ('...' === sections[sections.length - 1]);
+	if (repeatLast) sections.pop();
+	return { sections, repeatLast };
+}
+
 function specDefinitionString(spec) {
 	// Serialize a spec object to a 'spec' declaration line (without newline).
 	// Format: spec 'blockType' 'opName' 'specString' 'slotTypes' default1 default2...

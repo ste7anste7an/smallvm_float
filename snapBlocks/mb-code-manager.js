@@ -401,6 +401,7 @@ class MB_CodeManager {
 			const chunkID = entry[0];
 			await MB_connection.sendMsgSync('deleteChunkMsg', chunkID);
 			this.chunkIDs.delete(key);
+			if (entry[5]) this.functionChunkIDs.delete(key); // so calls to it compile as unknown ops, as in GP
 		}
 	}
 

@@ -627,6 +627,190 @@ console.log('unknown');
 		}
 	}
 
+	// Custom blocks and variables. Each takes the answer the chrome's dialog
+	// collected; none asks the user anything.
+
+	uniqueFunctionName(baseSpec) {
+		// Make the first word of baseSpec unlike any block op, built in or the
+		// project's. A spec that starts with an input gets the word 'f' first.
+		MB_Specs.initialize();
+		const taken = [...MB_Specs.selectorToSpec.keys(), ...this.project.blockSpecs.keys()];
+		let words = String(baseSpec).split(/\s+/).filter((w) => w.length > 0);
+		if ('_' === words[0]) words.unshift('f');
+		words[0] = uniqueNameNotIn(taken, words[0]);
+		return words.join(' ');
+	}
+
+	uniqueVarName(varName, forScriptVar = false) {
+		// Make varName unlike any global, and unless forScriptVar, unlike any
+		// local or for-loop variable in a script. Function bodies are not read.
+		this.updateProject();
+		const taken = this.project.allVariableNames();
+		if (!forScriptVar) {
+			for (const entry of this.project.scriptsToScan()) {
+				if (entry[2]) forEachExpression(entry[2].expression(), (node) => {
+					if (['local', 'for'].includes(node.selector)) taken.push(node.args[0]);
+				});
+			}
+		}
+		return uniqueNameNotIn(taken, varName);
+	}
+
+	createVariable(name) {
+		// Add a global to main under a unique form of name. Answers the name
+		// added, or null for a blank answer.
+		const varName = String(name).trim();
+		if ('' === varName) return null;
+		const result = this.uniqueVarName(varName);
+		this.project.addVariable(result);
+		return result;
+	}
+
+	createFunction(name, isReporter) {
+		// Define a function with no inputs under a unique form of name and park
+		// its definition below the scripts. Answers the definition hat.
+		name = String(name).trim();
+		if ('' === name) return null;
+		this.updateProject();
+		const opName = this.uniqueFunctionName(name);
+		const func = this.project.main.defineFunction(opName, [], null);
+		if (this.hasCallsTo(opName)) recompileNeeded(); // a caller of a deleted function of this name
+		this.project.recordBlockSpec(opName, { blockType: isReporter ? 'r' : ' ',
+			opName, specString: opName, slotTypes: '', defaults: [] });
+		const hat = scriptForFunction(func);
+		if (isReporter) hat.nextBlock(MB_Parser.blockForDecompiled(
+			{ selector: 'return', args: [0], isReporter: false, next: null }));
+		this.addToBottom(hat);
+		return hat;
+	}
+
+	hasCallsTo(op) {
+		// Answer whether any function or script calls op.
+		let found = false;
+		const scan = (node) => forEachExpression(node, (n) => { found = found || (n.selector === op); });
+		for (const f of this.project.allFunctions()) if (f.cmdList) scan(f.cmdList.expression());
+		for (const entry of this.project.scriptsToScan()) if (entry[2]) scan(entry[2].expression());
+		return found;
+	}
+
+	deleteFunction(name) {
+		// Remove the function from the module that holds it, library or main,
+		// with its spec and any definition of it in the pane. Calls to it stay.
+		for (const m of this.scriptsPane().children.slice()) {
+			if ((m instanceof BlockMorph) && m.isFunctionDefinition() &&
+				(m.definedFunctionName() === name)) m.destroy();
+		}
+		this.updateProject();
+		const func = this.project.functionNamed(name);
+		if (func == null) return;
+		const modules = [this.project.main, ...this.project.libraries.values()];
+		modules.find((m) => m.functions.includes(func)).removeFunction(func);
+		this.project.deleteBlockSpecFor(name);
+	}
+
+	changeFunctionPrototype(op, blockType, specString, typeString, defaults, argNames) {
+		// Give the function op the prototype the user edited, then fix every
+		// call to it in main to match.
+		this.updateProject();
+		const func = this.project.functionNamed(op);
+		if (func) {
+			func.argNames = argNames.slice();
+			func.localVars = func.collectLocalVars();
+		}
+		const oldSpec = this.project.blockSpecs.get(op);
+		const colourSlots = oldSpec
+			? specSlotInfo(oldSpec).map(([type]) => 'color' === type.split('.')[0]) : [];
+		// Recorded first: rebuilt calls read their slots from the project's spec.
+		this.project.recordBlockSpec(op, { blockType, opName: op, specString,
+			slotTypes: typeString, defaults: defaults.slice() });
+		this.updateCallsOf(op, colourSlots);
+	}
+
+	updateCallsOf(op, colourSlots = []) {
+		// Pad or cut every call to op in main's functions and scripts to the
+		// inputs its spec declares, and replace a literal of the wrong type with
+		// the slot's default. colourSlots says which inputs were colour slots.
+		const spec = this.project.blockSpecs.get(op);
+		if (spec == null) return;
+		const { sections, repeatLast } = specSections(spec);
+		const rule = {
+			colourSlots,
+			minArgs: sections[0].split(/\s+/).filter((w) => '_' === w).length,
+			isVariadic: (sections.length > 1) || repeatLast,
+			slots: specSlotInfo(spec).map(([type, value]) => {
+				type = type.split('.')[0];
+				if (('color' === type) && (value == null)) {
+					value = { selector: 'colorSwatch', args: [35, 190, 30, 255], isReporter: true, next: null };
+				}
+				if (('auto' === type) && (typeof value === 'string') && /^-?\d+$/.test(value)) {
+					value = Number(value);
+				}
+				return [type, value];
+			}),
+		};
+		const fixCalls = (node) => {
+			let changed = false;
+			forEachExpression(node, (n) => {
+				if (n.selector === op) changed = fixedCallArgs(n, rule) || changed;
+			});
+			return changed;
+		};
+
+		for (const func of this.project.main.functions) {
+			if (!func.cmdList) continue;
+			const node = func.cmdList.expression();
+			if (!fixCalls(node)) continue;
+			func.cmdList = MB_Parser.blockForDecompiled(node);
+			this.rehangDefinitionsOf(func);
+		}
+		// A rebuilt script keeps its id, so its chunk is replaced, not deleted.
+		for (const old of this.scriptsPane().children.slice()) {
+			if (!(old instanceof BlockMorph) || old.isFunctionDefinition()) continue;
+			const node = old.expression();
+			if (!fixCalls(node)) continue;
+			const fresh = MB_Parser.blockForDecompiled(node);
+			fresh.mbScriptId = old.mbScriptId;
+			fresh.setPosition(old.position());
+			old.destroy();
+			this.scriptsPane().add(fresh);
+			if (this.runningChunks.has(old)) {
+				this.runningChunks.set(fresh, this.runningChunks.get(old));
+				this.runningChunks.delete(old);
+				fresh.addHighlight();
+			}
+		}
+		this.updateProject();
+	}
+
+	rehangDefinitionsOf(func) {
+		// Give each definition of func in the pane the function's current body.
+		let first = true;
+		for (const hat of this.scriptsPane().children) {
+			if (!(hat instanceof BlockMorph) || (hat.functionDefinition !== func)) continue;
+			if (hat.nextBlock()) hat.removeChild(hat.nextBlock());
+			const body = (first || !func.cmdList) ? func.cmdList : func.cmdList.fullCopy();
+			if (body) hat.nextBlock(body);
+			first = false;
+		}
+	}
+
+	addToBottom(aBlock) {
+		// Put aBlock in the pane, below the lowest script and level with the
+		// leftmost one.
+		const pane = this.scriptsPane();
+		const scripts = pane.children.filter((m) => m instanceof BlockMorph);
+		let left = pane.left() + (50 * blockScale());
+		let bottom = pane.top();
+		for (const script of scripts) {
+			left = Math.min(left, script.fullBounds().left());
+			bottom = Math.max(bottom, script.fullBounds().bottom());
+		}
+		aBlock.setPosition(new Point(left, bottom + (10 * blockScale())));
+		pane.add(aBlock);
+		pane.adjustBounds();
+		this.updateProject();
+	}
+
 	// File operations
 
 	async canReplaceCurrentProject() {
@@ -1081,6 +1265,48 @@ function blockScale() {
 	// blockScale is (global 'blockScale') * (global 'scale') and serves the
 	// same purpose: it converts between pane pixels and script-file units.
 	return SyntaxElementMorph.prototype.scale;
+}
+
+function uniqueNameNotIn(names, baseName) {
+	// baseName, or baseName followed by the first of 2, 3, 4... not in names.
+	let result = baseName;
+	for (let i = 2; names.includes(result); i++) result = baseName + i;
+	return result;
+}
+
+function forEachExpression(node, fn) {
+	// Call fn on every block node in a model node tree: arguments, bodies and
+	// the blocks that follow.
+	for (let n = node; (n != null) && (typeof n.selector === 'string'); n = n.next) {
+		fn(n);
+		for (const arg of n.args || []) {
+			if ((arg != null) && (typeof arg === 'object')) forEachExpression(arg, fn);
+		}
+	}
+}
+
+function fixedCallArgs(call, rule) {
+	// Fix one call node's arguments in place by rule; answer whether any changed.
+	// The call's shape, command or reporter, is left as it is.
+	const before = JSON.stringify(call.args);
+	const args = call.args;
+	while (args.length < rule.minArgs) args.push(rule.slots[args.length][1]);
+	if (!rule.isVariadic) args.length = rule.minArgs;
+	const checked = Math.min(rule.minArgs, args.length, rule.slots.length);
+	for (let i = 0; i < checked; i++) {
+		const arg = args[i];
+		if ((arg != null) && arg.isReporter) continue;
+		const [type, value] = rule.slots[i];
+		const fits = ('auto' === type) ? ['number', 'string'].includes(typeof arg)
+			: ('bool' === type) ? ('boolean' === typeof arg)
+			// A rebuilt colour slot holds its colour as a packed number, and a
+			// number from any other slot is not a colour.
+			: ('color' === type) ? ((('number' === typeof arg) && rule.colourSlots[i]) ||
+				((arg != null) && (true === arg.isColor)))
+			: true;
+		if (!fits) args[i] = value;
+	}
+	return JSON.stringify(args) !== before;
 }
 
 function varMustBeQuoted(varName) {
