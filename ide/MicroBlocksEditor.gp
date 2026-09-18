@@ -286,6 +286,8 @@ method openProject MicroBlocksEditor projectData projectName updateLibraries {
 	} else {
 		loadNewProjectFromData scripter (toString projectData) updateLibraries
 	}
+	// make the opened project an undo state, so undo and redo can return to it
+	storeUndoState scripter
 	// store whether the project has any custom blocks. For project menu purposes.
 	setProperty (api (smallRuntime)) 'project.hasCustomBlocks' ((count (functions (main (project scripter)))) > 0)
 	updateLibraryList scripter
