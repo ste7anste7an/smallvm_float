@@ -1605,6 +1605,10 @@ BlockMorph.prototype.userMenu = function () {
 	var menu = new MenuMorph(this),
 		shiftClicked = this.world().currentKey === 16;
 
+	if (!shiftClicked && (typeof Menus !== 'undefined')) {
+		return this.chromeMenu(); // shift-right-click keeps this Morphic menu
+	}
+
 	menu.addItem(
 		'copy to clipboard',
 		() => {
@@ -1657,6 +1661,36 @@ BlockMorph.prototype.userMenu = function () {
 	);
 
 	return menu;
+};
+
+BlockMorph.prototype.chromeMenu = function () {
+	// The items of GP's block menu (Block.gp contextMenu) that the port can act on.
+	var world = this.world(),
+		isCommand = this instanceof CommandBlockMorph,
+		items = [],
+		copy = () => {
+			var dup = this.fullCopy();
+			dup.isTemplate = false; // as the hand does for a copy of a palette block
+			return dup;
+		};
+
+	items.push(['duplicate', () => {
+		var dup = copy();
+		if (isCommand && dup.nextBlock()) dup.nextBlock().destroy();
+		dup.pickUp(world);
+	}, 'duplicate this block']);
+	if (isCommand && this.nextBlock()) {
+		items.push(['duplicate all', () => copy().pickUp(world),
+			'duplicate this block and all blocks below it']);
+	}
+	if (!this.isTemplate) {
+		items.push('-');
+		if (isCommand) {
+			items.push(['extract block', () => this.userExtractJustThis(), 'pull out this block']);
+		}
+		items.push(['delete block', () => this.userDestroy(), 'delete this block']);
+	}
+	return chromeMenuFor(world, items);
 };
 
 BlockMorph.prototype.type = function () {
@@ -2661,6 +2695,26 @@ BlockMorph.prototype.justDropped = function () {
 	delete this.alpha;
 };
 
+// The chrome lets a dragged block pass over its panels between the 'dragstart' and 'dragend'
+// that GP's Block aboutToBeGrabbed and justDropped send. Hooked on the hand, because a block
+// also prepares to be grabbed when it is deleted, and would leave the chrome dragging.
+
+HandMorph.prototype.grabWithoutTellingChrome = HandMorph.prototype.grab;
+HandMorph.prototype.grab = function (aMorph) {
+	var wasEmpty = this.children.length === 0;
+	this.grabWithoutTellingChrome(aMorph);
+	if (wasEmpty && (aMorph instanceof BlockMorph) && (aMorph.parent === this)) {
+		fireIDEEvent('dragstart');
+	}
+};
+
+HandMorph.prototype.dropWithoutTellingChrome = HandMorph.prototype.drop;
+HandMorph.prototype.drop = function () {
+	var dragged = this.children[0];
+	this.dropWithoutTellingChrome();
+	if (dragged instanceof BlockMorph) fireIDEEvent('dragend');
+};
+
 BlockMorph.prototype.destroy = function (justThis) {
 	// private - use IDE_Morph.removeBlock() to first stop all my processes
 	BlockMorph.uber.destroy.call(this);
@@ -3494,8 +3548,9 @@ ReporterBlockMorph.prototype.determineSlotSpec = function () {
 
 ReporterBlockMorph.prototype.mouseClickLeft = function (pos) {
 	if (this.parent instanceof TemplateSlotMorph) {
-		let newName = prompt('Variable name?', this.blockSpec);
-		if (newName != null) this.userSetSpec(newName);
+		MB_editor.prompt('Variable Name?', this.blockSpec, 'line').then((newName) => {
+			if (newName) this.userSetSpec(newName); // an empty name is ignored, as in GP
+		});
 	} else {
 		ReporterBlockMorph.uber.mouseClickLeft.call(this, pos);
 	}
@@ -3880,6 +3935,16 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 };
 
 // ScriptsMorph user menu
+
+ScriptsMorph.prototype.contextMenu = function () {
+	// The chrome draws this menu, as it does for GP. Shift-right-click keeps the Morphic one.
+	var world = this.world();
+	if ((typeof Menus === 'undefined') || (world.currentKey === 16)) {
+		return ScriptsMorph.uber.contextMenu.call(this);
+	}
+	fireIDEEvent('context', Object.assign({ selector: 'scriptingArea' }, chromePoint(world)));
+	return chromeDrawnMenu;
+};
 
 ScriptsMorph.prototype.userMenu = function () {
 	var menu = new MenuMorph(this),

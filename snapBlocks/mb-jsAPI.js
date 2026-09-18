@@ -180,6 +180,20 @@ GP.apiCall = function (endPoint, params, callback) {
 	}
 };
 
+// menus.js reads the clipboard through these, which gpSupport.js defines in the wasm build.
+// Nothing here fills clipboardBytes yet, so the chrome's paste items stay hidden.
+GP.clipboardBytes = [];
+function clipboardText() {
+	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes));
+}
+
+// The id the chrome answers a menu or a dialog under, counted as primBrowserNextCallId
+// counts it (chromeApp/emscripten/browserPrims.c).
+function nextCallId() {
+	GP.lastCallId = ((GP.lastCallId || 0) + 1) % 100000;
+	return GP.lastCallId;
+}
+
 // Mirrors primBrowserStoreIDEProperty (chromeApp/emscripten/browserPrims.c):
 // assign, then fire an event of the same name. menus.js reads the object and
 // buttons.js listens for the event, so both halves are needed.

@@ -55,6 +55,21 @@ class MB_Editor {
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
 
+		// While a chrome dialog's field has the keys, a click on the world does not take them
+		// back, as gpSupport.js passes GP no keys while GP.delegateKeyboardEvents is set.
+		if (world.keyboardHandler) world.keyboardHandler.focus = function () {
+			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents)) HTMLTextAreaElement.prototype.focus.call(this);
+		};
+
+		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
+		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
+		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
+			if (('Escape' === event.key) && !world.keyboardFocus &&
+				[document.body, world.keyboardHandler].includes(event.target)) {
+				fireIDEEvent('ide.keyPressed', 'ESC');
+			}
+		});
+
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
 		// to where it was picked up. A duplicate with nowhere to return to is discarded, and one
 		// grabbed again mid-slide comes back here with no hand, so it is kept in view.
@@ -391,17 +406,33 @@ console.log('unknown');
 
 	// File operations
 
-	canReplaceCurrentProject() {
+	async canReplaceCurrentProject() {
 		// Ask before discarding work, as GP does (MicroBlocksEditor.gp:203).
 		// updateProject() first, or a block the user has just dragged into the
 		// pane is not in the project yet and does not count as work.
 		this.updateProject();
 		if (!this.project.hasUserCode()) return true;
-		return confirm(localized('Discard current project?'));
+		return this.confirm(localized('Discard current project?'));
 	}
 
-	newProject() {
-		if (!this.canReplaceCurrentProject()) return;
+	confirm(question) {
+		// Answer a promise of true or false from the chrome's dialog, as GP's Page confirm
+		// does, or from the browser's own on a page without the chrome.
+		if (typeof FloatingWindow === 'undefined') return Promise.resolve(confirm(question));
+		return new Promise((resolve) => askChrome('window.confirm',
+			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve));
+	}
+
+	prompt(question, defaultValue, editRule) {
+		// Answer a promise of the text entered, or null, from the chrome's dialog, as GP's
+		// Page prompt does, or from the browser's own on a page without the chrome.
+		if (typeof FloatingWindow === 'undefined') return Promise.resolve(prompt(question, defaultValue));
+		return new Promise((resolve) => askChrome('window.prompt',
+			{ title: question, text: null, default: defaultValue, editRule: editRule }, resolve));
+	}
+
+	async newProject() {
+		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
 	}
 
@@ -411,11 +442,20 @@ console.log('unknown');
 		this.projectName = null;
 		MB_connection.setCodeManager(this.codeManager);
 		this.removeAllScripts();
+		this.updateProjectProperties();
 
 		// GP clears the board on every project replacement, right after making
 		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
 		// here downloads, and sendMsg keeps the wire in order on its own.
 		MB_connection.clearBoardIfConnected();
+	}
+
+	updateProjectProperties() {
+		// The chrome shows the title without its extension and offers the custom block
+		// items when there are any, as GP's updateTitle and setProperty calls do.
+		if (typeof storeIDEProperty !== 'function') return; // test.html has no chrome
+		storeIDEProperty('project.title', (this.projectName || '').replace(/\.[^.]*$/, ''));
+		storeIDEProperty('project.hasCustomBlocks', this.project.main.functions.length > 0);
 	}
 
 	saveProject() {
@@ -447,7 +487,7 @@ console.log('unknown');
 	}
 
 	async openProjectFromString(contents, name) {
-		if (!MB_editor.canReplaceCurrentProject()) return;
+		if (!(await MB_editor.canReplaceCurrentProject())) return;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project = new MB_Project();
 		MB_editor.project.loadFromString(contents);
@@ -459,6 +499,7 @@ console.log('unknown');
 		MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
 		MB_editor.projectName = name;
 		MB_connection.setCodeManager(MB_editor.codeManager);
+		MB_editor.updateProjectProperties();
 
 		// Without the erase the project that was open keeps running on the board.
 		// Awaited: the download below must not overtake the erase.
@@ -521,11 +562,11 @@ console.log('unknown');
 		}
 	}
 
-	openFromBoard() {
+	async openFromBoard() {
 		// GP's openFromBoard (MicroBlocksEditor.gp:296): clear the project, then
 		// wait for the NEXT board to connect. A board that is already connected
 		// is not read; justConnected does the reading, on the next connect.
-		if (!this.canReplaceCurrentProject()) return;
+		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
 		this.readFromBoard = true;
 		alert(localized('Connect board to proceed.'));
@@ -538,9 +579,17 @@ console.log('unknown');
 
 		// GP asks here too (MicroBlocksRuntime.gp:539), for the user who wrote
 		// something between arming the read and connecting the board.
-		if (!this.canReplaceCurrentProject()) return;
+		if (!(await this.canReplaceCurrentProject())) return;
 
-		const project = await MB_connection.readCodeFromBoard();
+		// The chrome's spinner, with what GP's MicroBlocksSpinner shows while it reads.
+		fireIDEEvent('spinner.show', { title: localized('Reading project from board...'),
+			subtitle: localized('Do not switch browser tabs!'), note: localized('(press ESC to cancel)'), percent: 0 });
+		let project;
+		try {
+			project = await MB_connection.readCodeFromBoard();
+		} finally {
+			fireIDEEvent('spinner.hide');
+		}
 		if (project == null) return;
 		this.project = project;
 		this.removeAllScripts();
@@ -548,6 +597,7 @@ console.log('unknown');
 			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
+		this.updateProjectProperties();
 		MB_connection.setCodeManager(this.codeManager);
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
@@ -678,6 +728,65 @@ function fireIDEEvent(name, value) {
 	// supply a partial one where document exists and CustomEvent does not.
 	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }
 	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
+}
+
+// The hand's position as the chrome expects GP's: menus.js adds the offset of
+// #canvas.emscripten, while the hand is relative to the world's own canvas.
+function chromePoint(aWorld) {
+	const page = aWorld.worldCanvas.getBoundingClientRect();
+	const canvas = document.querySelector('#canvas.emscripten');
+	const hand = aWorld.hand.position();
+	return { x: hand.x + page.left - canvas.offsetLeft, y: hand.y + page.top - canvas.offsetTop };
+}
+
+// What contextMenu answers when the chrome draws the menu, so the hand opens no Morphic one.
+const chromeDrawnMenu = { popUpAtHand() {} };
+
+// Questions put to the chrome and not yet answered, by id. Its menus and dialogs answer
+// by writing JSON into GP.apiResponses[id], which GP polls for in its UI loop.
+const chromeQuestions = new Map();
+let chromeQuestionsPolled = false;
+
+function askChrome(eventName, options, callback) {
+	// Fire a menu or dialog event and call back with the chrome's answer.
+	const id = nextCallId();
+	fireIDEEvent(eventName, Object.assign({ id: id }, options));
+	const shown = ('menu' === eventName) ? Menus.current() : [...document.querySelectorAll('win-')].pop();
+	chromeQuestions.set(id, { shown: shown, callback: callback });
+	if (!chromeQuestionsPolled) {
+		chromeQuestionsPolled = true;
+		requestAnimationFrame(checkChromeAnswers);
+	}
+}
+
+function checkChromeAnswers() {
+	// A menu or window closed without an answer never gets one, so it is forgotten.
+	try {
+		for (const [id, question] of chromeQuestions) {
+			const json = GP.apiResponses[id];
+			if (json !== undefined) {
+				delete GP.apiResponses[id];
+				chromeQuestions.delete(id);
+				question.callback(JSON.parse(json));
+			} else if (!(question.shown && question.shown.isConnected)) {
+				chromeQuestions.delete(id);
+			}
+		}
+	} finally { // an answer whose action throws must not stop the answers after it
+		chromeQuestionsPolled = (chromeQuestions.size > 0);
+		if (chromeQuestionsPolled) requestAnimationFrame(checkChromeAnswers);
+	}
+}
+
+function chromeMenuFor(aWorld, items) {
+	// Show items, each '-' or [label, action, tip], as GP's menuFor does.
+	const p = chromePoint(aWorld);
+	const descriptors = items.map((item) => ('-' === item) ? { label: '-' } : { label: item[0], tip: item[2] });
+	askChrome('menu', { x: p.x, y: p.y, class: null, items: descriptors }, (label) => {
+		const chosen = items.find((item) => item[0] === label);
+		if (chosen) chosen[1]();
+	});
+	return chromeDrawnMenu;
 }
 
 // Global singleton instance
