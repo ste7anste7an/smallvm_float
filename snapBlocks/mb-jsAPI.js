@@ -99,10 +99,19 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'board.toggleBLE':
 		case 'board.uploadFile':
-		case 'edit.redo':
-		case 'edit.undo':
-		case 'ide.applyUserPreferences':
 			callback(0); // not implemented yet, but every request gets its reply
+			break;
+		case 'edit.undo':
+			MB_editor.undo();
+			callback(0);
+			break;
+		case 'edit.redo':
+			MB_editor.redo();
+			callback(0);
+			break;
+		case 'ide.applyUserPreferences':
+			callback(0);
+			MB_editor.applyUserPreferences();
 			break;
 		case 'ide.resize':
 			// IDE.resize has just sized #canvas, the workspace slot; place the world canvas over it
@@ -189,12 +198,26 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'scripts.copyToClipboard':
 		case 'scripts.copyToClipboardAsURL':
 		case 'scripts.paste':
-		case 'scripts.restoreZoom':
 		case 'scripts.saveImage':
 		case 'scripts.setExportedScriptScale':
+			callback();
+			break;
+		case 'scripts.restoreZoom':
+			MB_editor.restoreZoom();
+			callback(0);
+			break;
 		case 'scripts.setZoom':
+			callback(0);
+			MB_editor.setBlockScalePercent(params[0]);
+			break;
 		case 'scripts.zoomIn':
+			MB_editor.zoomIn();
+			callback(0);
+			break;
 		case 'scripts.zoomOut':
+			MB_editor.zoomOut();
+			callback(0);
+			break;
 		default:
 			callback();
 	}

@@ -29,6 +29,10 @@ class MB_Editor {
 		this.category = null; // the selected palette category, or null while a library is
 		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
+		this.undoStack = [];
+		this.redoStack = [];
+		this.watchProjectVariables();
+		this.blockSize = 125;
 	}
 
 	open(world) {
@@ -138,7 +142,8 @@ class MB_Editor {
 		// x and y are relative to the pane, which is what updateProject records.
 
 		let scriptsPane = this.scriptsPane();
-		b.setPosition(scriptsPane.position().add(new Point(x, y)));
+		const scale = this.scriptScale();
+		b.setPosition(scriptsPane.position().add(new Point(x * scale, y * scale)));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
 		scriptsPane.changed();
@@ -158,7 +163,7 @@ class MB_Editor {
 			project: () => this.project,
 			scriptEditor: () => this.scriptsPane(),
 			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
-			blockScale: () => 1, // the pane holds script-file units unscaled
+			blockScale: () => this.scriptScale(), // exchange positions are in file units
 		};
 	}
 
@@ -358,7 +363,7 @@ class MB_Editor {
 	}
 
 	addPaletteLabel(text) {
-		let label = new StringMorph(text, 14);
+		let label = new StringMorph(text, 14 * this.scriptScale());
 		label.toggleWeight();
 		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
 		this.palette.contents.add(label);
@@ -555,6 +560,7 @@ console.log('unknown');
 		this.saveNeeded = false; // an edit made during the sync below sets it again
 		try {
 			this.updateProject();
+			this.storeUndoState();
 			await this.codeManager.syncScripts();
 		} catch (e) {
 			this.reportError(e);
@@ -569,8 +575,8 @@ console.log('unknown');
 			if (aBlockMorph instanceof BlockMorph) {
 				// An edit to a definition in the pane goes back to its function.
 				if (aBlockMorph.isFunctionDefinition()) aBlockMorph.updateDefinedFunction();
-				let x = Math.round(aBlockMorph.left() - this.scripts.left());
-				let y = Math.round(aBlockMorph.top() - this.scripts.top());
+				let x = Math.round((aBlockMorph.left() - this.scripts.left()) / this.scriptScale());
+				let y = Math.round((aBlockMorph.top() - this.scripts.top()) / this.scriptScale());
 				newScripts.push([x, y, aBlockMorph]);
 			}
 		}
@@ -812,6 +818,143 @@ console.log('unknown');
 		this.updateProject();
 	}
 
+	watchProjectVariables() {
+		this.project.onVariableChange = () => this.storeUndoState();
+	}
+
+	storeUndoState() {
+		// Keep 51 code strings as MicroBlocksScripter.storeUndoState does in GP.
+		if (this.undoStack.length > 50) this.undoStack.shift();
+		this.undoStack.push(this.project.codeString());
+		this.redoStack = [];
+		this.undoStateChanged();
+	}
+
+	undoAvailable() { return this.undoStack.length > 0; }
+	redoAvailable() { return this.redoStack.length > 0; }
+
+	undoStateChanged() {
+		fireIDEEvent('scripts.undoAvailable', this.undoAvailable());
+		fireIDEEvent('scripts.redoAvailable', this.redoAvailable());
+	}
+
+	async restoreUndoState(source) {
+		// Reload and sync as MicroBlocksScripter.undo and redo do in GP.
+		this.saveNeeded = false;
+		this.project = new MB_Project();
+		if (source != null) this.project.loadFromString(source, false);
+		this.watchProjectVariables();
+		this.removeAllScripts();
+		for (const [x, y, script] of this.project.main.scripts) {
+			this.addBlockToScriptsAt(script, x, y);
+		}
+		this.project.main.assignScriptIds();
+		this.updatePalette(); // MicroBlocksScripter.restoreScripts also rebuilds templates.
+		this.codeManager.project = this.project;
+		this.codeManager.recompileNeeded();
+		await this.codeManager.syncScripts();
+	}
+
+	async undo() {
+		if (this.undoStack.length) this.redoStack.push(this.undoStack.pop());
+		await this.restoreUndoState(this.undoStack.at(-1));
+		this.undoStateChanged();
+	}
+
+	async redo() {
+		if (this.redoStack.length) {
+			const source = this.redoStack.pop();
+			this.undoStack.push(source);
+			await this.restoreUndoState(source);
+		}
+		this.undoStateChanged();
+	}
+
+	scriptScale() { return this.blockSize / 125; }
+	blockSizePercent() { return this.blockSize; }
+
+	resizeBlock(block, fontFactor) {
+		// TextMorph includes multi-line input text, which is separate from StringMorph.
+		const parts = block.allChildren();
+		for (const part of parts) {
+			if (part instanceof SyntaxElementMorph) part.setScale(SyntaxElementMorph.prototype.scale);
+			if (part instanceof StringMorph || part instanceof TextMorph) {
+				part.setFontSize(part.fontSize * fontFactor);
+				part.fixLayout();
+				part.rerender();
+			}
+		}
+		for (const part of parts.reverse()) {
+			if (part instanceof SyntaxElementMorph) part.fixLayout();
+		}
+	}
+
+	applyBlockSize(percent) {
+		// Keep script positions in project file units while changing the rendered scale.
+		const oldScale = this.scriptScale();
+		const fontFactor = percent / this.blockSize;
+		const pane = this.scriptsPane();
+		const scripts = pane ? pane.children.filter(m => m instanceof BlockMorph) : [];
+		const positions = scripts.map(m => [
+			(m.left() - pane.left()) / oldScale,
+			(m.top() - pane.top()) / oldScale,
+		]);
+		this.blockSize = percent;
+		SyntaxElementMorph.prototype.setScale(1.5 * this.scriptScale());
+		if (this.palette) this.updatePalette();
+		if (pane) {
+			scripts.forEach((m, i) => {
+				this.resizeBlock(m, fontFactor);
+				m.setPosition(new Point(
+					pane.left() + positions[i][0] * this.scriptScale(),
+					pane.top() + positions[i][1] * this.scriptScale()));
+			});
+			pane.adjustBounds();
+		}
+	}
+
+	async setBlockScalePercent(percent) {
+		if (Number.isFinite(percent) && percent >= 25 && percent <= 300) {
+			this.applyBlockSize(percent);
+			const prefs = this.readUserPreferences();
+			prefs.blockSizePercent = percent;
+			localStorage['user-prefs'] = JSON.stringify(prefs);
+		}
+		await this.codeManager.syncScripts();
+	}
+
+	zoomIn() {
+		for (const level of [50, 75, 100, 125, 150, 200, 250]) {
+			if (level > this.blockSize) return this.setBlockScalePercent(level);
+		}
+	}
+
+	zoomOut() {
+		for (const level of [250, 200, 150, 125, 100, 75, 50]) {
+			if (level < this.blockSize) return this.setBlockScalePercent(level);
+		}
+	}
+
+	restoreZoom() {
+		return this.setBlockScalePercent(isMobile() ? 125 : 100);
+	}
+
+	readUserPreferences() {
+		try {
+			const prefs = JSON.parse(localStorage['user-prefs'] || '{}');
+			return prefs && typeof prefs === 'object' && !Array.isArray(prefs) ? prefs : {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	applyUserPreferences() {
+		const percent = this.readUserPreferences().blockSizePercent;
+		if (typeof percent === 'number' && Number.isFinite(percent)) {
+			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
+		}
+	}
+
 	// File operations
 
 	async canReplaceCurrentProject() {
@@ -849,6 +992,7 @@ console.log('unknown');
 
 	clearProject() {
 		this.project = new MB_Project();
+		this.watchProjectVariables();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		MB_connection.setCodeManager(this.codeManager);
@@ -859,6 +1003,8 @@ console.log('unknown');
 		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
 		// here downloads, and sendMsg keeps the wire in order on its own.
 		MB_connection.clearBoardIfConnected();
+		// MicroBlocksScripter.createEmptyProject saves this state outside initialization.
+		this.storeUndoState();
 	}
 
 	updateProjectProperties() {
@@ -908,10 +1054,12 @@ console.log('unknown');
 
 	async openProjectFromString(contents, name) {
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
+		// MicroBlocksEditor.openProjectFromFile clears before loading the file.
+		MB_editor.clearProject();
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
-		MB_editor.project = new MB_Project();
+		MB_editor.project.onVariableChange = null;
 		MB_editor.project.loadFromString(contents);
-		MB_editor.removeAllScripts();
+		MB_editor.watchProjectVariables();
 		MB_editor.project.main.scripts.forEach( (entry) => {
 			let x = entry[0], y = entry[1], script = entry[2];
 			MB_editor.addBlockToScriptsAt(script, x, y);
@@ -931,6 +1079,8 @@ console.log('unknown');
 		);
 		// Opening a project ends by downloading it to a connected board.
 		await MB_editor.codeManager.saveAllChunksAfterLoad();
+		// Keep the opened project as the state an edit can undo back to.
+		MB_editor.storeUndoState();
 	}
 
 	async openProjectFromFile(location) {
@@ -1051,6 +1201,7 @@ console.log('unknown');
 		}
 		if (project == null) return;
 		this.project = project;
+		this.watchProjectVariables();
 		this.removeAllScripts();
 		this.project.main.scripts.forEach(
 			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
@@ -1061,6 +1212,8 @@ console.log('unknown');
 		this.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
+		// Keep the decompiled project as the state redo can return to.
+		this.storeUndoState();
 	}
 
 	// Placeholder functions for UI actopms
