@@ -12,7 +12,7 @@ class MB_CodeManager {
 		this.chunkIDs = new Map(); // key (Block or String) -> [id, crc, chunkType, lastSrc, functionMayHaveChanged, isFunction]
 		this.functionChunkIDs = new Map(); // function name -> chunkID
 		this.sourceMaps = new Map(); // chunk key -> { src, map: [[wordStart, wordCount, nodeID or null], ...] }
-		this.recompileAll = false;
+		this.recompileAll = true; // recompile and hold off code file updates on the first sync, as loading a project does
 		this.codeStoreFull = false;
 		this.compiler = null;
 		this.oldVarNames = null;
@@ -53,6 +53,7 @@ class MB_CodeManager {
 	}
 
 	async syncAndStartAll() {
+		if (MB_connection.vmTooOld()) return;
 		// Refuse before sending anything, as GP's startAll does (MicroBlocksRuntime.gp).
 		if (!MB_connection.isConnected()) {
 			alert(localized('Board not connected'));
@@ -74,12 +75,23 @@ class MB_CodeManager {
 			MB_connection.sendMsg('systemResetMsg');
 		}
 		MB_editor.clearRunningHighlights();
-		await this.syncScripts();
+		// Check the board's CRCs as well, with code file updates held off during the sync.
+		await MB_connection.suspendCodeFileUpdates();
+		await this.syncScripts(true);
+		MB_connection.resumeCodeFileUpdates();
+		MB_editor.showDownloadProgress(3, 1);
 	}
 
 	// --- compiling ---
 
 	recompileNeeded() { this.recompileAll = true; }
+
+	boardCleared() {
+		// The board has just been erased, so it holds nothing this code manager sent it.
+		this.chunkIDs = new Map();
+		this.functionChunkIDs = new Map();
+		this.oldVarNames = null;
+	}
 
 	chunkTypeFor(aBlockOrFunction) {
 		// Order matters, and it is GP's: SmallRuntime.chunkTypeFor tests the hat
@@ -215,7 +227,7 @@ class MB_CodeManager {
 
 	// --- chunk management ---
 
-	async syncScripts() {
+	async syncScripts(checkCRCs) {
 		// Called by editor when anything changes.
 		if (!MB_connection.isConnected()) {
 			console.log('Board not connected!');
@@ -234,7 +246,7 @@ class MB_CodeManager {
 			}
 		}
 
-		await this.saveAllChunks(false);
+		await this.saveAllChunks(checkCRCs === true);
 	}
 
 	async saveAllChunksAfterLoad() {
@@ -393,11 +405,9 @@ class MB_CodeManager {
 
 	async saveAllChunks(checkCRCs, paletteBlock) {
 		// Save the code for all scripts and user-defined functions.
-console.log('saveAllChunks A'); // xxx
 		if (checkCRCs == null) checkCRCs = true;
 		if (!MB_connection.connectedToBoard()) return;
-console.log('saveAllChunks B'); // xxx
-this.recompileAll = true;
+		if (MB_connection.vmTooOld()) return;
 
 		const t = Date.now();
 		const totalScripts = this.project.allFunctions().length + this.project.allScripts().length;
@@ -657,6 +667,10 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 				if (unusedFuncs.includes(key)) {
 					this.chunkIDs.delete(key); // unused function; does not need to be saved to board
 				}
+				if (this.chunkIDs.has(key)) { // function is still in use, so verify it like any other chunk
+					ideChunks.set(id, key);
+					crcForChunkID.set(id, entry[1]);
+				}
 			} else {
 				ideChunks.set(id, key);
 				crcForChunkID.set(id, entry[1]);
@@ -719,9 +733,17 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 			crcForChunkID.set(chunkID, crc2);
 		}
 
+		// whether the board holds an unused function says nothing either way
+		const unusedFuncs = this.project.unusedFunctions();
+		const unusedIDs = new Set();
+		for (const [key, entry] of this.chunkIDs.entries()) {
+			if (unusedFuncs.includes(key)) unusedIDs.add(entry[0]);
+		}
+
 		// count matching chunks
 		let matchCount = 0;
 		for (const chunkID of this.crcDict.keys()) {
+			if (unusedIDs.has(chunkID)) continue;
 			const entry = ideChunks.get(chunkID);
 			if (entry != null && this.arraysEqual(this.crcDict.get(chunkID), crcForChunkID.get(chunkID))) {
 				matchCount += 1;
@@ -731,6 +753,7 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		// count chunks that have changed or are entirely missing from the board
 		let changedOrMissingCount = 0;
 		for (const chunkID of ideChunks.keys()) {
+			if (unusedIDs.has(chunkID)) continue;
 			if (!this.crcDict.has(chunkID) ||
 				!this.arraysEqual(this.crcDict.get(chunkID), crcForChunkID.get(chunkID))) {
 				changedOrMissingCount += 1;
@@ -738,6 +761,27 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		}
 
 		return (matchCount > 3 && matchCount > changedOrMissingCount);
+	}
+
+	async deleteChunksOnlyOnBoard() {
+		// Delete the chunks in the board's CRC list that no script or used function in this
+		// IDE owns, so an incremental download leaves the board as a full download would.
+		if (MB_connection.vmVersion == null) return;
+		const unusedFuncs = this.project.unusedFunctions(); // never saved, as in verifyCRCs
+		const knownIDs = new Set();
+		const unusedKeys = new Map(); // chunkID -> unused function name
+		for (const [key, entry] of this.chunkIDs.entries()) {
+			if (unusedFuncs.includes(key)) unusedKeys.set(entry[0], key);
+			else knownIDs.add(entry[0]);
+		}
+		for (const chunkID of Array.from(this.crcDict.keys())) {
+			if (!knownIDs.has(chunkID)) {
+				console.log('Deleting chunk not in project:', chunkID);
+				if (!(await MB_connection.sendMsgSync('deleteChunkMsg', chunkID))) return;
+				// forget it too, so a later call to the function sends it again
+				if (unusedKeys.has(chunkID)) this.chunkIDs.delete(unusedKeys.get(chunkID));
+			}
+		}
 	}
 
 	async collectCRCsIndividually() {
@@ -843,6 +887,7 @@ console.log('code manager crcReceived', chunkID, chunkCRC);
 	}
 
 	runChunk(chunkID) {
+		if (MB_connection.vmTooOld()) return;
 		MB_connection.sendMsg('startChunkMsg', chunkID);
 	}
 

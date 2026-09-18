@@ -52,6 +52,10 @@ class MB_Connection {
 			requestAnimationFrame(processMsgCB);
 		}
 		requestAnimationFrame(processMsgCB);
+		// browsers run no animation frames in a hidden tab, so use a timer while hidden
+		setInterval(() => {
+			if (document.hidden && commPort.isConnected()) MB_connection.updateConnection();
+		}, 50);
 	}
 
 	// --- Helpers ---
@@ -78,12 +82,14 @@ class MB_Connection {
 	async clearBoardIfConnected() {
 		this.sendMsg('stopAllMsg'); // stop running scripts first, as GP's sendStopAll does
 		this.sendMsg('systemResetMsg'); // send the reset message
+		if (this.vmTooOld()) return; // nothing could be downloaded to replace what an erase removes
 		// chunkID 1: the VM's deleteAllCodeMsg and clearVarsMsg cases both ignore
 		// chunkIndex 0, reading it as a message from a 32-bit IDE. GP sends 1.
 		// Awaited, because the caller downloads the project next and an erase
 		// that arrives after the download takes the download with it.
 		await this.sendMsgSync('deleteAllCodeMsg', 1); // delete all code from board
 		await this.sendMsgSync('clearVarsMsg', 1); // delete all variable names from board
+		if (this.codeManager) this.codeManager.boardCleared();
 	}
 
 	// --- Decompiler ---
@@ -167,6 +173,9 @@ class MB_Connection {
 
 		// GP's closePort pushes this before it closes anything (MicroBlocksRuntime.gp:896).
 		this.pushToIDE('board.connected', false);
+		this.pushToIDE('board.canDoBLE', false);
+		this.pushToIDE('board.hasFS', false);
+		this.pushToIDE('board.type', 'Connect');
 
 		// As GP's closePort (MicroBlocksRuntime.gp): guard the close, then clear the
 		// connection either way. this.port can be null here, and can also be a port
@@ -297,8 +306,21 @@ class MB_Connection {
 		this.vmVersion = null;
 		await this.sendMsgSync('getVersionMsg');
 		this.sendMsg('stopAllMsg');
+		MB_editor.clearRunningHighlights();
+		this.setSerialDelay('reset to default');
 		this.processMessages(); // process incoming version message
+		await this.waitForVersion();
 		await MB_editor.justConnected();
+	}
+
+	async waitForVersion() {
+		// The reply can still be arriving when sendMsgSync returns on its first byte,
+		// and whether to erase or download depends on the version.
+		const startT = Date.now();
+		while ((this.vmVersion == null) && this.isConnected() && ((Date.now() - startT) < 2000)) {
+			this.processMessages();
+			await waitMSecs(10);
+		}
 	}
 
 	// --- Message handling ---
@@ -815,10 +837,17 @@ class MB_Connection {
 		const justConnected = (this.vmVersion == null);
 		this.vmVersion = this.extractVersionNumber(versionString);
 		this.boardType = this.extractBoardType(versionString);
+		if (justConnected) {
+			this.pushToIDE('board.canDoBLE', this.boardIsBLECapable());
+			this.pushToIDE('board.hasFS', this.boardHasFileSystem());
+		}
 		// GP pushes the type from here, inside justConnected's own round trip
 		// (MicroBlocksRuntime.gp:1166), so the window in which a live board can still
 		// read 'Connect' is one board round trip rather than a 500 ms poll.
 		this.pushToIDE('board.type', this.boardType);
+		if (justConnected && this.vmTooOld()) {
+			MB_editor.inform(localized('The firmware on the board is not compatible with this version of MicroBlocks.'));
+		}
 	}
 
 	extractVersionNumber(versionString) {
@@ -841,6 +870,34 @@ class MB_Connection {
 		const words = versionString.substring(1).trim().split(/\s+/);
 		if (words.length === 0 || words[0] === '') return 'Unknown';
 		return words.slice(1).join(' ');
+	}
+
+	boardIsBLECapable() {
+		const type = this.boardType;
+		if (type == null) return false;
+		const bleBoards = [
+			'Citilab ED1', 'CoCube', 'Databot', 'Databot v3', 'M5Stack-Core', 'ESP32', 'Mbits', 'M5StickC+',
+			'M5StickC', 'M5Atom-Matrix', 'micro:STEAMakers', 'CodingBox', 'Foxbit', 'KidsIOT', 'IOT-BUS'];
+		return bleBoards.includes(type) || type.includes('ESP');
+	}
+
+	boardHasFileSystem() {
+		const type = this.boardType;
+		if (type == null) return false;
+		if (['ESP', '2040', '2350', 'Springbot'].some((s) => type.includes(s))) return true;
+		const fsBoards = [
+			'Citilab ED1', 'CoCube', 'M5Stack-Core', 'M5StickC+', 'M5StickC', 'M5Atom-Matrix',
+			'ESP32', 'ESP8266', 'RP2040', 'Pico W', 'Pico:ed', 'Wukong2040', 'TTGO RP2040',
+			'Boardie', 'Databot', 'Databot v3', 'Mbits', 'micro:STEAMakers', 'RP2040 XRP',
+			'CodingBox', 'Foxbit', 'KidsIOT', 'IOT-BUS',
+			'M5AtomS3-Lite', 'M5Atom-Lite'];
+		return fsBoards.includes(type);
+	}
+
+	vmTooOld() {
+		// Firmware before v300 cannot run the code this IDE sends.
+		// A version not reported yet (null) or not readable (0 or -1) does not count as old.
+		return (this.vmVersion > 0) && (this.vmVersion < 300);
 	}
 
 	// --- CRC Reception ---

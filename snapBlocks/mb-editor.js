@@ -14,6 +14,7 @@ class MB_Editor {
 		this.scripts = null;
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
+		MB_connection.setCodeManager(this.codeManager); // so chunk CRCs from the board reach it
 		this.readFromBoard = false;
 		this.projectName = null; // the file name a save should use
 		this.runningChunks = new Map(); // used for block highlighting
@@ -315,6 +316,7 @@ class MB_Editor {
 
 	async compileAndRun(aBlock, chunkID) {
 		// Compile and run the given block.
+		if (MB_connection.vmTooOld()) return;
 
 		let code = new MB_Compiler(this.project, this.codeManager).compiledBytesFor(aBlock);
 		while ((code.length % 4) !== 0) {
@@ -386,6 +388,7 @@ console.log('unknown');
 		this.project = new MB_Project();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
+		MB_connection.setCodeManager(this.codeManager);
 		this.removeAllScripts();
 
 		// GP clears the board on every project replacement, right after making
@@ -479,16 +482,17 @@ console.log('unknown');
 				// this branch depends on the read having finished.
 				this.openProjectFromBoard();
 			} else {
-				const reuseCodeIfPossible = false; // set this to true to attempt to reuse code on board
-				if (!reuseCodeIfPossible || !this.boardHasSameProject()) {
-					if (reuseCodeIfPossible) console.log('Full download');
+				if (!(await this.codeManager.boardHasSameProject())) {
+					console.log('Full download');
 					await MB_connection.clearBoardIfConnected();
 					this.runningChunks = new Map();
 				} else {
-					console.log('Incremental download', this.vmVersion, this.boardType);
+					console.log('Incremental download', MB_connection.vmVersion, MB_connection.boardType);
+					await this.codeManager.deleteChunksOnlyOnBoard(); // uses the CRCs boardHasSameProject just read
 				}
 				MB_editor.showDownloadProgress(2, 0);
 				await this.codeManager.stopAndSyncScripts(true);
+				MB_connection.sendMsg('systemResetMsg'); // start the board clean with the code it now holds
 			}
 		} catch (e) {
 			this.reportError(e);
@@ -527,16 +531,13 @@ console.log('unknown');
 			this.project.allFunctions().length, 'functions');
 	}
 
-	boardHasSameProject() {
-		// XXX TODO
-		return false;
-	}
-
 	// Placeholder functions for UI actopms
 
 	inform(msg) {
-		// XXX TO DO
+		// Shown by the chrome's window.inform dialog, which answers into GP.apiResponses[id].
 		console.log(msg);
+		this.informCount = (this.informCount || 0) + 1;
+		fireIDEEvent('window.inform', { title: null, text: String(msg), id: 'inform' + this.informCount });
 	}
 
 	showResult(chunkID, value, isError) {
