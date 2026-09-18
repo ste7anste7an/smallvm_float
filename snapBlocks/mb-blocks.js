@@ -621,6 +621,13 @@ SyntaxElementMorph.prototype.dark = function () {
 	return this.color.darker(this.contrast).toString();
 };
 
+// SyntaxElementMorph editing:
+
+SyntaxElementMorph.prototype.scriptChanged = function () {
+	// Tell the editor a script in its scripting pane changed, as GP's blocks raise scriptChanged.
+	if (this.parentThatIsA(ScriptsMorph)) MB_editor.scriptChanged();
+};
+
 // SyntaxElementMorph color changing:
 
 SyntaxElementMorph.prototype.setColor = function (aColor) {
@@ -1636,7 +1643,7 @@ BlockMorph.prototype.userMenu = function () {
 	);
 	menu.addItem(
 		'delete',
-		() => { this.destroy(); },
+		() => { this.scriptChanged(); this.destroy(); },
 		'delete this morph'
 	);
 	menu.addLine();
@@ -4022,6 +4029,7 @@ ScriptsMorph.prototype.reactToDropOf = function (droppedMorph, hand) {
 		droppedMorph.snap(hand);
 	}
 	this.adjustBounds();
+	MB_editor.scriptChanged();
 };
 
 // ScriptsMorph events
@@ -4724,8 +4732,7 @@ InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
 };
 
 InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
-	let menu = new MenuMorph(this.setContents);
-	menu.environment = this;
+	let menu = new MenuMorph((choice) => { this.setContents(choice); this.scriptChanged(); });
 	menu.fontSize = this.fontSize;
 
 	if (slotMenuName && slotMenuName.startsWith('range:')) {
@@ -4897,6 +4904,7 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 InputSlotMorph.prototype.reactToEdit = function () {
 	var block = this.parentThatIsA(BlockMorph);
 	this.contents().clearSelection();
+	this.scriptChanged();
 };
 
 InputSlotMorph.prototype.freshTextEdit = function (aStringOrTextMorph) {
@@ -4921,7 +4929,7 @@ InputSlotMorph.prototype.evaluate = function () {
 		}
 		return '';
 	}
-	let val = this.contents().text;
+	let val = this.acceptedText();
 	// The value this slot was given, for as long as the text still shows it.
 	// Editing the slot replaces the text, and from then on the text is the
 	// truth -- which is where the coercion below belongs, and where GP puts it
@@ -4939,7 +4947,13 @@ InputSlotMorph.prototype.evaluate = function () {
 InputSlotMorph.prototype.isUnsupplied = function () {
 	// Typing over the slot supplies the argument, the same way it replaces
 	// mbValue in evaluate().
-	return (this.mbUnsupplied === true) && (this.contents().text === this.mbValueText);
+	return (this.mbUnsupplied === true) && (this.acceptedText() === this.mbValueText);
+};
+
+InputSlotMorph.prototype.acceptedText = function () {
+	// While the slot is being typed, the text it had before, as GP changes a slot only on accept.
+	const cursor = this.world() && this.world().cursor;
+	return (cursor && cursor.target === this.contents()) ? cursor.originalContents : this.contents().text;
 };
 
 InputSlotMorph.prototype.isEmptySlot = function () {
@@ -5291,6 +5305,7 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 BooleanSlotMorph.prototype.toggleValue = function () {
 	var block = this.parentThatIsA(BlockMorph);
 	this.value = this.nextValue();
+	this.scriptChanged();
 	if (block && (block.isCustomBlock)) {
 		block.fireSlotEditedEvent(this);
 	}
@@ -5782,6 +5797,7 @@ ColorSlotMorph.prototype.getUserColor = function () {
 	hand.processMouseDown = nop;
 
 	hand.processMouseUp = function () {
+		myself.scriptChanged();
 		pal.destroy();
 		hand.processMouseMove = mouseMoveBak;
 		hand.processMouseDown = mouseDownBak;
@@ -5899,6 +5915,7 @@ BlockExpanderMorph.prototype.render = function (ctx) {
 BlockExpanderMorph.prototype.mouseClickLeft = function (pos) {
 	const aBlock = this.parent;
 	if (!(aBlock instanceof BlockMorph)) return; // should not happen
+	aBlock.scriptChanged();
 
 	if (!this.showLeft) {
 		aBlock.expand();
@@ -6096,6 +6113,7 @@ MicroBitDisplaySlotMorph.prototype.mouseMove = function (pos) {
 		this.display[i] = this.paintMode;
 		this.mbValue = undefined; // painted, so the LEDs are the value now
 		this.rerender();
+		this.scriptChanged();
 	}
 };
 

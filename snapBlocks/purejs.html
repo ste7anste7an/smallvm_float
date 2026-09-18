@@ -175,10 +175,15 @@
 			window.onload = function () {
 				var FPS = 60,
 					lastTime = 0,
+					lastStep = 0,
 
 				// Morphic UI loop
 				loop = (timestamp) => {
 					requestAnimationFrame(loop);
+					if (timestamp - lastStep >= 250) { // four times a second, as GP steps its scripter
+						lastStep = timestamp;
+						MB_editor.step();
+					}
 					if (timestamp - lastTime < 1000 / FPS) {
 						return;
 					}

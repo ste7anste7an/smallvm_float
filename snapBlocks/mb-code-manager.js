@@ -14,6 +14,7 @@ class MB_CodeManager {
 		this.sourceMaps = new Map(); // chunk key -> { src, map: [[wordStart, wordCount, nodeID or null], ...] }
 		this.recompileAll = true; // recompile and hold off code file updates on the first sync, as loading a project does
 		this.codeStoreFull = false;
+		this.savesInProgress = 0; // the editor's step waits while this is not zero
 		this.compiler = null;
 		this.oldVarNames = null;
 		this.crcDict = null;
@@ -405,6 +406,16 @@ class MB_CodeManager {
 
 	async saveAllChunks(checkCRCs, paletteBlock) {
 		// Save the code for all scripts and user-defined functions.
+		// Counted, so that the editor's step does not start a second download meanwhile.
+		this.savesInProgress += 1;
+		try {
+			await this.saveAllChunksNow(checkCRCs, paletteBlock);
+		} finally {
+			this.savesInProgress -= 1;
+		}
+	}
+
+	async saveAllChunksNow(checkCRCs, paletteBlock) {
 		if (checkCRCs == null) checkCRCs = true;
 		if (!MB_connection.connectedToBoard()) return;
 		if (MB_connection.vmTooOld()) return;
