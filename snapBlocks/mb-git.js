@@ -36,9 +36,7 @@ class MB_Git {
 				}
 			}
 		);
-		if (!response.ok) {
-			throw new Error(`Failed to ${method} ${path}:\n${response.error}`);
-		}
+		if (!response.ok) { return false; }
 		return await response.json();
 	}
 
@@ -46,7 +44,13 @@ class MB_Git {
 		this.authToken = btoa(`${username}:${password}`);
 		this.username = username;
 		const response = await this.apiCall('GET', 'user');
-		return response.login == username;
+		if (response.login == username) {
+			// User credentials are okay, check whether the project repo exists, and
+			// if it doesn't, create it for them
+			const repo = await this.getRepo();
+			if (!repo) { await this.createRepo(); }
+			return repo.name == this.repo;
+		};
 	}
 
 	async getRepo() {
@@ -71,10 +75,18 @@ class MB_Git {
 	};
 
 	async saveProject(projectName, contents) {
-		return await this.apiCall('POST', '', {});
+		const d = new Date();
+		return await this.apiCall(
+			'POST',
+			this.filePathForProject(projectName),
+			{
+				content: btoa(contents),
+				message: `Updated from MicroBlocks on ${d.toISOString()}`
+			});
 	}
 
 	async getProject(projectName) {
+		// Get the file contents. We may need to use the raw URL, we'll see...
 		return await this.apiCall('GET', this.filePathForProject(projectName));
 	}
 
