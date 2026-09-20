@@ -1052,10 +1052,12 @@ console.log('unknown');
 		this.importLocalFile((fileName, contents) => this.openProjectFromString(contents, fileName));
 	}
 
-	async openProjectFromString(contents, name) {
+	async openProjectFromString(contents, name, clearFirst = true) {
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
-		// MicroBlocksEditor.openProjectFromFile clears before loading the file.
-		MB_editor.clearProject();
+		// GP clears in openProjectFromFile and not in openProject, and the two
+		// differ by one undo state because clearProject stores the empty project.
+		// A dropped file takes GP's openProject, so it passes false.
+		if (clearFirst) MB_editor.clearProject();
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project.onVariableChange = null;
 		MB_editor.project.loadFromString(contents);
@@ -1117,7 +1119,8 @@ console.log('unknown');
 		// Act on a file by its extension. Only projects are handled so far.
 
 		const name = fileName.toLowerCase();
-		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName);
+		// GP's processDroppedFile calls openProject, which does not clear first.
+		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
 	}
 
 	importLocalFile(callback) {
