@@ -589,6 +589,7 @@ console.log('unknown');
 		MB_connection.sendMsg('stopAllMsg');
 		this.clearRunningHighlights();
 		this.codeManager.clearVariableNames();
+		this.scriptChanged(); // as GP's librariesChanged ends (MicroBlocksRuntime.gp:1998)
 	}
 
 	removeLibraryNamed(libName) {
@@ -682,6 +683,7 @@ console.log('unknown');
 		if (isReporter) hat.nextBlock(MB_Parser.blockForDecompiled(
 			{ selector: 'return', args: [0], isReporter: false, next: null }));
 		this.addToBottom(hat);
+		this.scriptChanged();
 		return hat;
 	}
 
@@ -707,6 +709,7 @@ console.log('unknown');
 		const modules = [this.project.main, ...this.project.libraries.values()];
 		modules.find((m) => m.functions.includes(func)).removeFunction(func);
 		this.project.deleteBlockSpecFor(name);
+		this.scriptChanged();
 	}
 
 	changeFunctionPrototype(op, blockType, specString, typeString, defaults, argNames) {
@@ -725,6 +728,8 @@ console.log('unknown');
 		this.project.recordBlockSpec(op, { blockType, opName: op, specString,
 			slotTypes: typeString, defaults: defaults.slice() });
 		this.updateCallsOf(op, colourSlots);
+		// Its own, because updateCallsOf answers early when the spec is missing.
+		this.scriptChanged();
 	}
 
 	updateCallsOf(op, colourSlots = []) {
@@ -781,6 +786,7 @@ console.log('unknown');
 			}
 		}
 		this.updateProject();
+		this.scriptChanged(); // every rebuilt call is a chunk the board has not got
 	}
 
 	rehangDefinitionsOf(func) {
