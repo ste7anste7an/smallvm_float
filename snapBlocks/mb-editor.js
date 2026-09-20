@@ -26,6 +26,7 @@ class MB_Editor {
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
+		this.exportedScriptScale = 1; // kept as GP keeps it; the picture uses the on-screen scale
 		this.category = null; // the selected palette category, or null while a library is
 		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
@@ -1085,6 +1086,34 @@ console.log('unknown');
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
+	}
+
+	scriptsPicturePNG() {
+		// The scripts pane as PNG bytes. A canvas is the only thing in a browser
+		// that draws one, and toDataURL the only synchronous way to read it back;
+		// a page without a real canvas answers an empty string, and gets null.
+
+		const canvas = this.scriptsPane().scriptsPicture();
+		if (!canvas) return null; // no scripts
+		const url = canvas.toDataURL('image/png');
+		const base64 = url.slice(url.indexOf(',') + 1);
+		if (!base64) return null;
+		const binary = atob(base64);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+		return bytes;
+	}
+
+	saveScriptsImage() {
+		// A picture of every script, carrying the scripts as text so that GP, the
+		// wiki and this IDE can read them back out of it (ScriptEditor.gp:553).
+		// GP uses the current block scale rather than the export scale here, on
+		// purpose, so that what is saved is what is on screen.
+
+		const pngBytes = this.scriptsPicturePNG();
+		if (pngBytes == null) return;
+		const withText = MB_ScriptPicture.addScriptText(pngBytes, this.allScriptsString());
+		this.saveDataAsFile(new Uint8Array(withText), 'allScripts' + Date.now() + '.png', 'image/png');
 	}
 
 	browserReadBytes(handler) {

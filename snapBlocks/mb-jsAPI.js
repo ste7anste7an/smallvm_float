@@ -84,11 +84,13 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 
-		// The following entry points are not yet implemented (noops):
+		// Not implemented, but answered: a caller that waits for a reply and never
+		// gets one waits for ever, and windows.js nests one call inside another.
 		case 'board.installVM':
 		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
-			break; // do nothing for now
+			callback(0);
+			break;
 		case 'board.downloadFile':
 			// Answer, then act, as GP does (MicroBlocksRuntime.gp:2472).
 			callback(0);
@@ -234,8 +236,12 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.pasteScriptText(clipboardText());
 			break;
 		case 'scripts.saveImage':
+			callback(0);
+			MB_editor.saveScriptsImage();
+			break;
 		case 'scripts.setExportedScriptScale':
-			callback();
+			callback(0);
+			MB_editor.exportedScriptScale = Number(params[0]);
 			break;
 		case 'scripts.restoreZoom':
 			MB_editor.restoreZoom();
