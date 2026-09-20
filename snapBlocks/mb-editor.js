@@ -1070,10 +1070,14 @@ console.log('unknown');
 	}
 
 	saveTextAsFile(text, fileName) {
-		// A download is all a web page can do; there is no file system to
-		// write to and no path to write it at.
+		this.saveDataAsFile(text, fileName, 'text/plain');
+	}
 
-		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+	saveDataAsFile(data, fileName, mimeType = 'application/octet-stream') {
+		// A download is all a web page can do; there is no file system to
+		// write to and no path to write it at. data is text or bytes.
+
+		const url = URL.createObjectURL(new Blob([data], { type: mimeType }));
 		const link = document.createElement('a');
 		link.href = url;
 		link.download = fileName;
@@ -1081,6 +1085,79 @@ console.log('unknown');
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
+	}
+
+	browserReadBytes(handler) {
+		// Choose any file and hand its bytes to handler, for the board's own file
+		// system, where a file is not a project and not text.
+
+		const inp = document.createElement('input');
+		inp.type = 'file';
+		inp.style.display = 'none';
+		inp.addEventListener('cancel', () => inp.remove());
+		inp.addEventListener('change', async () => {
+			inp.remove();
+			const file = inp.files[0];
+			if (file) await handler(file.name, new Uint8Array(await file.arrayBuffer()));
+		});
+		document.body.appendChild(inp);
+		inp.click();
+	}
+
+	chromeMenu(items) {
+		// The chrome draws any menu GP asks for; items are '-' or [label, action, tip].
+		return chromeMenuFor(world, items);
+	}
+
+	// ***** The board's file system *****
+
+	async uploadFileToBoard() {
+		// Put a file the user chooses onto the board, as GP's putFileOnBoard does
+		// (MicroBlocksRuntime.gp:2534): the chooser takes any file, not a project.
+
+		await this.browserReadBytes(async (fileName, bytes) => {
+			fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
+				subtitle: fileName, note: null, percent: 0 });
+			try {
+				await MB_connection.writeFileToBoard(fileName, bytes);
+			} finally {
+				fireIDEEvent('spinner.hide');
+			}
+		});
+	}
+
+	async downloadFileFromBoard() {
+		// GP's order, and the order is the point (MicroBlocksRuntime.gp:2472 and
+		// :2489): list, offer a menu, read the chosen file, ask, then save.
+
+		const files = await MB_connection.getFileListFromBoard();
+		if (files == null) return;
+		// The code store is a file on the board and is not one a user wants.
+		const names = Object.keys(files).filter((name) => 'ublockscode' !== name).sort();
+		if (0 === names.length) return this.inform(localized('No files on board.'));
+		this.chromeMenu(names.map((name) => [name, () => this.readAndSaveFile(name, files[name])]));
+	}
+
+	async readAndSaveFile(fileName, fileSize) {
+		fireIDEEvent('spinner.show', { title: localized('Reading file from board...'),
+			subtitle: fileName, note: null, percent: 0 });
+		let bytes;
+		try {
+			bytes = await MB_connection.readFileFromBoard(fileName, fileSize);
+		} finally {
+			fireIDEEvent('spinner.hide');
+		}
+		// Null is a transfer the board did not finish, which is not an empty file.
+		if (bytes == null) return;
+		if (!(await this.confirm(localized('Save file?')))) return;
+		this.saveDataAsFile(bytes, fileName);
+	}
+
+	async toggleBLE() {
+		// Not a toggle, despite the endpoint's name: GP asks and sends the answer
+		// either way, so declining sends 0 (MicroBlocksRuntime.gp:1327).
+		const allow = await this.confirm(localized('Allow the attached board to be connected via BLE?'));
+		MB_connection.sendMsg('enableBLEMsg', allow ? 1 : 0);
 	}
 
 	openProjectMenu() {
