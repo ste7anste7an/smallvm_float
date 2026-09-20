@@ -206,9 +206,13 @@ class MB_Editor {
 	}
 
 	handlePaste(event) {
-		let s = event.data;
-		if (!s.startsWith('GP Script')) return; // ignore non-script paste
-		return this.pasteScripts(s.slice(s.indexOf('\n') + 1));
+		return this.pasteScriptText(event.data);
+	}
+
+	pasteScriptText(text) {
+		// Both a browser paste event and the chrome's paste menu item arrive here.
+		if (!text.startsWith('GP Script')) return; // ignore non-script paste
+		return this.pasteScripts(text.slice(text.indexOf('\n') + 1));
 	}
 
 	async pasteScripts(scriptString, dst) {
@@ -250,6 +254,45 @@ class MB_Editor {
 		for (const m of this.scriptsPane().children.slice()) {
 			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) m.destroy();
 		}
+	}
+
+	showDefinition(func) {
+		// One definition hat per function, and never a second for the same one.
+		if (func == null) return;
+		if (this.definitionShown(func.functionName)) return;
+		this.addToBottom(scriptForFunction(func));
+	}
+
+	definitionShown(funcName) {
+		return this.scriptsPane().children.some((m) =>
+			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+	}
+
+	showFunctions(functions) {
+		for (const func of functions) this.showDefinition(func);
+		this.updateProject();
+	}
+
+	hideFunctions(functions) {
+		for (const func of functions) this.hideDefinition(func.functionName);
+		this.updateProject();
+	}
+
+	functionsOfLibrary(libName) {
+		const lib = this.project.libraryNamed(libName);
+		return lib ? lib.functions : [];
+	}
+
+	exportMyBlocksAsLibrary() {
+		// Main's own blocks as a library file, under the name the user gives it.
+		// GP asks first and writes nothing if the dialog is dismissed
+		// (MicroBlocksScripter.gp:1414).
+
+		return this.prompt(localized('Library name?'), 'my library').then((libName) => {
+			if (!libName) return;
+			this.updateProject();
+			this.saveTextAsFile(this.project.main.codeString(this.project, libName), libName + '.ubl');
+		});
 	}
 
 	scriptsBottom() {
