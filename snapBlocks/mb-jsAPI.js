@@ -85,11 +85,15 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 
 		// The following entry points are not yet implemented (noops):
-		case 'board.downloadFile':
 		case 'board.installVM':
 		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
 			break; // do nothing for now
+		case 'board.downloadFile':
+			// Answer, then act, as GP does (MicroBlocksRuntime.gp:2472).
+			callback(0);
+			MB_editor.downloadFileFromBoard();
+			break;
 		case 'board.retrieveProject':
 			// GP answers before acting (MicroBlocksAPI.gp:112). openFromBoard
 			// clears the project and waits for the NEXT board to connect; it does
@@ -97,12 +101,18 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.openFromBoard();
 			break;
-		case 'board.toggleBLE':
-		case 'board.uploadFile':
 		case 'edit.redo':
 		case 'edit.undo':
 		case 'ide.applyUserPreferences':
 			callback(0); // not implemented yet, but every request gets its reply
+			break;
+		case 'board.toggleBLE':
+			callback(0);
+			MB_editor.toggleBLE();
+			break;
+		case 'board.uploadFile':
+			callback(0);
+			MB_editor.uploadFileToBoard();
 			break;
 		case 'ide.resize':
 			// IDE.resize has just sized #canvas, the workspace slot; place the world canvas over it
