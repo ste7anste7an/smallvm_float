@@ -165,9 +165,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.exportLibrary(params[0]);
 			break;
-		case 'library.hideDefs':
-			callback();
-			break;
 		case 'library.reload':
 			// Reply first, then act. The reload reads a file, so it finishes after
 			// the reply.
@@ -175,12 +172,29 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.reloadLibrary(params[0]);
 			break;
 		case 'library.showDefs':
+			// Answer, then act, as GP does (MicroBlocksScripter.gp:203).
+			callback(0);
+			MB_editor.showFunctions(MB_editor.functionsOfLibrary(params[0]));
+			break;
+		case 'library.hideDefs':
+			callback(0);
+			MB_editor.hideFunctions(MB_editor.functionsOfLibrary(params[0]));
+			break;
+		case 'project.showAllMyBlocks':
+			callback(0);
+			MB_editor.showFunctions(MB_editor.project.main.functions);
+			break;
+		case 'project.hideAllMyBlocks':
+			callback(0);
+			MB_editor.hideFunctions(MB_editor.project.main.functions);
+			break;
+		case 'project.exportBlocksLibrary':
+			callback(0);
+			MB_editor.exportMyBlocksAsLibrary();
+			break;
 		case 'library.showInfoDialog':
 		case 'locale.loadCustomFile':
 		case 'locale.setLanguage':
-		case 'project.copyURL':
-		case 'project.exportBlocksLibrary':
-		case 'project.hideAllMyBlocks':
 			callback();
 			break;
 		case 'project.new':
@@ -194,10 +208,23 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.openProjectMenu();
 			break;
-		case 'project.showAllMyBlocks':
 		case 'scripts.copyToClipboard':
+			// Answer, then act, as GP does (MicroBlocksAPI.gp, ScriptEditor.gp:616).
+			callback(0);
+			setClipboard(MB_editor.allScriptsString());
+			break;
 		case 'scripts.copyToClipboardAsURL':
+			callback(0);
+			setClipboard(MB_editor.scriptsURL(location.href));
+			break;
+		case 'project.copyURL':
+			callback(0);
+			setClipboard(MB_editor.projectURL(location.href));
+			break;
 		case 'scripts.paste':
+			callback(0);
+			MB_editor.pasteScriptText(clipboardText());
+			break;
 		case 'scripts.saveImage':
 		case 'scripts.setExportedScriptScale':
 			callback();
@@ -224,10 +251,21 @@ GP.apiCall = function (endPoint, params, callback) {
 };
 
 // menus.js reads the clipboard through these, which gpSupport.js defines in the wasm build.
-// Nothing here fills clipboardBytes yet, so the chrome's paste items stay hidden.
+// The chrome's paste items are hidden while clipboardBytes is empty, and that test runs
+// as the menu opens, so the buffer is what makes paste reachable.
 GP.clipboardBytes = [];
 function clipboardText() {
 	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes));
+}
+
+function setClipboard(text) {
+	// The buffer is what the chrome reads. Writing the browser's own clipboard is
+	// a courtesy: it is missing on an insecure origin and can be refused even on a
+	// secure one, and neither is a reason for the copy to fail.
+	GP.clipboardBytes = Array.from(new TextEncoder().encode(text));
+	try {
+		navigator.clipboard?.writeText?.(text)?.catch(() => {});
+	} catch (e) {} // eslint-disable-line no-empty
 }
 
 // The id the chrome answers a menu or a dialog under, counted as primBrowserNextCallId

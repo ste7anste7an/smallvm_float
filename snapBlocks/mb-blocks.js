@@ -1604,7 +1604,10 @@ BlockMorph.prototype.userMenu = function () {
 				'script ' + Math.round(this.left() - 200) + ' ' + Math.round(this.top()) + ' {\n' +
 				this.codeString() +
 				'\n}';
-			navigator.clipboard.writeText(s);
+			// Through the buffer, so the chrome's 'paste script from clipboard' can
+			// see it; that item tests for this text and nothing else produces it.
+			if (typeof setClipboard === 'function') setClipboard(s);
+			else navigator.clipboard.writeText(s);
 		},
 		'copy this script to the clipboard'
 	);
