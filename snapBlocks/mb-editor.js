@@ -478,10 +478,10 @@ class MB_Editor {
 		}
 	}
 
-	async stopAll() {
+	async stopAll(forceRecompile) {
 		try {
 			this.updateProject();
-			await this.codeManager.stopAndSyncScripts();
+			await this.codeManager.stopAndSyncScripts(false, forceRecompile);
 		} catch (e) {
 			this.reportError(e);
 		}

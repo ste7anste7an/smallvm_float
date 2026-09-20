@@ -60,7 +60,10 @@ const Buttons = {
 		label: 'Stop',
 		description: 'Stop all running scripts and make sure all scripts have been compiled and uploaded to the microcontroller.',
 		class: 'top-bar__controls-stop',
-		action: () => { GP.apiCall('ide.stopAll'); }
+		// Shift forces a full recompile and re-download. The modifier has to come
+		// from the click: this button has DOM focus when it is pressed, and
+		// morphic's key listeners never see a key delivered to a DOM button.
+		action: (evt) => { GP.apiCall('ide.stopAll', [true === (evt && evt.shiftKey)]); }
 	},
 
 	// Workspace tools
