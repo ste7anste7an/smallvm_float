@@ -1000,11 +1000,13 @@ console.log('unknown');
 		this.updateProjectProperties();
 
 		// GP clears the board on every project replacement, right after making
-		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
-		// here downloads, and sendMsg keeps the wire in order on its own.
-		MB_connection.clearBoardIfConnected();
+		// the new project (MicroBlocksScripter.gp:553). Answered rather than
+		// awaited, so a caller that downloads afterwards can wait for it and
+		// does not have to send a second erase of its own.
+		const cleared = MB_connection.clearBoardIfConnected();
 		// MicroBlocksScripter.createEmptyProject saves this state outside initialization.
 		this.storeUndoState();
+		return cleared;
 	}
 
 	updateProjectProperties() {
@@ -1057,7 +1059,7 @@ console.log('unknown');
 		// GP clears in openProjectFromFile and not in openProject, and the two
 		// differ by one undo state because clearProject stores the empty project.
 		// A dropped file takes GP's openProject, so it passes false.
-		if (clearFirst) MB_editor.clearProject();
+		const cleared = clearFirst ? MB_editor.clearProject() : null;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project.onVariableChange = null;
 		MB_editor.project.loadFromString(contents);
@@ -1072,8 +1074,10 @@ console.log('unknown');
 		MB_editor.updateProjectProperties();
 
 		// Without the erase the project that was open keeps running on the board.
-		// Awaited: the download below must not overtake the erase.
-		await MB_connection.clearBoardIfConnected();
+		// Awaited: the download below must not overtake the erase. clearProject
+		// has already sent one when it ran, so waiting on that is the whole of
+		// it; sending a second erases an already empty board and stops it twice.
+		await (cleared || MB_connection.clearBoardIfConnected());
 		MB_editor.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log("Loaded:", name,
 			MB_editor.project.main.scripts.length, 'scripts,',
