@@ -1067,6 +1067,32 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			}
 		}
 
+	#elif defined(STEAMakersS3)
+		#define TFT_MOSI 21
+		#define TFT_SCLK 20
+		#define TFT_CS 41
+		#define TFT_DC 40
+		#define TFT_RST 38
+		#define TFT_BL 42
+		#define TFT_WIDTH 240
+		#define TFT_HEIGHT 240
+
+		void tftInit() {
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
+			tft = new Arduino_ST7789(bus, TFT_RST, 0, true,
+					TFT_WIDTH, TFT_HEIGHT, 0, 0, 0, 0);
+			if (!tft->begin()) {
+				outputString("tftInit() failed!");
+			} else {
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH); // turn on backlight
+				tftWidth = TFT_WIDTH;
+				tftHeight = TFT_HEIGHT;
+				tftClear();
+				useTFT = true;
+			}
+		}
+
 	#elif defined(DOMINO4_CWA)
 		#define TFT_MOSI 37
 		#define TFT_SCLK 36

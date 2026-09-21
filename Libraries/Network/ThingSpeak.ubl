@@ -1,0 +1,46 @@
+module ThingSpeak 'cat;Comm'
+author MicroBlocks
+version 1 0 
+depends WiFi _MQTT 
+description 'ThingSpeak (thinkspeak.mathworks.com) is an IoT analytics platform service that allows you to aggregate, visualize, and analyze live data streams in the cloud. You can send data to ThingSpeak from your devices, create instant visualization of live data, and send alerts.
+
+You can use the ( publish _ ) block with a list, like ( publish ( (24) (34) (12) (521))), to send multiple data entries to several fields at the same time, or expand the block to send a single data point to a particular field, like ( publish (43) to field number (1) ).'
+variables _thspk_channelID _thspk_username _thskp_password
+
+  spec ' ' 'thspk set username' 'set username _ password _ and channel ID _' 'str str num' 'o3akjbYHvas' 'uA6a3+32352mn/fgsd' 6546984
+  spec ' ' 'thspk publish' 'publish _ : to field number _' 'num num' 250 1
+  spec ' ' '_thspk connect' '_thspk connect'
+
+to '_thspk connect' {
+  local 'retries' 5
+  repeatUntil (or ('MQTT connected') (retries <= 0)) {
+    'MQTT connect to' 'mqtt3.thingspeak.com' 128 _thspk_username _thspk_username _thskp_password
+    retries += -1
+  }
+}
+
+to 'thspk publish' datum field {
+  '_thspk connect'
+  sayIt ''
+  if ('MQTT connected') {
+    if (isType datum 'number') {
+      'MQTT pub' ('[data:join]' 'channels/' _thspk_channelID '/publish/fields/field' (argOrDefault 2 1)) datum false 0
+    } (isType datum 'list') {
+      local 'payload' ''
+      for i (size datum) {
+        payload = ('[data:join]' payload ('[data:join]' 'field' i '=' (at i datum) '&'))
+      }
+      'MQTT pub' ('[data:join]' 'channels/' _thspk_channelID '/publish') ('[data:copyFromTo]' payload 1 ((size payload) - 1)) false 0
+    }
+  } else {
+    sayIt 'Could not connect to ThingSpeak. Did you set up your username and password? Are you connected to the internet?'
+  }
+}
+
+to 'thspk set username' username password channel {
+  _thspk_username = username
+  _thskp_password = password
+  _thspk_channelID = channel
+  '_thspk connect'
+}
+

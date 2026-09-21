@@ -53,6 +53,12 @@ SdFat SD;
 	#define MOSI_PIN 35
 	#define MISO_PIN 37
 	#define SCK_PIN 36
+#elif defined(STEAMakersS3)
+	#undef DEFAULT_CS_PIN
+	#define DEFAULT_CS_PIN 39
+	#define MOSI_PIN 35
+	#define MISO_PIN 36
+	#define SCK_PIN 37
 #endif
 
 // Variables
@@ -94,7 +100,7 @@ static void initSecondarySPI() {
 }
 
 static void initSDCard(int chipSelectPin) {
-	#if defined(SPRINGBOT)
+	#if defined(SPRINGBOT) || defined(STEAMakersS3)
 		SPI.end();
 		SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
 	#endif

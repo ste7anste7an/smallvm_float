@@ -56,6 +56,8 @@ pio run -e databot
 cp .pio/build/databot/firmware.bin precompiled/vm_databot.bin
 pio run -e databot-v3
 cp .pio/build/databot-v3/firmware.bin precompiled/vm_databot_v3.bin
+pio run -e steamaker-s3
+cp .pio/build/steamaker-s3/firmware.bin precompiled/vm_steamakers_s3.bin
 pio run -e steam-maker
 cp .pio/build/steam-maker/firmware.bin precompiled/vm_micro_steamakers.bin
 pio run -e kids-bits
