@@ -47,6 +47,7 @@ void boardAddPrims();	// end of primsInit(), to add or fill in the board's own p
 void boardPoll();		// with the VM's other background work, about every 100 VM loop cycles
 void boardStopAll();	// when the VM resets its outputs: the stop button, starting a program, reset
 void boardIDEConnectionChanged(int isConnected); // when the IDE connects or disconnects
+int boardStartAtBoot(); // true if the VM should start the user's program at the end of setup()
 
 // VM thread requests, for board code running on its own task or core.
 // VM state must only be changed on the VM thread. Board code queues the work here and
