@@ -1085,10 +1085,10 @@ void hardwareInit() {
 	#define PIN_BUTTON_A 18
 	static const char reservedPin[TOTAL_PINS] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
-		0, 0, 0, 0, 0, 1, 0, 0, 0};
+		0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		1, 1, 1, 0, 0, 1, 0, 0, 0};
 
 #elif defined(ESP32_S3)
 	#define BOARD_TYPE "ESP32-S3"
