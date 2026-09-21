@@ -21,6 +21,7 @@ void boardAddPrims() { }
 void boardPoll() { }
 void boardStopAll() { }
 void boardIDEConnectionChanged(int isConnected) { }
+int boardStartAtBoot() { return true; }
 
 #endif
 

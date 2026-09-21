@@ -77,4 +77,10 @@ void boardIDEConnectionChanged(int isConnected) {
 	if (isConnected) smallmvUIOnIDEConnected();
 }
 
+int boardStartAtBoot() {
+	// The library's Program page decides what runs: it starts the default saved program, or
+	// shows the program list when there isn't one. Starting the code store here would pre-empt it.
+	return false;
+}
+
 #endif
