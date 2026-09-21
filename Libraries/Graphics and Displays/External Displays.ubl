@@ -1,6 +1,6 @@
 module 'External Displays' Output
 author MicroBlocks
-version 1 9
+version 1 9 
 description 'This library supports connecting selected external displays to MicroBlocks boards.
 
 * Only selected display controllers are supported.
@@ -23,7 +23,7 @@ description 'This library supports connecting selected external displays to Micr
   spec ' ' 'externalDisplay_resetOLED' 'reset OLED'
   spec ' ' 'externalDisplay_sendOLEDCmds' 'send OLED commands _' 'str' 'A7,A0,C0'
 
-to 'externalDisplay_resetOLED' {
+to externalDisplay_resetOLED {
   local 'h' ('[tft:getHeight]')
   if (32 == h) {
     externalDisplay_sendOLEDCmds 'AE, 8D,14, A6, 81,40, A8,1F, DA,02, AF'
@@ -34,7 +34,7 @@ to 'externalDisplay_resetOLED' {
   }
 }
 
-to 'externalDisplay_sendOLEDCmds' cmdString {
+to externalDisplay_sendOLEDCmds cmdString {
   comment 'Send one or more hexadecimal command bytes to an I2C OLED display.
 Multiple commands are separated by commas. Used for experimentation
 and to initialize uncommon OLED display types.'
