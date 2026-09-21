@@ -30,6 +30,7 @@ class MB_Editor {
 		this.exportedScriptScale = 1; // set by the chrome; the picture uses the on-screen scale
 		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
 		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
+		this.unsavedEdits = false; // the project changed since it was last opened or saved
 		this.category = null; // the selected palette category, or null while a library is
 		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
@@ -65,6 +66,11 @@ class MB_Editor {
 
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
+
+		// morphic asks each of the world's own morphs whether the page is holding
+		// work, and warns before the browser unloads it if any says yes
+		// (WorldMorph.hasUnsavedEdits, morphic.js).
+		this.scriptsFrame.hasUnsavedEdits = () => this.hasUnsavedEdits();
 
 		// While a chrome dialog's field has the keys, a click on the world does not take them
 		// back, as gpSupport.js passes GP no keys while GP.delegateKeyboardEvents is set.
@@ -830,6 +836,7 @@ console.log('unknown');
 	scriptChanged() {
 		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
 		this.saveNeeded = true;
+		this.unsavedEdits = true; // until the project is written to a file
 	}
 
 	async step() {
@@ -1440,6 +1447,15 @@ console.log('unknown');
 		return this.confirm(localized('Discard current project?'));
 	}
 
+	hasUnsavedEdits() {
+		// Whether a reload or a tab close would lose work: the project was edited
+		// since it was last opened or saved, and there is something left in it.
+		// updateProject() first, as canReplaceCurrentProject does, or a block the
+		// user has just dragged into the pane is not in the project yet.
+		this.updateProject();
+		return this.unsavedEdits && this.project.hasUserCode();
+	}
+
 	confirm(question) {
 		// Answer a promise of true or false from the chrome's dialog, as GP's Page confirm
 		// does, or from the browser's own on a page without the chrome.
@@ -1487,6 +1503,10 @@ console.log('unknown');
 		const cleared = MB_connection.clearBoardIfConnected();
 		// The empty project is an undo state of its own, so undo can return to it.
 		this.storeUndoState();
+
+		// Last before the return, because removeAllScripts above destroys blocks and
+		// each of those is an edit. An empty project has nothing to lose.
+		this.unsavedEdits = false;
 		return cleared;
 	}
 
@@ -1505,6 +1525,7 @@ console.log('unknown');
 		let name = this.projectName || 'untitled.ubp';
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		this.saveTextAsFile(this.project.codeString(), name);
+		this.unsavedEdits = false; // the file holds what the pane holds
 	}
 
 	saveTextAsFile(text, fileName) {
@@ -1673,6 +1694,9 @@ console.log('unknown');
 		await MB_editor.codeManager.saveAllChunksAfterLoad();
 		// Keep the opened project as the state an edit can undo back to.
 		MB_editor.storeUndoState();
+		// Last, for the same reason as in clearProject: loading the project
+		// destroys and builds blocks, and each of those is an edit.
+		MB_editor.unsavedEdits = false;
 	}
 
 	async importFromURL(url) {
@@ -1848,6 +1872,8 @@ console.log('unknown');
 			this.project.allFunctions().length, 'functions');
 		// Keep the decompiled project as the state redo can return to.
 		this.storeUndoState();
+		// The board still holds this project, so leaving the page loses nothing.
+		this.unsavedEdits = false;
 	}
 
 	// Placeholder functions for UI actopms
