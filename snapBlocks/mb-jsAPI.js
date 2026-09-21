@@ -156,8 +156,16 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_connection.setSerialDelay(params[0]);
 			break;
 		case 'ide.showLibraryDialog':
-		case 'ide.spinnerCancelled':
 			callback();
+			break;
+		case 'ide.spinnerCancelled':
+			// Reply first, then act. The chrome sends this for every Escape key
+			// whether a spinner is up or not, and the only thing a spinner here
+			// stands over that can be stopped is a file transfer: a project read
+			// shows one and runs to its end either way.
+			callback(0);
+			if (MB_editor.spinnerShowing && MB_connection.busy()) MB_connection.abortFileTransfer();
+			MB_editor.spinnerShowing = false; // cancelled or not, the overlay is gone
 			break;
 		case 'ide.version':
 			// A value endpoint: windows.js:272 renders it as `MicroBlocks v${...}`.

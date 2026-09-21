@@ -27,6 +27,8 @@ class MB_Editor {
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
 		this.exportedScriptScale = 1; // kept as GP keeps it; the picture uses the on-screen scale
+		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
+		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
 		this.category = null; // the selected palette category, or null while a library is
 		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
@@ -600,6 +602,7 @@ console.log('unknown');
 	async step() {
 		// Called four times a second. Send the scripts to a connected board if they
 		// changed, as GP's MicroBlocksScripter step does. Wait while another download runs.
+		this.sendTransferPercent(); // before the returns below: a transfer holds them both
 		if (!this.saveNeeded || this.codeManager.savesInProgress > 0) return;
 		this.saveNeeded = false; // an edit made during the sync below sets it again
 		try {
@@ -609,6 +612,16 @@ console.log('unknown');
 		} catch (e) {
 			this.reportError(e);
 		}
+	}
+
+	sendTransferPercent() {
+		// The chrome's spinner draws its ring from spinner.setPercent and has no
+		// other source for it. A running transfer keeps its own percentage, so
+		// send that on each step while it moves, and nothing while it does not.
+		const percent = MB_connection.fileTransferProgress;
+		if (percent === this.lastTransferPercent) return;
+		this.lastTransferPercent = percent;
+		if (percent != null) fireIDEEvent('spinner.setPercent', percent);
 	}
 
 	updateProject() {
@@ -1493,6 +1506,10 @@ console.log('unknown');
 // rather than through IDE.fireEvent, which is the same dispatch, so that the
 // port does not require the chrome to be loaded.
 function fireIDEEvent(name, value) {
+	// The spinner is the chrome's, and no morph here stands for it, so what the
+	// port last said about it is the only record that one is up.
+	if ('spinner.show' === name) MB_editor.spinnerShowing = true;
+	if ('spinner.hide' === name) MB_editor.spinnerShowing = false;
 	// Both guards: the port is also loaded with no DOM, and into contexts that
 	// supply a partial one where document exists and CustomEvent does not.
 	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }
