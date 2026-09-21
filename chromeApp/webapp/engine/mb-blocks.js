@@ -1683,6 +1683,8 @@ BlockMorph.prototype.chromeMenu = function () {
 			return dup;
 		};
 
+	if (this.isFunctionDefinition()) return this.definitionMenu();
+
 	items.push(['duplicate', () => {
 		var dup = copy();
 		if (isCommand && dup.nextBlock()) dup.nextBlock().destroy();
@@ -1732,28 +1734,27 @@ BlockMorph.prototype.chromeMenu = function () {
 			() => this.exportAsImageWithResult(),
 			'save a picture of these blocks and their result as a PNG file'])
 	}
+	if (this.isTemplate && MB_editor.project.functionNamed(this.selector)) {
+		items.push('-');
+		items.push(['delete block definition...',
+			() => MB_editor.deleteFunctionWithConfirm(this.selector),
+			'delete the definition of this block']);
+	}
 	return chromeMenuFor(world, items);
 };
 
 BlockMorph.prototype.copyToClipboard = function () {
-	let s = 'GP Script\n\n' +
-		'script ' + Math.round(this.left() - 200) + ' ' + Math.round(this.top()) + ' {\n' +
-		this.codeString() +
-		'\n}';
-	// Through the buffer, so the chrome's 'paste script from clipboard' can
-	// see it; that item tests for this text and nothing else produces it.
-	if (typeof setClipboard === 'function') setClipboard(s);
-	else navigator.clipboard.writeText(s);
+	// The whole script this block is in, with the definitions it calls.
+	MB_editor.copyToClipboard(MB_editor.scriptStringFor(this));
 }
 
 
 BlockMorph.prototype.hasHelp = function () {
-	// ToDo...
-	return false;
+	return this.hasHelpLink();
 }
 
 BlockMorph.prototype.copyToClipboardAsURL = function () {
-	// ToDo...
+	MB_editor.copyToClipboard(MB_editor.scriptURL(this, location.href));
 }
 
 BlockMorph.prototype.exportAsImage = function () {
@@ -1765,12 +1766,13 @@ BlockMorph.prototype.exportAsImageWithResult = function () {
 }
 
 BlockMorph.prototype.hasHelpLink = function () {
-	// ToDo...
-	return false;
+	// A block the user wrote has no wiki page.
+	return MB_editor.helpURLFor(this.selector) !== null;
 }
 
 BlockMorph.prototype.openHelp = function () {
-	// ToDo...
+	const url = MB_editor.helpURLFor(this.selector);
+	if (url) window.open(url, '_blank');
 }
 
 
@@ -3466,6 +3468,26 @@ HatBlockMorph.prototype.isFunctionDefinition = function () {
 HatBlockMorph.prototype.definedFunctionName = function () {
 	if (!this.isFunctionDefinition()) return 'Not a function definition';
 	return this.functionDefinition.functionName;
+};
+
+HatBlockMorph.prototype.definitionMenu = function () {
+	// What a block definition offers. A definition is edited where it sits, so
+	// nothing here duplicates it or pulls a block out of it.
+	var name = this.definedFunctionName(),
+		items = [];
+
+	items.push(['hide block definition', () => MB_editor.hideDefinition(name),
+		'take this definition out of the scripting area']);
+	items.push('-');
+	items.push(['copy to clipboard', () => this.copyToClipboard(),
+		'copy these blocks to the clipboard']);
+	items.push(['copy to clipboard as URL', () => this.copyToClipboardAsURL(),
+		'copy these blocks to the clipboard as a URL']);
+	items.push('-');
+	items.push(['delete block definition...',
+		() => MB_editor.deleteFunctionWithConfirm(name),
+		'delete the definition of this block']);
+	return chromeMenuFor(this.world(), items);
 };
 
 HatBlockMorph.prototype.codeString = function (indent = 0, result = []) {
