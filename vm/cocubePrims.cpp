@@ -43,6 +43,7 @@ void boardPoll() {
 void boardStopAll() { }
 
 void boardIDEConnectionChanged(int isConnected) { }
+int boardStartAtBoot() { return true; }
 
 // Position Primitives
 
