@@ -232,7 +232,7 @@ SyntaxElementMorph.uber = Morph.prototype;
 SyntaxElementMorph.prototype.contrast = 17;
 
 SyntaxElementMorph.prototype.setScale = function (num) {
-	// The 25% block size uses 1.5 * 25/125 = 0.3; see ScriptEditor.setBlockScalePercent in GP.
+	// 0.3 is the smallest size the block size preference offers, 25%: 1.5 * 25/125.
 	var scale = Math.min(Math.max(num, 0.3), 25);
 	this.scale = scale;
 	this.corner = 4 * scale;

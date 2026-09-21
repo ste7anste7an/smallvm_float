@@ -880,7 +880,7 @@ console.log('unknown');
 	}
 
 	storeUndoState() {
-		// Keep 51 code strings as MicroBlocksScripter.storeUndoState does in GP.
+		// At most 51 code strings: the state being stored and 50 to step back through.
 		if (this.undoStack.length > 50) this.undoStack.shift();
 		this.undoStack.push(this.project.codeString());
 		this.redoStack = [];
@@ -896,7 +896,8 @@ console.log('unknown');
 	}
 
 	async restoreUndoState(source) {
-		// Reload and sync as MicroBlocksScripter.undo and redo do in GP.
+		// Undo and redo share this path. Each hands over the code string it wants
+		// shown and the project is rebuilt from it, rather than mutated in place.
 		this.saveNeeded = false;
 		this.project = new MB_Project();
 		if (source != null) this.project.loadFromString(source, false);
@@ -906,7 +907,7 @@ console.log('unknown');
 			this.addBlockToScriptsAt(script, x, y);
 		}
 		this.project.main.assignScriptIds();
-		this.updatePalette(); // MicroBlocksScripter.restoreScripts also rebuilds templates.
+		this.updatePalette(); // the restored project may declare other variables and blocks
 		this.codeManager.project = this.project;
 		this.codeManager.recompileNeeded();
 		await this.codeManager.syncScripts();
@@ -1056,12 +1057,11 @@ console.log('unknown');
 		this.removeAllScripts();
 		this.updateProjectProperties();
 
-		// GP clears the board on every project replacement, right after making
-		// the new project (MicroBlocksScripter.gp:553). Answered rather than
-		// awaited, so a caller that downloads afterwards can wait for it and
+		// Replacing the project erases what the board still holds. Answered rather
+		// than awaited, so a caller that downloads afterwards can wait on it and
 		// does not have to send a second erase of its own.
 		const cleared = MB_connection.clearBoardIfConnected();
-		// MicroBlocksScripter.createEmptyProject saves this state outside initialization.
+		// The empty project is an undo state of its own, so undo can return to it.
 		this.storeUndoState();
 		return cleared;
 	}
@@ -1218,9 +1218,9 @@ console.log('unknown');
 
 	async openProjectFromString(contents, name, clearFirst = true) {
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
-		// GP clears in openProjectFromFile and not in openProject, and the two
-		// differ by one undo state because clearProject stores the empty project.
-		// A dropped file takes GP's openProject, so it passes false.
+		// clearFirst decides whether the empty project becomes an undo state before
+		// the new one loads, because clearProject stores one. Clearing therefore
+		// adds a step for undo to stop at. A dropped file passes false and skips it.
 		const cleared = clearFirst ? MB_editor.clearProject() : null;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project.onVariableChange = null;
@@ -1285,7 +1285,8 @@ console.log('unknown');
 		// Act on a file by its extension. Only projects are handled so far.
 
 		const name = fileName.toLowerCase();
-		// GP's processDroppedFile calls openProject, which does not clear first.
+		// false: a dropped project replaces the current one without first leaving
+		// an empty project in the undo stack.
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
 	}
 
