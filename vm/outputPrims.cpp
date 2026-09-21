@@ -14,6 +14,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(NEZHA_ESP32)
+	#include <NezhaInterfaceApi.h> // nezha_microblocks library (lib_deps)
+#endif
+
 // LED Matrix Pins on BBC micro:bit and Calliope
 
 static int disableLEDDisplay = false; // disable micro:bit 5x5 display and light sensor when true
@@ -763,6 +767,8 @@ static OBJ primLightLevel(int argCount, OBJ *args) {
 		} else {
 			lightLevel = 0;
 		}
+	#elif defined(NEZHA_ESP32)
+		return int2obj(nezhaLightLevel());
 	#else
 		lightReadingRequested = true;
 	#endif

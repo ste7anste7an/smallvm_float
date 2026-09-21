@@ -18,6 +18,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(NEZHA_ESP32)
+	#include <NezhaInterfaceApi.h>
+#endif
+
 #if !defined(ARDUINO_API_VERSION)
 	// typedef PinMode as int for use on platforms that do not use the Arduino Core API
 	typedef int PinMode;
@@ -2293,6 +2297,8 @@ OBJ primButtonA(OBJ *args) {
 		int pinButton = 28; // Button A, the LDR button (PA_14), is the same on all DUELink boards.
 		setPinMode(pinButton, INPUT_PULLDOWN); // Arduino pin, not edge pin number
 		return (HIGH == digitalRead(pinButton)) ? trueObj : falseObj;
+	#elif defined(NEZHA_ESP32)
+		return nezhaButtonA() ? trueObj : falseObj;
 	#else
 		return falseObj;
 	#endif
@@ -2324,6 +2330,8 @@ OBJ primButtonB(OBJ *args) {
 		} else { return falseObj; }
 		setPinMode(pinButton, INPUT_PULLDOWN); // Arduino pin, not edge pin number
 		return (HIGH == digitalRead(pinButton)) ? trueObj : falseObj;
+	#elif defined(NEZHA_ESP32)
+		return nezhaButtonB() ? trueObj : falseObj;
 	#else
 		return falseObj;
 	#endif

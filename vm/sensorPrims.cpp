@@ -16,6 +16,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(NEZHA_ESP32)
+	#include <NezhaInterfaceApi.h> // nezha_microblocks library (lib_deps)
+#endif
+
 #if defined(PICO_ED) || defined(XRP) || defined(GIZMO_MECHATRONICS) || \
 	defined(ARDUINO_SEEED_XIAO_RP2350)
 		#define Wire Wire1
@@ -191,7 +195,7 @@ void writeI2CReg(int deviceID, int reg, int value) {
 	}
 }
 
-#if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) ||  defined(NEZHA_ESP32) || \
+#if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) || defined(NEZHA_ESP32) || \
 	defined(ARDUINO_SEEED_XIAO_NRF52840_SENSE)
 
 #define HAS_INTERNAL_I2C 1
@@ -1616,9 +1620,9 @@ static int databotMageneticField() {
 	return 0;
 }
 
-#elif defined(FOXBIT) || defined(NEZHA_ESP32)
+#elif defined(FOXBIT)
 
-#if defined(NEZHA_ESP32)
+#if defined(NEZHA_ESP32_DISABLED)
 	// The Nezha's QMI8658 is on the internal I2C bus, not the main one, and its
 	// address is not fixed. Elecfreaks' own driver probes 0x6A, falls back to
 	// 0x6B and then verifies the part ID (boards/Elecfreaks/drivers/Qmi8658.cpp),
@@ -1641,7 +1645,7 @@ static int databotMageneticField() {
 #define QMI8658_ACCEL_XOUT 53
 
 static void startQMI8658() {
-	#if defined(NEZHA_ESP32)
+	#if defined(NEZHA_ESP32_DISABLED)
 		// The internal I2C helpers start their own bus on first use. Find which
 		// address the part answers on before configuring it.
 		if (readInternalI2CReg(0x6A, QMI8658_PART_ID_REG) == QMI8658_PART_ID) {
@@ -1673,7 +1677,7 @@ static int qmi8658Read16Bit(int reg) {
 
 static int readAcceleration(int registerID) {
 	int val = 0;
-	#if defined(NEZHA_ESP32)
+	#if defined(NEZHA_ESP32_DISABLED)
 		if (1 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 2); // x-axis
 		if (3 == registerID) val = qmi8658Read16Bit(QMI8658_ACCEL_XOUT); // y-axis
 		if (5 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 4); // z-axis
@@ -2095,6 +2099,26 @@ static int readTemperature() { return analogReadTemp(); }
 static int readAcceleration(int reg) { return 0; } // RP2040 has no accelerometer
 static void setAccelRange(int range) { } // RP2040 has no accelerometer
 
+#elif defined(NEZHA_ESP32)
+
+static int readTemperature() {
+	int fudgeFactor = 8; // adjusts for internal heating
+	return nezhaTemperatureC() - fudgeFactor;
+}
+
+static int readAcceleration(int reg) {
+	int val = 0;
+
+	if (1 == reg) val = -nezhaRawAccelerationY(); // x-axis (left-right tilt)
+	if (3 == reg) val = nezhaRawAccelerationX();  // y-axis (front-back tilt)
+	if (5 == reg) val = -nezhaRawAccelerationZ(); // z-axis
+	return (100 * val) >> 14;
+}
+
+static void setAccelRange(int range) {
+	nezhaSetAccelerometerRange(range);
+}
+
 #else // stubs for non-micro:bit boards
 
 static int readAcceleration(int reg) { return 0; }
@@ -2375,11 +2399,6 @@ static OBJ primBatteryMillivolts(int argCount, OBJ *args) {
 	int voltage = (readPMU12BitReg(0x78) * 11) / 10;
 	return int2obj(voltage);
 }
-// xxx
-// float AXP173::getBatVoltage() {
-//   float ADCLSB = 1.1 / 1000.0;
-//   return _I2C_read12Bit(0x78) * ADCLSB;
-// }
 
 #endif // end dabatbot v3 support
 
