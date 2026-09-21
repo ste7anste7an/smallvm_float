@@ -1660,6 +1660,28 @@ console.log('unknown');
 		MB_editor.storeUndoState();
 	}
 
+	async importFromURL(url) {
+		// Open what a page address carries: a scripts fragment is pasted into the
+		// project and a project parameter replaces it. A parameter naming a web
+		// address is refused, and an address carrying neither does nothing.
+
+		const link = MB_ScriptExchange.fromURL(url);
+		if (link == null) return;
+		if ('scripts' === link.kind) return this.pasteScripts(link.text);
+		if ('projectLink' === link.kind) {
+			// Fetching an address named in a link would make opening the page
+			// issue a request the visitor never asked for.
+			alert(localized('Cannot open a project from a web address: ') + decodeURIComponent(link.url));
+			return;
+		}
+		if (!MB_ScriptExchange.isCompleteProject(link.text)) {
+			// Half a link loads half a project over the one the user had.
+			alert(localized('This link is incomplete and was not opened.'));
+			return;
+		}
+		return this.openProjectFromString(link.text, link.name);
+	}
+
 	async openProjectFromFile(location) {
 		// Open a built-in project, such as one chosen in the file picker.
 

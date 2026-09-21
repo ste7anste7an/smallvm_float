@@ -1527,9 +1527,26 @@ class MB_ScriptExchange {
 		return { kind: 'project', text, name: MB_ScriptExchange.extractProjectName(text) };
 	}
 
+	static isCompleteProject(text) {
+		// A project text cut short still parses, so being readable proves nothing.
+		// What a whole one always does is end on a finished line and describe
+		// something: a script, a function, a block or a variable.
+		if (!text.endsWith('\n')) return false;
+		try {
+			const project = new MB_Project().loadFromString(text, false);
+			return (project.main.scripts.length > 0) || (project.main.functions.length > 0)
+				|| (project.blockSpecs.size > 0) || (project.main.variableNames.length > 0);
+		} catch (error) {
+			return false;
+		}
+	}
+
 	static extractProjectName(projectString) {
 		for (const line of projectString.split('\n')) {
-			if (line.startsWith('projectName')) return String(stringArg(MB_Parser.parse(line)[0][1]));
+			if (!line.startsWith('projectName')) continue;
+			// A line cut short parses to something with no name in it.
+			const cmd = (MB_Parser.parse(line) || [])[0];
+			return (cmd && (cmd.length > 1)) ? String(stringArg(cmd[1])) : '';
 		}
 		return '';
 	}
