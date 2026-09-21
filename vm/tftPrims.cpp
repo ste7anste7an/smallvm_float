@@ -2025,6 +2025,24 @@ static void init_9341(int rotation, int dcPin, int csPin, int blPin,
 	}
 }
 
+static void init_9A01(int rotation, int dcPin, int csPin, int blPin,
+int resetPin = GFX_NOT_DEFINED, int invertColors = true) {
+	if (!tft) delete tft;
+	Arduino_DataBus *bus = makeDataBus(dcPin, csPin);
+	tft = new Arduino_GC9A01(bus, resetPin, rotation, invertColors);
+	if (!tft->begin()) {
+		freeDisplayController();
+		outputString("Display initialization failed!");
+	} else {
+		tftWidth = 240;
+		tftHeight = 240;
+		isOLED = false;
+		turnOnBacklight(blPin);
+		tftClear();
+		useTFT = true;
+	}
+}
+
 static void init_OLED(int w, int h, int flipVertical) {
 	if ((w < 32) || (w > 128) || (h < 16) || (h > 128)) return;
 	if (!tft) delete tft;
@@ -2152,6 +2170,24 @@ static OBJ primInitILI9341(int argCount, OBJ *args) {
 	return falseObj;
 }
 
+static OBJ primInitGC9A01A(int argCount, OBJ *args) {
+	if (argCount < 4) return fail(notEnoughArguments);
+	if (!(isInt(args[0]) && isInt(args[1]) && isInt(args[2]) && isInt(args[3]))) {
+		return fail(needsIntegerError);
+	}
+	int rotation = obj2int(args[0]);
+	if (rotation < 0) rotation = 0;
+	if (rotation > 3) rotation = 3;
+	int dcPin = mapDigitalPinNum(obj2int(args[1]));
+	int csPin = mapDigitalPinNum(obj2int(args[2]));
+	int blPin = mapDigitalPinNum(obj2int(args[3]));
+	int rstPin = mapDigitalPinNum(((argCount > 4) && isInt(args[4])) ? obj2int(args[4]) : -1);
+	int invertDisplay = ((argCount > 5) && (args[5] == falseObj)) ? false : true;
+
+	init_9A01(rotation, dcPin, csPin, blPin, rstPin, invertDisplay);
+	return falseObj;
+}
+
 static OBJ primInitOLED(int argCount, OBJ *args) {
 	if (argCount < 2) return fail(notEnoughArguments);
 	if (!(isInt(args[0]) && isInt(args[1]))) return fail(needsIntegerError);
@@ -2273,6 +2309,7 @@ static PrimEntry entries[] = {
 		{"init7789", primInitST7789},
 		{"init7796", primInitST7796},
 		{"init9341", primInitILI9341},
+		{"init9A01", primInitGC9A01A},
 		{"initOLED", primInitOLED},
 		{"closeDisplay", primCloseDisplay},
 	#endif
