@@ -20,6 +20,7 @@
 
 #if defined(NEZHA_ESP32)
 	#include <NezhaInterfaceApi.h>
+	#include <NezhaMicroBlocks.h>
 #endif
 
 #if !defined(ARDUINO_API_VERSION)
@@ -3157,6 +3158,14 @@ OBJ primPlayTone(int argCount, OBJ *args) {
 			else if (DUE_PID == 0x070001) pin = 7; // Buzzer
 			else return trueObj; // no default tone pin on other DUELink boards
 		}
+	#elif defined(NEZHA_ESP32)
+		int freq = obj2int(freqArg);
+		if (freq > 0) {
+			nezhaMB_AudioStartContinuousTone(freq);
+		} else {
+			nezhaMB_AudioStop(0);
+		}
+		return trueObj;
 	#else
 		if ((pin < 0) || (pin >= DIGITAL_PINS)) pin = DEFAULT_TONE_PIN;
 	#endif
