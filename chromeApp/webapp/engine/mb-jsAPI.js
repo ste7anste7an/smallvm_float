@@ -86,12 +86,16 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 
-		// Not implemented, but answered: a caller that waits for a reply and never
-		// gets one waits for ever, and windows.js nests one call inside another.
 		case 'board.installVM':
+			// params: eraseFlash, downloadFromServer (unused)
+			callback(0);
+			MB_Firmware.installVM(params[0]);
+			break;
 		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
+			// These install ESP firmware only.
 			callback(0);
+			MB_Firmware.notSupportedYet(null);
 			break;
 		case 'board.downloadFile':
 			// Answer, then act: the download waits on a menu and the board.
