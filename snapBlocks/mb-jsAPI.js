@@ -61,7 +61,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'ide.stopAll':
 			// params[0] is shift, from the button's own click event. Anything
-			// that is not true is not shift, as GP's boolean keyboard test is.
+			// that is not true, a missing argument included, is not shift.
 			MB_editor.stopAll(true === params[0]);
 			callback(0);
 			break;
