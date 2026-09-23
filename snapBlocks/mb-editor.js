@@ -26,7 +26,7 @@ class MB_Editor {
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
-		this.exportedScriptScale = 1; // kept as GP keeps it; the picture uses the on-screen scale
+		this.exportedScriptScale = 1; // set by the chrome; the picture uses the on-screen scale
 		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
 		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
 		this.category = null; // the selected palette category, or null while a library is
@@ -293,8 +293,7 @@ class MB_Editor {
 
 	exportMyBlocksAsLibrary() {
 		// Main's own blocks as a library file, under the name the user gives it.
-		// GP asks first and writes nothing if the dialog is dismissed
-		// (MicroBlocksScripter.gp:1414).
+		// Nothing is written if the dialog is dismissed.
 
 		return this.prompt(localized('Library name?'), 'my library').then((libName) => {
 			if (!libName) return;
@@ -1118,10 +1117,10 @@ console.log('unknown');
 	}
 
 	saveScriptsImage() {
-		// A picture of every script, carrying the scripts as text so that GP, the
-		// wiki and this IDE can read them back out of it (ScriptEditor.gp:553).
-		// GP uses the current block scale rather than the export scale here, on
-		// purpose, so that what is saved is what is on screen.
+		// A picture of every script, carrying the scripts as text so that the
+		// wiki and any MicroBlocks IDE can read them back out of it. It uses the
+		// current block scale rather than the export scale, on purpose, so that
+		// what is saved is what is on screen.
 
 		const pngBytes = this.scriptsPicturePNG();
 		if (pngBytes == null) return;
@@ -1147,15 +1146,15 @@ console.log('unknown');
 	}
 
 	chromeMenu(items) {
-		// The chrome draws any menu GP asks for; items are '-' or [label, action, tip].
+		// The chrome draws the menu; items are '-' or [label, action, tip].
 		return chromeMenuFor(world, items);
 	}
 
 	// ***** The board's file system *****
 
 	async uploadFileToBoard() {
-		// Put a file the user chooses onto the board, as GP's putFileOnBoard does
-		// (MicroBlocksRuntime.gp:2534): the chooser takes any file, not a project.
+		// Put a file the user chooses onto the board. The chooser takes any file,
+		// not just a project.
 
 		await this.browserReadBytes(async (fileName, bytes) => {
 			fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
@@ -1169,8 +1168,8 @@ console.log('unknown');
 	}
 
 	async downloadFileFromBoard() {
-		// GP's order, and the order is the point (MicroBlocksRuntime.gp:2472 and
-		// :2489): list, offer a menu, read the chosen file, ask, then save.
+		// The order is the point: list, offer a menu, read the chosen file, ask,
+		// then save.
 
 		const files = await MB_connection.getFileListFromBoard();
 		if (files == null) return;
@@ -1196,8 +1195,8 @@ console.log('unknown');
 	}
 
 	async toggleBLE() {
-		// Not a toggle, despite the endpoint's name: GP asks and sends the answer
-		// either way, so declining sends 0 (MicroBlocksRuntime.gp:1327).
+		// Not a toggle, despite the endpoint's name: it asks and sends the answer
+		// either way, so declining sends 0.
 		const allow = await this.confirm(localized('Allow the attached board to be connected via BLE?'));
 		MB_connection.sendMsg('enableBLEMsg', allow ? 1 : 0);
 	}

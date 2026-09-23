@@ -92,7 +92,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		case 'board.downloadFile':
-			// Answer, then act, as GP does (MicroBlocksRuntime.gp:2472).
+			// Answer, then act: the download waits on a menu and the board.
 			callback(0);
 			MB_editor.downloadFileFromBoard();
 			break;
@@ -190,7 +190,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.reloadLibrary(params[0]);
 			break;
 		case 'library.showDefs':
-			// Answer, then act, as GP does (MicroBlocksScripter.gp:203).
+			// Answer, then act, as the other library endpoints do.
 			callback(0);
 			MB_editor.showFunctions(MB_editor.functionsOfLibrary(params[0]));
 			break;
@@ -227,7 +227,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.openProjectMenu();
 			break;
 		case 'scripts.copyToClipboard':
-			// Answer, then act, as GP does (MicroBlocksAPI.gp, ScriptEditor.gp:616).
+			// Answer, then act, as the endpoints below do.
 			callback(0);
 			setClipboard(MB_editor.allScriptsString());
 			break;
