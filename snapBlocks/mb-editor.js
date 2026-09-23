@@ -589,7 +589,7 @@ console.log('unknown');
 		MB_connection.sendMsg('stopAllMsg');
 		this.clearRunningHighlights();
 		this.codeManager.clearVariableNames();
-		this.scriptChanged(); // as GP's librariesChanged ends (MicroBlocksRuntime.gp:1998)
+		this.scriptChanged(); // the next step sends the board the changed code
 	}
 
 	removeLibraryNamed(libName) {
