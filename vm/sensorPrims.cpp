@@ -2103,20 +2103,20 @@ static void setAccelRange(int range) { } // RP2040 has no accelerometer
 
 static int readTemperature() {
 	int fudgeFactor = 8; // adjusts for internal heating
-	return nezhaTemperatureC() - fudgeFactor;
+	return nezhaMB_TemperatureC() - fudgeFactor;
 }
 
 static int readAcceleration(int reg) {
 	int val = 0;
 
-	if (1 == reg) val = -nezhaRawAccelerationY(); // x-axis (left-right tilt)
-	if (3 == reg) val = nezhaRawAccelerationX();  // y-axis (front-back tilt)
-	if (5 == reg) val = -nezhaRawAccelerationZ(); // z-axis
+	if (1 == reg) val = -nezhaMB_RawAccelerationY(); // x-axis (left-right tilt)
+	if (3 == reg) val = nezhaMB_RawAccelerationX();  // y-axis (front-back tilt)
+	if (5 == reg) val = -nezhaMB_RawAccelerationZ(); // z-axis
 	return (100 * val) >> 14;
 }
 
 static void setAccelRange(int range) {
-	nezhaSetAccelerometerRange(range);
+	nezhaMB_SetAccelerometerRange(range);
 }
 
 #else // stubs for non-micro:bit boards

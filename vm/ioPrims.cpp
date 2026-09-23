@@ -2298,7 +2298,7 @@ OBJ primButtonA(OBJ *args) {
 		setPinMode(pinButton, INPUT_PULLDOWN); // Arduino pin, not edge pin number
 		return (HIGH == digitalRead(pinButton)) ? trueObj : falseObj;
 	#elif defined(NEZHA_ESP32)
-		return nezhaButtonA() ? trueObj : falseObj;
+		return nezhaMB_ButtonA() ? trueObj : falseObj;
 	#else
 		return falseObj;
 	#endif
@@ -2331,7 +2331,7 @@ OBJ primButtonB(OBJ *args) {
 		setPinMode(pinButton, INPUT_PULLDOWN); // Arduino pin, not edge pin number
 		return (HIGH == digitalRead(pinButton)) ? trueObj : falseObj;
 	#elif defined(NEZHA_ESP32)
-		return nezhaButtonB() ? trueObj : falseObj;
+		return nezhaMB_ButtonB() ? trueObj : falseObj;
 	#else
 		return falseObj;
 	#endif

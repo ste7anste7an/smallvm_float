@@ -768,7 +768,7 @@ static OBJ primLightLevel(int argCount, OBJ *args) {
 			lightLevel = 0;
 		}
 	#elif defined(NEZHA_ESP32)
-		return int2obj(nezhaLightLevel());
+		return int2obj(nezhaMB_LightLevel());
 	#else
 		lightReadingRequested = true;
 	#endif

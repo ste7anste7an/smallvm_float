@@ -66,7 +66,7 @@ void boardAddPrims() {
 }
 
 void boardPoll() {
-	userProgramsPoll(); // the library's saved program operations run on this thread
+	nezhaMB_UserProgramsPoll(); // the library's saved program operations run on this thread
 }
 
 void boardStopAll() {
@@ -74,7 +74,7 @@ void boardStopAll() {
 }
 
 void boardIDEConnectionChanged(int isConnected) {
-	if (isConnected) smallmvUIOnIDEConnected();
+	if (isConnected) nezhaMB_UIOnIDEConnected();
 }
 
 int boardStartAtBoot() {
