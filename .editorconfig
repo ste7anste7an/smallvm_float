@@ -1,0 +1,16 @@
+# Editor settings matching the existing code. See https://editorconfig.org
+
+root = true
+
+[*.{gp,c,cpp,ino}]
+indent_style = tab
+insert_final_newline = true
+
+[snapBlocks/*.js]
+indent_style = tab
+insert_final_newline = true
+
+# Jens' Morphic library uses four spaces
+[snapBlocks/morphic.js]
+indent_style = space
+indent_size = 4

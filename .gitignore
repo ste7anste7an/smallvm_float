@@ -199,5 +199,6 @@ electron/node_modules/*
 
 # Local IDE + OS junk
 .vscode/
+.idea/
 .DS_Store
 **/.DS_Store
