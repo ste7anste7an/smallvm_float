@@ -50,7 +50,6 @@ void setup() {
 	checkForDoubleTap();
 #endif
 
-	boardEarlyInit();
 	memInit();
 	primsInit();
 	hardwareInit();

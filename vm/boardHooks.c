@@ -15,7 +15,6 @@
 
 #if !defined(HAS_BOARD_HOOKS)
 
-void boardEarlyInit() { }
 void boardInit() { }
 void boardAddPrims() { }
 void boardPoll() { }

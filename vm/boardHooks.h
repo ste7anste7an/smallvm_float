@@ -41,7 +41,6 @@ extern "C" {
 
 // Board lifecycle hooks. All are called on the VM thread.
 
-void boardEarlyInit();	// start of setup(), before memory, primitives and pins
 void boardInit();		// end of hardwareInit(), after pins and the display are set up
 void boardAddPrims();	// end of primsInit(), to add or fill in the board's own primitive sets
 void boardPoll();		// with the VM's other background work, about every 100 VM loop cycles

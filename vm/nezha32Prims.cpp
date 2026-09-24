@@ -52,9 +52,6 @@ void addElecfreaksSensorPrims() {
 
 // Nezha ESP32 board hooks (see boardHooks.h). All run on the VM thread.
 
-void boardEarlyInit() {
-}
-
 void boardInit() {
 	// nothing needed once BoardInit() has run
 	nezhaMB_BoardInit(); // start the board before the VM initializes
