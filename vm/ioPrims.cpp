@@ -3159,13 +3159,16 @@ OBJ primPlayTone(int argCount, OBJ *args) {
 			else return trueObj; // no default tone pin on other DUELink boards
 		}
 	#elif defined(NEZHA_ESP32)
-		int freq = obj2int(freqArg);
-		if (freq > 0) {
-			nezhaMB_AudioStartContinuousTone(freq);
-		} else {
-			nezhaMB_AudioStop(0);
+		if ((pin < 0) || (pin >= DIGITAL_PINS) || RESERVED(pin)) {
+			// no usable pin: play the tone on the built-in speaker
+			int freq = obj2int(freqArg);
+			if (freq > 0) {
+				nezhaMB_AudioStartContinuousTone(freq);
+			} else {
+				nezhaMB_AudioStop(0);
+			}
+			return trueObj;
 		}
-		return trueObj;
 	#else
 		if ((pin < 0) || (pin >= DIGITAL_PINS)) pin = DEFAULT_TONE_PIN;
 	#endif
