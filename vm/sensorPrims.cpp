@@ -195,7 +195,7 @@ void writeI2CReg(int deviceID, int reg, int value) {
 	}
 }
 
-#if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) || defined(NEZHA_ESP32) || \
+#if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) || \
 	defined(ARDUINO_SEEED_XIAO_NRF52840_SENSE)
 
 #define HAS_INTERNAL_I2C 1
@@ -208,12 +208,6 @@ void writeI2CReg(int deviceID, int reg, int value) {
 static int internalWireStarted = false;
 
 static void startInternalWire() {
-	#if defined(NEZHA_ESP32)
-		// The Nezha's internal I2C bus, SDA 39 / SCL 38,
-		// connect to the gyro, mic, speaker and expansion MCU.
-		Wire1.setPins(39, 38);
-	#endif
-
 	Wire1.begin();
 	Wire1.setClock(400000); // i2c fast mode (seems pretty ubiquitous among i2c devices)
 	internalWireStarted = true;
@@ -2754,8 +2748,7 @@ static int readDigitalMicrophone() {
 }
 
 #elif defined(DATABOT) || defined(DATABOT_V3) || \
-	defined(ARDUINO_M5STACK_Core2) || defined(ARDUINO_XIAO_ESP32S3) || \
-	defined(NEZHA_ESP32)
+	defined(ARDUINO_M5STACK_Core2) || defined(ARDUINO_XIAO_ESP32S3)
 
 #define USE_DIGITAL_MICROPHONE 1
 
@@ -2782,11 +2775,6 @@ static int readDigitalMicrophone() {
 	#define I2S_SD 41
 	#define I2S_SCK -1
 	#define I2S_MODE (I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM)
-#elif defined(NEZHA_ESP32)
-	#define I2S_WS 47
-	#define I2S_SD 48
-	#define I2S_SCK 3
-	#define I2S_MODE (I2S_MODE_MASTER | I2S_MODE_RX)
 #endif
 
 // Microphone input buffer (minimum sample count is 8)
