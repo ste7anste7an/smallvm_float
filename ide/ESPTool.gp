@@ -607,6 +607,7 @@ method uploadCompressed ESPTool startAddr data {
 	start = (msecsSinceStart)
 
 	packetSize = 800 // 800 is good; 900 works; 984 fails
+	gcIfNeededFor ((byteCount data) / 2) // zlibEncode needs up to twice the data size in one piece
 	compressedData = (zlibEncode data)
 	compressedBytecount = (byteCount compressedData)
 	packetCount = (ceiling (compressedBytecount / packetSize))
