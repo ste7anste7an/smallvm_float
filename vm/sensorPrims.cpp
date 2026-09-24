@@ -2754,8 +2754,7 @@ static int readDigitalMicrophone() {
 }
 
 #elif defined(DATABOT) || defined(DATABOT_V3) || \
-	defined(ARDUINO_M5STACK_Core2) || defined(ARDUINO_XIAO_ESP32S3) || \
-	defined(NEZHA_ESP32)
+	defined(ARDUINO_M5STACK_Core2) || defined(ARDUINO_XIAO_ESP32S3)
 
 #define USE_DIGITAL_MICROPHONE 1
 
@@ -2782,11 +2781,6 @@ static int readDigitalMicrophone() {
 	#define I2S_SD 41
 	#define I2S_SCK -1
 	#define I2S_MODE (I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM)
-#elif defined(NEZHA_ESP32)
-	#define I2S_WS 47
-	#define I2S_SD 48
-	#define I2S_SCK 3
-	#define I2S_MODE (I2S_MODE_MASTER | I2S_MODE_RX)
 #endif
 
 // Microphone input buffer (minimum sample count is 8)
