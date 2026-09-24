@@ -1,6 +1,6 @@
 module 'LoRa SX127x'
 author MicroBlocks
-version 0 7
+version 0 8
 choices lora_bw '7.8 kHz' '10.4 kHz' '15.6 kHz' '20.8 kHz' '31.25 kHz' '41.7 kHz' '62.5 kHz' '125 kHz' '250 kHz' '500 kHz' 
 description 'Library LoRa for SX1276/RFM95 with SPI hardware.
 Datasheet: https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE
@@ -85,8 +85,8 @@ to LoRa_sx127x_connected {
 }
 
 to LoRa_sx127x_init cs reset freq encrypt key {
-  encrypt = (argOrDefault 4 (booleanConstant false))
-  key = (argOrDefault 5 '')
+  local 'encrypt' (argOrDefault 4 (booleanConstant false))
+  local 'key' (argOrDefault 5 '')
   _lora_bw = 7
   _lora_sf = 7
   _lora_cr = 5
@@ -204,7 +204,7 @@ to LoRa_sx127x_power dbm {
 to LoRa_sx127x_send message asciiSafe {  
   comment 'Encode text explicitly as UTF-8. Does not split a UTF-8 character at the 255-byte LoRa limit.
 When asciiSafe is true, accented/typographic characters are first transliterated to plain ASCII (e.g. for receivers/displays that cannot show UTF-8), then encoded normally.'
-  asciiSafe = (argOrDefault 2 (booleanConstant false))
+  local 'asciiSafe' (argOrDefault 2 (booleanConstant false))
   if _lora_ready {
     local 'text' message
     if asciiSafe {
