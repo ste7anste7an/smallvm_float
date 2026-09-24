@@ -2215,20 +2215,18 @@ static OBJ primCloseDisplay(int argCount, OBJ *args) {
 // display with its rectangle fill. The canvas is 240x292 with the title bar shown.
 #include <NezhaMicroBlocks.h>
 
-static int nezha5x5Used = false; // don't touch the display until the 5x5 is used
-
 static int nezhaColor565(int color24) {
 	return (((color24 >> 19) & 0x1F) << 11) | (((color24 >> 10) & 0x3F) << 5) | ((color24 >> 3) & 0x1F);
 }
 
 void tftClear() {
-	if (!nezha5x5Used) return; // hardwareInit() calls this before the Elecfreaks UI is up
+	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
 	nezhaMB_TftFillRect(0, 0, 240, 292, 0);
 }
 
 void tftSetHugePixel(int x, int y, int state) {
+	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
 	if ((x < 1) || (x > 5) || (y < 1) || (y > 5)) return;
-	nezha5x5Used = true;
 	const int width = 240, height = 292, lineWidth = 3;
 	int yInset = (height - width) / 2;
 	int squareSize = (width - (6 * lineWidth)) / 5;
@@ -2240,6 +2238,7 @@ void tftSetHugePixel(int x, int y, int state) {
 }
 
 void tftSetHugePixelBits(int bits) {
+	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
 	if (0 == bits) {
 		tftClear();
 		return;
