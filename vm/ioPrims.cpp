@@ -151,11 +151,6 @@ void hardwareInit() {
 	#if defined(DUELink)
 		DUE_EnableBoot0();
 	#endif
-	#if defined(ARDUINO_ARCH_ESP32)
-		// HWCDC::begin() creates a 256 byte receive queue, so a single write larger than
-		// that loses its tail. MAX_MSG_SIZE is 1014, so make room for the largest message.
-		Serial.setRxBufferSize(1024);
-	#endif
 	Serial.begin(115200);
 	#ifdef USE_NRF5x_CLOCK
 		initClock_NRF5x();
