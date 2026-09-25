@@ -1,4 +1,4 @@
-module 'Nezha ESP32 Speech Recognition' Output
+module 'Nezha ESP32 Speech Recognition' Input
 author 'Elecfreaks Team'
 version 1 0 
 choices Language CN EN 
