@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2025-02-03 16:24+0200\n"
-"PO-Revision-Date: 2026-09-14 11:51+0000\n"
+"PO-Revision-Date: 2026-09-28 09:51+0000\n"
 "Last-Translator: Andriy Utkin <andriy_utkin@fastmail.com>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/microblocks/"
 "ide/uk/>\n"
@@ -842,7 +842,7 @@ msgstr "має значення білого кольору _"
 
 #. NeoPixel library block
 msgid "PIR"
-msgstr ""
+msgstr "Інфрачервоний сенсор руху (PIR)"
 
 #. NeoPixel library block
 msgid "PIR at pin _ detected movement"
@@ -850,7 +850,7 @@ msgstr "Сенсор на піні _ помітив рух"
 
 #. NeoPanel library label
 msgid "NeoPanel"
-msgstr ""
+msgstr "НеоПанель"
 
 #. NeoPanel library block
 msgid "attach NeoPixel panel width _ height _ at pin _"
@@ -866,7 +866,7 @@ msgstr "НеоПанельЖ заповнити колонку _ кольоро�
 
 #. NeoPanel library block
 msgid "NeoPanel fill row _ color _"
-msgstr "НеоПанельЖ заповнити ряд _ кольором _"
+msgstr "НеоПанель: заповнити ряд _ кольором _"
 
 #. NeoPanel library block
 msgid "NeoPanel fill rectangle x _ y _ width _ height _ color _"
@@ -898,39 +898,39 @@ msgstr "гучність"
 
 #. Microphone library block
 msgid "clap count"
-msgstr ""
+msgstr "підрахунок плескань"
 
 #. Microphone library block
 msgid "set clap threshold _"
-msgstr ""
+msgstr "встановити порог плескання _"
 
 #. Microphone library block
 msgid "estimate clap threshold"
-msgstr ""
+msgstr "оцінити поріг плескання"
 
 #. Citilab ED1 Stepper Motor library label
 msgid "ED1 Stepper Motor"
-msgstr ""
+msgstr "ED1 кроковий мотор"
 
 #. Citilab ED1 Stepper Motor library block
 msgid "move motor _ _ steps _"
-msgstr ""
+msgstr "рухати мотор _ _ кроків _"
 
 #. Citilab ED1 Stepper Motor library block
 msgid "move motor 1 _ and motor 2 _ _ steps"
-msgstr ""
+msgstr "рухати мотор 1 _ і мотор 2 _ кроків _"
 
 #. Citilab ED1 Stepper Motor library block
 msgid "move motor _ angle _ °"
-msgstr ""
+msgstr "рухати мотор _ на кут _ °"
 
 #. Citilab ED1 Stepper Motor library block
 msgid "move motor _ _ complete turns"
-msgstr ""
+msgstr "рухати мотор _ _ повних обертів"
 
 #. Citilab ED1 Stepper Motor library block
 msgid "stop steppers"
-msgstr ""
+msgstr "зупинити кророві мотори"
 
 #. Citilab ED1 Stepper Motor library block
 msgid "clockwise"
@@ -6503,3 +6503,44 @@ msgstr "загальмувати колеса"
 #. Example string. Tells the user this input accepts a list of strings.
 msgid "a list of strings"
 msgstr "список рядків"
+
+#. Block in Comm category
+msgid "duelink receive"
+msgstr "отримати по duelink"
+
+#. Block in Comm category
+msgid "duelink send _ starting at _"
+msgstr "послати по duelink _ починаючи з _"
+
+#. NeoPanel library block
+msgid "NeoPanel draw line from x _ y _ to x _ y _ color _"
+msgstr "Намалювати на НеоПанелі лінію від x _ y _ до x _ y _ кольором _"
+
+#. NeoPanel library block
+msgid "NeoPanel draw circle at x _ y _ radius _ color _"
+msgstr "Намалювати на НеоПанелі коло з центром у x _ y _ радіусу _ кольором _"
+
+#. NeoPanel library block
+msgid "NeoPanel draw rectangle at x _ y _ width _ height _ color _"
+msgstr ""
+"Намалювати на НеоПанелі прямокутник x _ y _ ширини _ висоти _ кольором _"
+
+#. NeoPanel library block
+msgid "NeoPanel scroll text _ color _"
+msgstr "Біжучий рядок на НеоПанелі: текст _ колір _"
+
+#. NeoPanel library block
+msgid "pausing _ msecs"
+msgstr "пауза _ мс"
+
+#. Example for the draw text block
+msgid "Hello"
+msgstr "Привіт"
+
+#. NeoPanel library block
+msgid "separation _"
+msgstr "розділення _"
+
+#. Microphone library block
+msgid "turn off microphone"
+msgstr "вимкнути мікрофон"
