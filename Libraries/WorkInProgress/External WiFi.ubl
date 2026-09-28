@@ -1,6 +1,6 @@
 module 'External WiFi' Comm
 author MicroBlocks
-version 0 1
+version 0 2
 tags communication network wifi esp-at calliope
 description 'Connect to a WiFi network through an external ESP-AT WiFi module on two serial pins, such as the Calliope WiFi module (ESP32-C3, ESP-AT 3.3). Use it on boards without WiFi, for example a micro:bit or Calliope mini.
 

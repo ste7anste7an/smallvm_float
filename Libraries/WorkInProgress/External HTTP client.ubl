@@ -1,6 +1,6 @@
 module 'External HTTP client' Comm
 author MicroBlocks
-version 0 1
+version 0 2
 depends 'External WiFi'
 tags http network get post put delete esp-at calliope
 choices requestTypes GET POST PUT DELETE
