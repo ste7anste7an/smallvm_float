@@ -1412,10 +1412,7 @@ void processMessage() {
 // 		rcvByteCount += bytesRead;
 // 	}
 
-	// Only count this as a receive when bytes actually arrived. Updating it whenever the
-	// buffer is non-empty keeps receiveTimeout() from ever firing, so an incomplete message
-	// blocks the receive path indefinitely and consumes whatever is sent next.
-	if (bytesRead > 0) lastRcvTime = microsecs();
+	lastRcvTime = microsecs();
 	int firstByte = rcvBuf[0];
 	if (0xFA == firstByte) {
 		processShortMessage();
