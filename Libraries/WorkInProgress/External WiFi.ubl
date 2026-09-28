@@ -15,14 +15,14 @@ variables _extwifi_ready _extwifi_mac _extwifi_connected _extwifi_busy _extwifi_
 
   spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '192.168.1.42' '192.168.1.1' '255.255.255.0'
   spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _' 'str str' 'Network_Name' 'Network_Password'
-  spec ' ' 'extwifi_stop' 'stop wifi'
+  spec ' ' '[net:stopWiFi]' 'stop wifi'
   space
-  spec ' ' 'extwifi_set_domain_name' 'wifi set local domain name _ .local' 'str' 'microblocks'
+  spec ' ' '[net:setDomainName]' 'wifi set local domain name _ .local' 'str' 'microblocks'
   space
   spec 'r' 'getIPAddress' 'IP address'
-  spec 'r' 'extwifi_mac_address' 'MAC address'
+  spec 'r' '[net:myMAC]' 'MAC address'
   space
-  spec ' ' 'extwifi_allow_wifi_and_ble' 'allow WiFi while using BLE _' 'bool' true
+  spec ' ' '[net:allowWiFiAndBLE]' 'allow WiFi while using BLE _' 'bool' true
   space
   spec ' ' 'extwifi_set_rx_tx_pins' 'external WiFi module rx pin _ tx pin _' 'num num' 2 1
   spec 'r' '_extwifi_connected?' '_extwifi_connected?'
@@ -40,6 +40,19 @@ variables _extwifi_ready _extwifi_mac _extwifi_connected _extwifi_busy _extwifi_
   spec 'r' '_extwifi_read_all' '_extwifi_read_all timeout _ ms' 'num' 100
 
 to getIPAddress {
+  return ('[net:myIPAddress]')
+}
+
+to '[net:hasWiFi]' {
+  return true
+}
+
+to '[net:wifiStatus]' {
+  if ('_extwifi_connected?') {return 'Connected'}
+  return 'Not connected'
+}
+
+to '[net:myIPAddress]' {
   if (not (_extwifi_ready == true)) {return '0.0.0.0'}
   '_extwifi_lock'
   local 'ip' ('_extwifi_ip')
@@ -110,7 +123,7 @@ to wifiCreateHotspot ssid password {
   sayIt 'My IP address is:' ip
 }
 
-to extwifi_stop {
+to '[net:stopWiFi]' {
   if (not (_extwifi_ready == true)) {return}
   '_extwifi_lock'
   '_extwifi_send' '+CWQAP' 20
@@ -122,14 +135,14 @@ to extwifi_stop {
   '_extwifi_unlock'
 }
 
-to extwifi_set_domain_name name {
+to '[net:setDomainName]' name {
   if (not ('_extwifi_connected?')) {return}
   '_extwifi_lock'
   '_extwifi_mdns' name
   '_extwifi_unlock'
 }
 
-to extwifi_mac_address {
+to '[net:myMAC]' {
   if (not (_extwifi_ready == true)) {
     '_extwifi_lock'
     local 'ok' ('_extwifi_init')
@@ -139,7 +152,7 @@ to extwifi_mac_address {
   return _extwifi_mac
 }
 
-to extwifi_allow_wifi_and_ble allow {
+to '[net:allowWiFiAndBLE]' allow {
   comment 'An external module has its own radio, so WiFi and BLE do not share one. Nothing to do.'
 }
 
@@ -191,6 +204,14 @@ to '_extwifi_init' {
   junk = ('_extwifi_read_all' 100)
   '_extwifi_send' '+CIFSR' 50
   _extwifi_mac = ('_extwifi_field' ('_extwifi_read_all' 100) 'STAMAC,"')
+  comment 'Uppercase hex, as the WiFi primitive reports it'
+  local 'codes' ('[data:makeList]')
+  for i (size _extwifi_mac) {
+    local 'ch' ('[data:unicodeAt]' i _extwifi_mac)
+    if (and (97 <= ch) (ch <= 102)) {ch = (ch - 32)}
+    '[data:addLast]' ch codes
+  }
+  _extwifi_mac = ('[data:unicodeString]' codes)
   _extwifi_ready = ((size _extwifi_mac) > 0)
   return _extwifi_ready
 }
