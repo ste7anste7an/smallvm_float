@@ -311,6 +311,7 @@ to '_ext_http_collect' link timeout {
   local 'packet' ''
   local 'start' (millisOp)
   repeatUntil (or done ((millisSince start) > timeout)) {
+    '_extwifi_still_busy'
     packet = ('[serial:read]')
     if ((size packet) == 0) {
       waitMillis 2

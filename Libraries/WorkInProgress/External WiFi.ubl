@@ -6,7 +6,7 @@ description 'Connect to a WiFi network through an external ESP-AT WiFi module on
 
 Same blocks as the WiFi library. Used with External HTTP client, which has the same blocks as HTTP client, so projects written for WiFi and HTTP client (for example the SmartIoT library) work unchanged.
 
-Wiring: board tx pin to the module rx, board rx pin to the module tx, and GND. Default pins: tx 17 and rx 16 on a Calliope mini (its WiFi module socket), tx 1 and rx 2 on other boards (on a micro:bit, P1 to module rx and P2 to module tx). Use "external WiFi module tx pin" for other pins. The module talks at 115200 baud.
+Wiring: board rx pin to the module tx, board tx pin to the module rx, and GND. Default pins: rx 16 and tx 17 on a Calliope mini (its WiFi module socket), rx 2 and tx 1 on other boards (on a micro:bit, P2 to module tx and P1 to module rx). Use "external WiFi module rx pin" for other pins. The module talks at 115200 baud.
 
 To switch a project over: import External WiFi and External HTTP client after the project''s other libraries, then delete the WiFi and HTTP client libraries.
 
@@ -24,7 +24,7 @@ variables _extwifi_ready _extwifi_mac _extwifi_connected _extwifi_busy _extwifi_
   space
   spec ' ' 'extwifi_allow_wifi_and_ble' 'allow WiFi while using BLE _' 'bool' true
   space
-  spec ' ' 'extwifi_set_pins' 'external WiFi module tx pin _ rx pin _' 'num num' 1 2
+  spec ' ' 'extwifi_set_rx_tx_pins' 'external WiFi module rx pin _ tx pin _' 'num num' 2 1
   spec 'r' '_extwifi_connected?' '_extwifi_connected?'
   spec 'r' '_extwifi_init' '_extwifi_init'
   spec 'r' '_extwifi_join' '_extwifi_join _ _' 'str str' '' ''
@@ -34,6 +34,7 @@ variables _extwifi_ready _extwifi_mac _extwifi_connected _extwifi_busy _extwifi_
   spec ' ' '_extwifi_blink' '_extwifi_blink'
   spec ' ' '_extwifi_lock' '_extwifi_lock'
   spec ' ' '_extwifi_unlock' '_extwifi_unlock'
+  spec ' ' '_extwifi_still_busy' '_extwifi_still_busy'
   spec ' ' '_extwifi_send' '_extwifi_send AT _ wait _ ms' 'str num' '' 10
   spec 'r' '_extwifi_wait' '_extwifi_wait for _ timeout _ ms : fail _' 'str num str' 'OK' 1000 'ERROR'
   spec 'r' '_extwifi_read_all' '_extwifi_read_all timeout _ ms' 'num' 100
@@ -99,6 +100,9 @@ to wifiCreateHotspot ssid password {
     sayIt 'Could not create hotspot'
     return 0
   }
+  comment 'Hand out addresses to devices that join (mode 2 is the access point). Older AT firmware answers ERROR, which is harmless.'
+  '_extwifi_send' '+CWDHCP=1,2' 50
+  ok = ('_extwifi_wait' 'OK' 1000)
   '_extwifi_blink'
   '_extwifi_mdns' 'microblocks'
   local 'ip' ('_extwifi_ip')
@@ -139,7 +143,7 @@ to extwifi_allow_wifi_and_ble allow {
   comment 'An external module has its own radio, so WiFi and BLE do not share one. Nothing to do.'
 }
 
-to extwifi_set_pins tx rx {
+to extwifi_set_rx_tx_pins rx tx {
   comment 'The pins take effect the next time the module is set up (wifi connect does that).'
   _extwifi_tx = tx
   _extwifi_rx = rx
@@ -192,14 +196,11 @@ to '_extwifi_init' {
 }
 
 to '_extwifi_join' ssid password {
-  '_extwifi_send' '+CWMODE=1,0' 50
+  '_extwifi_send' '+CWMODE=1' 50
   if (not ('_extwifi_wait' 'OK' 1000)) {return false}
-  comment 'Some modules only join at full transmit power (our test C3 did). A module without this command answers ERROR, which is harmless.'
+  comment 'Reduced transmit power: 40 is the lowest setting ESP-AT accepts, and our test C3 only joined with it. A module without this command answers ERROR, which is harmless.'
   '_extwifi_send' '+RFPOWER=40' 50
   local 'ok' ('_extwifi_wait' 'OK' 500)
-  comment 'Allow channels 1 to 13'
-  '_extwifi_send' '+CWCOUNTRY=1,"EU",1,13' 50
-  ok = ('_extwifi_wait' 'OK' 500)
   '_extwifi_send' ('[data:join]' '+CWJAP="' ssid '","' password '"') 500
   comment 'OK comes after WIFI GOT IP; DHCP can take 10 seconds'
   return ('_extwifi_wait' 'OK' 20000 'FAIL')
@@ -247,14 +248,18 @@ to '_extwifi_blink' {
 }
 
 to '_extwifi_lock' {
-  comment 'Only one task at a time may talk to the module. A lock older than 30 seconds was left by a stopped task.'
-  waitUntil (or (not (_extwifi_busy == true)) ((millisSince _extwifi_busy_since) > 30000))
+  comment 'Only one task at a time may talk to the module. The holder calls _extwifi_still_busy while it waits, so a lock untouched for 3 seconds was left by a stopped task.'
+  waitUntil (or (not (_extwifi_busy == true)) ((millisSince _extwifi_busy_since) > 3000))
   _extwifi_busy = true
   _extwifi_busy_since = (millisOp)
 }
 
 to '_extwifi_unlock' {
   _extwifi_busy = false
+}
+
+to '_extwifi_still_busy' {
+  _extwifi_busy_since = (millisOp)
 }
 
 to '_extwifi_send' cmd delay {
@@ -270,6 +275,7 @@ to '_extwifi_wait' t timeout optionalFail {
   local 'packet' ''
   local 'start' (millisOp)
   repeatUntil ((millisSince start) > timeout) {
+    '_extwifi_still_busy'
     packet = ('[serial:read]')
     if ((size packet) > 0) {
       buffer = ('[data:join]' buffer packet)
@@ -292,6 +298,7 @@ to '_extwifi_read_all' timeout {
   local 'packet' ''
   local 'start' (millisOp)
   repeatUntil ((millisSince start) > timeout) {
+    '_extwifi_still_busy'
     packet = ('[serial:read]')
     if ((size packet) > 0) {
       buffer = ('[data:join]' buffer packet)
