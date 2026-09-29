@@ -42,9 +42,9 @@ fi
 
 currentOS=`uname -s`
 if [ "$currentOS" == "Darwin" ]; then
-	gp="gp-mac"
+	gpExecutable="gp-mac"
 elif [ "$currentOS" == "Linux" ]; then
-	gp="gp-linux64bit"
+	gpExecutable="gp-linux64bit"
 else
 	echo "Platform $currentOS is not (yet?) supported by this build script."
 	echo "Try to find the gp executable for your platform in this folder and run:"
@@ -70,7 +70,7 @@ if test -n "$locale"; then
 		echo
 	else
 		echo "Updating locale file for $locale..."
-		(cd gp; ./$gp runtime/lib/* loadIDE.gp updateLocale.gp -- $locale)
+		(cd gp; ./$gpExecutable runtime/lib/* loadIDE.gp updateLocale.gp -- $locale)
 		echo "Done."
 		echo "Please edit the updated locale file at translations/$locale.po"
 		missing=`grep "^msgstr \"\"" translations/$locale.po | wc -l`
@@ -109,6 +109,7 @@ if test -n "$boardie"; then
 fi
 
 if test -n "$gp"; then
+	echo "Building GP webapp..."
 	(cd chromeApp/emscripten; ./buildEmcc.sh)
 	if [ -z $electron ]; then
 		# quit the script unless we're also being asked to build the electron wrapper
