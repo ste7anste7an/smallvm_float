@@ -1429,7 +1429,7 @@ void vmLoop() {
 			#ifdef CAN_NAP
 				if (!napIfPossible()) count = 95;
 			#else
-				count = 95; // must be under 30 on mbed to avoid serial errors
+				count = 95;
 			#endif
 		} else if ((count & 0xF) == 0) {
 			captureIncomingBytes();
@@ -1537,7 +1537,7 @@ void runTasksUntilDone() {
 	while (hasActiveTasks) {
 		if (count-- <= 0) {
 			processMessage();
-			count = 100; // reduce to 30 when building on mbed to avoid serial errors
+			count = 100;
 		}
 		hasActiveTasks = false;
 		uint32 usecs = 0; // compute times only the first time they are needed
