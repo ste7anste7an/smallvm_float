@@ -1,6 +1,6 @@
 module 'Analog Synthesis' Operators
 author MicroBlocks
-version 2 2 
+version 2 3 
 description 'Generate analog waves that you can output to a DAC or analog pin to produce sound.
 
 You can create your own instruments by adding waves together, and you can define envelopes for gates and trigger them at will, or create sound textures by mixing waves.
@@ -35,6 +35,9 @@ variables _asynth_trigger_active _asynth_trigger_times _asynth_frequencies _asyn
   spec ' ' '_asynth init' '_asynth init'
   spec 'r' '_asynth MIDI to freq' '_asynth MIDI note _ to frequency' 'auto' 60
   spec ' ' '_arp play MIDI note' '_arp play MIDI note _ for _ on channel _ volume _' 'auto auto auto auto' 60 500 1 127
+  spec ' ' 'asynth start playing MIDI key' 'start playing MIDI key _ on gate _ amplitude _' 'auto auto auto' 60 1 10000
+  spec ' ' 'asynth stop playing MIDI key' 'stop playing MIDI gate _' 'auto' 1
+  spec ' ' 'asynth kill MIDI key' 'kill MIDI gate _' 'auto' 1
 
 to '_arp play MIDI note' note ms c vol {
   'asynth trigger gate' note ms c (vol * 100)
@@ -146,6 +149,11 @@ to 'asynth gate frequency' gate {
   return freq
 }
 
+to 'asynth kill MIDI key' gate {
+  atPut gate _asynth_trigger_active (booleanConstant false)
+  atPut gate _asynth_holds 0
+}
+
 to 'asynth noise' freq amp {
   if (amp < 1) {return 0}
   return (ifExpression (((microsOp) % (1000000 / (maximum 1 freq))) < 100) (random (0 - amp) amp) 0)
@@ -214,6 +222,25 @@ to 'asynth square gate' gate {
     return ('asynth square' ('asynth gate frequency' gate) ('asynth gate amplitude' gate))
   }
   return 0
+}
+
+to 'asynth start playing MIDI key' key gate amp {
+  local 'start' (millisOp)
+  '_asynth init'
+  local 'base' ('_asynth MIDI to freq' key)
+  local 'att' (at gate _asynth_attacks)
+  atPut gate _asynth_holds 3600000
+  atPut gate _asynth_amplitudes amp
+  atPut gate _asynth_frequencies base
+  atPut gate _asynth_trigger_times (millisOp)
+  atPut gate _asynth_trigger_active (booleanConstant true)
+  atPut gate _asynth_ramp_frequencies ((base * (at gate _asynth_ramp_starts)) / 100)
+}
+
+to 'asynth stop playing MIDI key' gate {
+  local 'release' (at gate _asynth_releases)
+  local 'start' (at gate _asynth_trigger_times)
+  atPut gate _asynth_holds (((millisOp) - start) + release)
 }
 
 to 'asynth tri' freq amp {
