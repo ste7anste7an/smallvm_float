@@ -2,13 +2,14 @@ module 'External HTTP client' Comm
 author MicroBlocks
 version 0 2
 depends 'External WiFi'
+implements 'HTTP client'
 tags http network get post put delete esp-at calliope
 choices requestTypes GET POST PUT DELETE
 description 'Send HTTP requests and get responses back through an external ESP-AT WiFi module, such as the Calliope WiFi module (ESP32-C3, ESP-AT 3.3). Needs External WiFi.
 
 Same blocks as the HTTP client library, so projects and libraries written for HTTP client (for example SmartIoT) work unchanged.
 
-To switch a project over: import External WiFi and External HTTP client after the project''s other libraries, then delete the WiFi and HTTP client libraries.
+Importing External HTTP client replaces the HTTP client library in a project, and importing HTTP client switches back.
 
 HTTPS uses the module''s SSL link without checking the server certificate. The serial link code comes from Ralf Krause''s Calliope WiFi library (version 0.63).'
 
