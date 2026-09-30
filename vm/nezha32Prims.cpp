@@ -27,9 +27,8 @@
 // the library's NezhaMicroBlocks.h.
 //
 // The library registers its own primitive tables from boardAddPrims(): the two Elecfreaks
-// sets, and the tft set, whose LVGL implementations replace the MicroBlocks ones on this
-// board. A TFT primitive the library does not implement falls back to the MicroBlocks set,
-// which is the no-display stubs here, so it does nothing rather than failing.
+// sets. The tft set is the MicroBlocks one, drawing through the library's canvas calls
+// (see NezhaDisplay in tftPrims.cpp).
 //
 // Code on the library's own tasks talks to the VM only through the VM thread requests in
 // boardHooks.h: vmRequestStopAll(), vmCallOnVMThread() and vmIDEConnected().
@@ -53,13 +52,12 @@ void addElecfreaksSensorPrims() {
 // Nezha ESP32 board hooks (see boardHooks.h). All run on the VM thread.
 
 void boardInit() {
-	// nothing needed once BoardInit() has run
 	nezhaMB_BoardInit(); // start the board before the VM initializes
-	useTFT = true;
+	tftInit(); // the display canvas exists only once the board has started
 }
 
 void boardAddPrims() {
-	nezhaMB_RegisterPrims(); // the library's tft, elfreaks and elfreaks_dev_sensor sets
+	nezhaMB_RegisterPrims(); // the library's elfreaks and elfreaks_dev_sensor sets
 }
 
 void boardPoll() {

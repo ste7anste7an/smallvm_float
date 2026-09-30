@@ -13,8 +13,7 @@
 #include <inttypes.h>
 
 #if defined(NRF51) || defined(ARDUINO_ARCH_SAMD) || defined(__ZEPHYR__) || defined(DUELink) || \
-	defined(ESP8266) || defined(ESP32_S3_MATRIX_PORTAL) || defined(NEZHA_ESP32)
-	// Nezha: the Elecfreaks library owns the display and registers its own tft set
+	defined(ESP8266) || defined(ESP32_S3_MATRIX_PORTAL)
 
 // TFT primitives are not supported
 #define NO_EXTERNAL_DISPLAY_PRIMS
@@ -193,31 +192,74 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			}
 		}
 
-	#elif defined(NEZHA_ESP32) && !defined(NO_EXTERNAL_DISPLAY_PRIMS)
-		#define TFT_BL		9
-		#define TFT_MOSI	10
-		#define TFT_SCLK	11
-		#define TFT_DC		12
-		#define TFT_RST		13
-		#define TFT_CS		42
-		#define TFT_TOP_BAR	32
-		#define TFT_WIDTH	240
-		#define TFT_HEIGHT	(320 - TFT_TOP_BAR)
+	#elif defined(NEZHA_ESP32)
+		// The Elecfreaks library owns the screen and shows a title bar above a canvas.
+		// NezhaDisplay forwards Arduino_GFX drawing to the library's canvas calls.
+
+		#include <NezhaMicroBlocks.h>
+
+		class NezhaDisplay : public Arduino_GFX {
+		public:
+			NezhaDisplay(int w, int h) : Arduino_GFX(w, h) { }
+			bool begin(int32_t speed = GFX_NOT_DEFINED) override { return true; }
+
+			// CanvasBeginDraw takes a lock that is not recursive, so only the outermost
+			// startWrite() begins a drawing and only the matching endWrite() ends it.
+			void startWrite() override {
+				if (0 == depth++) nezhaMB_CanvasBeginDraw();
+			}
+			void endWrite() override {
+				if ((depth > 0) && (0 == --depth)) {
+					nezhaMB_CanvasEndDraw();
+					rectsPending = false;
+				}
+			}
+
+			void writePixelPreclipped(int16_t x, int16_t y, uint16_t color) override {
+				startWrite();
+				if (rectsPending) { // rectangles are rendered at CanvasEndDraw but pixels at once
+					nezhaMB_CanvasEndDraw();
+					nezhaMB_CanvasBeginDraw();
+					rectsPending = false;
+				}
+				nezhaMB_CanvasSetPixel(x, y, color);
+				endWrite();
+			}
+			void writeFillRectPreclipped(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override {
+				startWrite();
+				nezhaMB_CanvasFillRect(x, y, w, h, color);
+				rectsPending = true;
+				endWrite();
+			}
+			void writeFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) override {
+				writeFillRect(x, y, w, 1, color);
+			}
+			void writeFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) override {
+				writeFillRect(x, y, 1, h, color);
+			}
+			void draw16bitRGBBitmap(int16_t x, int16_t y, uint16_t *bitmap, int16_t w, int16_t h) override {
+				if ((x < 0) || (y < 0) || ((x + w) > _width) || ((y + h) > _height)) {
+					Arduino_GFX::draw16bitRGBBitmap(x, y, bitmap, w, h); // clips pixel by pixel
+					return;
+				}
+				startWrite();
+				nezhaMB_CanvasDrawBitmap(x, y, w, h, bitmap);
+				endWrite();
+			}
+
+		private:
+			int depth = 0;
+			bool rectsPending = false;
+		};
 
 		void tftInit() {
-			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
-			tft = new Arduino_ST7789(bus, TFT_RST, 2, true,
-					TFT_WIDTH, TFT_HEIGHT, 0, TFT_TOP_BAR, 0, TFT_TOP_BAR);
-			if (!tft->begin()) {
-				outputString("tftInit() failed!");
-			} else {
-				pinMode(TFT_BL, OUTPUT);
-				digitalWrite(TFT_BL, HIGH); // turn on backlight
-				tftWidth = TFT_WIDTH;
-				tftHeight = TFT_HEIGHT;
-				tftClear();
-				useTFT = true;
-			}
+			// called from boardInit(), after nezhaMB_BoardInit() has started the library's UI
+			tftWidth = nezhaMB_CanvasWidth();
+			tftHeight = nezhaMB_CanvasHeight();
+			tft = new NezhaDisplay(tftWidth, tftHeight);
+			tft->begin();
+			tftClear();
+			useTFT = true;
 		}
 
 	#elif defined(ARDUINO_M5Stick_Plus)
@@ -2238,58 +2280,9 @@ static OBJ primCloseDisplay(int argCount, OBJ *args) {
 
 #else // stubs
 
-#if defined(NEZHA_ESP32)
-
-// Nezha: the Elecfreaks library owns the display, so draw the simulated 5x5 LED
-// display with its rectangle fill. The canvas is 240x292 with the title bar shown.
-#include <NezhaMicroBlocks.h>
-
-static int nezhaColor565(int color24) {
-	return (((color24 >> 19) & 0x1F) << 11) | (((color24 >> 10) & 0x3F) << 5) | ((color24 >> 3) & 0x1F);
-}
-
-void tftClear() {
-	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
-	nezhaMB_CanvasBeginDraw();
-	nezhaMB_CanvasFillRect(0, 0, 240, 292, 0);
-	nezhaMB_CanvasEndDraw();
-}
-
-void tftSetHugePixel(int x, int y, int state) {
-	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
-	if ((x < 1) || (x > 5) || (y < 1) || (y > 5)) return;
-	const int width = 240, height = 292, lineWidth = 3;
-	int yInset = (height - width) / 2;
-	int squareSize = (width - (6 * lineWidth)) / 5;
-	nezhaMB_CanvasBeginDraw();
-	nezhaMB_CanvasFillRect(
-		((x - 1) * squareSize) + (x * lineWidth),
-		yInset + ((y - 1) * squareSize) + (y * lineWidth),
-		squareSize, squareSize,
-		nezhaColor565(state ? mbDisplayColor : 0));
-	nezhaMB_CanvasEndDraw();
-}
-
-void tftSetHugePixelBits(int bits) {
-	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
-	if (0 == bits) {
-		tftClear();
-		return;
-	}
-	for (int x = 1; x <= 5; x++) {
-		for (int y = 1; y <= 5; y++) {
-			tftSetHugePixel(x, y, bits & (1 << ((5 * (y - 1) + x) - 1)));
-		}
-	}
-}
-
-#else
-
 void tftClear() { }
 void tftSetHugePixel(int x, int y, int state) { }
 void tftSetHugePixelBits(int bits) { }
-
-#endif
 
 static OBJ primSetBacklight(int argCount, OBJ *args) { return falseObj; }
 static OBJ primGetWidth(int argCount, OBJ *args) { return int2obj(0); }
