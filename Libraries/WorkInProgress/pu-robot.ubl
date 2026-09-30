@@ -1,6 +1,6 @@
 module 'PU Robot'
 author MicroBlocks
-version 1 0
+version 1 1
 depends _Radio _NeoPixel '_Distance (HC-SR04)' '_Basic Sensors' _Microphone _Tone
 tags robot pu elecfreaks microbit
 choices pu_eyes 'pu;left eye' 'pu;right eye' 'pu;all'
@@ -15,7 +15,7 @@ choices pu_action 'pu;greet' 'pu;rest' 'pu;explore' 'pu;jump' 'pu;kick' 'pu;danc
 description 'The PU Robot (Elecfreaks) is a 6-DOF educational humanoid robot.
 This library allow to control the servos, execute movements and actions, create custom poses, and control the robot, including through a remote controller (PU Controller library).
 https://wiki.elecfreaks.com/en/microbit/robot/pu-robot-kit/'
-variables _pu_address _pu_initialized _pu_initializing _pu_trim _pu_current _pu_servo_joint _pu_states _pu_state_speed_indices _pu_speed_profiles _pu_walk_fwd _pu_walk_bwd _pu_side_left _pu_side_right _pu_dance_seq _pu_servo_ctrl _pu_sequence_pos _pu_sequence_length _pu_balance_enabled _pu_imu_roll0_100 _pu_imu_pitch0_100 _pu_imu_head_yaw0 _pu_imu_head_pitch0 _pu_body_roll _pu_body_pitch _pu_body_roll_filtered _pu_body_pitch_filtered _pu_balance_offset _pu_remote_joy_y _pu_remote_joy_x _pu_remote_accel_x _pu_remote_accel_y _pu_remote_accel_z _pu_remote_button _pu_remote_button_pending _pu_remote_task_started _pu_remote_task_heartbeat _pu_remote_joy_y_silence _pu_remote_joy_x_silence _pu_explore_enabled _pu_explore_sampling _pu_explore_turn _pu_turn_bias _pu_explore_distances _pu_motion_generation _pu_dance_active _pu_dance_threshold _pu_rightEye_bright _pu_leftEye_bright _pu_rightEye_on _pu_leftEye_on
+variables _pu_initialized _pu_initializing _pu_trim _pu_current _pu_states _pu_state_speed_indices _pu_speed_profiles _pu_sequences _pu_servo_ctrl _pu_sequence_pos _pu_sequence_length _pu_balance_enabled _pu_imu_roll0_100 _pu_imu_pitch0_100 _pu_imu_head_yaw0 _pu_imu_head_pitch0 _pu_body_roll _pu_body_pitch _pu_body_roll_filtered _pu_body_pitch_filtered _pu_balance_offset _pu_remote_joy_y _pu_remote_joy_x _pu_remote_accel_x _pu_remote_accel_y _pu_remote_accel_z _pu_remote_button _pu_remote_button_pending _pu_remote_task_started _pu_remote_task_heartbeat _pu_remote_joy_y_silence _pu_remote_joy_x_silence _pu_explore_enabled _pu_explore_sampling _pu_explore_turn _pu_turn_bias _pu_explore_distances _pu_motion_generation _pu_dance_active _pu_eyes
 
   spec ' ' 'puInit' 'PU robot initialize'
   spec ' ' 'puRemoteEnable' 'PU robot radio group _' 'num' 160
@@ -61,7 +61,7 @@ variables _pu_address _pu_initialized _pu_initializing _pu_trim _pu_current _pu_
   spec ' ' '_pu_exploreCycle' '_pu_exploreCycle speed _' 'num' 4
   spec 'r' '_pu_moveOneServo' '_pu_moveOneServo state _ servo _ leg speed _ head speed _ sync head _' 'num num num num num' 1 1 2 2 1
   spec 'r' '_pu_movePoseServo' '_pu_movePoseServo servo _ target _ speed _' 'num num num' 1 90 4
-  spec ' ' '_pu_moveState' '_pu_moveState state _ leg speed _ head speed _ sync head _ balance _' 'num num num num bool' 1 2 2 1 false
+  spec ' ' '_pu_moveState' '_pu_moveState state _ leg speed _ head speed _ sync head _ balance _ dance threshold _' 'num num num num bool num' 1 2 2 1 false 0
   spec ' ' '_pu_moveSequence' '_pu_moveSequence _ repeats _ leg speed _ head speed _ sync head _ balance _' 'auto num num num num bool' 1 2 2 0 false
   spec ' ' '_pu_greet' '_pu_greet'
   spec ' ' '_pu_rest' '_pu_rest'
@@ -80,10 +80,8 @@ to puInit {
     return
   }
   _pu_initializing = (booleanConstant true)
-  _pu_address = 16
   _pu_trim = ('[data:makeList]' 0 10 0 -15 0 12)
   _pu_current = ('[data:makeList]' 90 90 90 90 90 90)
-  _pu_servo_joint = ('[data:makeList]' 'pu;left foot' 'pu;left leg' 'pu;right foot' 'pu;right leg' 'pu;head yaw' 'pu;head pitch')
   _pu_servo_ctrl = ('[data:makeList]' 0 0 0 0 0 0)
   '_pu_initStates'
   '_pu_initSequences'
@@ -96,9 +94,8 @@ to puInit {
   _pu_body_pitch = 0
   _pu_body_roll_filtered = 0
   _pu_body_pitch_filtered = 0
-  _pu_rightEye_bright = 1023
-  _pu_leftEye_bright = 1023
-  _pu_dance_threshold = 100
+  comment 'Eye state: left brightness, right brightness, left on, right on.'
+  _pu_eyes = ('[data:makeList]' 1023 1023 false false)
   _pu_explore_distances = ('[data:makeList]' 400 400 400 400)
   '_pu_cancelMotion'
   neoPixelAttach 4 16
@@ -240,7 +237,10 @@ to '_pu_dance' {
 
   puSetEyes (booleanConstant true) (booleanConstant true)
 
-  local 'length' (size _pu_dance_seq)
+  comment 'Local sound threshold: increase it to make the robot less sensitive, decrease it to make it more sensitive.'
+  local '_pu_dance_threshold' 100
+  local 'danceSequence' (at 5 _pu_sequences)
+  local 'length' (size danceSequence)
   if (length < 2) {
     _pu_dance_active = (booleanConstant false)
     return
@@ -272,13 +272,13 @@ to '_pu_dance' {
         poseIndex = 1
       }
 
-      local 'state' (at poseIndex _pu_dance_seq)
+      local 'state' (at poseIndex danceSequence)
 
       _pu_sequence_length = length
       _pu_sequence_pos = (poseIndex - 1)
 
       comment 'moveState also watches loudness while dance is active, so motion stops quickly if sound falls below threshold.'
-      '_pu_moveState' state moveSpeed headSpeed 1 false
+      '_pu_moveState' state moveSpeed headSpeed 1 false _pu_dance_threshold
 
       if (generation != _pu_motion_generation) {return}
 
@@ -330,6 +330,7 @@ to '_pu_explore' {
     initialDistance = 400
   }
   _pu_explore_distances = ('[data:makeList]' initialDistance initialDistance initialDistance initialDistance)
+  local 'backwardSequence' (at 2 _pu_sequences)
   forever {
     if (generation != _pu_motion_generation) {return}
     if _pu_explore_enabled {
@@ -340,7 +341,7 @@ to '_pu_explore' {
         if (frontDistance < 10) {
           comment 'Only when PU is already very close, back away one gait cycle before continuing the avoidance turn.'
           _pu_explore_sampling = (booleanConstant false)
-          '_pu_moveSequence' _pu_walk_bwd 1 3 3 0 true
+          '_pu_moveSequence' backwardSequence 1 3 3 0 true
           if (generation != _pu_motion_generation) {return}
           _pu_explore_sampling = (booleanConstant true)
         }
@@ -395,7 +396,8 @@ to '_pu_exploreBestTurn' {
 to '_pu_exploreCycle' speed {
   local 'generation' _pu_motion_generation
   speed = (maximum 1 (minimum speed 10))
-  local 'length' (size _pu_walk_fwd)
+  local 'forwardSequence' (at 1 _pu_sequences)
+  local 'length' (size forwardSequence)
 
   if (length < 1) {
     return
@@ -410,7 +412,7 @@ to '_pu_exploreCycle' speed {
     if _pu_explore_enabled {
 
       _pu_sequence_pos = (i - 1)
-      '_pu_moveState' (at i _pu_walk_fwd) speed speed 0 true
+      '_pu_moveState' (at i forwardSequence) speed speed 0 true 0
       if (generation != _pu_motion_generation) {return}
 
     } else {
@@ -479,7 +481,7 @@ to '_pu_greet' {
   if (generation != _pu_motion_generation) {return}
 
   comment 'Use the calibration pose directly so greet does not create a new motion generation.'
-  '_pu_moveState' 26 2 2 1 false
+  '_pu_moveState' 26 2 2 1 false 0
   if (generation != _pu_motion_generation) {return}
 
   for i 10 {
@@ -524,7 +526,7 @@ to '_pu_rest' {
   _pu_sequence_length = 0
   _pu_balance_enabled = (booleanConstant false)
   _pu_balance_offset = 0
-  '_pu_moveState' 27 2 2 1 false
+  '_pu_moveState' 27 2 2 1 false 0
   if (generation != _pu_motion_generation) {return}
   comment 'Rest is the known neutral pose used to establish the IMU reference.'
   waitMillis 100
@@ -533,13 +535,9 @@ to '_pu_rest' {
 }
 
 to '_pu_initSequences' {
-  _pu_walk_fwd = ('[data:makeList]' 3 4 5 6)
-  _pu_walk_bwd = ('[data:makeList]' 7 6 8 4)
+  comment 'Movement sequences: 1 forward, 2 backward, 3 side left, 4 side right, 5 dance.'
   comment 'Side-step states are the official 0-based sequences converted to 1-based state indices.'
-  _pu_side_right = ('[data:makeList]' 21 23 1 20)
-  _pu_side_left = ('[data:makeList]' 19 22 24 1)
-  comment 'Jump returns to neutral state 1 because state 1 is explicitly part of the sequence.'
-  _pu_dance_seq = ('[data:makeList]' 1 3 4 5 6 9 10 11 12 13 14 15 16 17 18)
+  _pu_sequences = ('[data:makeList]' ('[data:makeList]' 3 4 5 6) ('[data:makeList]' 7 6 8 4) ('[data:makeList]' 19 22 24 1) ('[data:makeList]' 21 23 1 20) ('[data:makeList]' 1 3 4 5 6 9 10 11 12 13 14 15 16 17 18))
   comment 'Speed profile reference 1..11, one entry for each state 1..27.'
   _pu_state_speed_indices = ('[data:makeList]' 2 1 4 5 3 5 4 3 4 5 3 5 4 3 9 11 1 1 7 7 7 7 10 8 6 8 1)
 }
@@ -565,26 +563,26 @@ to '_pu_jump' {
   '_pu_sendServoIndex' 6 100
 
   _pu_sequence_pos = 0
-  '_pu_moveState' 25 8 5 0 false
+  '_pu_moveState' 25 8 5 0 false 0
   if (generation != _pu_motion_generation) {
     '_pu_sendServoIndex' 6 0
     return
   }
 
   _pu_sequence_pos = 1
-  '_pu_moveState' 15 14 7 0 false
+  '_pu_moveState' 15 14 7 0 false 0
   if (generation != _pu_motion_generation) {
     '_pu_sendServoIndex' 6 0
     return
   }
 
   _pu_sequence_pos = 2
-  '_pu_moveState' 1 20 8 0 false
+  '_pu_moveState' 1 20 8 0 false 0
   '_pu_sendServoIndex' 6 0
   if (generation != _pu_motion_generation) {return}
 
   _pu_sequence_pos = 3
-  '_pu_moveState' 1 6 4 0 false
+  '_pu_moveState' 1 6 4 0 false 0
   if (generation != _pu_motion_generation) {return}
 
   _pu_sequence_pos = 0
@@ -601,22 +599,22 @@ to '_pu_kick' {
   _pu_sequence_length = 4
 
   _pu_sequence_pos = 0
-  '_pu_moveState' 3 6 4 0 true
+  '_pu_moveState' 3 6 4 0 true 0
   if (generation != _pu_motion_generation) {return}
 
   _pu_sequence_pos = 1
-  '_pu_moveState' 4 10 5 0 true
+  '_pu_moveState' 4 10 5 0 true 0
   if (generation != _pu_motion_generation) {return}
 
   _pu_sequence_pos = 2
-  '_pu_moveState' 5 16 6 0 true
+  '_pu_moveState' 5 16 6 0 true 0
   if (generation != _pu_motion_generation) {return}
 
   _pu_sequence_pos = 3
-  '_pu_moveState' 6 20 7 0 true
+  '_pu_moveState' 6 20 7 0 true 0
   if (generation != _pu_motion_generation) {return}
 
-  '_pu_moveState' 1 8 5 0 false
+  '_pu_moveState' 1 8 5 0 false 0
   if (generation != _pu_motion_generation) {return}
 
   _pu_sequence_pos = 0
@@ -694,7 +692,7 @@ to '_pu_moveSequence' sequence repeats legSpeed headSpeed syncHead useBalance {
     for i length {
       if (generation != _pu_motion_generation) {return}
       _pu_sequence_pos = (i - 1)
-      '_pu_moveState' (at i sequence) legSpeed headSpeed syncHead useBalance
+      '_pu_moveState' (at i sequence) legSpeed headSpeed syncHead useBalance 0
       if (generation != _pu_motion_generation) {return}
     }
   }
@@ -703,7 +701,7 @@ to '_pu_moveSequence' sequence repeats legSpeed headSpeed syncHead useBalance {
   _pu_balance_offset = 0
 }
 
-to '_pu_moveState' state legSpeed headSpeed syncHead useBalance {
+to '_pu_moveState' state legSpeed headSpeed syncHead useBalance danceThreshold {
   '_pu_ensureInit'
   local 'generation' _pu_motion_generation
   state = (maximum 1 (minimum state 27))
@@ -713,7 +711,7 @@ to '_pu_moveState' state legSpeed headSpeed syncHead useBalance {
   repeatUntil done {
     if (generation != _pu_motion_generation) {return}
     if _pu_dance_active {
-      if (('loudness') <= _pu_dance_threshold) {return}
+      if (('loudness') <= danceThreshold) {return}
     }
     done = (booleanConstant true)
     '_pu_computeControl' useBalance
@@ -737,7 +735,7 @@ to '_pu_sendServoIndex' index angle {
   if (index == 7) {
     reg = 16
   }
-  '[sensors:i2cWrite]' _pu_address ('[data:makeList]' reg angle 0 0)
+  '[sensors:i2cWrite]' 16 ('[data:makeList]' reg angle 0 0)
 }
 
 to '_pu_bodyTilt100' axis x y z yawDelta pitchDelta {
@@ -879,7 +877,7 @@ to '_pu_calibrateIMU' {
 to puCalibratePose {
   '_pu_ensureInit'
   '_pu_cancelMotion'
-  '_pu_moveState' 26 2 2 1 false
+  '_pu_moveState' 26 2 2 1 false 0
 }
 
 to puClearLights {
@@ -970,30 +968,30 @@ to puSetEyeBrightness eye level {
   level = (maximum 0 (minimum level 100))
   level = ('[misc:rescale]' level 0 100 0 1023)
   if (eye == 'pu;right eye') {
-    _pu_rightEye_bright = level
+    atPut 2 _pu_eyes level
   } (eye == 'pu;left eye') {
-    _pu_leftEye_bright = level
+    atPut 1 _pu_eyes level
   } (eye == 'pu;all') {
-    _pu_rightEye_bright = level
-    _pu_leftEye_bright = level
+    atPut 1 _pu_eyes level
+    atPut 2 _pu_eyes level
   } else {
     return
   }
   comment 'Apply the new brightness immediately while preserving each eye on/off state.'
-  puSetEyes _pu_leftEye_on _pu_rightEye_on
+  puSetEyes (at 3 _pu_eyes) (at 4 _pu_eyes)
 }
 
 to puSetEyes leftState rightState {
   '_pu_ensureInit'
-  _pu_leftEye_on = leftState
-  _pu_rightEye_on = rightState
+  atPut 3 _pu_eyes leftState
+  atPut 4 _pu_eyes rightState
   local 'leftEye' 0
   local 'rightEye' 0
   if (leftState == (booleanConstant true)) {
-    leftEye = _pu_leftEye_bright
+    leftEye = (at 1 _pu_eyes)
   }
   if (rightState == (booleanConstant true)) {
-    rightEye = _pu_rightEye_bright
+    rightEye = (at 2 _pu_eyes)
   }
   analogWriteOp 12 leftEye
   analogWriteOp 13 rightEye
@@ -1001,7 +999,8 @@ to puSetEyes leftState rightState {
 
 to puSetServo joint angle {
   '_pu_ensureInit'
-  local 'idx' (('[data:find]' joint _pu_servo_joint) - 1)
+  local 'servoJoints' ('[data:makeList]' 'pu;left foot' 'pu;left leg' 'pu;right foot' 'pu;right leg' 'pu;head yaw' 'pu;head pitch')
+  local 'idx' (('[data:find]' joint servoJoints) - 1)
   if (idx < 0) {
     return
   }
@@ -1076,24 +1075,24 @@ to puWalk direction steps speed {
   local 'stepCount' (maximum 1 (minimum (argOrDefault 2 1) 100))
   local 'moveSpeed' (maximum 1 (minimum (argOrDefault 3 4) 10))
   if (direction == 'pu;forward') {
-    '_pu_moveSequence' _pu_walk_fwd stepCount moveSpeed moveSpeed 0 true
+    '_pu_moveSequence' (at 1 _pu_sequences) stepCount moveSpeed moveSpeed 0 true
   } (direction == 'pu;backward') {
-    '_pu_moveSequence' _pu_walk_bwd stepCount moveSpeed moveSpeed 0 true
+    '_pu_moveSequence' (at 2 _pu_sequences) stepCount moveSpeed moveSpeed 0 true
   } (direction == 'pu;side left') {
     moveSpeed = (maximum 1 ((moveSpeed * 7) / 10))
-    '_pu_moveSequence' _pu_side_left stepCount moveSpeed moveSpeed 0 false
+    '_pu_moveSequence' (at 3 _pu_sequences) stepCount moveSpeed moveSpeed 0 false
   } (direction == 'pu;side right') {
     moveSpeed = (maximum 1 ((moveSpeed * 7) / 10))
-    '_pu_moveSequence' _pu_side_right stepCount moveSpeed moveSpeed 0 false
+    '_pu_moveSequence' (at 4 _pu_sequences) stepCount moveSpeed moveSpeed 0 false
   } (direction == 'pu;turn left') {
     moveSpeed = (maximum 1 ((moveSpeed + 1) / 2))
     _pu_turn_bias = -100
-    '_pu_moveSequence' _pu_walk_fwd stepCount moveSpeed moveSpeed 0 true
+    '_pu_moveSequence' (at 1 _pu_sequences) stepCount moveSpeed moveSpeed 0 true
     _pu_turn_bias = 0
   } (direction == 'pu;turn right') {
     moveSpeed = (maximum 1 ((moveSpeed + 1) / 2))
     _pu_turn_bias = 100
-    '_pu_moveSequence' _pu_walk_fwd stepCount moveSpeed moveSpeed 0 true
+    '_pu_moveSequence' (at 1 _pu_sequences) stepCount moveSpeed moveSpeed 0 true
     _pu_turn_bias = 0
   }
 }
