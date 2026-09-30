@@ -959,6 +959,8 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		void tftInit() {
 			display.begin();
 			tft = &display;
+			tftWidth = TFT_WIDTH;
+			tftHeight = TFT_HEIGHT;
 			useTFT = true;
 		}
 

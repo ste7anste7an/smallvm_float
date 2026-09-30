@@ -583,7 +583,7 @@ method reportFunctionsInSeveralLibraries MicroBlocksScripter {
 	if (notEmpty duplicates) {
 		inform (global 'page') (join
 			(localized 'These functions are defined in more than one library, so only one of each is used:')
-			' ' (joinStrings duplicates '; ') '.'))
+			' ' (joinStrings duplicates '; ') '.')
 	}
 }
 
