@@ -1,6 +1,6 @@
 module Particle
 author 'José García Yeste'
-version 1 0 
+version 1 1 
 choices concentrationMenu '1.0 PM' '2.5 PM' '10 PM' 
 choices numberMenu '0.3 µm' '0.5 µm' '1.0 µm' '2.5 µm' '5 µm' '10 µm' 
 choices typeMenu standard atmosphere 
@@ -65,7 +65,7 @@ to 'particle number' size {
   if (size == '5 µm') {
     reg = 25
   }
-  if (size == '5 µm') {
+  if (size == '10 µm') {
     reg = 27
   }
   return ('_particle read reg' reg)
