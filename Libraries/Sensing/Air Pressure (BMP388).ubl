@@ -1,6 +1,6 @@
 module 'Air Pressure (BMP388)' Input
 author MicroBlocks
-version 1 0 
+version 1 1 
 description ''
 variables _bmp388_addr _bmp388_basePressure _bmp388_baseAltitude 
 
@@ -20,7 +20,8 @@ to '_bmp388_altitudeMillimeters' {
     comment 'if base altitude not set, use zero (useful for relative measurments)'
     bmp388_setCurrentAltitude 0
   }
-  return ('[misc:pressureToAltitude]' ('_bmp388_rawPressure') _bmp388_basePressure)
+  mmChange = ('[misc:pressureToAltitude]' _bmp388_basePressure ('_bmp388_rawPressure'))
+  return ((1000 * _bmp388_baseAltitude) + mmChange)
 }
 
 to '_bmp388_init' {
