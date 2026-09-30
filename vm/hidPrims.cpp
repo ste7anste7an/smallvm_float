@@ -15,7 +15,7 @@
 #include "interp.h"
 
 #if (defined(ARDUINO_ARCH_SAMD) || \
-	(defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)))
+	(defined(ARDUINO_ARCH_RP2040) && !(defined(ARDUINO_ARCH_MBED) || defined(PICO_WIFI))))
 
 #include "Keyboard.h"
 #include "Mouse.h"
