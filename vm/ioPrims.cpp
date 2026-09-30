@@ -19,7 +19,6 @@
 #include "interp.h"
 
 #if defined(NEZHA_ESP32)
-	#include <NezhaInterfaceApi.h>
 	#include <NezhaMicroBlocks.h>
 #endif
 

@@ -2250,7 +2250,9 @@ static int nezhaColor565(int color24) {
 
 void tftClear() {
 	if (!useTFT) return; // useTFT is set only after the Elecfreaks UI is initialized
-	nezhaMB_TftFillRect(0, 0, 240, 292, 0);
+	nezhaMB_CanvasBeginDraw();
+	nezhaMB_CanvasFillRect(0, 0, 240, 292, 0);
+	nezhaMB_CanvasEndDraw();
 }
 
 void tftSetHugePixel(int x, int y, int state) {
@@ -2259,11 +2261,13 @@ void tftSetHugePixel(int x, int y, int state) {
 	const int width = 240, height = 292, lineWidth = 3;
 	int yInset = (height - width) / 2;
 	int squareSize = (width - (6 * lineWidth)) / 5;
-	nezhaMB_TftFillRect(
+	nezhaMB_CanvasBeginDraw();
+	nezhaMB_CanvasFillRect(
 		((x - 1) * squareSize) + (x * lineWidth),
 		yInset + ((y - 1) * squareSize) + (y * lineWidth),
 		squareSize, squareSize,
 		nezhaColor565(state ? mbDisplayColor : 0));
+	nezhaMB_CanvasEndDraw();
 }
 
 void tftSetHugePixelBits(int bits) {

@@ -71,7 +71,7 @@ void boardStopAll() {
 }
 
 void boardIDEConnectionChanged(int isConnected) {
-	if (isConnected) nezhaMB_UIOnIDEConnected();
+	nezhaMB_IDEConnectionChanged(isConnected);
 }
 
 int boardStartAtBoot() {
