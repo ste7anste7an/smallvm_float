@@ -826,7 +826,7 @@ static void drawString(char *s, FontRef font, OBJ bm, OBJ color, int x, int y, O
 		n = FIELD(color, 3);
 		if (isInt(n)) a = clip(obj2int(n), 0, 255);
 	}
-	if (a == 0) return;
+	if (a == 0 || bmWidth == 0 || bmHeight == 0) return;
 
 	y -= lastFontSize / 10; // adjust y offset to match other platforms
 	EM_ASM_({
@@ -836,6 +836,7 @@ static void drawString(char *s, FontRef font, OBJ bm, OBJ color, int x, int y, O
 		var bmData = $3;
 		var bmWidth = $4;
 		var bmHeight = $5;
+
 		var r = $6;
 		var g = $7;
 		var b = $8;
@@ -847,6 +848,9 @@ static void drawString(char *s, FontRef font, OBJ bm, OBJ color, int x, int y, O
 		var ctx = cnv.getContext('2d');
 		ctx.font = fontName;
 		cnv.width = Math.ceil(ctx.measureText(s).width);
+
+		if (cnv.width == 0) { return; }
+
 		cnv.height = bmHeight;
 		ctx.font = fontName; // font gets cleared by changing canvas size (in Chrome, at least)
 		ctx.fillStyle = '#000';

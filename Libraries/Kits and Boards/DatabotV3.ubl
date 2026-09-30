@@ -1,6 +1,6 @@
 module DatabotV3
 author MicroBlocks
-version 1 5 
+version 1 6 
 depends 'Air Pressure (BMP581)' 'Color & Proximity (APDS9151)' 'DatabotV3 Motion' '_Gas (ENS160)' '_Temperature Humidity (SHT40)' '_Gesture (PAJ7620)' '_Distance (VL53L1x)' 
 choices databotV3_tempUnits '°C' '°F' 
 description 'Library for the databot v3.
@@ -200,7 +200,7 @@ to databotV3_temperature units {
   if (units == '°C') {
     return (sht40_temperature)
   } else {
-    return (32 + (9 * ((sht40_temperature) / 5)))
+    return (32 + ((9 * (sht40_temperature)) / 5))
   }
 }
 
