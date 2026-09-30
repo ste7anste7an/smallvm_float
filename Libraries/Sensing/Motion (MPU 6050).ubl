@@ -1,6 +1,6 @@
 module 'Motion (MPU 6050)' Input
 author MicroBlocks
-version 1 2 
+version 1 3 
 choices mpu6050_axis x y z 
 description 'MPU6050 6-DOF acclerometer + gyro motion sensor
 
@@ -78,7 +78,6 @@ to '_mpu6050_setup' {
       stopTask
     }
   }
-  _mpu6050_addr = (hexToInt '68')
   comment 'setclockSource  0x01'
   local 'value' (i2cGet _mpu6050_addr (hexToInt '6b'))
   value = (value & (hexToInt 'F8'))
