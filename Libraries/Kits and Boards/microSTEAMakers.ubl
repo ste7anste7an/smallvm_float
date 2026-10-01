@@ -1,6 +1,6 @@
 module microSTEAMakers
 author 'Joan Guillén'
-version 1 9 
+version 1 10 
 depends Tone Color 
 tags keyestudio steam 
 choices ms_led_imageMenu heart 'small heart' yes no happy sad confused angry asleep surprised silly fabulous meh 't-shirt' 'roller skate' duck house tortoise butterfly 'stick figure' ghost sword giraffe skull umbrella snake rabbit cow 'quarter note' 'eight note' pitchfork target triangle 'left triangle' 'chess board' diamond 'small diamond' square 'small square' scissors 
@@ -142,8 +142,8 @@ to ms_accel axis {
     direction = 1
   }
   local 'result' (at msB reading)
-  if ((result >> 7) == 1) {
-    result = (-1 * (('~' result) & 127))
+  if (result > 127) {
+    result = (result - 256)
   }
   return (direction * (((result << 8) | (at lsB reading)) / 1672))
 }
@@ -215,8 +215,8 @@ to ms_gyro axis {
     direction = -1
   }
   local 'result' (at msB reading)
-  if ((result >> 7) == 1) {
-    result = (-1 * (('~' result) & 127))
+  if (result > 127) {
+    result = (result - 256)
   }
   return ((10 * direction) * (((result << 8) | (at lsB reading)) / 164))
 }

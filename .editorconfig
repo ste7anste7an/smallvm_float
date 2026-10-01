@@ -3,10 +3,12 @@
 root = true
 
 [*.{gp,c,cpp,ino}]
+end_of_line = lf
 indent_style = tab
 insert_final_newline = true
 
 [snapBlocks/*.js]
+end_of_line = lf
 indent_style = tab
 insert_final_newline = true
 

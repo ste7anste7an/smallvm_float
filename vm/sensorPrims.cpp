@@ -247,7 +247,7 @@ OBJ primI2cGet(OBJ *args) {
 	if (!isInt(args[0]) || !isInt(args[1])) return fail(needsIntegerError);
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 
 	return int2obj(readI2CReg(deviceID, registerID));
@@ -258,7 +258,7 @@ OBJ primI2cSet(OBJ *args) {
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
 	int value = obj2int(args[2]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 	if ((value < 0) || (value > 255)) return fail(i2cValueOutOfRange);
 
@@ -274,7 +274,7 @@ static OBJ primInternalI2cGet(int argCount, OBJ *args) {
 	if (!isInt(args[0]) || !isInt(args[1])) return fail(needsIntegerError);
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 
 	return int2obj(readInternalI2CReg(deviceID, registerID));
@@ -285,7 +285,7 @@ static OBJ primInternalI2cSet(int argCount, OBJ *args) {
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
 	int value = obj2int(args[2]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 	if ((value < 0) || (value > 255)) return fail(i2cValueOutOfRange);
 
@@ -305,6 +305,7 @@ OBJ primI2cExists(int argCount, OBJ *args) {
 
 	if ((argCount < 1) || !isInt(args[0])) return falseObj;
 	int i2cAddress = obj2int(args[0]);
+	if ((i2cAddress < 0) || (i2cAddress > 127)) return falseObj;
 
 	if (!wireStarted) startWire();
 	if (!wireStarted) return falseObj;
@@ -321,6 +322,7 @@ static OBJ primI2cRead(int argCount, OBJ *args) {
 
 	if ((argCount < 2) || !isInt(args[0])) return zeroObj;
 	int deviceID = obj2int(args[0]);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	OBJ obj = args[1];
 	int count = 0;
 	uint8 *bytes = NULL; // will point to byte array bytes if obj is a byte array
@@ -366,6 +368,7 @@ static OBJ primI2cWrite(int argCount, OBJ *args) {
 
 	if ((argCount < 2) || !isInt(args[0])) return zeroObj;
 	int deviceID = obj2int(args[0]);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	OBJ data = args[1];
 	int stop = ((argCount < 3) || (trueObj == args[2]));
 
