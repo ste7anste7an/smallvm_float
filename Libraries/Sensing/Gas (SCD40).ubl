@@ -47,10 +47,13 @@ to SCD40_co2 {
 
 to SCD40_factory_reset {
   if (SCD40_is_connected?) {
+    comment 'The sensor ignores this command while it is measuring'
+    '_SCD40_stop_measurement'
     '[sensors:i2cSetClockSpeed]' 100000
     '[sensors:i2cWrite]' _SCD40_ADDR ('[data:makeList]' (hexToInt '36') (hexToInt '32'))
     '[sensors:i2cSetClockSpeed]' 400000
     waitMillis 1200
+    '_SCD40_start_measurement'
   }
 }
 
