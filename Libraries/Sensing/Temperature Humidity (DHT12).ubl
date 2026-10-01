@@ -1,6 +1,6 @@
 module 'Temperature Humidity (DHT12)' Input
 author MicroBlocks
-version 1 0 
+version 1 1 
 tags environmental temperature humidity d1mini 
 description 'Support for the DHT12 sensor, I2C version.
 
@@ -13,10 +13,10 @@ For instance, a temperature of 33.12°C will be returned as a list with 33 as th
 '
 variables '_DHT data' 
 
-	spec 'r' 'DHT humidity' 'DHT humidity'
-	spec 'r' 'DHT temperature' 'DHT temperature'
-	spec 'r' '_DHT checksum' '_DHT checksum'
-	spec ' ' '_DHT read data' '_DHT read data'
+  spec 'r' 'DHT humidity' 'DHT humidity'
+  spec 'r' 'DHT temperature' 'DHT temperature'
+  spec 'r' '_DHT checksum' '_DHT checksum'
+  spec ' ' '_DHT read data' '_DHT read data'
 
 to 'DHT humidity' {
   '_DHT read data'
@@ -28,12 +28,19 @@ to 'DHT humidity' {
 to 'DHT temperature' {
   '_DHT read data'
   if ('_DHT checksum') {
-    return ('[data:makeList]' (at 3 (v '_DHT data')) (at 4 (v '_DHT data')))
+    local 'whole' (at 3 (v '_DHT data'))
+    local 'frac' (at 4 (v '_DHT data'))
+    if ((frac & 128) != 0) {
+      comment 'Bit 7 of the fraction byte is the sign flag'
+      whole = (0 - whole)
+      frac = (0 - (frac & 127))
+    }
+    return ('[data:makeList]' whole frac)
   }
 }
 
 to '_DHT checksum' {
-  return ((at 5 (v '_DHT data')) == ((((at 1 (v '_DHT data')) + (at 2 (v '_DHT data'))) + ((at 3 (v '_DHT data')) + (at 4 (v '_DHT data')))) % 255))
+  return ((at 5 (v '_DHT data')) == ((((at 1 (v '_DHT data')) + (at 2 (v '_DHT data'))) + ((at 3 (v '_DHT data')) + (at 4 (v '_DHT data')))) & 255))
 }
 
 to '_DHT read data' {

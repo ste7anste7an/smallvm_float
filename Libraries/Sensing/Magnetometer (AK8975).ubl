@@ -1,6 +1,6 @@
 module 'Magnetometer (AK8975)' Input
 author MicroBlocks
-version 1 2 
+version 1 3 
 description 'Support for AK8975 magnetometer.
 https://www.robotpark.com/image/data/PRO/91462/AK8975.pdf
 '
@@ -27,7 +27,7 @@ to '_ak9575_init' {
     '[sensors:i2cRead]' 14 data
     for i 3 {
       comment 'Scale factor time 1024'
-      local 'n' (1024 + (8 * ((at i data) - 128)))
+      local 'n' (1024 + (4 * ((at i data) - 128)))
       atPut i data n
     }
     _ak9575_scale = data

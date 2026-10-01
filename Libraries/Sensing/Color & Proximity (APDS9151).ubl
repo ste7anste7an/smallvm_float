@@ -1,6 +1,6 @@
 module 'Color & Proximity (APDS9151)' Input
 author MicroBlocks
-version 1 2 
+version 1 3 
 choices apds9151_exposure '25' '50' '100' '200' '400' 
 choices apds9151_gain '1' '3' '6' '9' '18' 
 description 'Color, light (RGB and IR) and proximity sensor library (I2C addr: 0x52).
@@ -76,6 +76,10 @@ to apds9151_hue {
   local 'g' ('_apds9151_twentyBits' (at 6 data) (at 7 data) (at 8 data))
   local 'b' ('_apds9151_twentyBits' (at 9 data) (at 10 data) (at 11 data))
   local 'max' (maximum r g b)
+  if (max == 0) {
+    comment 'No light at all: r, g and b are all 0, so hue is undefined'
+    return 0
+  }
   r = ((255 * r) / max)
   g = ((255 * g) / max)
   b = ((255 * b) / max)
