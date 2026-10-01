@@ -1,6 +1,6 @@
 module 'Gas (SCD40)' Input
 author 'Ralf Krause'
-version 1 0 
+version 1 1 
 choices SCD40_temp '°C' '°F' 
 description 'Gas (SCD40)
 
@@ -16,6 +16,8 @@ variables _SCD40_ADDR _SCD40_DATA
   space
   spec 'r' 'SCD40_is_connected?' 'SCD40 is connected?'
   spec ' ' 'SCD40_init_sensor' 'SCD40 init sensor'
+  advanced
+  spec ' ' 'SCD40_factory_reset' 'SCD40 factory reset'
   space
   spec ' ' '_SCD40_start_measurement' '_SCD40_start_continous_measurement'
   spec ' ' '_SCD40_stop_measurement' '_SCD40_stop_continous_measurement'
@@ -24,8 +26,6 @@ variables _SCD40_ADDR _SCD40_DATA
   space
   spec 'r' '_SCD40_address' '_SCD40_address'
   spec 'r' '_SCD40_serial_number' '_SCD40_serial_number'
-  spec ' ' '_SCD40_factory_reset' '_SCD40_factory_reset'
-  space
   spec 'r' '_SCD40_dec2hex' '_SCD40_dec2hex _ _' 'num num' 128 2
   spec 'r' '_SCD40_get_crc8' '_SCD40_get_crc8 _' 'auto' 0
 
@@ -45,12 +45,20 @@ to SCD40_co2 {
   return (SCD40_carbon_dioxide)
 }
 
+to SCD40_factory_reset {
+  if (SCD40_is_connected?) {
+    '[sensors:i2cSetClockSpeed]' 100000
+    '[sensors:i2cWrite]' _SCD40_ADDR ('[data:makeList]' (hexToInt '36') (hexToInt '32'))
+    '[sensors:i2cSetClockSpeed]' 400000
+    waitMillis 1200
+  }
+}
+
 to SCD40_init_sensor {
   if ('[sensors:i2cExists]' ('_SCD40_address')) {
     if (('_SCD40_serial_number') != 0) {
       _SCD40_ADDR = ('_SCD40_address')
       _SCD40_DATA = (newList 9)
-      '_SCD40_factory_reset'
       '_SCD40_start_measurement'
     } else {
       _SCD40_ADDR = 0
@@ -117,15 +125,6 @@ to '_SCD40_dec2hex' num digits {
     hexNum = ('[data:join]' '0' hexNum)
   }
   return hexNum
-}
-
-to '_SCD40_factory_reset' {
-  if (SCD40_is_connected?) {
-    '[sensors:i2cSetClockSpeed]' 100000
-    '[sensors:i2cWrite]' _SCD40_ADDR ('[data:makeList]' (hexToInt '36') (hexToInt '32'))
-    '[sensors:i2cSetClockSpeed]' 400000
-    waitMillis 1200
-  }
 }
 
 to '_SCD40_get_crc8' bytelist {
