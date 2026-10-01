@@ -52,7 +52,7 @@ to '_bmp388_rawPressure' {
   local 'tmp' ('[data:newByteArray]' 3)
   '[sensors:i2cRead]' _bmp388_addr tmp
   comment 'High 18-bits of 24-bit value.'
-  return (((at 3 tmp) << 10) | (((at 2 tmp) << 2) | ((at 1 tmp) >> 6)))
+  return (((at 3 tmp) << 16) | (((at 2 tmp) << 8) | ((at 1 tmp) >> 0)))
 }
 
 to '_bmp388_rawTemp' {
@@ -65,7 +65,8 @@ to '_bmp388_rawTemp' {
 }
 
 to bmp388_airPressureMbar {
-  return ((10 * ('_bmp388_rawPressure')) / 1063)
+  comment 'Use the upper 18 bits of 24-bit raw pressure value'
+  return ((10 * (('_bmp388_rawPressure') >> 6)) / 1063)
 }
 
 to bmp388_altitudeCentimeters {
