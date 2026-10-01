@@ -1,6 +1,6 @@
 module 'Air Pressure (SPL06)' Input
 author 'José García Yeste'
-version 1 0 
+version 1 1 
 description 'SPL06-001 Air pressure sensor
 Tested on Springbot Demo Kit
 Base on https://github.com/ArtronShop/ArtronShop_SPL06-001/
@@ -89,7 +89,8 @@ to '_spl06_altitudeMillimeters' {
     comment 'if base altitude not set, use zero (useful for relative measurments)'
     'spl06 set current altitude' 0
   }
-  return ('[misc:pressureToAltitude]' ('_spl06_rawPressure') _spl06_basePressure)
+  mmChange = ('[misc:pressureToAltitude]' _spl06_basePressure ('_spl06_rawPressure'))
+  return ((1000 * _spl06_baseAltitude) + mmChange)
 }
 
 to '_spl06_rawPressure' {
@@ -107,7 +108,7 @@ to 'spl06 air pressure' {
 }
 
 to 'spl06 altitude' {
-  return ((('_spl06_altitudeMillimeters') + 5) / -10)
+  return ((('_spl06_altitudeMillimeters') + 5) / 10)
 }
 
 to 'spl06 connected' {
