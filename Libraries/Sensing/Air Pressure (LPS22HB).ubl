@@ -1,6 +1,6 @@
 module 'Air Pressure (LPS22HB)' Input
 author MicroBlocks
-version 1 4 
+version 1 5 
 description 'Sense air pressure and altitude with the LPS22HB air pressure sensor.
 The altimeter can either report changes relative to the starting altitude. If calibrated to a known starting altitude, it can report absolute altitude.'
 variables _lps22hb_basePressure _lps22hb_baseAltitude 
@@ -9,7 +9,7 @@ variables _lps22hb_basePressure _lps22hb_baseAltitude
   spec 'r' 'lps22hb_airPressurePSI' 'air pressure (PSI x10)'
   space
   spec ' ' 'lps22hb_setBaseAltitude' 'set current altitude _ meters' 'num' 0
-  spec ' ' 'lps22hb_setBasePressure' 'set base pressure (mBar x10) _ at _ meters' 'num num' 1013 0
+  spec ' ' 'lps22hb_setBasePressure' 'set base pressure (mBar x10) _ at _ meters' 'num num' 10132 0
   spec 'r' 'lps22hb_altitudeCentimeters' 'altitude (cm)'
   spec 'r' 'lps22hb_altitudeFeet' 'altitude (feet)'
   space
