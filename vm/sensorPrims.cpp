@@ -17,7 +17,7 @@
 #include "interp.h"
 
 #if defined(NEZHA_ESP32)
-	#include <NezhaInterfaceApi.h> // nezha_microblocks library (lib_deps)
+	#include <NezhaMicroBlocks.h> // nezha_microblocks library (lib_deps)
 #endif
 
 #if defined(PICO_ED) || defined(XRP) || defined(GIZMO_MECHATRONICS) || \
