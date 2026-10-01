@@ -15,10 +15,10 @@ variables _SCD40_ADDR _SCD40_DATA
   spec 'r' 'SCD40_relative_humidity' 'SCD40 relative humidity (%)'
   space
   spec 'r' 'SCD40_is_connected?' 'SCD40 is connected?'
-  spec ' ' 'SCD40_init_sensor' 'SCD40 init sensor'
   advanced
   spec ' ' 'SCD40_factory_reset' 'SCD40 factory reset'
   space
+  spec ' ' '_SCD40_init_sensor' '_SCD40_init_sensor'
   spec ' ' '_SCD40_start_measurement' '_SCD40_start_continous_measurement'
   spec ' ' '_SCD40_stop_measurement' '_SCD40_stop_continous_measurement'
   spec ' ' '_SCD40_read_measurement' '_SCD40_read_measurement'
@@ -54,26 +54,12 @@ to SCD40_factory_reset {
   }
 }
 
-to SCD40_init_sensor {
-  if ('[sensors:i2cExists]' ('_SCD40_address')) {
-    if (('_SCD40_serial_number') != 0) {
-      _SCD40_ADDR = ('_SCD40_address')
-      _SCD40_DATA = (newList 9)
-      '_SCD40_start_measurement'
-    } else {
-      _SCD40_ADDR = 0
-    }
-  } else {
-    _SCD40_ADDR = 0
-  }
-}
-
 to SCD40_is_connected? {
   if ('[sensors:i2cExists]' ('_SCD40_address')) {
     if (_SCD40_ADDR == ('_SCD40_address')) {
       return (booleanConstant true)
     } else {
-      SCD40_init_sensor
+      '_SCD40_init_sensor'
       return (booleanConstant true)
     }
   } else {
@@ -151,6 +137,20 @@ to '_SCD40_get_data_ready_status' {
     '[sensors:i2cRead]' _SCD40_ADDR bytes
     '[sensors:i2cSetClockSpeed]' 400000
     return (((((at 1 bytes) << 8) | (at 2 bytes)) & (hexToInt '7FF')) != 0)
+  }
+}
+
+to '_SCD40_init_sensor' {
+  if ('[sensors:i2cExists]' ('_SCD40_address')) {
+    if (('_SCD40_serial_number') != 0) {
+      _SCD40_ADDR = ('_SCD40_address')
+      _SCD40_DATA = (newList 9)
+      '_SCD40_start_measurement'
+    } else {
+      _SCD40_ADDR = 0
+    }
+  } else {
+    _SCD40_ADDR = 0
   }
 }
 
