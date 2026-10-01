@@ -1,6 +1,6 @@
 module 'Air Pressure (BMP581)' Input
 author MicroBlocks
-version 1 1 
+version 1 2 
 description 'Air pressure and altimeter library based on BMP581 sensor (I2C addr: 0x46).
 
 https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp581-ds004.pdf'
@@ -34,7 +34,8 @@ to '_bmp581_init' {
   comment 'Soft reset'
   i2cSet bmp581_addr (hexToInt '7E') (hexToInt 'B6')
   comment 'wait for status_nvm_rdy (datasheet 4.3.9)'
-  waitUntil ((i2cGet bmp581_addr (hexToInt '28')) == 2)
+  local 'start' (millisOp)
+  waitUntil (or ((i2cGet bmp581_addr (hexToInt '28')) == 2) (((millisOp) - start) > 100))
   comment 'enable pressure readings'
   i2cSet bmp581_addr (hexToInt '36') (hexToInt '40')
   comment 'Set up IIR filtering'
@@ -56,13 +57,19 @@ to '_bmp581_rawPressure' {
 
 to '_bmp581_readData' {
   local 'bmp581_addr' (hexToInt '46')
-  if (((i2cGet bmp581_addr (hexToInt '37')) & 3) != 1) {
+  local 'mode' (i2cGet bmp581_addr (hexToInt '37'))
+  if (mode < 0) {
+    comment 'No sensor: return all zeros'
+    return ('[data:newByteArray]' 6)
+  }
+  if ((mode & 3) != 1) {
     comment 'Initialize if needed (i.e. mode is not "continuous")'
     '_bmp581_init'
     waitMillis 5
   }
   comment 'wait for fresh data'
-  waitUntil (((i2cGet bmp581_addr (hexToInt '27')) & 2) == 0)
+  local 'start' (millisOp)
+  waitUntil (or (((i2cGet bmp581_addr (hexToInt '27')) & 2) == 0) (((millisOp) - start) > 100))
   local 'data' ('[data:newByteArray]' 6)
   '[sensors:i2cWrite]' bmp581_addr (hexToInt '1D')
   '[sensors:i2cRead]' bmp581_addr data
