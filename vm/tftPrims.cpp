@@ -202,31 +202,34 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 	#elif defined(NEZHA_ESP32_DIRECT_DRAW) && !defined(NO_EXTERNAL_DISPLAY_PRIMS)
 		// This code is for testing direct drawing to the TFT display from MicroBlocks.
 		// Comes before NEZHA_ESP32 entry so it overrides if NEZHA_ESP32_DIRECT_DRAW is defined
+		// The NEZHA_ESP32 screen is 240 x 320 pixels minus title bar (0 or 28 pixels)
 		#define TFT_BL		9
 		#define TFT_MOSI	10
 		#define TFT_SCLK	11
 		#define TFT_DC		12
 		#define TFT_RST		13
 		#define TFT_CS		42
-		#define TFT_TOP_BAR	32
-		#define TFT_WIDTH	240
-		#define TFT_HEIGHT	(320 - TFT_TOP_BAR)
+
+		#include <NezhaMicroBlocks.h>
 
 		void tftInit() {
+			tftWidth = nezhaMB_CanvasWidth();
+			tftHeight = nezhaMB_CanvasHeight();
+			int topBarHeight = 320 - tftHeight;
+
 			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
 			tft = new Arduino_ST7789(bus, TFT_RST, 2, true,
-					TFT_WIDTH, TFT_HEIGHT, 0, TFT_TOP_BAR, 0, TFT_TOP_BAR);
+					tftWidth, tftHeight, 0, topBarHeight, 0, topBarHeight);
 			if (!tft->begin()) {
 				outputString("tftInit() failed!");
 			} else {
 				pinMode(TFT_BL, OUTPUT);
 				digitalWrite(TFT_BL, HIGH); // turn on backlight
-				tftWidth = TFT_WIDTH;
-				tftHeight = TFT_HEIGHT;
 				tftClear();
 				useTFT = true;
 			}
 		}
+		static void nezhaEndDrawing() { } // noop
 
 	#elif defined(NEZHA_ESP32)
 		// The Elecfreaks library owns the screen and shows a title bar above a canvas.
