@@ -1,7 +1,9 @@
 module 'Air Pressure (BMP388)' Input
 author MicroBlocks
-version 1 1 
-description ''
+version 1 2 
+description 'Library for BMP388 air pressure sensor.
+This sensor is used in the KidsBits Coding Box.
+'
 variables _bmp388_addr _bmp388_basePressure _bmp388_baseAltitude 
 
   spec 'r' 'bmp388_airPressureMbar' 'bmp388 air pressure (mBar)'
@@ -21,7 +23,9 @@ to '_bmp388_altitudeMillimeters' {
     bmp388_setCurrentAltitude 0
   }
   mmChange = ('[misc:pressureToAltitude]' _bmp388_basePressure ('_bmp388_rawPressure'))
-  return ((1000 * _bmp388_baseAltitude) + mmChange)
+  comment 'For some reason, the bmp388_ rawPressure increases with altitude causing the sign
+of mmChange to be inverted. Work aound that by subtracting it instead of adding it.'
+  return ((1000 * _bmp388_baseAltitude) - mmChange)
 }
 
 to '_bmp388_init' {
