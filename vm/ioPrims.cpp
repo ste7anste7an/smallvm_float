@@ -19,7 +19,6 @@
 #include "interp.h"
 
 #if defined(NEZHA_ESP32)
-	#include <NezhaInterfaceApi.h>
 	#include <NezhaMicroBlocks.h>
 #endif
 
@@ -186,7 +185,7 @@ void hardwareInit() {
 		touchSetCycles(0x800, 0x900);
 		writeI2CReg(0x20, 0, 0); // initialize IO expander
 	#endif
-	#if !defined(IS_XIAO)
+	#if !defined(IS_XIAO) && !defined(NEZHA_ESP32)
 		tftInit();
 		tftClear();
 	#endif
