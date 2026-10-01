@@ -129,7 +129,14 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		}
 	}
 
+	#if defined(NEZHA_ESP32)
+		static void nezhaEndDrawing();
+	#endif
+
 	static void inline UPDATE_DISPLAY() {
+		#if defined(NEZHA_ESP32)
+			nezhaEndDrawing(); // a block's drawing reaches the screen in one piece
+		#endif
 		if (isOLED && !deferUpdates) {
 			oledUpdate();
 			taskSleep(3); // make this task sleep a bit since writing to OLED takes 30+ msecs
@@ -203,14 +210,22 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			NezhaDisplay(int w, int h) : Arduino_GFX(w, h) { }
 			bool begin(int32_t speed = GFX_NOT_DEFINED) override { return true; }
 
-			// CanvasBeginDraw takes a lock that is not recursive, so only the outermost
-			// startWrite() begins a drawing and only the matching endWrite() ends it.
+			// CanvasBeginDraw takes a lock that is not recursive, so a drawing begins once
+			// and stays open until UPDATE_DISPLAY() ends it at the end of the block.
 			void startWrite() override {
-				if (0 == depth++) nezhaMB_CanvasBeginDraw();
+				depth++;
+				if (!drawing) {
+					nezhaMB_CanvasBeginDraw();
+					drawing = true;
+				}
 			}
 			void endWrite() override {
-				if ((depth > 0) && (0 == --depth)) {
+				if (depth > 0) depth--;
+			}
+			void endDrawing() {
+				if (drawing && (0 == depth)) {
 					nezhaMB_CanvasEndDraw();
+					drawing = false;
 					rectsPending = false;
 				}
 			}
@@ -249,8 +264,13 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 
 		private:
 			int depth = 0;
+			bool drawing = false;
 			bool rectsPending = false;
 		};
+
+		static void nezhaEndDrawing() {
+			if (tft) ((NezhaDisplay *) tft)->endDrawing();
+		}
 
 		void tftInit() {
 			// called from boardInit(), after nezhaMB_BoardInit() has started the library's UI
