@@ -600,7 +600,8 @@ method initPrimsets SmallCompiler {
 		lgvl
 		h75
 		elfreaks
-		elfreaks_dev_sensor'
+		elfreaks_dev_sensor
+		dsp'
 
 	primsets = (dictionary)
 	primSetIndex = 0

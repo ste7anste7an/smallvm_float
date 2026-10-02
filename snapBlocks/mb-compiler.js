@@ -164,7 +164,7 @@ const MB_PRIMSET_TABLE = (function () {
 			'vars', 'data', 'misc', 'io', 'sensors', 'serial',
 			'display', 'file', 'net', 'ble', 'radio', 'tft',
 			'hid', 'camera', '1wire', 'encoder', 'sd', 'lgvl',
-			'h75', 'elfreaks', 'elfreaks_dev_sensor'
+			'h75', 'elfreaks', 'elfreaks_dev_sensor', 'dsp'
 		];
 	const table = new Map();
 	for (const [i, name] of names.entries()) {
