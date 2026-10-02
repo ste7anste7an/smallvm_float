@@ -211,7 +211,7 @@ void primsInit() {
 // 	addCameraPrims();
 	addEncoderPrims();	// ~1650 bytes
 //	addSDCardPrims();
-//	addDSPPrims();
+//	addSoundPrims();
 #else
 	addDataPrims();
 	addDisplayPrims();
@@ -235,7 +235,7 @@ void primsInit() {
 	#endif
 	addElecfreaksPrims();
 	addElecfreaksSensorPrims();
-	addDSPPrims();
+	addSoundPrims();
 #endif
 	boardAddPrims();
 }

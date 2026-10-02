@@ -4,7 +4,7 @@
 
 // Copyright 2026 John Maloney, Bernat Romagosa, and Jens Mönig
 
-// dspPrims.c - Signal processing primitives: FFT, pitch detection, and tone levels
+// soundPrims.c - Sound and signal processing primitives: FFT, pitch detection, and tone levels
 // Sam McHardy, October 2026
 //
 // Samples are a list of integers (-32768..32767) or a ByteArray of signed 16-bit
@@ -424,6 +424,6 @@ static PrimEntry entries[] = {
 	{"goertzel", primGoertzel},
 };
 
-void addDSPPrims() {
-	addPrimitiveSet(DSPPrims, "dsp", sizeof(entries) / sizeof(PrimEntry), entries);
+void addSoundPrims() {
+	addPrimitiveSet(DSPPrims, "sound", sizeof(entries) / sizeof(PrimEntry), entries);
 }

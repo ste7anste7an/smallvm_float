@@ -601,7 +601,7 @@ method initPrimsets SmallCompiler {
 		h75
 		elfreaks
 		elfreaks_dev_sensor
-		dsp'
+		sound'
 
 	primsets = (dictionary)
 	primSetIndex = 0
