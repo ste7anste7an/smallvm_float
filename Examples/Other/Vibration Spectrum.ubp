@@ -3,7 +3,7 @@ author MicroBlocks
 version 1 0 
 description 'Measure how fast a board is vibrating or wobbling. Needs a board with an accelerometer, such as the micro:bit v2.'
 
-script 50 50 {
+script 75 83 {
 comment 'Vibration spectrum. Hold the board against something
 that vibrates or wobbles: a washing machine, a fan, a
 ruler twanged on a table edge. Every 2.5 seconds this
@@ -11,7 +11,7 @@ reports the strongest vibration in Hz and graphs the
 spectrum. (Click the graph icon to see the graph.)'
 }
 
-script 50 180 {
+script 75 213 {
 whenStarted
 forever {
   local 'samples' (newList 256 0)
@@ -111,13 +111,13 @@ to dsp_fft samples {
   comment 'Item k + 1 is the amplitude at k * sample rate / (size of samples) Hz.
 The second half of the list mirrors the first.'
   local 'magnitudes' (newList (size samples) 0)
-  '[dsp:fft]' samples magnitudes
+  '[sound:fft]' samples magnitudes
   return magnitudes
 }
 
 to dsp_level freq samples sampleRate {
   local 'results' (newList 1 0)
-  '[dsp:goertzel]' samples sampleRate ('[data:makeList]' freq) results
+  '[sound:goertzel]' samples sampleRate ('[data:makeList]' freq) results
   return (at 1 results)
 }
 
@@ -147,10 +147,10 @@ to dsp_peakFrequency samples sampleRate {
 }
 
 to dsp_pitch samples sampleRate {
-  return ('[dsp:pitch]' samples sampleRate)
+  return ('[sound:pitch]' samples sampleRate)
 }
 
 to dsp_pitchHz samples sampleRate {
-  return ((('[dsp:pitch]' samples sampleRate) + 50) / 100)
+  return ((('[sound:pitch]' samples sampleRate) + 50) / 100)
 }
 
