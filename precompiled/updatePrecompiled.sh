@@ -1,6 +1,5 @@
 #!/bin/bash
 # Rebuild and update the precompiled binaries.
-# *** NOTE: Use Arduino IDE to build the DUELink before running this script! ***
 
 # Check that npm and node installed
 if ! command -v node > /dev/null; then
