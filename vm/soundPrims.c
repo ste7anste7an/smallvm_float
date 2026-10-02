@@ -425,5 +425,5 @@ static PrimEntry entries[] = {
 };
 
 void addSoundPrims() {
-	addPrimitiveSet(DSPPrims, "sound", sizeof(entries) / sizeof(PrimEntry), entries);
+	addPrimitiveSet(SoundPrims, "sound", sizeof(entries) / sizeof(PrimEntry), entries);
 }
