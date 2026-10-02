@@ -1190,7 +1190,7 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			}
 		}
 
-	#elif defined(STEAMakersS3)
+	#elif defined(STEAMakersAI)
 		#define TFT_MOSI 21
 		#define TFT_SCLK 20
 		#define TFT_CS 41

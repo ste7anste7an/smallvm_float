@@ -104,8 +104,8 @@ static void initSecondarySPI() {
 	#if defined(ARDUINO_ARCH_ESP32)
 		// Use HSPI SPI controller for ESP32 boards
 		secondarySPI = new SPIClass(HSPI);
-		#if defined(STEAMakersS3)
-			// STEAMakersS3 has fixed SD card pins.
+		#if defined(STEAMakersAI)
+			// Use fixed SD card pins
 			#undef DEFAULT_CS_PIN
 			#define DEFAULT_CS_PIN 39
 			#define MOSI_PIN 35
@@ -139,7 +139,7 @@ static void initSDCard(int chipSelectPin) {
 	#if defined(SPRINGBOT)
 		SPI.end();
 		SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
-	#elif defined(STEAMakersS3)
+	#elif defined(STEAMakersAI)
 		useSecondarySPI = true;
 		initSecondarySPI();
 	#endif

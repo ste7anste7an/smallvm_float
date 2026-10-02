@@ -1079,8 +1079,8 @@ void hardwareInit() {
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 0, 1, 1};
 
-#elif defined(STEAMakersS3)
-	#define BOARD_TYPE "STEAMakers S3"
+#elif defined(STEAMakersAI)
+	#define BOARD_TYPE "STEAMakers AI"
 	#define DIGITAL_PINS 49
 	#define ANALOG_PINS 20
 	#define TOTAL_PINS 49
