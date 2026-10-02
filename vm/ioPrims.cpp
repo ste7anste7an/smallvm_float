@@ -1080,7 +1080,7 @@ void hardwareInit() {
 		1, 1, 1, 1, 1, 1, 0, 1, 1};
 
 #elif defined(STEAMakersS3)
-	#define BOARD_TYPE "ESP32-S3 STEAMakers AI"
+	#define BOARD_TYPE "STEAMakers S3"
 	#define DIGITAL_PINS 49
 	#define ANALOG_PINS 20
 	#define TOTAL_PINS 49
