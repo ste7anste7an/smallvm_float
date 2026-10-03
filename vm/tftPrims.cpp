@@ -12,6 +12,8 @@
 #include "interp.h"
 #include <inttypes.h>
 
+// #define NEZHA_ESP32_DIRECT_DRAW 1
+
 #if defined(NRF51) || defined(ARDUINO_ARCH_SAMD) || defined(__ZEPHYR__) || defined(DUELink) || \
 	defined(ESP8266) || defined(ESP32_S3_MATRIX_PORTAL)
 
@@ -199,7 +201,7 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			}
 		}
 
-	#elif defined(NEZHA_ESP32_DIRECT_DRAW) && !defined(NO_EXTERNAL_DISPLAY_PRIMS)
+	#elif defined(NEZHA_ESP32) && defined(NEZHA_ESP32_DIRECT_DRAW) && !defined(NO_EXTERNAL_DISPLAY_PRIMS)
 		// This code is for testing direct drawing to the TFT display from MicroBlocks.
 		// Comes before NEZHA_ESP32 entry so it overrides if NEZHA_ESP32_DIRECT_DRAW is defined
 		// The NEZHA_ESP32 screen is 240 x 320 pixels minus title bar (0 or 28 pixels)
@@ -212,16 +214,18 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 
 		#include <NezhaMicroBlocks.h>
 
-		void tftInit() {
+		void tftInit() { } // don't initialize at startup
+
+		void nezhaTFTOpen() {
+			int topBarHeight = 28; // could be passed as a parameter
 			tftWidth = nezhaMB_CanvasWidth();
-			tftHeight = nezhaMB_CanvasHeight();
-			int topBarHeight = 320 - tftHeight;
+			tftHeight = 320 - topBarHeight;
 
 			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
 			tft = new Arduino_ST7789(bus, TFT_RST, 2, true,
 					tftWidth, tftHeight, 0, topBarHeight, 0, topBarHeight);
 			if (!tft->begin()) {
-				outputString("tftInit() failed!");
+				outputString("Nezha tftInit() failed!");
 			} else {
 				pinMode(TFT_BL, OUTPUT);
 				digitalWrite(TFT_BL, HIGH); // turn on backlight
@@ -229,6 +233,17 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 				useTFT = true;
 			}
 		}
+
+		void nezhaTFTClose() {
+			if (!tft) {
+				tftClear();
+				delete tft;
+			}
+			tftWidth = 0;
+			tftHeight = 0;
+			useTFT = false;
+		}
+
 		static void nezhaEndDrawing() { } // noop
 
 	#elif defined(NEZHA_ESP32)
@@ -1833,6 +1848,12 @@ OBJ primResumeUpdates(int argCount, OBJ *args) {
 }
 
 OBJ primInvertDisplay(int argCount, OBJ *args) {
+	#if defined(NEZHA_ESP32_DIRECT_DRAW)
+		// xxx testing: open Nezha TFT in direct draw mode
+		if (!tft) nezhaTFTOpen();
+		return falseObj;
+	#endif
+
 	if (!tft) return falseObj;
 	if (argCount < 1) return fail(notEnoughArguments);
 	int invertFlag = (args[0] == trueObj);

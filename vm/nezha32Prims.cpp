@@ -51,7 +51,11 @@ void addElecfreaksSensorPrims() {
 
 // Nezha ESP32 board hooks (see boardHooks.h). All run on the VM thread.
 
+void nezhaTFTClose();
+void nezhaTFTInit();
+
 void boardInit() {
+	nezhaTFTClose();
 	nezhaMB_BoardInit(); // start the board before the VM initializes
 	tftInit(); // the display canvas exists only once the board has started
 }
