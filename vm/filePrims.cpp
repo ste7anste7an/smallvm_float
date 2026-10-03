@@ -361,7 +361,9 @@ static String nextFileName(bool *isDir) {
 
 	*isDir = false; // default
 	#if defined(ESP32)
-		return fileListDir.getNextFileName(isDir); // returns empty string if no more entries
+		String path = fileListDir.getNextFileName(isDir); // returns empty string if no more entries
+		if (path.startsWith("/")) path.remove(0, 1); // report "sub/a.txt", not "/sub/a.txt"
+		return path;
 	#else
 		if (fileListDir.next()) { // returns false if no more entries
 			*isDir = fileListDir.isDirectory();
@@ -374,7 +376,7 @@ static String nextFileName(bool *isDir) {
 static OBJ primNextFileInList(int argCount, OBJ *args) {
 	bool isDir;
 	String fName = nextFileName(&isDir);
-	while (fName.length() && (isDir || (fName == "ublockscode") || (fName == "/ublockscode"))) {
+	while (fName.length() && (isDir || (fName == "ublockscode"))) {
 		fName = nextFileName(&isDir); // skip directories and MicroBlocks code store file
 	}
 	#if defined(ESP32)
