@@ -290,6 +290,7 @@ Menus.scriptingArea = {
 			label: 'paste all scripts from clipboard',
 			action: () => { GP.apiCall('scripts.paste'); },
 			hidden: () => {
+				readGPClipboard();
 				return GP.clipboardBytes.length == 0 ||
 					!clipboardText().startsWith('GP Scripts');
 			}
@@ -298,6 +299,7 @@ Menus.scriptingArea = {
 			label: 'paste script from clipboard',
 			action: () => { GP.apiCall('scripts.paste'); },
 			hidden: () => {
+				readGPClipboard();
 				return GP.clipboardBytes.length == 0 ||
 					!clipboardText().startsWith('GP Script\n');
 			}

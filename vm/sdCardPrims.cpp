@@ -66,12 +66,6 @@ SdFat SD;
 	#define MOSI_PIN 35
 	#define MISO_PIN 37
 	#define SCK_PIN 36
-#elif defined(STEAMakersS3)
-	#undef DEFAULT_CS_PIN
-	#define DEFAULT_CS_PIN 39
-	#define MOSI_PIN 35
-	#define MISO_PIN 36
-	#define SCK_PIN 37
 #endif
 
 // Variables
@@ -110,7 +104,17 @@ static void initSecondarySPI() {
 	#if defined(ARDUINO_ARCH_ESP32)
 		// Use HSPI SPI controller for ESP32 boards
 		secondarySPI = new SPIClass(HSPI);
-		secondarySPI->begin(); // Use default SCLK, MISO, MOSI, SS pins for HSPI
+		#if defined(STEAMakersAI)
+			// Use fixed SD card pins
+			#undef DEFAULT_CS_PIN
+			#define DEFAULT_CS_PIN 39
+			#define MOSI_PIN 35
+			#define MISO_PIN 36
+			#define SCK_PIN 37
+			secondarySPI->begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
+		#else
+			secondarySPI->begin(); // Use default SCLK, MISO, MOSI, SS pins for HSPI
+		#endif
 	#elif (SPI_INTERFACES_COUNT > 1) || defined(ARDUINO_ARCH_RP2040)
 		// Use SPI1 on boards that have it
 		secondarySPI = &SPI1;
@@ -132,9 +136,12 @@ static void initSDCard(int chipSelectPin) {
 		outputString("SD Card opened");
 	}
 	#else
-	#if defined(SPRINGBOT) || defined(STEAMakersS3)
+	#if defined(SPRINGBOT)
 		SPI.end();
 		SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
+	#elif defined(STEAMakersAI)
+		useSecondarySPI = true;
+		initSecondarySPI();
 	#endif
 	if (sdCardCSPin != chipSelectPin) {
 		if (chipSelectPin < 0) chipSelectPin = DEFAULT_CS_PIN;

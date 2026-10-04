@@ -468,6 +468,7 @@ typedef enum {
 	H75Prims,
 	EFPrims,			// Elecfreaks, supplied by their primitive package
 	EFDevSensorPrims,	// Elecfreaks, supplied by their primitive package
+	SoundPrims,
 	PrimitiveSetCount
 } PrimitiveSetIndex;
 
@@ -491,6 +492,7 @@ void addSDCardPrims();
 void addH75Prims();
 void addElecfreaksPrims();
 void addElecfreaksSensorPrims();
+void addSoundPrims();
 
 // Named Primitive Support
 
