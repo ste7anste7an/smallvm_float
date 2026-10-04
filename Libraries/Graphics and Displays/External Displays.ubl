@@ -1,6 +1,6 @@
 module 'External Displays' Output
 author MicroBlocks
-version 1 9 
+version 1 10 
 description 'This library supports connecting selected external displays to MicroBlocks boards.
 
 * Only selected display controllers are supported.
@@ -14,7 +14,7 @@ description 'This library supports connecting selected external displays to Micr
   spec ' ' '[tft:init7789]' 'attach ST7789 w _ h _ rotation _ #BR# dc pin _ cs pin _ backlight pin _ : #BR# reset pin _ invert colors _ BGR colors _ : #BR# x offset _ y offset _' 'num num num num num num num bool bool num num' 240 135 0 0 0 0 -1 false false 0 0
   spec ' ' '[tft:init7796]' 'attach ST7796 w _ h _ rotation _ #BR# dc pin _ cs pin _ backlight pin _ : #BR# reset pin _ invert colors _ BGR colors _ : #BR# x offset _ y offset _' 'num num num num num num num bool bool num num' 480 320 0 0 0 0 -1 false false 0 0
   spec ' ' '[tft:init9341]' 'attach ILI9341 rotation _ dc pin _ cs pin _ backlight pin _ : #BR# reset pin _ invert colors _' 'num num num num num bool' 0 0 0 0 -1 false
-  spec ' ' '[tft:init9A01]' 'attach GC9A01A rotation _ dc pin _ cs pin _ backlight pin _ : #BR# reset pin _ invert colors _' 'num num num num num bool' 0 0 0 0 -1 true
+  spec ' ' '[tft:init9A01]' 'attach GC9A01A rotation _ dc pin _ cs pin _ backlight pin _ : #BR# reset pin _ invert colors _' 'num num num num num bool' 0 0 0 0 -1 false
   spec ' ' '[tft:initOLED]' 'attach OLED w _ h _ : #BR# flip vertical _ : x offset _' 'num num bool num' 128 64 false 0
   spec ' ' '[tft:closeDisplay]' 'detach display'
   space
