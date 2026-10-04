@@ -2305,8 +2305,8 @@ static OBJ primInitGC9A01A(int argCount, OBJ *args) {
 	int csPin = mapDigitalPinNum(obj2int(args[2]));
 	int blPin = mapDigitalPinNum(obj2int(args[3]));
 	int rstPin = mapDigitalPinNum(((argCount > 4) && isInt(args[4])) ? obj2int(args[4]) : -1);
-	int invertDisplay = ((argCount < 6) || (args[5] == trueObj));
-
+//	int invertDisplay = ((argCount < 6) || (args[5] == trueObj));
+	int invertDisplay = ((argCount > 5) && (args[5] == trueObj)) ? false : true;
 	init_9A01(rotation, dcPin, csPin, blPin, rstPin, invertDisplay);
 	return falseObj;
 }
