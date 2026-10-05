@@ -74,8 +74,11 @@ to wifiConnect ssid password fixedIP gatewayIP subnetIP {
   _extwifi_connected = ('_extwifi_join' ssid password)
   setUserLED false
   if (and _extwifi_connected ((pushArgCount) >= 5)) {
-    '_extwifi_send' ('[data:join]' '+CIPSTA="' fixedIP '","' gatewayIP '","' subnetIP '"') 50
-    local 'ok' ('_extwifi_wait' 'OK' 2000)
+    comment 'A static address only when all three fields are filled, as the WiFi primitive does. Blank fields keep the DHCP lease.'
+    if (and (and ((size fixedIP) > 0) ((size gatewayIP) > 0)) ((size subnetIP) > 0)) {
+      '_extwifi_send' ('[data:join]' '+CIPSTA="' fixedIP '","' gatewayIP '","' subnetIP '"') 50
+      local 'ok' ('_extwifi_wait' 'OK' 2000)
+    }
   }
   local 'ip' ('_extwifi_ip')
   if (ip == '0.0.0.0') {
