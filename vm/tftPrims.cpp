@@ -1224,6 +1224,7 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			} else {
 				pinMode(TFT_BL, OUTPUT);
 				digitalWrite(TFT_BL, HIGH); // turn on backlight
+				backlightPin = TFT_BL;
 				tftWidth = TFT_WIDTH;
 				tftHeight = TFT_HEIGHT;
 				tftClear();

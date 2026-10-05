@@ -1,9 +1,15 @@
 #!/bin/bash
-echo "Querying latest electron version..."
-tag=`curl --silent -m 10 --connect-timeout 5 "https://api.github.com/repos/electron/electron/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/'`
+# We used to query the latest electron version, now we read it from
+# package.json, where we pin it and update it regularly.
+#echo "Querying latest electron version..."
+#tag=`curl --silent -m 10 --connect-timeout 5 "https://api.github.com/repos/electron/electron/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/'`
 
+electron_version=`grep "electron\":" package.json | sed -E "s/.*electron\": \"\^?(.*)\"/\1/"`
+tag="v$electron_version"
 system=$1
 version=$2
+
+echo "Building MicroBlocks v$version with electron version $electron_version for $system"
 
 if test -n "$version"; then
 	sed -i.bak -E "s/(.*version.*)\".*\"/\1\"$version\"/" package.json
