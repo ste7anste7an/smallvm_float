@@ -1110,6 +1110,8 @@ static void initNeoPixelPin(int pinNum) { // ESP32
 			pinNum = 39; // internal NeoPixel pin
 		#elif defined(NEZHA_ESP32)
 			pinNum = 8; // internal NeoPixel pin
+		#elif defined(STEAMakersAI)
+			pinNum = 45; // internal NeoPixel pin
 		#elif defined(ESP32_S3)
 			pinNum = 48; // ESP32-S3-DevKitC-1 internal NeoPixel pin
 		#elif defined(ESP32_C3)
@@ -1516,7 +1518,7 @@ void turnOffInternalNeoPixels() {
 		count = 3;
 	#elif defined(WUKONG2040)
 		count = 2;
-	#elif defined(ARDUINO_CALLIOPE_MINI) || defined(ARDUINO_NRF52840_CLUE)
+	#elif defined(ARDUINO_CALLIOPE_MINI) || defined(ARDUINO_NRF52840_CLUE) || defined(STEAMakersAI)
 		count = 1;
 	#elif defined(NEZHA_ESP32)
 		count = 3;

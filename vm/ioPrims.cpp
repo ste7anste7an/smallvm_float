@@ -1086,13 +1086,14 @@ void hardwareInit() {
 	#define TOTAL_PINS 49
 	static const int analogPin[] = {};
 	#define PIN_LED 45
-	#define PIN_BUTTON_A 18
+	#define NEOPIXEL_PIN_LED true
+	#define PIN_BUTTON_A 0
 	static const char reservedPin[TOTAL_PINS] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-		1, 1, 1, 0, 0, 1, 0, 0, 0};
+		1, 1, 0, 0, 0, 0, 0, 0, 0};
 
 #elif defined(ESP32_S3)
 	#define BOARD_TYPE "ESP32-S3"
