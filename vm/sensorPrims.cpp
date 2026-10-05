@@ -2758,7 +2758,12 @@ static int readDigitalMicrophone() {
 #include <driver/i2s.h>
 
 // I2S port and pins
+
+// This I2S_PORT is also used by the Arduino I2S library
+// However, only I2S_NUM_0 supports I2S_MODE_PDM so we have to use it.
+
 #define I2S_PORT I2S_NUM_0
+
 #if defined(DATABOT)
 	#define I2S_WS 19
 	#define I2S_SD 18

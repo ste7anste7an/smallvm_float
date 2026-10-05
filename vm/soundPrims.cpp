@@ -19,6 +19,161 @@
 #include "mem.h"
 #include "interp.h"
 
+// I2S Primitives
+
+#if !defined(ESP32)
+
+static OBJ primI2SStart(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SEnd(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SRead(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+
+#else
+
+#include <driver/i2s.h>
+
+#define I2S_BUF_SIZE 1024 // range: 8 to 4092
+
+// This I2S_PORT is also used by the microphone primitive.
+// However, only I2S_NUM_0 supports I2S_MODE_PDM so we have to use it.
+// TODO: Make the microphone code use this code to avoid an I2S device conflict.
+
+#define I2S_PORT I2S_NUM_0
+
+static int i2sRunning = false;
+
+static void stopI2S() {
+	if (i2sRunning) {
+		i2s_stop(I2S_PORT);
+		i2s_driver_uninstall(I2S_PORT);
+		i2sRunning = false;
+	}
+}
+
+static void startI2S(
+	int sampleRate, int isPDM,
+	int bitClockPin, int wordClockPin, int inputPin, int outputPin)
+{
+
+	if (i2sRunning) stopI2S(); // if running, stop the I2S driver
+
+	int mode = I2S_MODE_MASTER;
+	if (inputPin >= 0) mode |= I2S_MODE_RX;
+	if (outputPin >= 0) mode |= I2S_MODE_TX;
+	if (isPDM) mode |= I2S_MODE_PDM;
+
+// reportNum("sampleRate", sampleRate);
+// reportNum("isPDM", isPDM);
+// reportNum("bitClockPin", bitClockPin);
+// reportNum("wordClockPin", wordClockPin);
+// reportNum("inputPin", inputPin);
+// reportNum("outputPin", outputPin);
+// reportNum("mode", mode);
+
+	// configure I2S driver
+	const i2s_config_t i2s_config = {
+		.mode = i2s_mode_t(mode),
+		.sample_rate = sampleRate,
+		.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+		.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // I2S_CHANNEL_FMT_ONLY_RIGHT,
+		.communication_format = I2S_COMM_FORMAT_STAND_I2S,
+		.intr_alloc_flags = 0,
+		.dma_buf_count = 2,
+		.dma_buf_len = I2S_BUF_SIZE,
+		.use_apll = false
+	};
+	i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
+	i2s_pin_config_t pin_config = {
+		.bck_io_num = bitClockPin,
+		.ws_io_num = wordClockPin,
+		.data_out_num = outputPin,
+		.data_in_num = inputPin
+	};
+	i2s_set_pin(I2S_PORT, &pin_config);
+
+	// start I2S driver
+	i2s_start(I2S_PORT);
+	i2sRunning = true;
+}
+
+static OBJ primI2SStart(int argCount, OBJ *args) {
+	// I2S needs two clock pins pins and either an input pin, and output pin, or both.
+	// args[0]: sample rate
+	// args[1]: bit clock (BCK / SCK / CLK)
+	// args[2]: left/right word clock (LRCK / WS)
+	// args[3]: input pin (DATA / SD)
+	// args[4]: output pin (DATA / SD)
+	// args[5] (optional): device uses PDM (pulse density modulation)
+
+	if (!isInt(args[0])) fail(needsIntegerError);
+
+	// optional pin args
+	if ((argCount > 4) &&
+		!(isInt(args[1]) && isInt(args[2]) && isInt(args[3]) && isInt(args[4]))) {
+			fail(needsIntegerError);
+	}
+
+	int sampleRate = obj2int(args[0]);
+	int clockPin = mapDigitalPinNum(obj2int(args[1]));
+	int wordClockPin = mapDigitalPinNum(obj2int(args[2]));
+	int inputPin = mapDigitalPinNum(obj2int(args[3]));
+	int outputPin = mapDigitalPinNum(obj2int(args[4]));
+	int isPDM = (argCount > 5) && args[5] == trueObj;
+
+	if (inputOnlyPin(clockPin) || inputOnlyPin(wordClockPin)) {
+		outputString("Pin is input only");
+		return fail(badPinError);
+	}
+
+	if (sampleRate < 10000) sampleRate = sampleRate; // minimum sample rates on ESP32 is 10000!
+	startI2S(sampleRate, isPDM, clockPin, wordClockPin, inputPin, outputPin);
+	return falseObj;
+}
+
+static OBJ primI2SEnd(int argCount, OBJ *args) {
+	stopI2S();
+	return falseObj;
+}
+
+static OBJ primI2SRead(int argCount, OBJ *args) {
+	// Read sound samples into the given list up to the maximum capacity of the list
+	// and set the list length to the number of samples read.
+	// The optional second argument allows the caller to select only the left or right channel.
+	// By default the two channels are mixed.
+	// The result is always a monophonic list of 16-bit integers.
+	// args[0] - where to put the data
+	// args[1] (optional) - which channel to return 0 (default) - both (mixed), 1 - left, 2 - right
+
+	if (argCount < 1) return fail(notEnoughArguments);
+	if (!IS_TYPE(args[0], ListType)) return fail(needsListError);
+	OBJ list = args[0];
+	int listCapacity = objWords(list) - 1; // maximum capacity of list
+
+	uint8_t which = ((argCount > 1) && isInt(args[1])) ? obj2int(args[1]) : 0;
+	if (which > 2) which = 2; // which is 0 (mix), 1 (left), or 2 (right)
+
+	uint8_t buf[1024];
+	size_t maxBytes = 4 * listCapacity;
+	if (maxBytes > sizeof(buf)) maxBytes = sizeof(buf);
+
+	size_t bytesRead = 0;
+    esp_err_t err = i2s_read(I2S_NUM_0, buf, maxBytes, &bytesRead, 1);
+	int count = bytesRead / 4;
+	for (int i = 0; i < count; i++) {
+		int16_t *sample = (int16_t *) &buf[4 * i];
+		int out;
+		if (1 == which) out = sample[0];
+		else if (2 == which) out = sample[1];
+		else out = (sample[0] + sample[1]) / 2;  // mix left and right channels
+		FIELD(list, i + 1) = int2obj(out);
+	}
+	FIELD(list, 0) = int2obj(count);
+	return falseObj;
+}
+
+#endif
+
+// DSP Primitives
+
 #if defined(NRF51) // not enough RAM
 
 static OBJ primFFT(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
@@ -414,11 +569,14 @@ static OBJ primGoertzel(int argCount, OBJ *args) {
 	return falseObj;
 }
 
-#endif // NRF51
+#endif // ! defined(NRF51)
 
 // Primitives
 
 static PrimEntry entries[] = {
+	{"i2sBegin", primI2SStart},
+	{"i2sEnd", primI2SEnd},
+	{"i2sRead", primI2SRead},
 	{"fft", primFFT},
 	{"pitch", primPitch},
 	{"goertzel", primGoertzel},
