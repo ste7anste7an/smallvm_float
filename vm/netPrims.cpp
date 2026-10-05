@@ -59,6 +59,8 @@
 	#define ESP_NOW 1
 #endif
 
+int wifiActive = false;
+
 #if defined(ESP8266) || defined(ARDUINO_ARCH_ESP32) || defined(USE_WIFI101) || defined(PICO_WIFI)
 
 static char connecting = false;
@@ -122,6 +124,7 @@ static OBJ primStartWiFi(int argCount, OBJ *args) {
 	char *networkName = obj2str(args[0]);
 	char *password = obj2str(args[1]);
 
+	wifiActive = true;
 	serverStarted = false;
 
 	if ((argCount > 5) &&
@@ -174,6 +177,8 @@ static OBJ primStopWiFi(int argCount, OBJ *args) {
 	#endif
 	connecting = false;
 	esp_now_started = false;
+
+	wifiActive = false;
 	return falseObj;
 }
 

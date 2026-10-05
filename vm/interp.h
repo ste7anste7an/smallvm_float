@@ -322,6 +322,7 @@ void writeI2CReg(int deviceID, int reg, int value);
 
 extern int mbDisplayColor;
 extern int resetDoubleTap;
+extern int wifiActive;
 
 int pinCount();
 int mapDigitalPinNum(int userPinNum);

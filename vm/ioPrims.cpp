@@ -3539,7 +3539,9 @@ static OBJ primSquareWave(int argCount, OBJ *args) {
 		#if defined(ESP32_S2) || defined(ESP32_C3) || defined(ESP32_C6)
 			setCpuFrequencyMhz(80); // lowest safe clock speed on S2, C3, and C6 is 80 MHz
 		#else
-			setCpuFrequencyMhz(bleRunning ? 80 : 10); // must use 80 MHz if BLE is enabled
+			int lowCPUFrequency = 10; // use 10 MHz if possible for maximum power savings
+			if (bleRunning || wifiActive) lowCPUFrequency = 80; // must use 80 MHz
+			setCpuFrequencyMhz(lowCPUFrequency); //
 		#endif
 
 		delay(msecs);
