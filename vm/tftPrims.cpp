@@ -329,6 +329,9 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			useTFT = true;
 		}
 
+		void nezhaTFTOpen() { } // stub
+		void nezhaTFTClose() { } // stub
+
 	#elif defined(ARDUINO_M5Stick_Plus)
 		#define TFT_CS		5
 		#define TFT_DC		23
