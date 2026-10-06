@@ -21,23 +21,18 @@
 
 // I2S Primitives
 
-#if !defined(ESP32)
-
-static OBJ primI2SStart(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
-static OBJ primI2SEnd(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
-static OBJ primI2SRead(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
-
-#else
+#if defined(ESP32)
 
 #include <driver/i2s.h>
 
-#define I2S_BUF_SIZE 1024 // range: 8 to 4092
+#define HAS_I2S 1
 
-// This I2S_PORT is also used by the microphone primitive.
-// However, only I2S_NUM_0 supports I2S_MODE_PDM so we have to use it.
+// NOTE: I2S_PORT 0 is also used by the microphone primitive in sensorPrims.cpp.
+// However, only I2S_NUM_0 supports I2S_MODE_PDM so we have to use it here.
 // TODO: Make the microphone code use this code to avoid an I2S device conflict.
-
 #define I2S_PORT I2S_NUM_0
+
+#define I2S_BUF_SIZE 1024 // buffer size in bytes; range is 8 to 1024
 
 static int i2sRunning = false;
 
@@ -51,8 +46,7 @@ static void stopI2S() {
 
 static void startI2S(
 	int sampleRate, int isPDM,
-	int bitClockPin, int wordClockPin, int inputPin, int outputPin)
-{
+	int bitClockPin, int wordClockPin, int inputPin, int outputPin) {
 
 	if (i2sRunning) stopI2S(); // if running, stop the I2S driver
 
@@ -61,23 +55,23 @@ static void startI2S(
 	if (outputPin >= 0) mode |= I2S_MODE_TX;
 	if (isPDM) mode |= I2S_MODE_PDM;
 
-// reportNum("sampleRate", sampleRate);
-// reportNum("isPDM", isPDM);
-// reportNum("bitClockPin", bitClockPin);
-// reportNum("wordClockPin", wordClockPin);
-// reportNum("inputPin", inputPin);
-// reportNum("outputPin", outputPin);
-// reportNum("mode", mode);
+reportNum("sampleRate", sampleRate);
+reportNum("isPDM", isPDM);
+reportNum("bitClockPin", bitClockPin);
+reportNum("wordClockPin", wordClockPin);
+reportNum("inputPin", inputPin);
+reportNum("outputPin", outputPin);
+reportNum("mode", mode);
 
 	// configure I2S driver
 	const i2s_config_t i2s_config = {
 		.mode = i2s_mode_t(mode),
 		.sample_rate = sampleRate,
 		.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-		.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // I2S_CHANNEL_FMT_ONLY_RIGHT,
+		.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // I2S device always captures stereo
 		.communication_format = I2S_COMM_FORMAT_STAND_I2S,
 		.intr_alloc_flags = 0,
-		.dma_buf_count = 2,
+		.dma_buf_count = 3,
 		.dma_buf_len = I2S_BUF_SIZE,
 		.use_apll = false
 	};
@@ -95,6 +89,85 @@ static void startI2S(
 	i2sRunning = true;
 }
 
+static int i2sReadBytes(uint8_t *buffer, int maxBytes) {
+	// Read I2S input data into the given buffer and return the number of bytes read.
+
+	if (!i2sRunning) return 0;
+	size_t bytesRead = 0;
+    esp_err_t err = i2s_read(I2S_NUM_0, buffer, maxBytes, &bytesRead, 0);
+    return (int) bytesRead;
+}
+
+static int i2sWriteBytes(void *buffer, int byteCount) {
+	// Write the given buffer to the I2S output device and return the number of bytes written.
+
+	if (!i2sRunning) return 0;
+	size_t bytesWritten = 0;
+	esp_err_t err = i2s_write(I2S_NUM_0, buffer, byteCount, &bytesWritten, 0);
+	return bytesWritten;
+}
+
+#elif defined(ARDUINO_ARCH_RP2040)
+
+#include <I2S.h>
+
+#define HAS_I2S 1
+#define I2S_BUF_SIZE 1024 // buffer size in bytes
+
+I2S i2s(INPUT_PULLUP); // bidirectional capable mode
+static int i2sRunning = false;
+
+static void stopI2S() {
+	if (i2sRunning) {
+		i2s.end();
+		i2sRunning = false;
+	}
+}
+
+static void startI2S(
+	int sampleRate, int isPDM,
+	int bitClockPin, int wordClockPin, int inputPin, int outputPin) {
+
+	// sanity checks
+	if ((inputPin < 0) && (outputPin < 0)) return;
+	if (wordClockPin != (bitClockPin + 1)) {
+		outputString("word clock pin is always bitClockPin + 1 on Pico/Pico2");
+	}
+
+	if (sampleRate < 8000) sampleRate = 8000;
+	i2s.setFrequency(sampleRate);
+	i2s.setBitsPerSample(16);
+	i2s.setBuffers(3, I2S_BUF_SIZE);
+	i2s.setBCLK(bitClockPin); // note: word clock pin is always bitClockPin + 1
+	if (inputPin < 0) {
+		i2s.setDATA(outputPin);
+	} else if (outputPin < 0) {
+		i2s.setDATA(inputPin);
+	} else {
+		i2s.setDIN(inputPin);
+		i2s.setDOUT(outputPin);
+	}
+	i2s.begin();
+}
+
+static int i2sReadBytes(uint8_t *buffer, int maxBytes) {
+	// Read I2S input data into the given buffer and return the number of bytes read.
+
+	if (!i2sRunning) return 0;
+	return i2s.read(buffer, maxBytes);
+}
+
+static int i2sWriteBytes(uint8_t *buffer, int maxBytes) {
+	// Write the given buffer to the I2S output device and return the number of bytes written.
+
+	if (!i2sRunning) return 0;
+	return i2s.read(buffer, maxBytes);
+}
+
+#endif
+
+#if defined(HAS_I2S)
+
 static OBJ primI2SStart(int argCount, OBJ *args) {
 	// I2S needs two clock pins pins and either an input pin, and output pin, or both.
 	// args[0]: sample rate
@@ -102,7 +175,7 @@ static OBJ primI2SStart(int argCount, OBJ *args) {
 	// args[2]: left/right word clock (LRCK / WS)
 	// args[3]: input pin (DATA / SD)
 	// args[4]: output pin (DATA / SD)
-	// args[5] (optional): device uses PDM (pulse density modulation)
+	// args[5] (optional): true if device uses PDM (pulse density modulation)
 
 	if (!isInt(args[0])) fail(needsIntegerError);
 
@@ -135,8 +208,7 @@ static OBJ primI2SEnd(int argCount, OBJ *args) {
 }
 
 static OBJ primI2SRead(int argCount, OBJ *args) {
-	// Read sound samples into the given list up to the maximum capacity of the list
-	// and set the list length to the number of samples read.
+	// Read samples into the given list and set list size to the number of samples read.
 	// The optional second argument allows the caller to select only the left or right channel.
 	// By default the two channels are mixed.
 	// The result is always a monophonic list of 16-bit integers.
@@ -148,27 +220,58 @@ static OBJ primI2SRead(int argCount, OBJ *args) {
 	OBJ list = args[0];
 	int listCapacity = objWords(list) - 1; // maximum capacity of list
 
-	uint8_t which = ((argCount > 1) && isInt(args[1])) ? obj2int(args[1]) : 0;
-	if (which > 2) which = 2; // which is 0 (mix), 1 (left), or 2 (right)
+	int whichChannel = ((argCount > 1) && isInt(args[1])) ? obj2int(args[1]) : 0;
+	if (whichChannel > 2) whichChannel = 2; // whichChannel is 0 (mix), 1 (left), or 2 (right)
 
 	uint8_t buf[1024];
 	size_t maxBytes = 4 * listCapacity;
 	if (maxBytes > sizeof(buf)) maxBytes = sizeof(buf);
 
-	size_t bytesRead = 0;
-    esp_err_t err = i2s_read(I2S_NUM_0, buf, maxBytes, &bytesRead, 1);
+	size_t bytesRead = i2sReadBytes(buf, maxBytes);
 	int count = bytesRead / 4;
 	for (int i = 0; i < count; i++) {
 		int16_t *sample = (int16_t *) &buf[4 * i];
 		int out;
-		if (1 == which) out = sample[0];
-		else if (2 == which) out = sample[1];
+		if (1 == whichChannel) out = sample[0];
+		else if (2 == whichChannel) out = sample[1];
 		else out = (sample[0] + sample[1]) / 2;  // mix left and right channels
 		FIELD(list, i + 1) = int2obj(out);
 	}
 	FIELD(list, 0) = int2obj(count);
 	return falseObj;
 }
+
+#define I2S_OUT_BUF_SAMPLES 256 // number of samples in temporary output buffer
+
+static OBJ primI2SWrite(int argCount, OBJ *args) {
+	// Write samples from the given list to the I2S output device and return the
+	// number of samples written. Each sample will be written to both stereo channels.
+
+	if (argCount < 1) return fail(notEnoughArguments);
+	if (!IS_TYPE(args[0], ListType)) return fail(needsListError);
+	OBJ list = args[0];
+	int sampleCount = obj2int(FIELD(list, 0)); // number of samples in the list
+
+	int16_t buf[2 * I2S_OUT_BUF_SAMPLES]; // buf is stereo; two 16-bit integers per sample
+	if (sampleCount > I2S_OUT_BUF_SAMPLES) sampleCount = I2S_OUT_BUF_SAMPLES;
+
+	for (int i = 0; i < sampleCount; i++) {
+		int sample = obj2int(FIELD(list, i + 1));
+		if (sample > 32767) sample = 32767;
+		if (sample < -32768) sample = -32768;
+		buf[2 * i] = sample; // left
+		buf[(2 * i) + 1] = sample; // right
+	}
+	int written = i2sWriteBytes(buf, sizeof(buf));
+	return int2obj(written / 4); // return the number of samples written (4 bytes per sample)
+}
+
+#else
+
+static OBJ primI2SStart(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SEnd(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SRead(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SWrite(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 
 #endif
 
@@ -577,6 +680,7 @@ static PrimEntry entries[] = {
 	{"i2sBegin", primI2SStart},
 	{"i2sEnd", primI2SEnd},
 	{"i2sRead", primI2SRead},
+	{"i2sWrite", primI2SWrite},
 	{"fft", primFFT},
 	{"pitch", primPitch},
 	{"goertzel", primGoertzel},
