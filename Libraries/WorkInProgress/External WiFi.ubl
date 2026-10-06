@@ -1,6 +1,6 @@
 module 'External WiFi' Comm
 author MicroBlocks
-version 0 2
+version 0 3
 implements WiFi
 tags communication network wifi esp-at calliope
 description 'Connect to a WiFi network through an external ESP-AT WiFi module on two serial pins, such as the Calliope WiFi module (ESP32-C3, ESP-AT 3.3). Use it on boards without WiFi, for example a micro:bit or Calliope mini.
@@ -107,8 +107,6 @@ to wifiCreateHotspot ssid password {
   }
   '_extwifi_send' '+CWMODE=2' 50
   local 'ok' ('_extwifi_wait' 'OK' 1000)
-  '_extwifi_send' '+RFPOWER=40' 50
-  ok = ('_extwifi_wait' 'OK' 500)
   comment 'Channel 1, WPA2'
   '_extwifi_send' ('[data:join]' '+CWSAP="' ssid '","' password '",1,3') 100
   _extwifi_connected = ('_extwifi_wait' 'OK' 5000)
@@ -223,9 +221,6 @@ to '_extwifi_init' {
 to '_extwifi_join' ssid password {
   '_extwifi_send' '+CWMODE=1' 50
   if (not ('_extwifi_wait' 'OK' 1000)) {return false}
-  comment 'Reduced transmit power: 40 is the lowest setting ESP-AT accepts, and our test C3 only joined with it. A module without this command answers ERROR, which is harmless.'
-  '_extwifi_send' '+RFPOWER=40' 50
-  local 'ok' ('_extwifi_wait' 'OK' 500)
   '_extwifi_send' ('[data:join]' '+CWJAP="' ssid '","' password '"') 500
   comment 'OK comes after WIFI GOT IP; DHCP can take 10 seconds'
   return ('_extwifi_wait' 'OK' 20000 'FAIL')
