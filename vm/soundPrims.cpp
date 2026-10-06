@@ -32,7 +32,10 @@
 // TODO: Make the microphone code use this code to avoid an I2S device conflict.
 #define I2S_PORT I2S_NUM_0
 
-#define I2S_BUF_SIZE 1024 // buffer size in bytes; range is 8 to 1024
+// ESP32 buffer size in samples
+// The theoretical maximumize, based on the DMA descriptor limit, is 1023 samples
+// However, anything larger than 800 samples results in clicks. 512 seems safe.
+#define ESP_BUF_SIZE 512
 
 static int i2sRunning = false;
 
@@ -55,13 +58,14 @@ static void startI2S(
 	if (outputPin >= 0) mode |= I2S_MODE_TX;
 	if (isPDM) mode |= I2S_MODE_PDM;
 
-reportNum("sampleRate", sampleRate);
-reportNum("isPDM", isPDM);
-reportNum("bitClockPin", bitClockPin);
-reportNum("wordClockPin", wordClockPin);
-reportNum("inputPin", inputPin);
-reportNum("outputPin", outputPin);
-reportNum("mode", mode);
+// xxx for debugging
+// reportNum("sampleRate", sampleRate);
+// reportNum("isPDM", isPDM);
+// reportNum("bitClockPin", bitClockPin);
+// reportNum("wordClockPin", wordClockPin);
+// reportNum("inputPin", inputPin);
+// reportNum("outputPin", outputPin);
+// reportNum("mode", mode);
 
 	// configure I2S driver
 	const i2s_config_t i2s_config = {
@@ -71,9 +75,10 @@ reportNum("mode", mode);
 		.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // I2S device always captures stereo
 		.communication_format = I2S_COMM_FORMAT_STAND_I2S,
 		.intr_alloc_flags = 0,
-		.dma_buf_count = 3,
-		.dma_buf_len = I2S_BUF_SIZE,
-		.use_apll = false
+		.dma_buf_count = 3, // minimum is 3
+		.dma_buf_len = ESP_BUF_SIZE,
+		.use_apll = false,
+		.tx_desc_auto_clear = true,
 	};
 	i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
 	i2s_pin_config_t pin_config = {
@@ -98,7 +103,7 @@ static int i2sReadBytes(uint8_t *buffer, int maxBytes) {
     return (int) bytesRead;
 }
 
-static int i2sWriteBytes(void *buffer, int byteCount) {
+static int i2sWriteBytes(const uint8_t *buffer, int byteCount) {
 	// Write the given buffer to the I2S output device and return the number of bytes written.
 
 	if (!i2sRunning) return 0;
@@ -112,7 +117,7 @@ static int i2sWriteBytes(void *buffer, int byteCount) {
 #include <I2S.h>
 
 #define HAS_I2S 1
-#define I2S_BUF_SIZE 1024 // buffer size in bytes
+#define PICO_BUF_SIZE 512 // buffer size in samples
 
 I2S i2s(INPUT_PULLUP); // bidirectional capable mode
 static int i2sRunning = false;
@@ -137,7 +142,7 @@ static void startI2S(
 	if (sampleRate < 8000) sampleRate = 8000;
 	i2s.setFrequency(sampleRate);
 	i2s.setBitsPerSample(16);
-	i2s.setBuffers(3, I2S_BUF_SIZE);
+	i2s.setBuffers(3, PICO_BUF_SIZE);
 	i2s.setBCLK(bitClockPin); // note: word clock pin is always bitClockPin + 1
 	if (inputPin < 0) {
 		i2s.setDATA(outputPin);
@@ -157,11 +162,11 @@ static int i2sReadBytes(uint8_t *buffer, int maxBytes) {
 	return i2s.read(buffer, maxBytes);
 }
 
-static int i2sWriteBytes(uint8_t *buffer, int maxBytes) {
+static int i2sWriteBytes(const uint8_t *buffer, int byteCount) {
 	// Write the given buffer to the I2S output device and return the number of bytes written.
 
 	if (!i2sRunning) return 0;
-	return i2s.read(buffer, maxBytes);
+	return i2s.write(buffer, byteCount);
 }
 
 #endif
@@ -241,7 +246,7 @@ static OBJ primI2SRead(int argCount, OBJ *args) {
 	return falseObj;
 }
 
-#define I2S_OUT_BUF_SAMPLES 256 // number of samples in temporary output buffer
+#define I2S_OUT_BUF_SAMPLES 128 // number of samples in temporary output buffer
 
 static OBJ primI2SWrite(int argCount, OBJ *args) {
 	// Write samples from the given list to the I2S output device and return the
@@ -250,7 +255,11 @@ static OBJ primI2SWrite(int argCount, OBJ *args) {
 	if (argCount < 1) return fail(notEnoughArguments);
 	if (!IS_TYPE(args[0], ListType)) return fail(needsListError);
 	OBJ list = args[0];
-	int sampleCount = obj2int(FIELD(list, 0)); // number of samples in the list
+	int listSize = obj2int(FIELD(list, 0)); // number of samples in the list
+	int startIndex =  ((argCount > 1) && isInt(args[1])) ? obj2int(args[1]) : 1;
+
+	int sampleCount = (listSize - startIndex) + 1;
+	if (sampleCount < 0) return zeroObj;
 
 	int16_t buf[2 * I2S_OUT_BUF_SAMPLES]; // buf is stereo; two 16-bit integers per sample
 	if (sampleCount > I2S_OUT_BUF_SAMPLES) sampleCount = I2S_OUT_BUF_SAMPLES;
@@ -262,7 +271,7 @@ static OBJ primI2SWrite(int argCount, OBJ *args) {
 		buf[2 * i] = sample; // left
 		buf[(2 * i) + 1] = sample; // right
 	}
-	int written = i2sWriteBytes(buf, sizeof(buf));
+	int written = i2sWriteBytes((const uint8_t *) buf, 4 * sampleCount);
 	return int2obj(written / 4); // return the number of samples written (4 bytes per sample)
 }
 
