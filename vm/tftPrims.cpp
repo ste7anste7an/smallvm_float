@@ -217,6 +217,7 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		void tftInit() { } // don't initialize at startup
 
 		void nezhaTFTOpen() {
+			delay(100); // allow time for last Nezha display update to complete (min 50 msecs)
 			int topBarHeight = 28; // could be passed as a parameter
 			tftWidth = nezhaMB_CanvasWidth();
 			tftHeight = 320 - topBarHeight;
