@@ -265,7 +265,7 @@ static OBJ primI2SWrite(int argCount, OBJ *args) {
 	if (sampleCount > I2S_OUT_BUF_SAMPLES) sampleCount = I2S_OUT_BUF_SAMPLES;
 
 	for (int i = 0; i < sampleCount; i++) {
-		int sample = obj2int(FIELD(list, i + 1));
+		int sample = obj2int(FIELD(list, i + startIndex));
 		if (sample > 32767) sample = 32767;
 		if (sample < -32768) sample = -32768;
 		buf[2 * i] = sample; // left
