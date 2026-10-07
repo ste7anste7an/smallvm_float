@@ -33,8 +33,7 @@
 #define I2S_PORT I2S_NUM_0
 
 // ESP32 buffer size in samples
-// The theoretical maximumize, based on the DMA descriptor limit, is 1023 samples
-// However, anything larger than 800 samples results in clicks. 512 seems safe.
+// The theoretical maximumize, based on the DMA descriptor limit, is 1023 samples.
 #define ESP_BUF_SIZE 512
 
 static int i2sRunning = false;
@@ -57,15 +56,6 @@ static void startI2S(
 	if (inputPin >= 0) mode |= I2S_MODE_RX;
 	if (outputPin >= 0) mode |= I2S_MODE_TX;
 	if (isPDM) mode |= I2S_MODE_PDM;
-
-// xxx for debugging
-// reportNum("sampleRate", sampleRate);
-// reportNum("isPDM", isPDM);
-// reportNum("bitClockPin", bitClockPin);
-// reportNum("wordClockPin", wordClockPin);
-// reportNum("inputPin", inputPin);
-// reportNum("outputPin", outputPin);
-// reportNum("mode", mode);
 
 	// configure I2S driver
 	const i2s_config_t i2s_config = {
@@ -180,7 +170,8 @@ static OBJ primI2SStart(int argCount, OBJ *args) {
 	// args[2]: left/right word clock (LRCK / WS)
 	// args[3]: input pin (DATA / SD)
 	// args[4]: output pin (DATA / SD)
-	// args[5] (optional): true if device uses PDM (pulse density modulation)
+	// args[5] (optional): true if device uses PDM (pulse density modulation
+	// Note: PDM decoding is available on ESP32 only
 
 	if (!isInt(args[0])) fail(needsIntegerError);
 
@@ -213,23 +204,30 @@ static OBJ primI2SEnd(int argCount, OBJ *args) {
 }
 
 static OBJ primI2SRead(int argCount, OBJ *args) {
-	// Read samples into the given list and set list size to the number of samples read.
-	// The optional second argument allows the caller to select only the left or right channel.
-	// By default the two channels are mixed.
+	// Read samples into the given list and set the list size to the number of samples read.
 	// The result is always a monophonic list of 16-bit integers.
-	// args[0] - where to put the data
+	// The optional second argument allows the caller to select the stereo channel
+	// to read: 1 - left, 2 - right, 0 (the default) - both channels mixed.
+	// The optional third argument allows the caller to limit the number of samples to read.
+	// args[0] - list in which samples will be stored
 	// args[1] (optional) - which channel to return 0 (default) - both (mixed), 1 - left, 2 - right
+	// args[2] (optional) - maximum samples to read (default is the capacity of the list)
 
 	if (argCount < 1) return fail(notEnoughArguments);
 	if (!IS_TYPE(args[0], ListType)) return fail(needsListError);
 	OBJ list = args[0];
 	int listCapacity = objWords(list) - 1; // maximum capacity of list
+	FIELD(list, 0) = zeroObj; // clear the list
 
 	int whichChannel = ((argCount > 1) && isInt(args[1])) ? obj2int(args[1]) : 0;
 	if (whichChannel > 2) whichChannel = 2; // whichChannel is 0 (mix), 1 (left), or 2 (right)
 
+	int samplesToRead = ((argCount > 2) && isInt(args[2])) ? obj2int(args[2]) : listCapacity;
+	if (samplesToRead <= 0) return falseObj;
+	if (samplesToRead > listCapacity) samplesToRead = listCapacity;
+
 	uint8_t buf[1024];
-	size_t maxBytes = 4 * listCapacity;
+	size_t maxBytes = 4 * samplesToRead;
 	if (maxBytes > sizeof(buf)) maxBytes = sizeof(buf);
 
 	size_t bytesRead = i2sReadBytes(buf, maxBytes);
@@ -251,12 +249,17 @@ static OBJ primI2SRead(int argCount, OBJ *args) {
 static OBJ primI2SWrite(int argCount, OBJ *args) {
 	// Write samples from the given list to the I2S output device and return the
 	// number of samples written. Each sample will be written to both stereo channels.
+	// args[0] - list of samples to write
+	// args[1] - index (1-based) of the first sample to write
 
 	if (argCount < 1) return fail(notEnoughArguments);
 	if (!IS_TYPE(args[0], ListType)) return fail(needsListError);
 	OBJ list = args[0];
 	int listSize = obj2int(FIELD(list, 0)); // number of samples in the list
+
 	int startIndex =  ((argCount > 1) && isInt(args[1])) ? obj2int(args[1]) : 1;
+	if (startIndex < 1) startIndex = 1;
+	if (startIndex > listSize) return zeroObj;
 
 	int sampleCount = (listSize - startIndex) + 1;
 	if (sampleCount < 0) return zeroObj;
