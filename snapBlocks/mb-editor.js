@@ -468,10 +468,14 @@ class MB_Editor {
 	}
 
 	applyUserPreferences() {
-		// Recolour and refill for a preference that changes the canvas, and
-		// leave the user on the library or category they were showing. Only a
-		// selection that is no longer there falls back.
+		// Resize, recolour and refill for a preference that changes the canvas,
+		// and leave the user on the library or category they were showing. Only
+		// a selection that is no longer there falls back.
 
+		const percent = this.readUserPreferences().blockSizePercent;
+		if (typeof percent === 'number' && Number.isFinite(percent)) {
+			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
+		}
 		this.applyDarkMode();
 		this.tellIDE('libraryList', this.libraryList());
 		const showing = this.library ? this.project.libraryNamed(this.library) : this.category;
@@ -1030,9 +1034,9 @@ console.log('unknown');
 
 	visibleVars() {
 		// The globals the palette offers. A name starting with an underscore is a
-		// library's own working variable and is not shown.
+		// library's own working variable, shown only with implementation blocks.
 
-		return this.project.allVariableNames().filter((v) => !v.startsWith('_'));
+		return this.project.allVariableNames().filter((v) => this.showHiddenBlocks() || !v.startsWith('_'));
 	}
 
 	async promptForVariable() {
@@ -1434,13 +1438,6 @@ console.log('unknown');
 		}
 	}
 
-	applyUserPreferences() {
-		const percent = this.readUserPreferences().blockSizePercent;
-		if (typeof percent === 'number' && Number.isFinite(percent)) {
-			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
-		}
-	}
-
 	// File operations
 
 	async canReplaceCurrentProject() {
@@ -1713,7 +1710,7 @@ console.log('unknown');
 		// Act on a file by its extension: a project or a library.
 
 		const name = fileName.toLowerCase();
-		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName);
+		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
 		else if (name.endsWith('.ubl')) {
 			if (await this.importLibraryFromString(data, fileName)) {
 				await this.codeManager.saveAllChunksAfterLoad();
