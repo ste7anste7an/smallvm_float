@@ -68,7 +68,7 @@ class MB_CodeManager {
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
 
-	async stopAndSyncScripts(alreadyStopped) {
+	async stopAndSyncScripts(alreadyStopped, forceRecompile) {
 		// Stop, then a soft reset, then sync, as GP's stopAndSyncScripts does. The VM
 		// clears its memory and variables on the reset, which stopAllMsg alone does not.
 		if (MB_connection.isConnected() && (alreadyStopped !== true)) {
@@ -76,6 +76,12 @@ class MB_CodeManager {
 			MB_connection.sendMsg('systemResetMsg');
 		}
 		MB_editor.clearRunningHighlights();
+		if (true === forceRecompile) {
+			// Shift-Stop. Not only a recompile: saveAllChunks also stops skipping
+			// functions whose definitions are not in the scripting area, so this is
+			// what puts a stale hidden function right.
+			this.recompileAll = true;
+		}
 		// Check the board's CRCs as well, with code file updates held off during the sync.
 		await MB_connection.suspendCodeFileUpdates();
 		await this.syncScripts(true);

@@ -299,12 +299,15 @@ class MB_Project {
 	}
 
 	addVariable(newVar) {
+		const existed = this.main.variableNames.includes(newVar);
 		this.main.addVariable(newVar);
+		if (!existed && this.onVariableChange) this.onVariableChange();
 	}
 
 	deleteVariable(varName) {
 		this.main.deleteVariable(varName);
 		for (const lib of this.libraries.values()) lib.deleteVariable(varName);
+		if (this.onVariableChange) this.onVariableChange();
 	}
 
 	indexForVar(varName) {

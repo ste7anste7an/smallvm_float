@@ -60,7 +60,9 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		case 'ide.stopAll':
-			MB_editor.stopAll();
+			// params[0] is shift, from the button's own click event. Anything
+			// that is not true, a missing argument included, is not shift.
+			MB_editor.stopAll(true === params[0]);
 			callback(0);
 			break;
 		case 'ide.updateConnection':
@@ -84,12 +86,18 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 
-		// The following entry points are not yet implemented (noops):
-		case 'board.downloadFile':
+		// Not implemented, but answered: a caller that waits for a reply and never
+		// gets one waits for ever, and windows.js nests one call inside another.
 		case 'board.installVM':
 		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
-			break; // do nothing for now
+			callback(0);
+			break;
+		case 'board.downloadFile':
+			// Answer, then act: the download waits on a menu and the board.
+			callback(0);
+			MB_editor.downloadFileFromBoard();
+			break;
 		case 'board.retrieveProject':
 			// GP answers before acting (MicroBlocksAPI.gp:112). openFromBoard
 			// clears the project and waits for the NEXT board to connect; it does
@@ -97,11 +105,25 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.openFromBoard();
 			break;
-		case 'board.toggleBLE':
-		case 'board.uploadFile':
-		case 'edit.redo':
 		case 'edit.undo':
-			callback(0); // not implemented yet, but every request gets its reply
+			MB_editor.undo();
+			callback(0);
+			break;
+		case 'edit.redo':
+			MB_editor.redo();
+			callback(0);
+			break;
+		case 'ide.applyUserPreferences':
+			callback(0);
+			MB_editor.applyUserPreferences();
+			break;
+		case 'board.toggleBLE':
+			callback(0);
+			MB_editor.toggleBLE();
+			break;
+		case 'board.uploadFile':
+			callback(0);
+			MB_editor.uploadFileToBoard();
 			break;
 		case 'ide.applyUserPreferences':
 			// Answer, then repaint: the chrome sends this on every tick of a
@@ -150,6 +172,15 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'ide.spinnerCancelled':
 			callback();
 			break;
+		case 'ide.spinnerCancelled':
+			// Reply first, then act. The chrome sends this for every Escape key
+			// whether a spinner is up or not, and the only thing a spinner here
+			// stands over that can be stopped is a file transfer: a project read
+			// shows one and runs to its end either way.
+			callback(0);
+			if (MB_editor.spinnerShowing && MB_connection.busy()) MB_connection.abortFileTransfer();
+			MB_editor.spinnerShowing = false; // cancelled or not, the overlay is gone
+			break;
 		case 'ide.version':
 			// A value endpoint: windows.js:272 renders it as `MicroBlocks v${...}`.
 			// GP answers a field it read at startup; here the read is a fetch, so
@@ -166,9 +197,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.exportLibrary(params[0]);
 			break;
-		case 'library.hideDefs':
-			callback();
-			break;
 		case 'library.reload':
 			// Reply first, then act. The reload reads a file, so it finishes after
 			// the reply.
@@ -176,12 +204,29 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.reloadLibrary(params[0]);
 			break;
 		case 'library.showDefs':
+			// Answer, then act, as the other library endpoints do.
+			callback(0);
+			MB_editor.showFunctions(MB_editor.functionsOfLibrary(params[0]));
+			break;
+		case 'library.hideDefs':
+			callback(0);
+			MB_editor.hideFunctions(MB_editor.functionsOfLibrary(params[0]));
+			break;
+		case 'project.showAllMyBlocks':
+			callback(0);
+			MB_editor.showFunctions(MB_editor.project.main.functions);
+			break;
+		case 'project.hideAllMyBlocks':
+			callback(0);
+			MB_editor.hideFunctions(MB_editor.project.main.functions);
+			break;
+		case 'project.exportBlocksLibrary':
+			callback(0);
+			MB_editor.exportMyBlocksAsLibrary();
+			break;
 		case 'library.showInfoDialog':
 		case 'locale.loadCustomFile':
 		case 'locale.setLanguage':
-		case 'project.copyURL':
-		case 'project.exportBlocksLibrary':
-		case 'project.hideAllMyBlocks':
 			callback();
 			break;
 		case 'project.new':
@@ -195,26 +240,68 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.openProjectMenu();
 			break;
-		case 'project.showAllMyBlocks':
 		case 'scripts.copyToClipboard':
+			// Answer, then act, as the endpoints below do.
+			callback(0);
+			setClipboard(MB_editor.allScriptsString());
+			break;
 		case 'scripts.copyToClipboardAsURL':
+			callback(0);
+			setClipboard(MB_editor.scriptsURL(location.href));
+			break;
+		case 'project.copyURL':
+			callback(0);
+			setClipboard(MB_editor.projectURL(location.href));
+			break;
 		case 'scripts.paste':
-		case 'scripts.restoreZoom':
+			callback(0);
+			MB_editor.pasteScriptText(clipboardText());
+			break;
 		case 'scripts.saveImage':
+			callback(0);
+			MB_editor.saveScriptsImage();
+			break;
 		case 'scripts.setExportedScriptScale':
+			callback(0);
+			MB_editor.exportedScriptScale = Number(params[0]);
+			break;
+		case 'scripts.restoreZoom':
+			MB_editor.restoreZoom();
+			callback(0);
+			break;
 		case 'scripts.setZoom':
+			callback(0);
+			MB_editor.setBlockScalePercent(params[0]);
+			break;
 		case 'scripts.zoomIn':
+			MB_editor.zoomIn();
+			callback(0);
+			break;
 		case 'scripts.zoomOut':
+			MB_editor.zoomOut();
+			callback(0);
+			break;
 		default:
 			callback();
 	}
 };
 
 // menus.js reads the clipboard through these, which gpSupport.js defines in the wasm build.
-// Nothing here fills clipboardBytes yet, so the chrome's paste items stay hidden.
+// The chrome's paste items are hidden while clipboardBytes is empty, and that test runs
+// as the menu opens, so the buffer is what makes paste reachable.
 GP.clipboardBytes = [];
 function clipboardText() {
 	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes));
+}
+
+function setClipboard(text) {
+	// The buffer is what the chrome reads. Writing the browser's own clipboard is
+	// a courtesy: it is missing on an insecure origin and can be refused even on a
+	// secure one, and neither is a reason for the copy to fail.
+	GP.clipboardBytes = Array.from(new TextEncoder().encode(text));
+	try {
+		navigator.clipboard?.writeText?.(text)?.catch(() => {});
+	} catch (e) {} // eslint-disable-line no-empty
 }
 
 // The id the chrome answers a menu or a dialog under, counted as primBrowserNextCallId
