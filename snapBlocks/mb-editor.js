@@ -365,6 +365,20 @@ class MB_Editor {
 		this.paletteY += label.height() + 15;
 	}
 
+	addPaletteButton(label, action) {
+		// A push button in the palette, in the file picker's button style. The
+		// action is a function or the name of a method on the editor.
+
+		const button = new TriggerMorph(this, action, label, 14, null, null, null,
+			new Color(20, 20, 20));
+		button.color = new Color(220, 220, 220);
+		button.highlightColor = new Color(240, 240, 240);
+		button.setExtent(new Point(Math.max(30, button.label.width() + 20), 26));
+		button.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		this.palette.contents.add(button);
+		this.paletteY += button.height() + 7;
+	}
+
 	addPaletteBlockForSpec(spec, category) {
 		// A spec read from a file may describe no block type blockForSpec knows.
 
@@ -415,10 +429,15 @@ class MB_Editor {
 
 	addVariableBlocks() {
 		// Set and change default to the project's first variable and each variable
-		// gets a reporter. Names starting with an underscore are a library's own
-		// and are not shown.
+		// gets a reporter. Delete a variable is offered only when the palette has
+		// a variable to delete.
 
-		let varNames = this.project.allVariableNames().filter((v) => !v.startsWith('_'));
+		this.addPaletteButton(localized('Add a variable'), () => this.promptForVariable());
+		let varNames = this.visibleVars();
+		if (varNames.length > 0) {
+			this.addPaletteButton(localized('Delete a variable'), () => this.deleteVariableMenu());
+		}
+		this.paletteY += 20;
 		let defaultVar = (varNames.length > 0) ? varNames[0] : '';
 		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
 			if ('-' == spec) { // separator
@@ -443,8 +462,12 @@ class MB_Editor {
 	}
 
 	addMyBlocks() {
-		// The main module's functions. A library's functions belong to the library.
+		// The two buttons that make a block, then the main module's functions. A
+		// library's functions belong to the library.
 
+		this.addPaletteButton(localized('Add a command block'), () => this.promptForFunction(false));
+		this.addPaletteButton(localized('Add a reporter block'), () => this.promptForFunction(true));
+		this.paletteY += 8;
 		for (const func of this.project.main.functions) {
 			if (func.functionName.startsWith('_')) continue; // hidden
 			this.addPaletteBlockForSpec(this.paletteSpecForFunction(func), 'My Blocks');
@@ -657,6 +680,39 @@ console.log('unknown');
 		return uniqueNameNotIn(taken, varName);
 	}
 
+	visibleVars() {
+		// The globals the palette offers. A name starting with an underscore is a
+		// library's own working variable and is not shown.
+
+		return this.project.allVariableNames().filter((v) => !v.startsWith('_'));
+	}
+
+	async promptForVariable() {
+		// Ask for a name and make a global of it. An unanswered prompt gives null,
+		// which createVariable would take for a name.
+
+		const name = await this.prompt(localized('New variable name?'), '');
+		if (!name) return;
+		this.createVariable(name);
+	}
+
+	deleteVariable(name) {
+		// Remove the global from main and from every library that declares it.
+
+		this.project.deleteVariable(name);
+		this.updatePalette();
+	}
+
+	deleteVariableMenu() {
+		// Offer the palette's variables and delete the one chosen.
+
+		const names = this.visibleVars();
+		if (0 === names.length) return;
+		const menu = new MenuMorph((choice) => this.deleteVariable(choice));
+		for (const name of names) menu.addItem(name, name);
+		menu.popUpAtHand(this.palette.world());
+	}
+
 	createVariable(name) {
 		// Add a global to main under a unique form of name. Answers the name
 		// added, or null for a blank answer.
@@ -664,7 +720,17 @@ console.log('unknown');
 		if ('' === varName) return null;
 		const result = this.uniqueVarName(varName);
 		this.project.addVariable(result);
+		this.updatePalette();
 		return result;
+	}
+
+	async promptForFunction(isReporter) {
+		// Ask for a name and define a block of it, a command or a reporter. An
+		// unanswered prompt gives null, which createFunction would take for a name.
+
+		const name = await this.prompt(localized('Enter function name:'), 'myBlock');
+		if (!name) return;
+		this.createFunction(name, isReporter);
 	}
 
 	createFunction(name, isReporter) {
@@ -682,6 +748,7 @@ console.log('unknown');
 		if (isReporter) hat.nextBlock(MB_Parser.blockForDecompiled(
 			{ selector: 'return', args: [0], isReporter: false, next: null }));
 		this.addToBottom(hat);
+		this.updatePalette();
 		return hat;
 	}
 
