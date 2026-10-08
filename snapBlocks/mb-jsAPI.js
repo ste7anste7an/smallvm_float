@@ -60,7 +60,9 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		case 'ide.stopAll':
-			MB_editor.stopAll();
+			// params[0] is shift, from the button's own click event. Anything
+			// that is not true, a missing argument included, is not shift.
+			MB_editor.stopAll(true === params[0]);
 			callback(0);
 			break;
 		case 'ide.updateConnection':
