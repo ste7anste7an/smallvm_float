@@ -101,8 +101,13 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'board.uploadFile':
 		case 'edit.redo':
 		case 'edit.undo':
-		case 'ide.applyUserPreferences':
 			callback(0); // not implemented yet, but every request gets its reply
+			break;
+		case 'ide.applyUserPreferences':
+			// Answer, then repaint: the chrome sends this on every tick of a
+			// settings menu item and does not wait for the canvas to catch up.
+			callback(0);
+			MB_editor.applyUserPreferences();
 			break;
 		case 'ide.resize':
 			// IDE.resize has just sized #canvas, the workspace slot; place the world canvas over it
@@ -137,6 +142,11 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_connection.setSerialDelay(params[0]);
 			break;
 		case 'ide.showLibraryDialog':
+			// Reply first, then show the picker. The "+ Add Library" button
+			// sends this and waits on the reply, not on the dialog.
+			callback(0);
+			MB_editor.importLibrary();
+			break;
 		case 'ide.spinnerCancelled':
 			callback();
 			break;

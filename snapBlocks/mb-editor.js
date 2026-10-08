@@ -18,6 +18,7 @@ class MB_Editor {
 		this.readFromBoard = false;
 		this.projectName = null; // the file name a save should use
 		this.lastProjectFolder = 'Examples'; // where the file picker opens
+		this.lastLibraryFolder = 'Libraries'; // and where it opens for a library
 		this.runningChunks = new Map(); // used for block highlighting
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
 		this.chunkErrorListeners = []; // called with each decoded board error
@@ -35,7 +36,6 @@ class MB_Editor {
 		this.paletteWidth = 200;
 
 		this.palette = new ScrollFrameMorph();
-		this.palette.color = new Color(180, 180, 180);
 		this.palette.contents.acceptsDrops = true;
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if (droppedMorph instanceof BlockMorph) {
@@ -47,12 +47,14 @@ class MB_Editor {
 		// The scripting pane scrolls, so a script taller than the window can
 		// be reached without dragging it off the pane.
 		this.scripts = new ScriptsMorph();
-		this.scripts.color = new Color(150, 150, 150);
 		this.scriptsFrame = new ScrollFrameMorph(this.scripts);
-		this.scriptsFrame.color = this.scripts.color;
 		// What FrameMorph's constructor would have set; ScriptsMorph takes no
 		// scroll frame, and adjustBounds does nothing without one.
 		this.scripts.scrollFrame = this.scriptsFrame;
+
+		// The panes exist now, so they can take their colours. This is the only
+		// place that gives them one, here and on every later change.
+		this.applyDarkMode();
 
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
@@ -162,9 +164,140 @@ class MB_Editor {
 		};
 	}
 
-	installLibraryNamed(libName) {
+	async installLibraryNamed(libName) {
+		// Take a shipped library into the project by the name its own module line
+		// declares, which is what a copied script's depends line carries.
+
 		if (this.project.libraryNamed(libName)) return;
-		console.log('XXX TO DO: install library by name:', libName);
+		const filePath = await this.fileNameForLibraryNamed(libName);
+		if (!filePath) return; // a name no shipped library declares
+		const data = await MB_Files.readFile(filePath);
+		if (data === undefined) return;
+		await this.importLibraryFromString(data, filePath);
+	}
+
+	// Scripts written before a library was renamed still name it the old way.
+	static renamedLibraries = new Map([
+		['HSV Colors', 'Color'],
+		['VL53L0X', 'Distance (VL53L0X)'],
+		['CutebotPRO', 'Cutebot Pro'],
+	]);
+
+	async fileNameForLibraryNamed(libName) {
+		// The shipped file whose module line declares this name. Building the
+		// index reads every shipped library once, so it is kept.
+
+		const wanted = MB_Editor.renamedLibraries.get(libName) || libName;
+		// Nearly every library is in a file named after the module it declares,
+		// and checking one file is worth a second of reading the whole set.
+		const named = this.findLibraryFile(wanted);
+		if (named && (wanted === MB_Editor.libraryNameIn(await MB_Files.readFile(named)))) return named;
+
+		// Kept as the promise, not the map: a caller arriving while the reads are
+		// still going waits for the finished index rather than reading an empty one.
+		// What is kept has to be worth keeping, so an index is not built before the
+		// file list arrives, one whose reads failed is dropped, and one that is short
+		// a file it could not read reads that file again when a name goes unfound.
+		const paths = MB_Files.allFilesIn('Libraries').filter((p) => p.endsWith('.ubl'));
+		if (0 === paths.length) return null;
+		if (!this.embeddedLibraries) {
+			this.embeddedLibraries = this.readLibraryIndex(paths);
+			this.embeddedLibraries.catch(() => { this.embeddedLibraries = null; });
+		}
+		const index = await this.embeddedLibraries;
+		// Every name the index holds was read out of a file, so a name it answers
+		// for is right and only a name it does not answer for is in doubt. The files
+		// that could not be read are the only ones that can settle that, so they are
+		// the only ones read again: a file briefly out costs the next call one read,
+		// where rebuilding the index would cost it all 223.
+		if (!index.has(wanted) && this.unreadLibraryFiles.length) {
+			this.embeddedLibraries = this.readLibrariesInto(index, this.unreadLibraryFiles);
+			this.embeddedLibraries.catch(() => { this.embeddedLibraries = null; });
+			await this.embeddedLibraries;
+		}
+		return index.get(wanted) || null;
+	}
+
+	async readLibraryIndex(paths) {
+		// Every shipped library's declared name, against the file that declares it.
+		return this.readLibrariesInto(new Map(), paths);
+	}
+
+	async readLibrariesInto(index, paths) {
+		// The reads go out together: sequentially this is a second of waiting with
+		// nothing on screen. A later file wins, so the order is kept. A file that
+		// could not be read answers undefined, which declares no name at all, so it
+		// is held aside as unread rather than taken for a file with nothing to say.
+		const texts = await Promise.all(paths.map((p) => MB_Files.readFile(p)));
+		const unread = [];
+		paths.forEach((filePath, i) => {
+			if (undefined === texts[i]) { unread.push(filePath); return; }
+			const name = MB_Editor.libraryNameIn(texts[i]);
+			if (name) index.set(name, filePath);
+		});
+		this.unreadLibraryFiles = unread;
+		return index;
+	}
+
+	static libraryNameIn(data) {
+		// The name a library file's module line declares. A quoted name ends at
+		// its closing quote, because the line may carry a category after it.
+
+		for (const line of String(data == null ? '' : data).split('\n')) {
+			if (!line.startsWith('module')) continue;
+			const rest = line.slice('module'.length).trim();
+			if (!rest.startsWith("'")) return rest.split(/\s+/)[0] || null;
+			const end = rest.indexOf("'", 1);
+			return (end < 0) ? null : rest.slice(1, end);
+		}
+		return null;
+	}
+
+	async importEmbeddedLibrary(libName) {
+		// Take the shipped library a dependency names into the project, by the
+		// name of its file. A leading underscore asks for it as an implementation
+		// library, whose blocks serve another library and are not offered alone.
+
+		const asImplementation = libName.startsWith('_');
+		const wanted = asImplementation ? libName.slice(1) : libName;
+		const filePath = this.findLibraryFile(wanted);
+		if (!filePath) return; // a name no shipped file answers to
+		if (this.libraryHoldingFile(wanted, filePath)) return;
+		const data = await MB_Files.readFile(filePath);
+		if (data === undefined) return;
+		await this.importLibraryFromString(data, filePath, asImplementation);
+	}
+
+	findLibraryFile(libName) {
+		// The shipped file of a library's name. A name may carry a folder, as
+		// 'Robots/CoCube Module' does, so the match is anchored at a separator,
+		// which keeps a longer name ending the same way from answering for it.
+
+		const suffix = '/' + libName + '.ubl';
+		for (const filePath of MB_Files.allFilesIn('Libraries')) {
+			if (filePath.endsWith(suffix)) return filePath;
+		}
+		return null;
+	}
+
+	libraryHoldingFile(libName, filePath) {
+		// A library already in the project that a dependency name asks for. Its
+		// module name and the name of its file differ for a handful of shipped
+		// libraries, so both are worth asking about.
+
+		const shippedPath = this.project.withoutExtension(filePath.slice('Libraries/'.length));
+		for (const lib of this.project.libraries.values()) {
+			if ((lib.moduleName === libName) || (lib.path === shippedPath)) return lib;
+		}
+		return null;
+	}
+
+	async installDependenciesOf(libName) {
+		// Bring in the libraries a library names, and the ones those name in turn.
+
+		const lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		for (const dependency of lib.dependencies) await this.importEmbeddedLibrary(dependency);
 	}
 
 	scriptStringFor(aBlock) {
@@ -225,7 +358,7 @@ class MB_Editor {
 		}
 		if (!dst) dst = new Point(100, this.scriptsBottom() - pane.top() + (30 * blockScale()));
 		const importer = new MB_ScriptExchange(this.project);
-		importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		await importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
 		pane.adjustBounds();
 		pane.changed();
 
@@ -284,13 +417,29 @@ class MB_Editor {
 		this.tellIDE('currentCategory', libName);
 	}
 
+	applyUserPreferences() {
+		// Recolour and refill for a preference that changes the canvas, and
+		// leave the user on the library or category they were showing. Only a
+		// selection that is no longer there falls back.
+
+		this.applyDarkMode();
+		this.tellIDE('libraryList', this.libraryList());
+		const showing = this.library ? this.project.libraryNamed(this.library) : this.category;
+		if (showing) {
+			this.updatePalette();
+		} else {
+			this.selectCategory('cat;Control');
+		}
+	}
+
 	libraryList() {
 		// The project's libraries as the IDE's library buttons want them. An
-		// implementation library holds another library's working parts and is not offered.
+		// implementation library holds another library's working parts and is
+		// offered only where those are.
 
 		let result = [];
 		for (const lib of this.project.libraries.values()) {
-			if (!lib.isImplementationLib()) {
+			if (this.showHiddenBlocks() || !lib.isImplementationLib()) {
 				result.push({ label: lib.moduleName, category: lib.moduleCategory });
 			}
 		}
@@ -332,14 +481,63 @@ class MB_Editor {
 		this.palette.changed();
 	}
 
-	devMode() {
-		// Developer mode. The pure Javascript build keeps it in its IDE object's
-		// preferences (userPreference, ide.js); a page without one reads off.
+	userPreference(pref) {
+		// A preference from the IDE object the pure Javascript build keeps them
+		// in (userPreference, ide.js); a page without one reads every one off.
 
 		try {
-			return (typeof IDE != 'undefined') && (IDE.userPreference('devMode') == true);
+			return (typeof IDE != 'undefined') && (IDE.userPreference(pref) == true);
 		} catch (e) {
 			return false;
+		}
+	}
+
+	devMode() {
+		return this.userPreference('devMode');
+	}
+
+	darkMode() {
+		return this.userPreference('darkMode');
+	}
+
+	paneColors() {
+		// The pane, scrollbar handle and section label colours for the mode the
+		// IDE is in. The dark three are the IDE's blueGray family, the same
+		// values the chrome's stylesheet uses either side of the canvas.
+
+		return this.darkMode()
+			? {
+				palette: new Color(62, 66, 89),
+				scripts: new Color(55, 59, 79),
+				slider: new Color(144, 149, 174),
+				label: new Color(144, 149, 174),
+			}
+			: {
+				palette: new Color(180, 180, 180),
+				scripts: new Color(150, 150, 150),
+				slider: new Color(200, 200, 200),
+				label: new Color(0, 0, 0),
+			};
+	}
+
+	applyDarkMode() {
+		// Recolour the panes and their scrollbar handles. setColor rather than
+		// the colour field, because only setColor repaints what is already on
+		// screen. Block colours are not touched: the mode changes the surfaces
+		// blocks sit on and nothing about the blocks.
+		//
+		// The chrome applies its preferences while it is initialising, which is
+		// before open() has built the panes. open() calls this once they exist,
+		// so there is nothing to colour until then.
+
+		if (!this.palette) return;
+		const colors = this.paneColors();
+		this.palette.setColor(colors.palette);
+		this.scripts.setColor(colors.scripts);
+		this.scriptsFrame.setColor(colors.scripts);
+		for (const frame of [this.palette, this.scriptsFrame]) {
+			frame.hBar.button.setColor(colors.slider);
+			frame.vBar.button.setColor(colors.slider);
 		}
 	}
 
@@ -359,6 +557,7 @@ class MB_Editor {
 
 	addPaletteLabel(text) {
 		let label = new StringMorph(text, 14);
+		label.setColor(this.paneColors().label); // labels are rebuilt, not recoloured
 		label.toggleWeight();
 		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
 		this.palette.contents.add(label);
@@ -406,6 +605,14 @@ class MB_Editor {
 		this.addAdvancedBlocksForCategory(cat);
 	}
 
+	showHiddenBlocks() {
+		// Whether a library's working parts, the names starting with an
+		// underscore, are offered. Developer mode as well as the preference:
+		// the menu item that sets it is itself offered only in developer mode.
+
+		return this.devMode() && this.userPreference('showImplementationBlocks');
+	}
+
 	addBlocksForLibrary(libName) {
 		// A library's blocks in the order its block list gives them. Names
 		// starting with an underscore are the library's own working parts.
@@ -419,7 +626,7 @@ class MB_Editor {
 				if (!this.devMode()) return; // the rest is for developer mode
 				this.paletteY += 15;
 				this.addPaletteLabel('Advanced:');
-			} else if (!op.startsWith('_')) {
+			} else if (this.showHiddenBlocks() || !op.startsWith('_')) {
 				let spec = MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(op))
 					|| MB_Specs.specArrayForSelector(op);
 				this.addPaletteBlockForSpec(spec, lib.moduleCategory);
@@ -469,7 +676,7 @@ class MB_Editor {
 		this.addPaletteButton(localized('Add a reporter block'), () => this.promptForFunction(true));
 		this.paletteY += 8;
 		for (const func of this.project.main.functions) {
-			if (func.functionName.startsWith('_')) continue; // hidden
+			if (func.functionName.startsWith('_') && !this.showHiddenBlocks()) continue;
 			this.addPaletteBlockForSpec(this.paletteSpecForFunction(func), 'My Blocks');
 		}
 	}
@@ -637,18 +844,96 @@ console.log('unknown');
 
 		let lib = this.project.libraryNamed(libName);
 		if (!lib || (lib.path == null) || lib.path.startsWith('/')) return;
-		const libFileName = '/' + libName + '.ubl';
-		for (const filePath of MB_Files.allFilesIn('Libraries')) {
-			if (!filePath.endsWith(libFileName)) continue;
-			const data = await MB_Files.readFile(filePath);
-			if (!data) return;
-			let moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
-			this.codeManager.recompileNeeded(); // its functions were loaded anew
-			this.librariesChanged();
-			this.updateLibraryList();
-			this.selectLibrary(moduleName);
+		const filePath = this.findLibraryFile(libName);
+		if (!filePath) return;
+		const data = await MB_Files.readFile(filePath);
+		if (!data) return;
+		let moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
+		this.codeManager.recompileNeeded(); // its functions were loaded anew
+		this.librariesChanged();
+		this.updateLibraryList();
+		this.selectLibrary(moduleName);
+	}
+
+	importLibrary() {
+		// Show the file picker on the shipped libraries. Its Computer button
+		// leads to the browser's chooser, whose file arrives at processDroppedFile.
+
+		const open = MB_FilePicker.findOpen(world);
+		if (open) open.removeFromOwner();
+		new MB_FilePicker((path) => this.openLibraryFile(path), this.lastLibraryFolder, ['.ubl']).open(world);
+	}
+
+	async openLibraryFile(filePath) {
+		// Take a library file the picker chose into the project.
+
+		this.lastLibraryFolder = filePath.slice(0, filePath.lastIndexOf('/') + 1);
+		const data = await MB_Files.readFile(filePath);
+		if (data === undefined) {
+			this.inform(localized('Could not read: ') + filePath);
 			return;
 		}
+		if (await this.importLibraryFromString(data, filePath)) {
+			await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+		}
+	}
+
+	async importLibraryFromString(data, filePath, asImplementation) {
+		// Add a library to the project with the libraries it depends on, and show
+		// it, replacing one of the same name. A filePath under Libraries leaves
+		// the library a path the reload verb can read it back from; a bare file
+		// name from the user's computer does not. Answers the module name, or null.
+
+		const fileName = filePath.slice(filePath.lastIndexOf('/') + 1);
+		const libName = this.project.withoutExtension(fileName);
+		if (!this.definesALibrary(data)) {
+			this.inform(localized('No library found in: ') + fileName);
+			return null;
+		}
+		// Before the new module goes in, while the old one's functions can still
+		// be named: a hat left behind defines a block the project has stopped having.
+		const replacing = this.project.libraryNamed(libName);
+		this.hideLibraryDefinitions(libName);
+		const moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
+		if (asImplementation && (!replacing || replacing.isImplementationLib())) {
+			this.project.libraryNamed(moduleName).beImplementation();
+		}
+		// A library replacing one of its own name keeps the dependencies the
+		// project already resolved for it; a new one needs them brought in.
+		if (!replacing) await this.installDependenciesOf(moduleName);
+		this.codeManager.recompileNeeded(); // its functions were loaded anew
+		this.librariesChanged();
+		this.updateLibraryList();
+		this.selectLibrary(moduleName); // last, so a dependency's own select does not win
+		return moduleName;
+	}
+
+	definesALibrary(data) {
+		// Whether a file's text would give the project a library with anything in
+		// it. A library's block specs are its 'spec' commands and its functions
+		// its 'to' commands, so one of either is the whole question. A file with
+		// neither, such as an empty one or a web page saved by mistake, would add
+		// a library button over an empty palette and say nothing about why.
+
+		let cmdList = null;
+		try {
+			cmdList = MB_Parser.parse(data);
+		} catch (e) {
+			return false;
+		}
+		for (const cmd of cmdList || []) {
+			if (Array.isArray(cmd) && (('spec' === cmd[0]) || ('to' === cmd[0]))) return true;
+		}
+		return false;
+	}
+
+	hideLibraryDefinitions(libName) {
+		// Take the definition hats of a library the project already holds off the
+		// scripting pane. A project without that library has none to take.
+
+		const lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		for (const func of lib.functions) this.hideDefinition(func.functionName);
 	}
 
 	// Custom blocks and variables. Each takes the answer the chrome's dialog
@@ -1031,10 +1316,15 @@ console.log('unknown');
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension. Only projects are handled so far.
+		// Act on a file by its extension: a project or a library.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName);
+		else if (name.endsWith('.ubl')) {
+			if (await this.importLibraryFromString(data, fileName)) {
+				await this.codeManager.saveAllChunksAfterLoad();
+			}
+		}
 	}
 
 	importLocalFile(callback) {

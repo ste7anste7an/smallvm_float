@@ -1408,7 +1408,7 @@ class MB_ScriptExchange {
 
 	// --- Import ---
 
-	importScripts(scripter, scriptString, dstX, dstY) {
+	async importScripts(scripter, scriptString, dstX, dstY) {
 		this.mbProject = scripter.project();
 		const scriptCmds = MB_Parser.parse(scriptString);
 		if (scriptCmds == null) return;
@@ -1422,8 +1422,11 @@ class MB_ScriptExchange {
 			const op = entry[0];
 			const args = entry.slice(1);
 			if (op === 'depends') {
+				// One at a time: installing a library reads a file, and two reads in
+				// flight together both see a project without the library they are
+				// each about to add.
 				for (const libName of args) {
-					scripter.installLibraryNamed(stringArg(libName));
+					await scripter.installLibraryNamed(stringArg(libName));
 				}
 			} else if (op === 'to') {
 				const funcName = stringArg(args[0]);
