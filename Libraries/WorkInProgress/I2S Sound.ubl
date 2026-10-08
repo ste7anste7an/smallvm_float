@@ -1,7 +1,7 @@
 module 'I2S Sound'
 author MicroBlocks
-version 1 0
-choices i2s_channel left right both
+version 1 1 
+choices i2s_channel left right both 
 description ''
 
   spec ' ' 'i2s_start' 'start i2s sample rate _ #BR# bit clock pin _ word clock pin _ #BR# data in pin _ data out pin _ : #BR# use PDM _' 'num num num num num bool' 16000 1 2 -1 -1 false
@@ -23,7 +23,7 @@ the result plus a small read buffer.'
   repeatUntil ((size samples) >= sampleCount) {
     '[data:delete]' 'all' buffer
     repeatUntil ((size buffer) > 0) {
-      callCustomCommand '[sound:i2sRead]' ('[data:makeList]' buffer channel (sampleCount - (size samples)))
+      '[sound:i2sRead]' buffer channel (sampleCount - (size samples))
       waitMillis 1
     }
     for s buffer {
@@ -36,19 +36,19 @@ the result plus a small read buffer.'
 to i2s_start sampleRate bitClockPin wordClockPin inputPin outputPin optionalPDM {
   comment 'Start the I2S device for input, output, or both (full duplex).
 For input-only or output-only use -1 for the unused pin.
-PDM microphone input is supported via I2C only on ESP32 boards.'
+PDM microphone input is supported only on ESP32 boards.'
   local 'usePDM' (argOrDefault 6 false)
-  callCustomCommand '[sound:i2sBegin]' ('[data:makeList]' sampleRate bitClockPin wordClockPin inputPin outputPin usePDM)
+  '[sound:i2sBegin]' sampleRate bitClockPin wordClockPin inputPin outputPin usePDM
 }
 
 to i2s_stop {
-  callCustomCommand '[sound:i2sEnd]'
+  '[sound:i2sEnd]'
 }
 
 to i2s_writeSamples sampleList {
   local 'written' 0
   repeatUntil (written == (size sampleList)) {
-    local 'n' (callCustomReporter '[sound:i2sWrite]' ('[data:makeList]' sampleList (written + 1)))
+    local 'n' ('[sound:i2sWrite]' sampleList (written + 1))
     if (and (written == 0) (n < (size sampleList))) {
       unders += 1
     }
