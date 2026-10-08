@@ -2747,6 +2747,20 @@ HandMorph.prototype.drop = function () {
 	if (dragged instanceof BlockMorph) fireIDEEvent('dragend');
 };
 
+// Files dropped on the window. morphic picks a reader by MIME type and climbs
+// for a handler of that reader's name; a project or a library from a desktop
+// arrives with no type at all, and nothing answered the reader it takes.
+
+WorldMorph.prototype.droppedBinary = function (buffer, fileName) {
+	// Decoded as UTF-8, which replaces bytes it cannot read rather than failing,
+	// so a file that is not text reaches the editor and is judged by its name.
+	MB_editor.processDroppedFile(fileName, new TextDecoder().decode(buffer));
+};
+
+WorldMorph.prototype.droppedText = function (text, fileName) {
+	MB_editor.processDroppedFile(fileName, text);
+};
+
 BlockMorph.prototype.destroy = function (justThis) {
 	// private - use IDE_Morph.removeBlock() to first stop all my processes
 	BlockMorph.uber.destroy.call(this);
