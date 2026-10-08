@@ -26,9 +26,16 @@ class MB_Editor {
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
+		this.exportedScriptScale = 1; // set by the chrome; the picture uses the on-screen scale
+		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
+		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
 		this.category = null; // the selected palette category, or null while a library is
 		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
+		this.undoStack = [];
+		this.redoStack = [];
+		this.watchProjectVariables();
+		this.blockSize = 125;
 	}
 
 	open(world) {
@@ -138,7 +145,8 @@ class MB_Editor {
 		// x and y are relative to the pane, which is what updateProject records.
 
 		let scriptsPane = this.scriptsPane();
-		b.setPosition(scriptsPane.position().add(new Point(x, y)));
+		const scale = this.scriptScale();
+		b.setPosition(scriptsPane.position().add(new Point(x * scale, y * scale)));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
 		scriptsPane.changed();
@@ -158,7 +166,7 @@ class MB_Editor {
 			project: () => this.project,
 			scriptEditor: () => this.scriptsPane(),
 			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
-			blockScale: () => 1, // the pane holds script-file units unscaled
+			blockScale: () => this.scriptScale(), // exchange positions are in file units
 		};
 	}
 
@@ -206,9 +214,13 @@ class MB_Editor {
 	}
 
 	handlePaste(event) {
-		let s = event.data;
-		if (!s.startsWith('GP Script')) return; // ignore non-script paste
-		return this.pasteScripts(s.slice(s.indexOf('\n') + 1));
+		return this.pasteScriptText(event.data);
+	}
+
+	pasteScriptText(text) {
+		// Both a browser paste event and the chrome's paste menu item arrive here.
+		if (!text.startsWith('GP Script')) return; // ignore non-script paste
+		return this.pasteScripts(text.slice(text.indexOf('\n') + 1));
 	}
 
 	async pasteScripts(scriptString, dst) {
@@ -250,6 +262,44 @@ class MB_Editor {
 		for (const m of this.scriptsPane().children.slice()) {
 			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) m.destroy();
 		}
+	}
+
+	showDefinition(func) {
+		// One definition hat per function, and never a second for the same one.
+		if (func == null) return;
+		if (this.definitionShown(func.functionName)) return;
+		this.addToBottom(scriptForFunction(func));
+	}
+
+	definitionShown(funcName) {
+		return this.scriptsPane().children.some((m) =>
+			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+	}
+
+	showFunctions(functions) {
+		for (const func of functions) this.showDefinition(func);
+		this.updateProject();
+	}
+
+	hideFunctions(functions) {
+		for (const func of functions) this.hideDefinition(func.functionName);
+		this.updateProject();
+	}
+
+	functionsOfLibrary(libName) {
+		const lib = this.project.libraryNamed(libName);
+		return lib ? lib.functions : [];
+	}
+
+	exportMyBlocksAsLibrary() {
+		// Main's own blocks as a library file, under the name the user gives it.
+		// Nothing is written if the dialog is dismissed.
+
+		return this.prompt(localized('Library name?'), 'my library').then((libName) => {
+			if (!libName) return;
+			this.updateProject();
+			this.saveTextAsFile(this.project.main.codeString(this.project, libName), libName + '.ubl');
+		});
 	}
 
 	scriptsBottom() {
@@ -358,7 +408,7 @@ class MB_Editor {
 	}
 
 	addPaletteLabel(text) {
-		let label = new StringMorph(text, 14);
+		let label = new StringMorph(text, 14 * this.scriptScale());
 		label.toggleWeight();
 		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
 		this.palette.contents.add(label);
@@ -551,14 +601,26 @@ console.log('unknown');
 	async step() {
 		// Called four times a second. Send the scripts to a connected board if they
 		// changed, as GP's MicroBlocksScripter step does. Wait while another download runs.
+		this.sendTransferPercent(); // before the returns below: a transfer holds them both
 		if (!this.saveNeeded || this.codeManager.savesInProgress > 0) return;
 		this.saveNeeded = false; // an edit made during the sync below sets it again
 		try {
 			this.updateProject();
+			this.storeUndoState();
 			await this.codeManager.syncScripts();
 		} catch (e) {
 			this.reportError(e);
 		}
+	}
+
+	sendTransferPercent() {
+		// The chrome's spinner draws its ring from spinner.setPercent and has no
+		// other source for it. A running transfer keeps its own percentage, so
+		// send that on each step while it moves, and nothing while it does not.
+		const percent = MB_connection.fileTransferProgress;
+		if (percent === this.lastTransferPercent) return;
+		this.lastTransferPercent = percent;
+		if (percent != null) fireIDEEvent('spinner.setPercent', percent);
 	}
 
 	updateProject() {
@@ -569,8 +631,8 @@ console.log('unknown');
 			if (aBlockMorph instanceof BlockMorph) {
 				// An edit to a definition in the pane goes back to its function.
 				if (aBlockMorph.isFunctionDefinition()) aBlockMorph.updateDefinedFunction();
-				let x = Math.round(aBlockMorph.left() - this.scripts.left());
-				let y = Math.round(aBlockMorph.top() - this.scripts.top());
+				let x = Math.round((aBlockMorph.left() - this.scripts.left()) / this.scriptScale());
+				let y = Math.round((aBlockMorph.top() - this.scripts.top()) / this.scriptScale());
 				newScripts.push([x, y, aBlockMorph]);
 			}
 		}
@@ -818,6 +880,144 @@ console.log('unknown');
 		this.updateProject();
 	}
 
+	watchProjectVariables() {
+		this.project.onVariableChange = () => this.storeUndoState();
+	}
+
+	storeUndoState() {
+		// At most 51 code strings: the state being stored and 50 to step back through.
+		if (this.undoStack.length > 50) this.undoStack.shift();
+		this.undoStack.push(this.project.codeString());
+		this.redoStack = [];
+		this.undoStateChanged();
+	}
+
+	undoAvailable() { return this.undoStack.length > 0; }
+	redoAvailable() { return this.redoStack.length > 0; }
+
+	undoStateChanged() {
+		fireIDEEvent('scripts.undoAvailable', this.undoAvailable());
+		fireIDEEvent('scripts.redoAvailable', this.redoAvailable());
+	}
+
+	async restoreUndoState(source) {
+		// Undo and redo share this path. Each hands over the code string it wants
+		// shown and the project is rebuilt from it, rather than mutated in place.
+		this.saveNeeded = false;
+		this.project = new MB_Project();
+		if (source != null) this.project.loadFromString(source, false);
+		this.watchProjectVariables();
+		this.removeAllScripts();
+		for (const [x, y, script] of this.project.main.scripts) {
+			this.addBlockToScriptsAt(script, x, y);
+		}
+		this.project.main.assignScriptIds();
+		this.updatePalette(); // the restored project may declare other variables and blocks
+		this.codeManager.project = this.project;
+		this.codeManager.recompileNeeded();
+		await this.codeManager.syncScripts();
+	}
+
+	async undo() {
+		if (this.undoStack.length) this.redoStack.push(this.undoStack.pop());
+		await this.restoreUndoState(this.undoStack.at(-1));
+		this.undoStateChanged();
+	}
+
+	async redo() {
+		if (this.redoStack.length) {
+			const source = this.redoStack.pop();
+			this.undoStack.push(source);
+			await this.restoreUndoState(source);
+		}
+		this.undoStateChanged();
+	}
+
+	scriptScale() { return this.blockSize / 125; }
+	blockSizePercent() { return this.blockSize; }
+
+	resizeBlock(block, fontFactor) {
+		// TextMorph includes multi-line input text, which is separate from StringMorph.
+		const parts = block.allChildren();
+		for (const part of parts) {
+			if (part instanceof SyntaxElementMorph) part.setScale(SyntaxElementMorph.prototype.scale);
+			if (part instanceof StringMorph || part instanceof TextMorph) {
+				part.setFontSize(part.fontSize * fontFactor);
+				part.fixLayout();
+				part.rerender();
+			}
+		}
+		for (const part of parts.reverse()) {
+			if (part instanceof SyntaxElementMorph) part.fixLayout();
+		}
+	}
+
+	applyBlockSize(percent) {
+		// Keep script positions in project file units while changing the rendered scale.
+		const oldScale = this.scriptScale();
+		const fontFactor = percent / this.blockSize;
+		const pane = this.scriptsPane();
+		const scripts = pane ? pane.children.filter(m => m instanceof BlockMorph) : [];
+		const positions = scripts.map(m => [
+			(m.left() - pane.left()) / oldScale,
+			(m.top() - pane.top()) / oldScale,
+		]);
+		this.blockSize = percent;
+		SyntaxElementMorph.prototype.setScale(1.5 * this.scriptScale());
+		if (this.palette) this.updatePalette();
+		if (pane) {
+			scripts.forEach((m, i) => {
+				this.resizeBlock(m, fontFactor);
+				m.setPosition(new Point(
+					pane.left() + positions[i][0] * this.scriptScale(),
+					pane.top() + positions[i][1] * this.scriptScale()));
+			});
+			pane.adjustBounds();
+		}
+	}
+
+	async setBlockScalePercent(percent) {
+		if (Number.isFinite(percent) && percent >= 25 && percent <= 300) {
+			this.applyBlockSize(percent);
+			const prefs = this.readUserPreferences();
+			prefs.blockSizePercent = percent;
+			localStorage['user-prefs'] = JSON.stringify(prefs);
+		}
+		await this.codeManager.syncScripts();
+	}
+
+	zoomIn() {
+		for (const level of [50, 75, 100, 125, 150, 200, 250]) {
+			if (level > this.blockSize) return this.setBlockScalePercent(level);
+		}
+	}
+
+	zoomOut() {
+		for (const level of [250, 200, 150, 125, 100, 75, 50]) {
+			if (level < this.blockSize) return this.setBlockScalePercent(level);
+		}
+	}
+
+	restoreZoom() {
+		return this.setBlockScalePercent(isMobile() ? 125 : 100);
+	}
+
+	readUserPreferences() {
+		try {
+			const prefs = JSON.parse(localStorage['user-prefs'] || '{}');
+			return prefs && typeof prefs === 'object' && !Array.isArray(prefs) ? prefs : {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	applyUserPreferences() {
+		const percent = this.readUserPreferences().blockSizePercent;
+		if (typeof percent === 'number' && Number.isFinite(percent)) {
+			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
+		}
+	}
+
 	// File operations
 
 	async canReplaceCurrentProject() {
@@ -855,16 +1055,20 @@ console.log('unknown');
 
 	clearProject() {
 		this.project = new MB_Project();
+		this.watchProjectVariables();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		MB_connection.setCodeManager(this.codeManager);
 		this.removeAllScripts();
 		this.updateProjectProperties();
 
-		// GP clears the board on every project replacement, right after making
-		// the new project (MicroBlocksScripter.gp:553). Not awaited: nothing
-		// here downloads, and sendMsg keeps the wire in order on its own.
-		MB_connection.clearBoardIfConnected();
+		// Replacing the project erases what the board still holds. Answered rather
+		// than awaited, so a caller that downloads afterwards can wait on it and
+		// does not have to send a second erase of its own.
+		const cleared = MB_connection.clearBoardIfConnected();
+		// The empty project is an undo state of its own, so undo can return to it.
+		this.storeUndoState();
+		return cleared;
 	}
 
 	updateProjectProperties() {
@@ -885,10 +1089,14 @@ console.log('unknown');
 	}
 
 	saveTextAsFile(text, fileName) {
-		// A download is all a web page can do; there is no file system to
-		// write to and no path to write it at.
+		this.saveDataAsFile(text, fileName, 'text/plain');
+	}
 
-		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+	saveDataAsFile(data, fileName, mimeType = 'application/octet-stream') {
+		// A download is all a web page can do; there is no file system to
+		// write to and no path to write it at. data is text or bytes.
+
+		const url = URL.createObjectURL(new Blob([data], { type: mimeType }));
 		const link = document.createElement('a');
 		link.href = url;
 		link.download = fileName;
@@ -896,6 +1104,107 @@ console.log('unknown');
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
+	}
+
+	scriptsPicturePNG() {
+		// The scripts pane as PNG bytes. A canvas is the only thing in a browser
+		// that draws one, and toDataURL the only synchronous way to read it back;
+		// a page without a real canvas answers an empty string, and gets null.
+
+		const canvas = this.scriptsPane().scriptsPicture();
+		if (!canvas) return null; // no scripts
+		const url = canvas.toDataURL('image/png');
+		const base64 = url.slice(url.indexOf(',') + 1);
+		if (!base64) return null;
+		const binary = atob(base64);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+		return bytes;
+	}
+
+	saveScriptsImage() {
+		// A picture of every script, carrying the scripts as text so that the
+		// wiki and any MicroBlocks IDE can read them back out of it. It uses the
+		// current block scale rather than the export scale, on purpose, so that
+		// what is saved is what is on screen.
+
+		const pngBytes = this.scriptsPicturePNG();
+		if (pngBytes == null) return;
+		const withText = MB_ScriptPicture.addScriptText(pngBytes, this.allScriptsString());
+		this.saveDataAsFile(new Uint8Array(withText), 'allScripts' + Date.now() + '.png', 'image/png');
+	}
+
+	browserReadBytes(handler) {
+		// Choose any file and hand its bytes to handler, for the board's own file
+		// system, where a file is not a project and not text.
+
+		const inp = document.createElement('input');
+		inp.type = 'file';
+		inp.style.display = 'none';
+		inp.addEventListener('cancel', () => inp.remove());
+		inp.addEventListener('change', async () => {
+			inp.remove();
+			const file = inp.files[0];
+			if (file) await handler(file.name, new Uint8Array(await file.arrayBuffer()));
+		});
+		document.body.appendChild(inp);
+		inp.click();
+	}
+
+	chromeMenu(items) {
+		// The chrome draws the menu; items are '-' or [label, action, tip].
+		return chromeMenuFor(world, items);
+	}
+
+	// ***** The board's file system *****
+
+	async uploadFileToBoard() {
+		// Put a file the user chooses onto the board. The chooser takes any file,
+		// not just a project.
+
+		await this.browserReadBytes(async (fileName, bytes) => {
+			fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
+				subtitle: fileName, note: null, percent: 0 });
+			try {
+				await MB_connection.writeFileToBoard(fileName, bytes);
+			} finally {
+				fireIDEEvent('spinner.hide');
+			}
+		});
+	}
+
+	async downloadFileFromBoard() {
+		// The order is the point: list, offer a menu, read the chosen file, ask,
+		// then save.
+
+		const files = await MB_connection.getFileListFromBoard();
+		if (files == null) return;
+		// The code store is a file on the board and is not one a user wants.
+		const names = Object.keys(files).filter((name) => 'ublockscode' !== name).sort();
+		if (0 === names.length) return this.inform(localized('No files on board.'));
+		this.chromeMenu(names.map((name) => [name, () => this.readAndSaveFile(name, files[name])]));
+	}
+
+	async readAndSaveFile(fileName, fileSize) {
+		fireIDEEvent('spinner.show', { title: localized('Reading file from board...'),
+			subtitle: fileName, note: null, percent: 0 });
+		let bytes;
+		try {
+			bytes = await MB_connection.readFileFromBoard(fileName, fileSize);
+		} finally {
+			fireIDEEvent('spinner.hide');
+		}
+		// Null is a transfer the board did not finish, which is not an empty file.
+		if (bytes == null) return;
+		if (!(await this.confirm(localized('Save file?')))) return;
+		this.saveDataAsFile(bytes, fileName);
+	}
+
+	async toggleBLE() {
+		// Not a toggle, despite the endpoint's name: it asks and sends the answer
+		// either way, so declining sends 0.
+		const allow = await this.confirm(localized('Allow the attached board to be connected via BLE?'));
+		MB_connection.sendMsg('enableBLEMsg', allow ? 1 : 0);
 	}
 
 	openProjectMenu() {
@@ -912,12 +1221,16 @@ console.log('unknown');
 		this.importLocalFile((fileName, contents) => this.openProjectFromString(contents, fileName));
 	}
 
-	async openProjectFromString(contents, name) {
+	async openProjectFromString(contents, name, clearFirst = true) {
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
+		// clearFirst decides whether the empty project becomes an undo state before
+		// the new one loads, because clearProject stores one. Clearing therefore
+		// adds a step for undo to stop at. A dropped file passes false and skips it.
+		const cleared = clearFirst ? MB_editor.clearProject() : null;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
-		MB_editor.project = new MB_Project();
+		MB_editor.project.onVariableChange = null;
 		MB_editor.project.loadFromString(contents);
-		MB_editor.removeAllScripts();
+		MB_editor.watchProjectVariables();
 		MB_editor.project.main.scripts.forEach( (entry) => {
 			let x = entry[0], y = entry[1], script = entry[2];
 			MB_editor.addBlockToScriptsAt(script, x, y);
@@ -928,8 +1241,10 @@ console.log('unknown');
 		MB_editor.updateProjectProperties();
 
 		// Without the erase the project that was open keeps running on the board.
-		// Awaited: the download below must not overtake the erase.
-		await MB_connection.clearBoardIfConnected();
+		// Awaited: the download below must not overtake the erase. clearProject
+		// has already sent one when it ran, so waiting on that is the whole of
+		// it; sending a second erases an already empty board and stops it twice.
+		await (cleared || MB_connection.clearBoardIfConnected());
 		MB_editor.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log("Loaded:", name,
 			MB_editor.project.main.scripts.length, 'scripts,',
@@ -937,6 +1252,8 @@ console.log('unknown');
 		);
 		// Opening a project ends by downloading it to a connected board.
 		await MB_editor.codeManager.saveAllChunksAfterLoad();
+		// Keep the opened project as the state an edit can undo back to.
+		MB_editor.storeUndoState();
 	}
 
 	async openProjectFromFile(location) {
@@ -973,7 +1290,9 @@ console.log('unknown');
 		// Act on a file by its extension. Only projects are handled so far.
 
 		const name = fileName.toLowerCase();
-		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName);
+		// false: a dropped project replaces the current one without first leaving
+		// an empty project in the undo stack.
+		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
 	}
 
 	importLocalFile(callback) {
@@ -1057,6 +1376,7 @@ console.log('unknown');
 		}
 		if (project == null) return;
 		this.project = project;
+		this.watchProjectVariables();
 		this.removeAllScripts();
 		this.project.main.scripts.forEach(
 			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
@@ -1067,6 +1387,8 @@ console.log('unknown');
 		this.updateLibraryList(); // its libraries, variables and functions reach the palette
 		console.log('Read from board:', this.project.main.scripts.length, 'scripts,',
 			this.project.allFunctions().length, 'functions');
+		// Keep the decompiled project as the state redo can return to.
+		this.storeUndoState();
 	}
 
 	// Placeholder functions for UI actopms
@@ -1190,6 +1512,10 @@ console.log('unknown');
 // rather than through IDE.fireEvent, which is the same dispatch, so that the
 // port does not require the chrome to be loaded.
 function fireIDEEvent(name, value) {
+	// The spinner is the chrome's, and no morph here stands for it, so what the
+	// port last said about it is the only record that one is up.
+	if ('spinner.show' === name) MB_editor.spinnerShowing = true;
+	if ('spinner.hide' === name) MB_editor.spinnerShowing = false;
 	// Both guards: the port is also loaded with no DOM, and into contexts that
 	// supply a partial one where document exists and CustomEvent does not.
 	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }

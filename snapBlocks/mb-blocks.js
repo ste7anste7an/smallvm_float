@@ -232,7 +232,8 @@ SyntaxElementMorph.uber = Morph.prototype;
 SyntaxElementMorph.prototype.contrast = 17;
 
 SyntaxElementMorph.prototype.setScale = function (num) {
-	var scale = Math.min(Math.max(num, 1), 25);
+	// 0.3 is the smallest size the block size preference offers, 25%: 1.5 * 25/125.
+	var scale = Math.min(Math.max(num, 0.3), 25);
 	this.scale = scale;
 	this.corner = 4 * scale;
 	this.rounding = 16 * scale;
@@ -1603,7 +1604,10 @@ BlockMorph.prototype.userMenu = function () {
 				'script ' + Math.round(this.left() - 200) + ' ' + Math.round(this.top()) + ' {\n' +
 				this.codeString() +
 				'\n}';
-			navigator.clipboard.writeText(s);
+			// Through the buffer, so the chrome's 'paste script from clipboard' can
+			// see it; that item tests for this text and nothing else produces it.
+			if (typeof setClipboard === 'function') setClipboard(s);
+			else navigator.clipboard.writeText(s);
 		},
 		'copy this script to the clipboard'
 	);
@@ -3134,6 +3138,7 @@ CommandBlockMorph.prototype.userDestroy = function () {
 	this.prepareToBeGrabbed(); // fix outer ring reporter slot
 
 	this.destroy();
+	if (scripts) MB_editor.scriptChanged();
 	if (cslot) {
 		cslot.fixLayout();
 	}
@@ -3157,6 +3162,7 @@ CommandBlockMorph.prototype.userDestroyJustThis = function () {
 	}
 
 	this.extract();
+	if (scripts) MB_editor.scriptChanged();
 };
 
 CommandBlockMorph.prototype.userExtractJustThis = function () {
@@ -3621,6 +3627,7 @@ ReporterBlockMorph.prototype.userDestroy = function () {
 	this.topBlock().fullChanged();
 	this.prepareToBeGrabbed(this.world().hand);
 	this.destroy();
+	if (scripts) MB_editor.scriptChanged();
 };
 
 // ReporterBlockMorph drawing:
