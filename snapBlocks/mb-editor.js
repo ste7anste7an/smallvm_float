@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_Files, MB_FilePicker, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_Files, MB_FilePicker, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -789,9 +789,80 @@ console.log('unknown');
 		// Recorded first: rebuilt calls read their slots from the project's spec.
 		this.project.recordBlockSpec(op, { blockType, opName: op, specString,
 			slotTypes: typeString, defaults: defaults.slice() });
+		// A reporter does not chain and a command does not fit a value slot, so
+		// a call that changed shape has to leave the place it was standing in.
+		if (oldSpec && (oldSpec.blockType !== blockType)) this.ejectCallsOf(op, 'r' === blockType);
 		this.updateCallsOf(op, colourSlots);
 		// Its own, because updateCallsOf answers early when the spec is missing.
 		this.scriptChanged();
+	}
+
+	ejectCallsOf(op, becomesReporter) {
+		// Take every call to op out of the script or the function body it sits
+		// in and leave it in the scripting area on its own, in the shape its
+		// new spec gives it, so the user can pick it up and put it back.
+		// Sweeps again while anything moved: an ejected call can carry another
+		// call to op inside it, and that one is in a slot of a block the last
+		// sweep had not seen.
+		let moved = true;
+		for (let sweep = 0; moved && (sweep < 100); sweep += 1) {
+			moved = false;
+			for (const script of this.scriptsPane().children.slice()) {
+				if (!(script instanceof BlockMorph)) continue;
+				moved = this.ejectCallsFrom(op, becomesReporter, script, null) || moved;
+			}
+			for (const func of this.project.main.functions) {
+				// A definition that is showing was reached through the pane
+				// above, because the hat holds the function's own body.
+				const showing = this.scriptsPane().children.some((m) => m.functionDefinition === func);
+				if (!func.cmdList || showing) continue;
+				moved = this.ejectCallsFrom(op, becomesReporter, null, func) || moved;
+			}
+		}
+		this.updateProject();
+	}
+
+	ejectCallsFrom(op, becomesReporter, script, func) {
+		// Eject each call to op from one script in the pane, or from the body of
+		// one function whose definition is not showing, and answer whether any
+		// moved. A call already standing on its own is where this would put it,
+		// so it is left alone. Each ejection changes the tree, so the next call
+		// is looked for afresh.
+		const pane = this.scriptsPane();
+		let moved = false;
+		const gap = 10 * blockScale();
+		let at = script ? script.fullBounds().topRight().add(new Point(gap, 0)) : null;
+		for (;;) {
+			const head = func ? func.cmdList : script;
+			if (head == null) return moved;
+			const call = head.allBlocks().find((b) => (b.selector === op) && (b.parent !== pane));
+			if (call == null) return moved;
+			moved = true;
+			const node = call.expression();
+			if (call === head) {
+				// Nothing above it to reattach the rest to, so the rest becomes
+				// the body.
+				const tail = call.nextBlock();
+				if (tail) call.removeChild(tail);
+				func.cmdList = tail;
+				call.destroy();
+			} else if (call instanceof ReporterBlockMorph) {
+				call.prepareToBeGrabbed(null);
+				call.destroy();
+			} else {
+				call.extract();
+			}
+			// Rebuilt rather than reshaped: the shape is decided when a block is
+			// built, and nothing turns a command block into a reporter in place.
+			const fresh = MB_Parser.blockForDecompiled(
+				{ selector: op, args: node.args, isReporter: becomesReporter, next: null });
+			if (at) {
+				this.addBlockToScriptsAt(fresh, at.x - pane.left(), at.y - pane.top());
+				at = at.add(new Point(0, fresh.fullBounds().height() + gap));
+			} else {
+				this.addToBottom(fresh);
+			}
+		}
 	}
 
 	updateCallsOf(op, colourSlots = []) {
