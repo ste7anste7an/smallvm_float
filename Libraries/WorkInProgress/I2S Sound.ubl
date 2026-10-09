@@ -1,14 +1,53 @@
 module 'I2S Sound'
 author MicroBlocks
-version 1 1 
-choices i2s_channel left right both 
+version 1 1
+choices i2s_channel left right both
 description ''
+variables _i2sFrequencies _i2sSampleRate _i2sHalfPeriod
 
-  spec ' ' 'i2s_start' 'start i2s sample rate _ #BR# bit clock pin _ word clock pin _ #BR# data in pin _ data out pin _ : #BR# use PDM _' 'num num num num num bool' 16000 1 2 -1 -1 false
+  spec ' ' 'i2s_start' 'start i2s sample rate _ #BR# bit clock pin _ word clock pin _ #BR# data in pin _ data out pin _ : #BR# use PDM _ : buffer size _ samples' 'num num num num num bool num' 16000 1 2 -1 -1 false 512
   spec ' ' 'i2s_stop' 'stop i2s'
   space
   spec 'r' 'i2s_readSamples' 'i2s read _ samples from channel _' 'num menu.i2s_channel' 256 'both'
   spec ' ' 'i2s_writeSamples' 'i2s write sample list _' 'str' 'aList'
+  space
+  spec ' ' 'i2s_playMIDIKey' 'i2s play midi key _' 'num' 60
+  spec ' ' 'i2s_stopTone' 'i2s stop tone'
+  space
+  spec ' ' '_i2s_toneLoop' '_i2s_toneLoop'
+
+to 'i2s_stopTone' {
+  _i2sHalfPeriod = 0
+}
+
+to _i2s_toneLoop {
+  comment 'Tone loop for I2S.
+Assumes that I2S output has been started.'
+  if (0 == _i2sSampleRate) {
+    comment 'I2S output is not started.'
+    return 0
+  }
+  local 'sampleMicros' (1000000 / _i2sSampleRate)
+  local 'out' (newList 30)
+  '[data:delete]' 'all' out
+  _i2sHalfPeriod = 0
+  local 'isHigh' (booleanConstant false)
+  local 'usecsRemaining' _i2sHalfPeriod
+  forever {
+    if (_i2sHalfPeriod > 0) {
+      usecsRemaining += (0 - sampleMicros)
+      if (usecsRemaining < 0) {
+        isHigh = (not isHigh)
+        usecsRemaining += _i2sHalfPeriod
+      }
+      '[data:addLast]' (ifExpression isHigh 1000 -1000) out
+      if ((size out) >= 64) {
+        i2s_writeSamples out
+        '[data:delete]' 'all' out
+      }
+    }
+  }
+}
 
 to i2s_readSamples sampleCount optionalChannel {
   comment 'Read the given number of samples from the I2S input device.
@@ -33,15 +72,19 @@ the result plus a small read buffer.'
   return samples
 }
 
-to i2s_start sampleRate bitClockPin wordClockPin inputPin outputPin optionalPDM {
+to i2s_start sampleRate bitClockPin wordClockPin inputPin outputPin optionalPDM optionalBufferSize {
   comment 'Start the I2S device for input, output, or both (full duplex).
 For input-only or output-only use -1 for the unused pin.
 PDM microphone input is supported only on ESP32 boards.'
   local 'usePDM' (argOrDefault 6 false)
-  '[sound:i2sBegin]' sampleRate bitClockPin wordClockPin inputPin outputPin usePDM
+  local 'bufferSize' (argOrDefault 7 512)
+  _i2sSampleRate = sampleRate
+  '[sound:i2sBegin]' sampleRate bitClockPin wordClockPin inputPin outputPin usePDM bufferSize
 }
 
 to i2s_stop {
+  _i2sHalfPeriod = 0
+  _i2sSampleRate = 0
   '[sound:i2sEnd]'
 }
 
@@ -54,5 +97,21 @@ to i2s_writeSamples sampleList {
     }
     written += n
   }
+}
+
+to 'i2s_playMIDIKey' key {
+  if (_i2sFrequencies == 0) {_i2sFrequencies = ('[data:makeList]' 261626 277183 293665 311127 329628 349228 369994 391995 415305 440000 466164 493883 246942 277183 277183 311127 311127 349228 329628 369994 369994 415305 415305 466164 466164 523252)}
+  local 'freq' (at ((key % 12) + 1) _i2sFrequencies)
+  local 'octave' ((key / 12) - 5)
+  if (octave < 0) {
+    repeat (absoluteValue octave) {
+      freq = (freq / 2)
+    }
+  }
+  repeat octave {
+    freq = (freq * 2)
+  }
+  _i2sHalfPeriod = (500000000 / freq)
+  sendBroadcast '_i2s_toneLoop'
 }
 
