@@ -15,7 +15,7 @@ variables _smartiot_userToken _smartiot_topicName _smartiot_server _smartiot_ser
 
   spec ' ' 'smartiot switch broadcast' 'when SmartIoT switch _ send broadcast _' 'menu.smartiot_switchMenu str' 'on' ''
   spec ' ' 'smartiot connect' 'Connect SmartIoT with userToken _ topic _' 'str str' 'YourUserToken' '1'
-  spec ' ' 'smartiot set data' 'set data to send SmartIoT Data 1 _ : Data 2 _ : Data 3 _ : Data 4 _ : Data 5 _ : Data 6 _ : Data 7 _ : Data 8 _' 'num num num num num num num num' 0 0 0 0 0 0 0 0
+  spec ' ' 'smartiot set data' 'set data to send SmartIoT Field 1 _ : Field 2 _ : Field 3 _ : Field 4 _ : Field 5 _ : Field 6 _ : Field 7 _ : Field 8 _' 'num num num num num num num num' 0 0 0 0 0 0 0 0
   spec ' ' 'smartiot upload' 'Upload data to SmartIoT'
   spec 'r' 'smartiot connected' 'SmartIoT connection'
   spec 'r' 'smartiot switch is' 'SmartIoT switch _' 'menu.smartiot_switchMenu' 'on'
