@@ -357,7 +357,7 @@ to '_nezha32_getGaryAcc' axis {
   } (axis == 'Z') {
     ax = 2
   }
-  return ('[elfreaks_dev_sensor:getGaryAcc]' ax)
+  return (('[elfreaks_dev_sensor:getGaryAcc]' ax) * 1000)
 }
 
 to '_nezha32_getGaryAngle' axis {
