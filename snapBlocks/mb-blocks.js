@@ -5955,27 +5955,16 @@ ColorSlotMorph.prototype.fixLayout = function () {
 };
 
 ColorSlotMorph.prototype.render = function (ctx) {
-	var borderColor;
+	let center = this.bounds.center();
+	let radius = Math.floor(this.width() / 2);
 
-	if (this.parent) {
-		borderColor = this.parent.color;
-	} else {
-		borderColor = new Color(120, 120, 120);
-	}
+	ctx.beginPath();
+	ctx.arc(radius, radius, radius - 1, 0, 2 * Math.PI);
 	ctx.fillStyle = this.color.toString();
-
-	// cache my border colors
-	this.cachedClr = borderColor.toString();
-	this.cachedClrBright = borderColor.lighter(this.contrast)
-		.toString();
-	this.cachedClrDark = borderColor.darker(this.contrast).toString();
-
-	ctx.fillRect(
-		this.edge,
-		this.edge,
-		this.width() - this.edge * 2,
-		this.height() - this.edge * 2
-	);
+	ctx.fill();
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = "black";
+	ctx.stroke();
 };
 
 // BlockExpanderMorph //////////////////////////////////////////////////////
