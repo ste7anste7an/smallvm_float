@@ -112,6 +112,14 @@ static void initSecondarySPI() {
 			#define MISO_PIN 36
 			#define SCK_PIN 37
 			secondarySPI->begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
+		#elif defined(ESP32STEAMakers)
+            // Use fixed SD card pins
+            #undef DEFAULT_CS_PIN
+            #define DEFAULT_CS_PIN 0
+            #define MOSI_PIN 33
+            #define MISO_PIN 32
+            #define SCK_PIN 15
+            secondarySPI->begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
 		#else
 			secondarySPI->begin(); // Use default SCLK, MISO, MOSI, SS pins for HSPI
 		#endif
@@ -139,7 +147,7 @@ static void initSDCard(int chipSelectPin) {
 	#if defined(SPRINGBOT)
 		SPI.end();
 		SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, DEFAULT_CS_PIN);
-	#elif defined(STEAMakersAI)
+	#elif defined(ESP32STEAMakers)||(STEAMakersAI)
 		useSecondarySPI = true;
 		initSecondarySPI();
 	#endif
