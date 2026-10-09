@@ -113,10 +113,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.redo();
 			callback(0);
 			break;
-		case 'ide.applyUserPreferences':
-			callback(0);
-			MB_editor.applyUserPreferences();
-			break;
 		case 'board.toggleBLE':
 			callback(0);
 			MB_editor.toggleBLE();
@@ -168,9 +164,6 @@ GP.apiCall = function (endPoint, params, callback) {
 			// sends this and waits on the reply, not on the dialog.
 			callback(0);
 			MB_editor.importLibrary();
-			break;
-		case 'ide.spinnerCancelled':
-			callback();
 			break;
 		case 'ide.spinnerCancelled':
 			// Reply first, then act. The chrome sends this for every Escape key
