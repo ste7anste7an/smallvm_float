@@ -26,15 +26,12 @@
 #include <driver/i2s.h>
 
 #define HAS_I2S 1
+#define DEFAULT_BUFFER_SIZE 512 // in samples; min = 8; max = 1023 (DMA descriptor limit)
 
 // NOTE: I2S_PORT 0 is also used by the microphone primitive in sensorPrims.cpp.
 // However, only I2S_NUM_0 supports I2S_MODE_PDM so we have to use it here.
 // TODO: Make the microphone code use this code to avoid an I2S device conflict.
 #define I2S_PORT I2S_NUM_0
-
-// ESP32 buffer size in samples
-// The theoretical maximumize, based on the DMA descriptor limit, is 1023 samples.
-#define ESP_BUF_SIZE 512
 
 static int i2sRunning = false;
 
@@ -47,7 +44,7 @@ static void stopI2S() {
 }
 
 static void startI2S(
-	int sampleRate, int isPDM,
+	int sampleRate, int bufferSize, int isPDM,
 	int bitClockPin, int wordClockPin, int inputPin, int outputPin) {
 
 	if (i2sRunning) stopI2S(); // if running, stop the I2S driver
@@ -66,7 +63,7 @@ static void startI2S(
 		.communication_format = I2S_COMM_FORMAT_STAND_I2S,
 		.intr_alloc_flags = 0,
 		.dma_buf_count = 3, // minimum is 3
-		.dma_buf_len = ESP_BUF_SIZE,
+		.dma_buf_len = bufferSize,
 		.use_apll = false,
 		.tx_desc_auto_clear = true,
 	};
@@ -107,7 +104,7 @@ static int i2sWriteBytes(const uint8_t *buffer, int byteCount) {
 #include <I2S.h>
 
 #define HAS_I2S 1
-#define PICO_BUF_SIZE 512 // buffer size in samples
+#define DEFAULT_BUFFER_SIZE 512 // buffer size in samples
 
 I2S i2s(INPUT_PULLUP); // bidirectional capable mode
 static int i2sRunning = false;
@@ -120,7 +117,7 @@ static void stopI2S() {
 }
 
 static void startI2S(
-	int sampleRate, int isPDM,
+	int sampleRate, int bufferSize, int isPDM,
 	int bitClockPin, int wordClockPin, int inputPin, int outputPin) {
 
 	// sanity checks
@@ -132,7 +129,7 @@ static void startI2S(
 	if (sampleRate < 8000) sampleRate = 8000;
 	i2s.setFrequency(sampleRate);
 	i2s.setBitsPerSample(16);
-	i2s.setBuffers(3, PICO_BUF_SIZE);
+	i2s.setBuffers(3, bufferSize);
 	i2s.setBCLK(bitClockPin); // note: word clock pin is always bitClockPin + 1
 	if (inputPin < 0) {
 		i2s.setDATA(outputPin);
@@ -163,7 +160,7 @@ static int i2sWriteBytes(const uint8_t *buffer, int byteCount) {
 
 #if defined(HAS_I2S)
 
-static OBJ primI2SStart(int argCount, OBJ *args) {
+static OBJ primI2SBegin(int argCount, OBJ *args) {
 	// I2S needs two clock pins pins and either an input pin, and output pin, or both.
 	// args[0]: sample rate
 	// args[1]: bit clock (BCK / SCK / CLK)
@@ -172,6 +169,7 @@ static OBJ primI2SStart(int argCount, OBJ *args) {
 	// args[4]: output pin (DATA / SD)
 	// args[5] (optional): true if device uses PDM (pulse density modulation
 	// Note: PDM decoding is available on ESP32 only
+	// args[6] (optional): buffer size in samples (range: 8-1023)
 
 	if (!isInt(args[0])) fail(needsIntegerError);
 
@@ -187,6 +185,7 @@ static OBJ primI2SStart(int argCount, OBJ *args) {
 	int inputPin = mapDigitalPinNum(obj2int(args[3]));
 	int outputPin = mapDigitalPinNum(obj2int(args[4]));
 	int isPDM = (argCount > 5) && args[5] == trueObj;
+	int bufferSize = ((argCount > 6) && isInt(args[6])) ? obj2int(args[6]) : DEFAULT_BUFFER_SIZE;
 
 	if (inputOnlyPin(clockPin) || inputOnlyPin(wordClockPin)) {
 		outputString("Pin is input only");
@@ -194,7 +193,10 @@ static OBJ primI2SStart(int argCount, OBJ *args) {
 	}
 
 	if (sampleRate < 10000) sampleRate = sampleRate; // minimum sample rates on ESP32 is 10000!
-	startI2S(sampleRate, isPDM, clockPin, wordClockPin, inputPin, outputPin);
+	if (bufferSize < 8) bufferSize = 8; // minimum on ESP32
+	if (bufferSize > 1023) bufferSize = 1023; // limit on ESP32
+
+	startI2S(sampleRate, bufferSize, isPDM, clockPin, wordClockPin, inputPin, outputPin);
 	return falseObj;
 }
 
@@ -280,7 +282,7 @@ static OBJ primI2SWrite(int argCount, OBJ *args) {
 
 #else
 
-static OBJ primI2SStart(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SBegin(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 static OBJ primI2SEnd(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 static OBJ primI2SRead(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 static OBJ primI2SWrite(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
@@ -689,7 +691,7 @@ static OBJ primGoertzel(int argCount, OBJ *args) {
 // Primitives
 
 static PrimEntry entries[] = {
-	{"i2sBegin", primI2SStart},
+	{"i2sBegin", primI2SBegin},
 	{"i2sEnd", primI2SEnd},
 	{"i2sRead", primI2SRead},
 	{"i2sWrite", primI2SWrite},
