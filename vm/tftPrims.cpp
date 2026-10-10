@@ -1673,6 +1673,13 @@ static int drawString(const char *s, int x, int y, int color16b, int scale, int 
 }
 
 static void drawText(OBJ value, int x, int y, int color16b, int scale, int wrap, int bgColor) {
+	#if defined(NEZHA_ESP32)
+		tft->startWrite();
+		nezhaMB_CanvasDrawText(x, y, obj2str(value), color16b, wrap, scale, bgColor);
+		tft->endWrite();
+		return;
+	#endif
+
 	int lineH = 8 * scale;
 	int letterW = 6 * scale;
 	char buffer[1000];
