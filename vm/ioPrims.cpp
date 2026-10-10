@@ -1159,8 +1159,10 @@ void hardwareInit() {
 			1, 1};
 	#endif
 
-#elif defined(ARDUINO_ARCH_ESP32)
-	#ifdef ARDUINO_IOT_BUS
+#elif defined(ARDUINO_ARCH_ESP32)	
+	#if defined(ESP32STEAMakers)
+		#define BOARD_TYPE "ESP32 STEAMakers"
+	#elif defined(ARDUINO_IOT_BUS)
 		#define BOARD_TYPE "IOT-BUS"
 		#define LED_BUILTIN 5
 		#define PIN_BUTTON_A 15
