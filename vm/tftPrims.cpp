@@ -1652,7 +1652,8 @@ static void drawChar(int x, int y, uint8_t *glyph, int color, int scale) {
 	tft->endWrite();
 }
 
-static void drawString(const char *s, int x, int y, int color16b, int scale, int wrap) {
+static int drawString(const char *s, int x, int y, int color16b, int scale, int wrap) {
+	// Draw one line of text, wrapping if requested. Return the y of the last row drawn.
 	const int lineH = 8 * scale;
 	const int letterW = 6 * scale;
 	const int lastX = tftWidth - letterW;
@@ -1668,6 +1669,7 @@ static void drawString(const char *s, int x, int y, int color16b, int scale, int
 		drawChar(x, y, (uint8_t *) &mbFont[offset], color16b, scale);
 		x += letterW;
 	}
+	return y;
 }
 
 static void drawText(OBJ value, int x, int y, int color16b, int scale, int wrap, int bgColor) {
@@ -1676,19 +1678,26 @@ static void drawText(OBJ value, int x, int y, int color16b, int scale, int wrap,
 	char buffer[1000];
 
 	if (IS_TYPE(value, StringType)) {
-		int count = UTF8ToCP437(obj2str(value), buffer, sizeof(buffer));
-		if (bgColor != -1) tft->fillRect(x, y, count * letterW, lineH, bgColor);
-		drawString(buffer, x, y, color16b, scale, wrap);
+		UTF8ToCP437(obj2str(value), buffer, sizeof(buffer));
 	} else if (trueObj == value) {
-		if (bgColor != -1) tft->fillRect(x, y, 4 * letterW, lineH, bgColor);
-		drawString("true", x, y, color16b, scale, wrap);
+		strcpy(buffer, "true");
 	} else if (falseObj == value) {
-		if (bgColor != -1) tft->fillRect(x, y, 5 * letterW, lineH, bgColor);
-		drawString("false", x, y, color16b, scale, wrap);
+		strcpy(buffer, "false");
 	} else if (isInt(value)) {
 		sprintf(buffer, "%d", obj2int(value));
-		if (bgColor != -1) tft->fillRect(x, y, strlen(buffer) * letterW, lineH, bgColor);
-		drawString(buffer, x, y, color16b, scale, wrap);
+	} else {
+		return;
+	}
+
+	// Draw each line; a newline returns to the starting x and moves down one line.
+	char *line = buffer;
+	while (true) {
+		char *lineEnd = strchr(line, 10);
+		if (lineEnd) *lineEnd = 0;
+		if (bgColor != -1) tft->fillRect(x, y, strlen(line) * letterW, lineH, bgColor);
+		y = drawString(line, x, y, color16b, scale, wrap) + lineH;
+		if (!lineEnd) break;
+		line = lineEnd + 1;
 	}
 }
 

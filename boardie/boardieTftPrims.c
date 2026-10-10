@@ -508,9 +508,10 @@ static void drawText(OBJ value, int x, int y, int textColor, int scale, int wrap
 		var bgColor = $6;
 		var x = $1 - scale;
 		var y = $2 - scale;
+		var lines = text.split("\n");
 		if (bgColor >= 0) {
-			var w = scale * 6 * text.length;
-			var h = scale * 8; // text height on boards is scale * 8
+			var w = scale * 6 * Math.max(...lines.map((l) => l.length));
+			var h = scale * 8 * lines.length; // text height on boards is scale * 8 per line
 			window.ctx.fillStyle = window.rgbFrom24b(bgColor);
 			window.ctx.fillRect(x + scale, y + scale, w, h);
 		}
@@ -522,17 +523,28 @@ static void drawText(OBJ value, int x, int y, int textColor, int scale, int wrap
 			// Approximate the same font size and top-left position as the Adafruit font
 			fontSize = (scale * 10);
 			window.ctx.font = fontSize + 'px monospace';
-			window.ctx.fillText(text, x + (scale * 0.9), y + (scale * 2.45));
+			lines.forEach((line, i) => {
+				window.ctx.fillText(line, x + (scale * 0.9), y + (scale * 2.45) + (i * scale * 8));
+			});
 		} else {
 			window.ctx.font = fontSize + 'px adafruit';
+			var justWrapped = false;
 			text.split("").forEach(
 				(c) => {
+					if (c == "\n") { // newline: back to the starting x, down one line
+						x = $1 - scale;
+						if (!justWrapped) y += scale * 8; // a wrap already moved down
+						justWrapped = false;
+						return;
+					}
 					window.ctx.fillText(c, x, y);
 					x += scale * 6;
+					justWrapped = false;
 					if (wrap && (x + scale * 6 >= window.ctx.canvas.width)) {
 						// wrap
 						x = 0 - scale;
 						y += fontSize * 3 / 4;
+						justWrapped = true;
 					}
 				}
 			);
