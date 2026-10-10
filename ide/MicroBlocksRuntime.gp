@@ -1260,6 +1260,7 @@ method installBoardSpecificBlocks SmallRuntime {
 		importEmbeddedLibrary scripter 'Basic Sensors'
 		importEmbeddedLibrary scripter 'LED Display'
 		importEmbeddedLibrary scripter 'HTTP client'
+		importEmbeddedLibrary scripter 'SDCard'
 		importEmbeddedLibrary scripter 'microSTEAMakers'
 	} ('CodingBox' == boardType) {
 		importEmbeddedLibrary scripter 'Coding Box'
@@ -1271,6 +1272,8 @@ method installBoardSpecificBlocks SmallRuntime {
 		importEmbeddedLibrary scripter 'Foxbit'
 		importEmbeddedLibrary scripter 'Basic Sensors'
 		importEmbeddedLibrary scripter 'LED Display'
+		importEmbeddedLibrary scripter 'HTTP client'
+		importEmbeddedLibrary scripter 'SDCard'
 	} ('KidsIOT' == boardType) {
 		importEmbeddedLibrary scripter 'KidsIOT'
 		importEmbeddedLibrary scripter 'LED Display'
@@ -1304,6 +1307,12 @@ method installBoardSpecificBlocks SmallRuntime {
 		importEmbeddedLibrary scripter 'DUELink Edu'
 	} ('PiBody' == boardType) {
 		importEmbeddedLibrary scripter 'PiBody'
+	} ('ESP32 STEAMakers' == boardType) {
+		importEmbeddedLibrary scripter 'HTTP client'
+		importEmbeddedLibrary scripter 'SDCard'
+	} ('STEAMakers AI' == boardType) {
+		importEmbeddedLibrary scripter 'HTTP client'
+		importEmbeddedLibrary scripter 'SDCard'
 	}
 }
 

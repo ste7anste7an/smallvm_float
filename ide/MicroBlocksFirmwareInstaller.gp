@@ -19,6 +19,7 @@ method initialize MicroBlocksFirmwareInstaller {
 		'CoCube'
 		'Databot'
 		'Databot v3'
+		'ESP32 STEAMakers'
 		'KidsBits'
 		'micro:STEAMakers'
 		'STEAMakers AI'
@@ -33,7 +34,7 @@ method initialize MicroBlocksFirmwareInstaller {
 		'ESP32')
 	espBoards = (array
 		'Citilab ED1' 'CoCube' 'Databot' 'Databot v3' 'ESP32' 'micro:STEAMakers'
-		'STEAMakers AI' 'KidsBits' 'CodingBox' 'KidsIOT'
+		'ESP32 STEAMakers' 'STEAMakers AI' 'KidsBits' 'CodingBox' 'KidsIOT'
 		'Springbot' 'Springbot Green' 'Springbot Gold')
 	dfuBoards = (array
 		'WeAct STM32H743' 'DUELink' 'CincoBit' 'PixoBit' 'Clipit' 'DueSTEM' 'Ghizzy' 'Holiday Tree')
