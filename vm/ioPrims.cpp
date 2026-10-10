@@ -1159,8 +1159,10 @@ void hardwareInit() {
 			1, 1};
 	#endif
 
-#elif defined(ARDUINO_ARCH_ESP32)
-	#ifdef ARDUINO_IOT_BUS
+#elif defined(ARDUINO_ARCH_ESP32)	
+	#if defined(ESP32STEAMakers)
+		#define BOARD_TYPE "ESP32 STEAMakers"
+	#elif defined(ARDUINO_IOT_BUS)
 		#define BOARD_TYPE "IOT-BUS"
 		#define LED_BUILTIN 5
 		#define PIN_BUTTON_A 15
@@ -3536,21 +3538,25 @@ static OBJ primSquareWave(int argCount, OBJ *args) {
  	#include <esp_sleep.h>
 
 	extern "C" void lightSleep(int msecs) {
-		if (servosRunning) return; // changing clock speed messes up servo timing
-		#if defined(ESP32_S2) || defined(ESP32_C3) || defined(ESP32_C6)
-			setCpuFrequencyMhz(80); // lowest safe clock speed on S2, C3, and C6 is 80 MHz
+		#if defined(NEZHA_ESP32)
+			delay(msecs); // the board library's tasks need the CPU at full speed; yield without changing the clock
 		#else
-			int lowCPUFrequency = 10; // use 10 MHz if possible for maximum power savings
-			if (bleRunning || wifiActive) lowCPUFrequency = 80; // must use 80 MHz
-			setCpuFrequencyMhz(lowCPUFrequency); //
-		#endif
+			if (servosRunning) return; // changing clock speed messes up servo timing
+			#if defined(ESP32_S2) || defined(ESP32_C3) || defined(ESP32_C6)
+				setCpuFrequencyMhz(80); // lowest safe clock speed on S2, C3, and C6 is 80 MHz
+			#else
+				int lowCPUFrequency = 10; // use 10 MHz if possible for maximum power savings
+				if (bleRunning || wifiActive) lowCPUFrequency = 80; // must use 80 MHz
+				setCpuFrequencyMhz(lowCPUFrequency); //
+			#endif
 
-		delay(msecs);
+			delay(msecs);
 
-		#if defined(ESP32_C3) || defined(ESP32_C6)
-			setCpuFrequencyMhz(160); // max clock speed on C3 and C6
-		#else
-			setCpuFrequencyMhz(240);
+			#if defined(ESP32_C3) || defined(ESP32_C6)
+				setCpuFrequencyMhz(160); // max clock speed on C3 and C6
+			#else
+				setCpuFrequencyMhz(240);
+			#endif
 		#endif
 	}
 

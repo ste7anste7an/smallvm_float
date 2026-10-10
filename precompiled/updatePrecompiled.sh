@@ -55,6 +55,8 @@ pio run -e steamaker-ai
 cp .pio/build/steamaker-ai/firmware.bin precompiled/vm_steamakers_ai.bin
 pio run -e steam-maker
 cp .pio/build/steam-maker/firmware.bin precompiled/vm_micro_steamakers.bin
+pio run -e esp32-steamakers
+cp .pio/build/esp32-steamakers/firmware.bin precompiled/vm_esp32_steamakers.bin
 pio run -e kids-bits
 cp .pio/build/kids-bits/firmware.bin precompiled/vm_kids_bits.bin
 pio run -e makerportV3
