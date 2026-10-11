@@ -174,6 +174,10 @@ void hardwareInit() {
 	#if defined(DATABOT_V3)
 		databotV3Init();
 	#endif
+	#if defined(NEZHA_ESP32)
+		// This call suppresses some spurious error messages at startup.
+		gpio_install_isr_service(0);
+	#endif
 	initPins();
 	initRandomSeed();
 	turnOffInternalNeoPixels();
@@ -1159,7 +1163,7 @@ void hardwareInit() {
 			1, 1};
 	#endif
 
-#elif defined(ARDUINO_ARCH_ESP32)	
+#elif defined(ARDUINO_ARCH_ESP32)
 	#if defined(ESP32STEAMakers)
 		#define BOARD_TYPE "ESP32 STEAMakers"
 	#elif defined(ARDUINO_IOT_BUS)

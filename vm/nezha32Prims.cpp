@@ -65,6 +65,7 @@ void boardAddPrims() {
 }
 
 void boardPoll() {
+	taskYIELD(); // prevents watchdog timer from tripping
 	nezhaMB_UserProgramsPoll(); // the library's saved program operations run on this thread
 }
 
