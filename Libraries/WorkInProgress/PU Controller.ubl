@@ -1,0 +1,315 @@
+module 'PU Controller' Input
+author MicroBlocks
+version 1 1 
+depends _Radio 
+tags controller remote pu elecfreaks microbit 
+choices pu_button 'joystick button' B1 B2 B3 B4 A B touch 
+choices pu_accel_axis X Y Z 
+choices pu_joystick_axis X Y 
+description 'PU Robot remote control library for micro:bit V2. Can automatically transmit joystick, acceleration, and button press events, or explicitly send these values.
+Radio messages are encoded according to the PU Robot protocol. You can define your own name:value pairs for generic projects.'
+variables _pu_controller_button_states _pu_controller_task_started _pu_controller_task_heartbeat _pu_controller_send_phase _pu_controller_button_names _pu_controller_button_pins _pu_controller_auto_send _pu_controller_touch_state _pu_controller_touch_release_task_started 
+
+  spec ' ' 'puControllerGroup' 'PU controller radio group _' 'num' 160
+  spec ' ' 'puControllerAutomaticSend' 'PU controller automatic send _' 'bool' true
+  space
+  spec 'r' 'puControllerPressedButton' 'PU controller get pressed button : return index _' 'bool' false
+  spec 'r' 'puControllerJoystick' 'PU controller joystick _ (-100 to 100)' 'menu.pu_joystick_axis' 'X'
+  spec 'r' 'puControllerButtonPressed' 'PU controller button _ pressed?' 'menu.pu_button' 'B1'
+  spec 'r' 'puControllerAcceleration' 'PU controller acceleration _' 'menu.pu_accel_axis' 'X'
+  space
+  spec ' ' 'puControllerSendJoystick' 'PU controller send joystick _' 'menu.pu_joystick_axis' 'X'
+  spec ' ' 'puControllerSendAcceleration' 'PU controller send acceleration _' 'menu.pu_accel_axis' 'X'
+  spec ' ' 'puControllerSendButton' 'PU controller send button _' 'menu.pu_button' 'B1'
+  spec ' ' 'puControllerSendValue' 'PU controller send name _ value _' 'str num' 'name' 0
+  space
+  spec ' ' '_pu_ensureControllerButtonTables' '_pu_ensureControllerButtonTables'
+  spec 'r' '_pu_controllerButtonCode' '_pu_controllerButtonCode _' 'menu.pu_button' 'B1'
+  spec 'r' '_pu_controllerButtonEdge' '_pu_controllerButtonEdge _' 'menu.pu_button' 'B1'
+  spec 'r' '_pu_controllerNextButton' '_pu_controllerNextButton'
+  spec ' ' '_pu_controllerInitButtons' '_pu_controllerInitButtons'
+  spec 'r' '_pu_controllerTouchSample' '_pu_controllerTouchSample'
+  spec 'r' '_pu_controllerTouchPressed' '_pu_controllerTouchPressed'
+  spec ' ' '_pu_controllerTouchReleaseLoop' '_pu_controllerTouchReleaseLoop'
+  spec ' ' '_pu_controllerSendState' '_pu_controllerSendState'
+  spec ' ' '_pu_controllerEnsureLoop' '_pu_controllerEnsureLoop'
+  spec ' ' '_pu_controllerLoop' '_pu_controllerLoop'
+
+to '_pu_controllerButtonCode' button {
+  '_pu_ensureControllerButtonTables'
+  return ('[data:find]' button _pu_controller_button_names)
+}
+
+to '_pu_controllerButtonEdge' button {
+  local 'code' ('_pu_controllerButtonCode' button)
+  if (code <= 0) {
+    return (booleanConstant false)
+  }
+  local 'previous' (at code _pu_controller_button_states)
+  local 'pressed' (puControllerButtonPressed button)
+  atPut code _pu_controller_button_states pressed
+  return (and pressed (not previous))
+}
+
+to '_pu_controllerEnsureLoop' {
+  if (not _pu_controller_task_started) {
+    _pu_controller_task_started = (booleanConstant true)
+    _pu_controller_task_heartbeat = 0
+    sendBroadcast '_pu_controllerLoop'
+  } else {
+    comment 'If the background task was stopped, its heartbeat no longer changes. Restart it without duplicating a live task.'
+    local 'heartbeat' _pu_controller_task_heartbeat
+    waitMillis 120
+    if (_pu_controller_task_heartbeat == heartbeat) {
+      sendBroadcast '_pu_controllerLoop'
+    }
+  }
+}
+
+to '_pu_controllerInitButtons' {
+  local 'dummy' (digitalReadOp 8 true)
+  dummy = (digitalReadOp 13 true)
+  dummy = (digitalReadOp 14 true)
+  dummy = (digitalReadOp 15 true)
+  dummy = (digitalReadOp 16 true)
+  waitMillis 5
+  local 'joystickPressed' (not (digitalReadOp 8 true))
+  local 'b1Pressed' (not (digitalReadOp 13 true))
+  local 'b2Pressed' (not (digitalReadOp 14 true))
+  local 'b3Pressed' (not (digitalReadOp 15 true))
+  local 'b4Pressed' (not (digitalReadOp 16 true))
+  local 'aPressed' (buttonA)
+  local 'bPressed' (buttonB)
+  comment 'Reset and sample the micro:bit V2 capacitive logo so enabling automatic send snapshots its actual current state.'
+  _pu_controller_touch_state = (booleanConstant false)
+  local 'touchPressed' ('_pu_controllerTouchPressed')
+  _pu_controller_button_states = ('[data:makeList]' joystickPressed b1Pressed b2Pressed b3Pressed b4Pressed aPressed bPressed touchPressed)
+}
+
+to '_pu_controllerLoop' {
+  comment 'Persistent background task. It keeps its heartbeat alive even while automatic transmission is disabled.'
+  forever {
+    _pu_controller_task_heartbeat = (_pu_controller_task_heartbeat + 1)
+    if (_pu_controller_task_heartbeat >= 1000000) {
+      _pu_controller_task_heartbeat = 1
+    }
+    if _pu_controller_auto_send {
+      '_pu_controllerSendState'
+      waitMillis 20
+    } else {
+      waitMillis 100
+    }
+  }
+}
+
+to '_pu_controllerNextButton' {
+  comment 'Return the first new button press, but scan every button so all stored edge states stay synchronized. Automatic transmission treats buttons as events, not as continuous state.'
+  '_pu_ensureControllerButtonTables'
+  local 'firstPressed' 0
+  for i (size _pu_controller_button_names) {
+    if ('_pu_controllerButtonEdge' (at i _pu_controller_button_names)) {if (firstPressed == 0) {
+      firstPressed = i
+    }}
+  }
+  return firstPressed
+}
+
+to '_pu_controllerSendState' {
+  comment 'One packet per call. A new button press has priority; otherwise joystick and acceleration axes are sent round-robin.'
+  local 'buttonCode' ('_pu_controllerNextButton')
+  if (buttonCode > 0) {
+    '[radio:sendPair]' '#ctrlbutton' buttonCode
+    return
+  }
+  if (_pu_controller_send_phase == 0) {
+    puControllerSendJoystick 'Y'
+    _pu_controller_send_phase = 1
+  } (_pu_controller_send_phase == 1) {
+    puControllerSendJoystick 'X'
+    _pu_controller_send_phase = 2
+  } (_pu_controller_send_phase == 2) {
+    puControllerSendAcceleration 'X'
+    _pu_controller_send_phase = 3
+  } (_pu_controller_send_phase == 3) {
+    puControllerSendAcceleration 'Y'
+    _pu_controller_send_phase = 4
+  } else {
+    puControllerSendAcceleration 'Z'
+    _pu_controller_send_phase = 0
+  }
+}
+
+to '_pu_controllerTouchPressed' {
+  comment 'Once touch is detected, a background task keeps monitoring the logo and changes the stored state back to false after a stable 25 ms release. 
+If touch is already active, return the state immediately. The background release task is responsible for clearing it.'
+  if _pu_controller_touch_state {
+    return (booleanConstant true)
+  }
+  if ('_pu_controllerTouchSample') {
+    _pu_controller_touch_state = (booleanConstant true)
+    if (not _pu_controller_touch_release_task_started) {
+      comment 'Set the flag before broadcasting so two close queries cannot start duplicate release tasks.'
+      _pu_controller_touch_release_task_started = (booleanConstant true)
+      sendBroadcast '_pu_controllerTouchReleaseLoop'
+    }
+  }
+  return _pu_controller_touch_state
+}
+
+to '_pu_controllerTouchReleaseLoop' {
+  comment 'Background release monitor. It runs only after touch has been detected, 
+and confirms that the logo has remained released for 25 ms before clearing the stored touch state.'
+  local 'releaseTime' 25
+  local 'releaseStart' 0
+  repeatUntil (not _pu_controller_touch_state) {
+    if ('_pu_controllerTouchSample') {
+      releaseStart = 0
+    } else {
+      if (releaseStart == 0) {releaseStart = (millisOp)}
+      if (((millisOp) - releaseStart) >= releaseTime) {_pu_controller_touch_state = (booleanConstant false)}
+    }
+    waitMillis 2
+  }
+  _pu_controller_touch_release_task_started = (booleanConstant false)
+}
+
+to '_pu_controllerTouchSample' {
+  comment 'One raw capacitive measurement of the micro:bit V2 logo on pin 26. Returns true when the charge time reaches the threshold.'
+  local 'pin' 26
+  local 'threshold' 20
+  comment 'Discharge the capacitive input before measuring its charge time.'
+  digitalWriteOp pin false
+  waitMillis 5
+  local 'n' 0
+  repeatUntil (digitalReadOp pin) {
+    n += 1
+    if (n >= threshold) {
+      digitalWriteOp pin false
+      return (booleanConstant true)
+    }
+  }
+  digitalWriteOp pin false
+  return (booleanConstant false)
+}
+
+to '_pu_ensureControllerButtonTables' {
+  comment 'Build the controller button name/pin lists lazily. Button codes are: joystick button=1, B1=2, B2=3, B3=4, B4=5, A=6, B=7, touch=8.'
+  if ((size _pu_controller_button_names) == 0) {
+    _pu_controller_button_names = ('[data:makeList]' 'joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'touch')
+    _pu_controller_button_pins = ('[data:makeList]' 8 13 14 15 16 -1 -1 -1)
+  }
+}
+
+to puControllerAcceleration axis {
+  comment 'Raw local micro:bit accelerometer axis. MicroBlocks tilt values are approximately -100..100 for +/-1 g.'
+  if (axis == 'X') {
+    return ('[sensors:tiltX]')
+  }
+  if (axis == 'Y') {
+    return ('[sensors:tiltY]')
+  }
+  if (axis == 'Z') {
+    return ('[sensors:tiltZ]')
+  }
+  return 0
+}
+
+to puControllerAutomaticSend enabled {
+  _pu_controller_auto_send = enabled
+  if enabled {
+    '_pu_controllerInitButtons'
+    _pu_controller_send_phase = 0
+    '_pu_controllerEnsureLoop'
+  }
+}
+
+to puControllerButtonPressed button {
+  if (button == 'A') {return (buttonA)}
+  if (button == 'B') {return (buttonB)}
+  if (button == 'touch') {return ('_pu_controllerTouchPressed')}
+  local 'code' ('_pu_controllerButtonCode' button)
+  if (code <= 0) {
+    return (booleanConstant false)
+  }
+  local 'pin' (at code _pu_controller_button_pins)
+  if (pin < 0) {
+    return (booleanConstant false)
+  }
+  local 'level' (digitalReadOp pin true)
+  return (not level)
+}
+
+to puControllerGroup group {
+  comment 'Configure the radio group and make sure the controller background loop is running. Automatic transmission is controlled separately by PU controller automatic send.'
+  group = (maximum 0 (minimum group 255))
+  '[radio:setGroup]' group
+  '_pu_controllerEnsureLoop'
+}
+
+to puControllerJoystick axis {
+  comment 'Physical joystick axes. X is the horizontal axis (old turn input, pin 2); Y is the vertical axis (old speed input, pin 1).'
+  local 'pin' 2
+  if (axis == 'Y') {
+    pin = 1
+  }
+  local 'raw' (analogReadOp pin)
+  local 'value' (((512 - raw) * 100) / 512)
+  value = (maximum -100 (minimum value 100))
+  if ((absoluteValue value) < 5) {
+    value = 0
+  }
+  return value
+}
+
+to puControllerPressedButton returnIndex {
+  comment 'Returns the name of the first button that is currently pressed. 
+Returns "none" if no button is pressed. If returnIndex is true, returns the numeric position (1-8), or 0 if no button is pressed.'
+  local 'useIndex' (argOrDefault 1 (booleanConstant false))
+  '_pu_ensureControllerButtonTables'
+  for i (size _pu_controller_button_names) {
+    local 'buttonName' (at i _pu_controller_button_names)
+    local 'isPressed' (puControllerButtonPressed buttonName)
+    if isPressed {
+      if useIndex {
+        return i
+      } else {
+        return buttonName
+      }
+    }
+  }
+  if useIndex {
+    return 0
+  }
+  return 'none'
+}
+
+to puControllerSendAcceleration axis {
+  if (axis == 'X') {
+    '[radio:sendPair]' '#ctrlaccX' (puControllerAcceleration 'X')
+  } (axis == 'Y') {
+    '[radio:sendPair]' '#ctrlaccY' (puControllerAcceleration 'Y')
+  } else {
+    '[radio:sendPair]' '#ctrlaccZ' (puControllerAcceleration 'Z')
+  }
+}
+
+to puControllerSendButton button {
+  local 'code' ('_pu_controllerButtonCode' button)
+  if (code > 0) {
+    '[radio:sendPair]' '#ctrlbutton' code
+  }
+}
+
+to puControllerSendJoystick axis {
+  if (axis == 'X') {
+    '[radio:sendPair]' '#ctrljoyX' (puControllerJoystick 'X')
+  } else {
+    '[radio:sendPair]' '#ctrljoyY' (puControllerJoystick 'Y')
+  }
+}
+
+to puControllerSendValue name value {
+  comment 'Send a user-defined radio pair. Avoid the reserved names #ctrljoyX, #ctrljoyY, #ctrlaccX, #ctrlaccY, #ctrlaccZ and #ctrlbutton if the receiver also uses the standard PU Robot protocol.'
+  '[radio:sendPair]' name value
+}
+

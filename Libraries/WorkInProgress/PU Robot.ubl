@@ -1,21 +1,21 @@
 module 'PU Robot'
 author MicroBlocks
-version 1 1
-depends _Radio _NeoPixel '_Distance (HC-SR04)' '_Basic Sensors' _Microphone _Tone
-tags robot pu elecfreaks microbit
-choices pu_eyes 'pu;left eye' 'pu;right eye' 'pu;all'
-choices pu_accel_axis X Y Z
-choices pu_controller_button 'joystick button' B1 B2 B3 B4 A B touch
-choices pu_controller_axis X Y
-choices pu_units cm inch
-choices pu_ambience_lights '1' '2' '3' '4' 'pu;all'
-choices pu_joint 'pu;left foot' 'pu;left leg' 'pu;right foot' 'pu;right leg' 'pu;head yaw' 'pu;head pitch'
-choices pu_direction 'pu;forward' 'pu;backward' 'pu;side left' 'pu;side right' 'pu;turn left' 'pu;turn right'
-choices pu_action 'pu;greet' 'pu;rest' 'pu;explore' 'pu;jump' 'pu;kick' 'pu;dance'
+version 1 2 
+depends _Radio _NeoPixel '_Distance (HC-SR04)' '_Basic Sensors' _Microphone _Tone 
+tags robot pu elecfreaks microbit 
+choices pu_eyes 'pu;left eye' 'pu;right eye' 'pu;all' 
+choices pu_accel_axis X Y Z 
+choices pu_controller_axis X Y 
+choices pu_units cm inch 
+choices pu_ambience_lights '1' '2' '3' '4' 'pu;all' 
+choices pu_joint 'pu;left foot' 'pu;left leg' 'pu;right foot' 'pu;right leg' 'pu;head yaw' 'pu;head pitch' 
+choices pu_direction 'pu;forward' 'pu;backward' 'pu;side left' 'pu;side right' 'pu;turn left' 'pu;turn right' 
+choices pu_action 'pu;greet' 'pu;rest' 'pu;explore' 'pu;jump' 'pu;kick' 'pu;dance' 
+choices pu_controller_button 'joystick button' B1 B2 B3 B4 A B touch 
 description 'The PU Robot (Elecfreaks) is a 6-DOF educational humanoid robot.
 This library allow to control the servos, execute movements and actions, create custom poses, and control the robot, including through a remote controller (PU Controller library).
 https://wiki.elecfreaks.com/en/microbit/robot/pu-robot-kit/'
-variables _pu_initialized _pu_initializing _pu_trim _pu_current _pu_states _pu_state_speed_indices _pu_speed_profiles _pu_sequences _pu_servo_ctrl _pu_sequence_pos _pu_sequence_length _pu_balance_enabled _pu_imu_roll0_100 _pu_imu_pitch0_100 _pu_imu_head_yaw0 _pu_imu_head_pitch0 _pu_body_roll _pu_body_pitch _pu_body_roll_filtered _pu_body_pitch_filtered _pu_balance_offset _pu_remote_joy_y _pu_remote_joy_x _pu_remote_accel_x _pu_remote_accel_y _pu_remote_accel_z _pu_remote_button _pu_remote_button_pending _pu_remote_task_started _pu_remote_task_heartbeat _pu_remote_joy_y_silence _pu_remote_joy_x_silence _pu_explore_enabled _pu_explore_sampling _pu_explore_turn _pu_turn_bias _pu_explore_distances _pu_motion_generation _pu_dance_active _pu_eyes
+variables _pu_initialized _pu_initializing _pu_trim _pu_current _pu_states _pu_state_speed_indices _pu_speed_profiles _pu_sequences _pu_servo_ctrl _pu_sequence_pos _pu_sequence_length _pu_balance_enabled _pu_imu_roll0_100 _pu_imu_pitch0_100 _pu_imu_head_yaw0 _pu_imu_head_pitch0 _pu_body_roll _pu_body_pitch _pu_body_roll_filtered _pu_body_pitch_filtered _pu_balance_offset _pu_remote_joy_y _pu_remote_joy_x _pu_remote_accel_x _pu_remote_accel_y _pu_remote_accel_z _pu_remote_button _pu_remote_button_pending _pu_remote_task_started _pu_remote_task_heartbeat _pu_remote_joy_y_silence _pu_remote_joy_x_silence _pu_explore_enabled _pu_explore_sampling _pu_explore_turn _pu_turn_bias _pu_explore_distances _pu_motion_generation _pu_dance_active _pu_eyes 
 
   spec ' ' 'puInit' 'PU robot initialize'
   spec ' ' 'puRemoteEnable' 'PU robot radio group _' 'num' 160
@@ -70,43 +70,6 @@ variables _pu_initialized _pu_initializing _pu_trim _pu_current _pu_states _pu_s
   spec ' ' '_pu_dance' '_pu_dance'
   spec ' ' '_pu_explore' '_pu_explore'
 
-to puInit {
-  if _pu_initializing {return}
-  _pu_initialized = (booleanConstant false)
-  comment 'PU Robot is supported only on micro:bit V2. Check before configuring pins, NeoPixels, I2C state or servos.'
-  if ((boardType) != 'micro:bit v2') {
-    _pu_initializing = (booleanConstant false)
-    sayIt 'PU Robot requires micro:bit v2'
-    return
-  }
-  _pu_initializing = (booleanConstant true)
-  _pu_trim = ('[data:makeList]' 0 10 0 -15 0 12)
-  _pu_current = ('[data:makeList]' 90 90 90 90 90 90)
-  _pu_servo_ctrl = ('[data:makeList]' 0 0 0 0 0 0)
-  '_pu_initStates'
-  '_pu_initSequences'
-  '_pu_initSpeedProfiles'
-  _pu_sequence_pos = 0
-  _pu_sequence_length = 0
-  _pu_balance_enabled = (booleanConstant false)
-  _pu_balance_offset = 0
-  _pu_body_roll = 0
-  _pu_body_pitch = 0
-  _pu_body_roll_filtered = 0
-  _pu_body_pitch_filtered = 0
-  comment 'Eye state: left brightness, right brightness, left on, right on.'
-  _pu_eyes = ('[data:makeList]' 1023 1023 false false)
-  _pu_explore_distances = ('[data:makeList]' 400 400 400 400)
-  '_pu_cancelMotion'
-  neoPixelAttach 4 16
-  clearNeoPixels
-  puSetEyes (booleanConstant true) (booleanConstant true)
-  comment 'Initialize in the neutral rest pose, calibrate the IMU, and enable balance automatically.'
-  '_pu_rest'
-  _pu_initialized = (booleanConstant true)
-  _pu_initializing = (booleanConstant false)
-}
-
 to '_pu_balanceOffset' {
   if _pu_balance_enabled {
     if (_pu_sequence_length < 2) {return 0}
@@ -135,6 +98,75 @@ to '_pu_balanceOffset' {
   return 0
 }
 
+to '_pu_bodyTilt100' axis x y z yawDelta pitchDelta {
+  comment 'Transform the measured gravity vector from the moving head frame into the robot body frame.'
+  comment 'Uses the VM math primitives: sin takes hundredths of a degree and returns sin x 2^14 (Q14), so cos is sin shifted by 9000. atan2 takes (x, y) in that order (adjacent first, opposite second) and returns hundredths of a degree.'
+  pitchDelta = (maximum -90 (minimum pitchDelta 90))
+  yawDelta = (maximum -90 (minimum yawDelta 90))
+  local 'pitch100' (pitchDelta * 100)
+  local 'sinP' ('[misc:sin]' pitch100)
+  local 'cosP' ('[misc:sin]' (pitch100 + 9000))
+  comment 'Undo head pitch.'
+  local 'x1' x
+  local 'y1' (((y * cosP) - (z * sinP)) / 16384)
+  local 'z1' (((y * sinP) + (z * cosP)) / 16384)
+  local 'yaw100' (yawDelta * 100)
+  local 'sinY' ('[misc:sin]' yaw100)
+  local 'cosY' ('[misc:sin]' (yaw100 + 9000))
+  comment 'Undo head yaw.'
+  local 'xb' (((x1 * cosY) + (y1 * sinY)) / 16384)
+  local 'yb' (((y1 * cosY) - (x1 * sinY)) / 16384)
+  local 'zb' z1
+  if (axis == 'pitch') {
+    return ('[misc:atan2]' ('[misc:sqrt]' ((xb * xb) + (zb * zb))) yb)
+  } else {
+    return ('[misc:atan2]' ('[misc:sqrt]' ((yb * yb) + (zb * zb))) xb)
+  }
+}
+
+to '_pu_calibrateIMU' {
+  comment 'Average the full acceleration vector while the robot is in its neutral rest pose.'
+  local 'sx' 0
+  local 'sy' 0
+  local 'sz' 0
+  repeat 20 {
+    sx = (sx + ('[sensors:tiltX]'))
+    sy = (sy + ('[sensors:tiltY]'))
+    sz = (sz + ('[sensors:tiltZ]'))
+    waitMillis 10
+  }
+  local 'x0' (sx / 20)
+  local 'y0' (sy / 20)
+  local 'z0' (sz / 20)
+  _pu_imu_head_yaw0 = (at 5 _pu_current)
+  _pu_imu_head_pitch0 = (at 6 _pu_current)
+  comment 'Store angular zero offsets, not raw X/Y acceleration offsets.'
+  _pu_imu_roll0_100 = ('_pu_bodyTilt100' 'roll' x0 y0 z0 0 0)
+  _pu_imu_pitch0_100 = ('_pu_bodyTilt100' 'pitch' x0 y0 z0 0 0)
+  _pu_body_roll = 0
+  _pu_body_pitch = 0
+  _pu_body_roll_filtered = 0
+  _pu_body_pitch_filtered = 0
+  _pu_balance_offset = 0
+  _pu_balance_enabled = (booleanConstant true)
+}
+
+to '_pu_cancelMotion' {
+  comment 'Start a new mechanical-motion generation and reset all state owned by cancellable motion tasks.'
+  _pu_motion_generation = (_pu_motion_generation + 1)
+  if (and _pu_initialized _pu_dance_active) {
+    clearNeoPixels
+  }
+  _pu_dance_active = (booleanConstant false)
+  _pu_explore_enabled = (booleanConstant false)
+  _pu_explore_sampling = (booleanConstant false)
+  _pu_explore_turn = 0
+  _pu_turn_bias = 0
+  _pu_sequence_pos = 0
+  _pu_sequence_length = 0
+  _pu_balance_offset = 0
+}
+
 to '_pu_computeControl' useBalance {
   _pu_servo_ctrl = ('[data:makeList]' 0 0 0 0 0 0)
   if useBalance {
@@ -160,7 +192,6 @@ to '_pu_computeControl' useBalance {
     atPut 4 _pu_servo_ctrl ((at 4 _pu_servo_ctrl) - legTurn)
     atPut 5 _pu_servo_ctrl ((at 5 _pu_servo_ctrl) - ((40 * _pu_turn_bias) / 100))
   }
-
   if (_pu_explore_turn != 0) {
     local 'exploreLegTurn' ((12 * _pu_explore_turn) / 100)
     if (_pu_sequence_pos < 2) {
@@ -172,71 +203,17 @@ to '_pu_computeControl' useBalance {
   }
 }
 
-to '_pu_remoteButtonCode' button {
-  local 'names' ('[data:makeList]' 'joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'touch')
-  return ('[data:find]' button names)
-}
-
-to '_pu_remoteProcessOne' {
-  if ('[radio:messageReceived]') {
-    local 'name' ('[radio:receivedString]')
-    local 'value' ('[radio:receivedInteger]')
-    comment 'Generic PU Controller protocol. Joystick axes remain generic: X is horizontal and Y is vertical.'
-    if (name == '#ctrljoyY') {
-      _pu_remote_joy_y = value
-      _pu_remote_joy_y_silence = 0
-    } (name == '#ctrljoyX') {
-      _pu_remote_joy_x = value
-      _pu_remote_joy_x_silence = 0
-    } (name == '#ctrlaccX') {
-      _pu_remote_accel_x = value
-    } (name == '#ctrlaccY') {
-      _pu_remote_accel_y = value
-    } (name == '#ctrlaccZ') {
-      _pu_remote_accel_z = value
-    } (name == '#ctrlbutton') {
-      _pu_remote_button = value
-      _pu_remote_button_pending = (booleanConstant true)
-    }
-  }
-}
-
-to '_pu_remoteLoop' {
-  comment 'Background receiver for the generic PU Controller protocol. Joystick watchdogs clear stale X/Y values after roughly 500 ms without a packet for that axis.'
-  forever {
-    _pu_remote_task_heartbeat = (_pu_remote_task_heartbeat + 1)
-    if (_pu_remote_task_heartbeat >= 1000000) {_pu_remote_task_heartbeat = 1}
-    '_pu_remoteProcessOne'
-    _pu_remote_joy_y_silence = (_pu_remote_joy_y_silence + 1)
-    _pu_remote_joy_x_silence = (_pu_remote_joy_x_silence + 1)
-    if (_pu_remote_joy_y_silence > 250) {
-      _pu_remote_joy_y = 0
-      _pu_remote_joy_y_silence = 250
-    }
-    if (_pu_remote_joy_x_silence > 250) {
-      _pu_remote_joy_x = 0
-      _pu_remote_joy_x_silence = 250
-    }
-    waitMillis 2
-  }
-}
-
 to '_pu_dance' {
   '_pu_ensureInit'
-
   local 'generation' _pu_motion_generation
   _pu_turn_bias = 0
   _pu_explore_turn = 0
   _pu_explore_sampling = (booleanConstant false)
-
   comment 'Simple rule: move only when loudness is above a fixed threshold.'
   comment 'No baseline estimation and no beat detector are used.'
   comment 'Dance keeps listening forever until another PU action or stop interrupts it.'
-
   _pu_dance_active = (booleanConstant true)
-
   puSetEyes (booleanConstant true) (booleanConstant true)
-
   comment 'Local sound threshold: increase it to make the robot less sensitive, decrease it to make it more sensitive.'
   local '_pu_dance_threshold' 100
   local 'danceSequence' (at 5 _pu_sequences)
@@ -245,56 +222,40 @@ to '_pu_dance' {
     _pu_dance_active = (booleanConstant false)
     return
   }
-
   local 'poseIndex' 1
   local 'silentTicks' 0
-
   forever {
-
     if (generation != _pu_motion_generation) {return}
-
-    local 'level' ('loudness')
-
+    local 'level' (loudness)
     if (level > _pu_dance_threshold) {
-
       silentTicks = 0
-
       comment 'Map the observed loudness range 100..500 to movement speed 4..16.'
       local 'scaledLevel' (maximum 100 (minimum level 500))
       local 'moveSpeed' (4 + (((scaledLevel - 100) * 12) / 400))
       moveSpeed = (maximum 4 (minimum moveSpeed 16))
-
       local 'headSpeed' (3 + (((scaledLevel - 100) * 7) / 400))
       headSpeed = (maximum 3 (minimum headSpeed 10))
-
       poseIndex = (poseIndex + 1)
       if (poseIndex > length) {
         poseIndex = 1
       }
-
       local 'state' (at poseIndex danceSequence)
-
       _pu_sequence_length = length
       _pu_sequence_pos = (poseIndex - 1)
-
       comment 'moveState also watches loudness while dance is active, so motion stops quickly if sound falls below threshold.'
       '_pu_moveState' state moveSpeed headSpeed 1 false _pu_dance_threshold
-
-      if (generation != _pu_motion_generation) {return}
-
+      if (generation != _pu_motion_generation) {
+        return
+      }
       if (level > 250) {
         puSetAmbienceLight 'pu;all' (randomColor)
       }
-
     } else {
-
       comment 'Below threshold: no new movement. Stay in the current position and keep listening.'
       silentTicks = (silentTicks + 1)
-
       if (silentTicks == 15) {
         puClearLights
       }
-
       waitMillis 20
     }
   }
@@ -302,20 +263,6 @@ to '_pu_dance' {
 
 to '_pu_ensureInit' {
   if (not _pu_initialized) {puInit}
-}
-
-to '_pu_cancelMotion' {
-  comment 'Start a new mechanical-motion generation and reset all state owned by cancellable motion tasks.'
-  _pu_motion_generation = (_pu_motion_generation + 1)
-  if (and _pu_initialized _pu_dance_active) {clearNeoPixels}
-  _pu_dance_active = (booleanConstant false)
-  _pu_explore_enabled = (booleanConstant false)
-  _pu_explore_sampling = (booleanConstant false)
-  _pu_explore_turn = 0
-  _pu_turn_bias = 0
-  _pu_sequence_pos = 0
-  _pu_sequence_length = 0
-  _pu_balance_offset = 0
 }
 
 to '_pu_explore' {
@@ -342,7 +289,9 @@ to '_pu_explore' {
           comment 'Only when PU is already very close, back away one gait cycle before continuing the avoidance turn.'
           _pu_explore_sampling = (booleanConstant false)
           '_pu_moveSequence' backwardSequence 1 3 3 0 true
-          if (generation != _pu_motion_generation) {return}
+          if (generation != _pu_motion_generation) {
+            return
+          }
           _pu_explore_sampling = (booleanConstant true)
         }
         '_pu_exploreCycle' 3
@@ -365,31 +314,23 @@ to '_pu_exploreBestTurn' {
   local 'd2' (at 2 _pu_explore_distances)
   local 'd3' (at 3 _pu_explore_distances)
   local 'd4' (at 4 _pu_explore_distances)
-
   local 'total' (d1 + (d2 + (d3 + d4)))
-
   if (total <= 0) {
     return 60
   }
-
   local 'weighted' ((((0 - (100 * d1)) - (33 * d2)) + (33 * d3)) + (100 * d4))
   local 'turn' ((2 * weighted) / total)
-
   turn = (maximum -100 (minimum turn 100))
-
   comment 'In a nearly symmetric situation choose the side with more accumulated clearance.'
   if ((absoluteValue turn) < 20) {
-
     local 'leftClearance' (d1 + d2)
     local 'rightClearance' (d3 + d4)
-
     if (rightClearance >= leftClearance) {
       turn = 60
     } else {
       turn = -60
     }
   }
-
   return turn
 }
 
@@ -398,32 +339,25 @@ to '_pu_exploreCycle' speed {
   speed = (maximum 1 (minimum speed 10))
   local 'forwardSequence' (at 1 _pu_sequences)
   local 'length' (size forwardSequence)
-
   if (length < 1) {
     return
   }
-
   _pu_sequence_length = length
-
   for i length {
-
     if (generation != _pu_motion_generation) {return}
-
     if _pu_explore_enabled {
-
       _pu_sequence_pos = (i - 1)
       '_pu_moveState' (at i forwardSequence) speed speed 0 true 0
-      if (generation != _pu_motion_generation) {return}
-
+      if (generation != _pu_motion_generation) {
+        return
+      }
     } else {
-
       _pu_sequence_pos = 0
       _pu_sequence_length = 0
       _pu_balance_offset = 0
       return
     }
   }
-
   _pu_sequence_pos = 0
   _pu_sequence_length = 0
   _pu_balance_offset = 0
@@ -431,19 +365,14 @@ to '_pu_exploreCycle' speed {
 
 to '_pu_exploreSample' {
   if _pu_explore_sampling {
-
     comment 'The chest sonar points slightly left/right as the walking gait shifts the body.
     Mapping: assign each distance reading to one of four bins from the gait geometry.'
-
     local 'servo' 2
-
     if (_pu_sequence_pos >= 2) {
       servo = 4
     }
-
     local 'angleValue' (at servo _pu_current)
     local 'bin' 4
-
     if (angleValue > 110) {
       bin = 1
     } (angleValue > 90) {
@@ -451,13 +380,10 @@ to '_pu_exploreSample' {
     } (angleValue > 70) {
       bin = 3
     }
-
     local 'distance' (puDistance 'cm')
-
     if (or (distance < 2) (distance > 400)) {
       distance = 400
     }
-
     local 'oldDistance' (at bin _pu_explore_distances)
     atPut bin _pu_explore_distances ((oldDistance + distance) / 2)
   }
@@ -466,72 +392,76 @@ to '_pu_exploreSample' {
 to '_pu_greet' {
   '_pu_ensureInit'
   local 'generation' _pu_motion_generation
-
   comment 'Greet is a mechanical action that belongs to one motion generation. A newer motion cancels it.'
   puSetEyes (booleanConstant true) (booleanConstant true)
   'play tone' 'nt;d' 1 200
-  if (generation != _pu_motion_generation) {return}
+  if (generation != _pu_motion_generation) {
+    return
+  }
   'play tone' 'nt;e' 1 200
-  if (generation != _pu_motion_generation) {return}
+  if (generation != _pu_motion_generation) {
+    return
+  }
   'play tone' 'nt;c' 1 200
-  if (generation != _pu_motion_generation) {return}
+  if (generation != _pu_motion_generation) {
+    return
+  }
   'play tone' 'nt;c' 0 200
-  if (generation != _pu_motion_generation) {return}
+  if (generation != _pu_motion_generation) {
+    return
+  }
   'play tone' 'nt;g' 0 200
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   comment 'Use the calibration pose directly so greet does not create a new motion generation.'
   '_pu_moveState' 26 2 2 1 false 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   for i 10 {
     puSetEyeBrightness 'pu;all' 100
     puSetEyes ((i % 2) == 0) (((i + 1) % 2) == 0)
     puSetAmbienceLight 'pu;all' (randomColor)
     waitMillis 150
-    if (generation != _pu_motion_generation) {return}
+    if (generation != _pu_motion_generation) {
+      return
+    }
   }
-
   comment 'Move head yaw directly without calling the public puSetServo block, which starts a new motion generation.'
   repeat 2 {
     '_pu_sendServoIndex' 4 70
     atPut 5 _pu_current 70
     waitMillis 150
-    if (generation != _pu_motion_generation) {return}
+    if (generation != _pu_motion_generation) {
+      return
+    }
     '_pu_sendServoIndex' 4 110
     atPut 5 _pu_current 110
     waitMillis 150
-    if (generation != _pu_motion_generation) {return}
+    if (generation != _pu_motion_generation) {
+      return
+    }
   }
   '_pu_sendServoIndex' 4 90
   atPut 5 _pu_current 90
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   '_pu_jump'
-  if (generation != _pu_motion_generation) {return}
+  if (generation != _pu_motion_generation) {
+    return
+  }
   waitMillis 125
-  if (generation != _pu_motion_generation) {return}
+  if (generation != _pu_motion_generation) {
+    return
+  }
   '_pu_rest'
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   puClearLights
   puSetEyes true true
-}
-
-to '_pu_rest' {
-  _pu_explore_enabled = (booleanConstant false)
-  _pu_turn_bias = 0
-  '_pu_ensureInit'
-  local 'generation' _pu_motion_generation
-  _pu_sequence_length = 0
-  _pu_balance_enabled = (booleanConstant false)
-  _pu_balance_offset = 0
-  '_pu_moveState' 27 2 2 1 false 0
-  if (generation != _pu_motion_generation) {return}
-  comment 'Rest is the known neutral pose used to establish the IMU reference.'
-  waitMillis 100
-  if (generation != _pu_motion_generation) {return}
-  '_pu_calibrateIMU'
 }
 
 to '_pu_initSequences' {
@@ -556,35 +486,32 @@ to '_pu_jump' {
   '_pu_ensureInit'
   _pu_turn_bias = 0
   local 'generation' _pu_motion_generation
-
   comment 'Staged jump: preload, fast extension, then controlled recovery.'
   _pu_sequence_length = 4
-
   '_pu_sendServoIndex' 6 100
-
   _pu_sequence_pos = 0
   '_pu_moveState' 25 8 5 0 false 0
   if (generation != _pu_motion_generation) {
     '_pu_sendServoIndex' 6 0
     return
   }
-
   _pu_sequence_pos = 1
   '_pu_moveState' 15 14 7 0 false 0
   if (generation != _pu_motion_generation) {
     '_pu_sendServoIndex' 6 0
     return
   }
-
   _pu_sequence_pos = 2
   '_pu_moveState' 1 20 8 0 false 0
   '_pu_sendServoIndex' 6 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   _pu_sequence_pos = 3
   '_pu_moveState' 1 6 4 0 false 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   _pu_sequence_pos = 0
   _pu_sequence_length = 0
   _pu_balance_offset = 0
@@ -594,29 +521,32 @@ to '_pu_kick' {
   '_pu_ensureInit'
   _pu_turn_bias = 0
   local 'generation' _pu_motion_generation
-
   comment 'Accelerated forward-gait burst: progressively faster states, then recover to neutral.'
   _pu_sequence_length = 4
-
   _pu_sequence_pos = 0
   '_pu_moveState' 3 6 4 0 true 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   _pu_sequence_pos = 1
   '_pu_moveState' 4 10 5 0 true 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   _pu_sequence_pos = 2
   '_pu_moveState' 5 16 6 0 true 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   _pu_sequence_pos = 3
   '_pu_moveState' 6 20 7 0 true 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   '_pu_moveState' 1 8 5 0 false 0
-  if (generation != _pu_motion_generation) {return}
-
+  if (generation != _pu_motion_generation) {
+    return
+  }
   _pu_sequence_pos = 0
   _pu_sequence_length = 0
   _pu_balance_offset = 0
@@ -658,11 +588,9 @@ to '_pu_movePoseServo' servo target speed {
   target = ((target + (at servo _pu_trim)) + (at servo _pu_servo_ctrl))
   target = (maximum 0 (minimum target 180))
   speed = (maximum 1 (minimum speed 10))
-
   local 'current' (at servo _pu_current)
   local 'diff' (target - current)
   local 'stillMoving' (booleanConstant false)
-
   if ((absoluteValue diff) > speed) {
     if (diff > 0) {
       current = (current + speed)
@@ -673,7 +601,6 @@ to '_pu_movePoseServo' servo target speed {
   } else {
     current = target
   }
-
   '_pu_sendServoIndex' (servo - 1) current
   atPut servo _pu_current current
   return stillMoving
@@ -693,7 +620,9 @@ to '_pu_moveSequence' sequence repeats legSpeed headSpeed syncHead useBalance {
       if (generation != _pu_motion_generation) {return}
       _pu_sequence_pos = (i - 1)
       '_pu_moveState' (at i sequence) legSpeed headSpeed syncHead useBalance 0
-      if (generation != _pu_motion_generation) {return}
+      if (generation != _pu_motion_generation) {
+        return
+      }
     }
   }
   _pu_sequence_pos = 0
@@ -710,9 +639,9 @@ to '_pu_moveState' state legSpeed headSpeed syncHead useBalance danceThreshold {
   local 'done' (booleanConstant false)
   repeatUntil done {
     if (generation != _pu_motion_generation) {return}
-    if _pu_dance_active {
-      if (('loudness') <= danceThreshold) {return}
-    }
+    if _pu_dance_active {if ((loudness) <= danceThreshold) {
+      return
+    }}
     done = (booleanConstant true)
     '_pu_computeControl' useBalance
     for i 6 {
@@ -722,6 +651,86 @@ to '_pu_moveState' state legSpeed headSpeed syncHead useBalance danceThreshold {
       '_pu_exploreSample'
     }
     waitMillis 20
+  }
+}
+
+to '_pu_remoteButtonCode' button {
+  local 'names' ('[data:makeList]' 'joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'touch')
+  return ('[data:find]' button names)
+}
+
+to '_pu_remoteLoop' {
+  comment 'Background receiver for the generic PU Controller protocol. Joystick watchdogs clear stale X/Y values after roughly 500 ms without a packet for that axis.'
+  forever {
+    _pu_remote_task_heartbeat = (_pu_remote_task_heartbeat + 1)
+    if (_pu_remote_task_heartbeat >= 1000000) {
+      _pu_remote_task_heartbeat = 1
+    }
+    '_pu_remoteProcessOne'
+    _pu_remote_joy_y_silence = (_pu_remote_joy_y_silence + 1)
+    _pu_remote_joy_x_silence = (_pu_remote_joy_x_silence + 1)
+    if (_pu_remote_joy_y_silence > 250) {
+      _pu_remote_joy_y = 0
+      _pu_remote_joy_y_silence = 250
+    }
+    if (_pu_remote_joy_x_silence > 250) {
+      _pu_remote_joy_x = 0
+      _pu_remote_joy_x_silence = 250
+    }
+    waitMillis 2
+  }
+}
+
+to '_pu_remoteProcessOne' {
+  if ('[radio:messageReceived]') {
+    local 'name' ('[radio:receivedString]')
+    local 'value' ('[radio:receivedInteger]')
+    comment 'Generic PU Controller protocol. Joystick axes remain generic: X is horizontal and Y is vertical.'
+    if (name == '#ctrljoyY') {
+      _pu_remote_joy_y = value
+      _pu_remote_joy_y_silence = 0
+    } (name == '#ctrljoyX') {
+      _pu_remote_joy_x = value
+      _pu_remote_joy_x_silence = 0
+    } (name == '#ctrlaccX') {
+      _pu_remote_accel_x = value
+    } (name == '#ctrlaccY') {
+      _pu_remote_accel_y = value
+    } (name == '#ctrlaccZ') {
+      _pu_remote_accel_z = value
+    } (name == '#ctrlbutton') {
+      _pu_remote_button = value
+      _pu_remote_button_pending = (booleanConstant true)
+    }
+  }
+}
+
+to '_pu_rest' {
+  _pu_explore_enabled = (booleanConstant false)
+  _pu_turn_bias = 0
+  '_pu_ensureInit'
+  local 'generation' _pu_motion_generation
+  _pu_sequence_length = 0
+  _pu_balance_enabled = (booleanConstant false)
+  _pu_balance_offset = 0
+  '_pu_moveState' 27 2 2 1 false 0
+  if (generation != _pu_motion_generation) {
+    return
+  }
+  comment 'Rest is the known neutral pose used to establish the IMU reference.'
+  waitMillis 100
+  if (generation != _pu_motion_generation) {
+    return
+  }
+  '_pu_calibrateIMU'
+}
+
+to '_pu_round100' value {
+  comment 'Convert degrees x100 to nearest whole degree.'
+  if (value >= 0) {
+    return ((value + 50) / 100)
+  } else {
+    return ((value - 50) / 100)
   }
 }
 
@@ -738,69 +747,22 @@ to '_pu_sendServoIndex' index angle {
   '[sensors:i2cWrite]' 16 ('[data:makeList]' reg angle 0 0)
 }
 
-to '_pu_bodyTilt100' axis x y z yawDelta pitchDelta {
-  comment 'Transform the measured gravity vector from the moving head frame into the robot body frame.'
-  comment 'Uses the VM math primitives: sin takes hundredths of a degree and returns sin x 2^14 (Q14), so cos is sin shifted by 9000. atan2 takes (x, y) in that order (adjacent first, opposite second) and returns hundredths of a degree.'
-
-  pitchDelta = (maximum -90 (minimum pitchDelta 90))
-  yawDelta = (maximum -90 (minimum yawDelta 90))
-
-  local 'pitch100' (pitchDelta * 100)
-  local 'sinP' ('[misc:sin]' pitch100)
-  local 'cosP' ('[misc:sin]' (pitch100 + 9000))
-
-  comment 'Undo head pitch.'
-  local 'x1' x
-  local 'y1' (((y * cosP) - (z * sinP)) / 16384)
-  local 'z1' (((y * sinP) + (z * cosP)) / 16384)
-
-  local 'yaw100' (yawDelta * 100)
-  local 'sinY' ('[misc:sin]' yaw100)
-  local 'cosY' ('[misc:sin]' (yaw100 + 9000))
-
-  comment 'Undo head yaw.'
-  local 'xb' (((x1 * cosY) + (y1 * sinY)) / 16384)
-  local 'yb' (((y1 * cosY) - (x1 * sinY)) / 16384)
-  local 'zb' z1
-
-  if (axis == 'pitch') {
-    return ('[misc:atan2]' ('[misc:sqrt]' ((xb * xb) + (zb * zb))) yb)
-  } else {
-    return ('[misc:atan2]' ('[misc:sqrt]' ((yb * yb) + (zb * zb))) xb)
-  }
-}
-
-to '_pu_round100' value {
-  comment 'Convert degrees x100 to nearest whole degree.'
-  if (value >= 0) {
-    return ((value + 50) / 100)
-  } else {
-    return ((value - 50) / 100)
-  }
-}
-
 to '_pu_updateIMU' {
   comment 'Read the full gravity vector. tiltX/Y/Z are accelerometer components, not angles.'
   local 'x' ('[sensors:tiltX]')
   local 'y' ('[sensors:tiltY]')
   local 'z' ('[sensors:tiltZ]')
-
   local 'yawDelta' ((at 5 _pu_current) - _pu_imu_head_yaw0)
   local 'pitchDelta' ((at 6 _pu_current) - _pu_imu_head_pitch0)
-
   local 'roll100' ('_pu_bodyTilt100' 'roll' x y z yawDelta pitchDelta)
   local 'pitch100' ('_pu_bodyTilt100' 'pitch' x y z yawDelta pitchDelta)
-
   comment 'Remove the mounting/neutral-pose offsets measured at calibration.'
   roll100 = (roll100 - _pu_imu_roll0_100)
   pitch100 = (pitch100 - _pu_imu_pitch0_100)
-
   local 'bodyRoll' ('_pu_round100' roll100)
   local 'bodyPitch' ('_pu_round100' pitch100)
-
   _pu_body_roll = bodyRoll
   _pu_body_pitch = bodyPitch
-
   comment 'Low-pass filtered angles are used internally by the balance controller.'
   _pu_body_roll_filtered = ((bodyRoll + (9 * _pu_body_roll_filtered)) / 10)
   _pu_body_pitch_filtered = ((bodyPitch + (9 * _pu_body_pitch_filtered)) / 10)
@@ -808,7 +770,6 @@ to '_pu_updateIMU' {
 
 to puAction action {
   '_pu_ensureInit'
-
   local 'validAction' (booleanConstant false)
   if (action == 'pu;greet') {
     validAction = (booleanConstant true)
@@ -823,11 +784,11 @@ to puAction action {
   } (action == 'pu;dance') {
     validAction = (booleanConstant true)
   }
-  if (not validAction) {return}
-
+  if (not validAction) {
+    return
+  }
   comment 'Every valid mechanical action starts a new motion generation, including greet.'
   '_pu_cancelMotion'
-
   if (action == 'pu;greet') {
     '_pu_greet'
   } (action == 'pu;rest') {
@@ -843,35 +804,16 @@ to puAction action {
   }
 }
 
-to '_pu_calibrateIMU' {
-  comment 'Average the full acceleration vector while the robot is in its neutral rest pose.'
-  local 'sx' 0
-  local 'sy' 0
-  local 'sz' 0
-  repeat 20 {
-    sx = (sx + ('[sensors:tiltX]'))
-    sy = (sy + ('[sensors:tiltY]'))
-    sz = (sz + ('[sensors:tiltZ]'))
-    waitMillis 10
-  }
+to puBodyPitch {
+  '_pu_ensureInit'
+  '_pu_updateIMU'
+  return _pu_body_pitch
+}
 
-  local 'x0' (sx / 20)
-  local 'y0' (sy / 20)
-  local 'z0' (sz / 20)
-
-  _pu_imu_head_yaw0 = (at 5 _pu_current)
-  _pu_imu_head_pitch0 = (at 6 _pu_current)
-
-  comment 'Store angular zero offsets, not raw X/Y acceleration offsets.'
-  _pu_imu_roll0_100 = ('_pu_bodyTilt100' 'roll' x0 y0 z0 0 0)
-  _pu_imu_pitch0_100 = ('_pu_bodyTilt100' 'pitch' x0 y0 z0 0 0)
-
-  _pu_body_roll = 0
-  _pu_body_pitch = 0
-  _pu_body_roll_filtered = 0
-  _pu_body_pitch_filtered = 0
-  _pu_balance_offset = 0
-  _pu_balance_enabled = (booleanConstant true)
+to puBodyRoll {
+  '_pu_ensureInit'
+  '_pu_updateIMU'
+  return _pu_body_roll
 }
 
 to puCalibratePose {
@@ -885,18 +827,6 @@ to puClearLights {
   clearNeoPixels
 }
 
-to puBodyRoll {
-  '_pu_ensureInit'
-  '_pu_updateIMU'
-  return _pu_body_roll
-}
-
-to puBodyPitch {
-  '_pu_ensureInit'
-  '_pu_updateIMU'
-  return _pu_body_pitch
-}
-
 to puDistance units {
   local 'dst' ('distance (cm)' 2 8)
   if (units == 'cm') {
@@ -906,13 +836,81 @@ to puDistance units {
   }
 }
 
-to puRemoteButtonReceived button {
-  if _pu_remote_button_pending {
-    if (_pu_remote_button == ('_pu_remoteButtonCode' button)) {
-      _pu_remote_button_pending = (booleanConstant false)
-      return (booleanConstant true)
-    }
+to puInit {
+  if _pu_initializing {return}
+  _pu_initialized = (booleanConstant false)
+  comment 'PU Robot is supported only on micro:bit V2. Check before configuring pins, NeoPixels, I2C state or servos.'
+  if ((boardType) != 'micro:bit v2') {
+    _pu_initializing = (booleanConstant false)
+    sayIt 'PU Robot requires micro:bit v2'
+    return
   }
+  _pu_initializing = (booleanConstant true)
+  _pu_trim = ('[data:makeList]' 0 10 0 -15 0 12)
+  _pu_current = ('[data:makeList]' 90 90 90 90 90 90)
+  _pu_servo_ctrl = ('[data:makeList]' 0 0 0 0 0 0)
+  '_pu_initStates'
+  '_pu_initSequences'
+  '_pu_initSpeedProfiles'
+  _pu_sequence_pos = 0
+  _pu_sequence_length = 0
+  _pu_balance_enabled = (booleanConstant false)
+  _pu_balance_offset = 0
+  _pu_body_roll = 0
+  _pu_body_pitch = 0
+  _pu_body_roll_filtered = 0
+  _pu_body_pitch_filtered = 0
+  comment 'Eye state: left brightness, right brightness, left on, right on.'
+  _pu_eyes = ('[data:makeList]' 1023 1023 false false)
+  _pu_explore_distances = ('[data:makeList]' 400 400 400 400)
+  '_pu_cancelMotion'
+  neoPixelAttach 4 16
+  clearNeoPixels
+  puSetEyes (booleanConstant true) (booleanConstant true)
+  comment 'Initialize in the neutral rest pose, calibrate the IMU, and enable balance automatically.'
+  '_pu_rest'
+  _pu_initialized = (booleanConstant true)
+  _pu_initializing = (booleanConstant false)
+}
+
+to puMoveToPose pose speed {
+  comment 'Move all six servos to one calibrated pose supplied as a list of exactly six angles.'
+  comment 'Pose order: left foot, left leg, right foot, right leg, head yaw, head pitch.'
+  if ((size pose) != 6) {
+    sayIt 'PU pose needs 6 angles'
+    return
+  }
+  '_pu_ensureInit'
+  '_pu_cancelMotion'
+  speed = (maximum 1 (minimum speed 10))
+  local 'generation' _pu_motion_generation
+  local 'done' (booleanConstant false)
+  repeatUntil done {
+    if (generation != _pu_motion_generation) {return}
+    done = (booleanConstant true)
+    '_pu_computeControl' false
+    for servo 6 {
+      local 'target' (maximum 0 (minimum (at servo pose) 180))
+      if ('_pu_movePoseServo' servo target speed) {
+        done = (booleanConstant false)
+      }
+    }
+    waitMillis 20
+  }
+}
+
+to puRemoteAcceleration axis {
+  if (axis == 'X') {return _pu_remote_accel_x}
+  if (axis == 'Y') {return _pu_remote_accel_y}
+  if (axis == 'Z') {return _pu_remote_accel_z}
+  return 0
+}
+
+to puRemoteButtonReceived button {
+  if _pu_remote_button_pending {if (_pu_remote_button == ('_pu_remoteButtonCode' button)) {
+    _pu_remote_button_pending = (booleanConstant false)
+    return (booleanConstant true)
+  }}
   return (booleanConstant false)
 }
 
@@ -944,13 +942,6 @@ to puRemoteEnable group {
 to puRemoteValue axis {
   if (axis == 'X') {return _pu_remote_joy_x}
   if (axis == 'Y') {return _pu_remote_joy_y}
-  return 0
-}
-
-to puRemoteAcceleration axis {
-  if (axis == 'X') {return _pu_remote_accel_x}
-  if (axis == 'Y') {return _pu_remote_accel_y}
-  if (axis == 'Z') {return _pu_remote_accel_z}
   return 0
 }
 
@@ -1011,33 +1002,6 @@ to puSetServo joint angle {
   atPut (idx + 1) _pu_current angle
 }
 
-to puMoveToPose pose speed {
-  comment 'Move all six servos to one calibrated pose supplied as a list of exactly six angles.'
-  comment 'Pose order: left foot, left leg, right foot, right leg, head yaw, head pitch.'
-  if ((size pose) != 6) {
-    sayIt 'PU pose needs 6 angles'
-    return
-  }
-
-  '_pu_ensureInit'
-  '_pu_cancelMotion'
-
-  speed = (maximum 1 (minimum speed 10))
-  local 'generation' _pu_motion_generation
-  local 'done' (booleanConstant false)
-
-  repeatUntil done {
-    if (generation != _pu_motion_generation) {return}
-    done = (booleanConstant true)
-    '_pu_computeControl' false
-    for servo 6 {
-      local 'target' (maximum 0 (minimum (at servo pose) 180))
-      if ('_pu_movePoseServo' servo target speed) {done = (booleanConstant false)}
-    }
-    waitMillis 20
-  }
-}
-
 to puSetTrim leftFoot leftLeg rightFoot rightLeg headYaw headPitch {
   '_pu_ensureInit'
   _pu_trim = ('[data:makeList]' leftFoot leftLeg rightFoot rightLeg headYaw headPitch)
@@ -1054,7 +1018,6 @@ to puStopAction returnToRest {
 
 to puWalk direction steps speed {
   '_pu_ensureInit'
-
   local 'validDirection' (booleanConstant false)
   if (direction == 'pu;forward') {
     validDirection = (booleanConstant true)
@@ -1069,8 +1032,9 @@ to puWalk direction steps speed {
   } (direction == 'pu;turn right') {
     validDirection = (booleanConstant true)
   }
-  if (not validDirection) {return}
-
+  if (not validDirection) {
+    return
+  }
   '_pu_cancelMotion'
   local 'stepCount' (maximum 1 (minimum (argOrDefault 2 1) 100))
   local 'moveSpeed' (maximum 1 (minimum (argOrDefault 3 4) 10))
@@ -1096,3 +1060,4 @@ to puWalk direction steps speed {
     _pu_turn_bias = 0
   }
 }
+
