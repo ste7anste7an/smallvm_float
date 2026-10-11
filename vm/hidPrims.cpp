@@ -17,6 +17,8 @@
 #if (defined(ARDUINO_ARCH_SAMD) || \
 	(defined(ARDUINO_ARCH_RP2040) && !(defined(ARDUINO_ARCH_MBED) || defined(PICO_WIFI))))
 
+#define HAS_KEYBOARD_MOUSE 1
+
 #include "Keyboard.h"
 #include "Mouse.h"
 
@@ -25,6 +27,22 @@
 #else
 	#define DELAY_IF_NEEDED() { } // noop on SAM boards
 #endif
+
+#elif (defined(ESP32_S2) || defined(ESP32_S3)) && defined(ARDUINO_USB_CDC_ON_BOOT)
+
+#define HAS_KEYBOARD_MOUSE 1
+
+#include "USBHIDKeyboard.h"
+#include "USBHIDMouse.h"
+
+USBHIDKeyboard Keyboard;
+USBHIDMouse Mouse;
+
+#define DELAY_IF_NEEDED() { } // noop on ESP boards
+
+#endif
+
+#if defined(HAS_KEYBOARD_MOUSE)
 
 char mouseInitialized = 0;
 char keyboardInitialized = 0;
