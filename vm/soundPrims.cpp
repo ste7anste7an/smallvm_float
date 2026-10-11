@@ -57,7 +57,7 @@ static void startI2S(
 	// configure I2S driver
 	const i2s_config_t i2s_config = {
 		.mode = i2s_mode_t(mode),
-		.sample_rate = sampleRate,
+		.sample_rate = (uint32_t) sampleRate,
 		.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
 		.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // I2S device always captures stereo
 		.communication_format = I2S_COMM_FORMAT_STAND_I2S,
