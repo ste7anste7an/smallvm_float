@@ -3542,25 +3542,25 @@ static OBJ primSquareWave(int argCount, OBJ *args) {
  	#include <esp_sleep.h>
 
 	extern "C" void lightSleep(int msecs) {
-		#if defined(NEZHA_ESP32)
-			delay(msecs); // the board library's tasks need the CPU at full speed; yield without changing the clock
+		if (servosRunning) return; // changing clock speed messes up servo timing
+
+		int lowCPUFrequency;
+		#if defined(ESP32_S2) || defined(ESP32_C3) || defined(ESP32_C6)
+			lowCPUFrequency = 80; // lowest safe clock speed on S2, C3, and C6 is 80 MHz
 		#else
-			if (servosRunning) return; // changing clock speed messes up servo timing
-			#if defined(ESP32_S2) || defined(ESP32_C3) || defined(ESP32_C6)
-				setCpuFrequencyMhz(80); // lowest safe clock speed on S2, C3, and C6 is 80 MHz
-			#else
-				int lowCPUFrequency = 10; // use 10 MHz if possible for maximum power savings
-				if (bleRunning || wifiActive) lowCPUFrequency = 80; // must use 80 MHz
-				setCpuFrequencyMhz(lowCPUFrequency); //
-			#endif
+			// use 10 MHz if possible for maximum power savings
+			// lowest possible speed is 80 MHz if BLE or WiFi is active
+			lowCPUFrequency = (bleRunning || wifiActive) ? 80 : 10;
+		#endif
 
-			delay(msecs);
+		setCpuFrequencyMhz(lowCPUFrequency);
 
-			#if defined(ESP32_C3) || defined(ESP32_C6)
-				setCpuFrequencyMhz(160); // max clock speed on C3 and C6
-			#else
-				setCpuFrequencyMhz(240);
-			#endif
+		delay(msecs);
+
+		#if defined(ESP32_C3) || defined(ESP32_C6)
+			setCpuFrequencyMhz(160); // max clock speed on C3 and C6
+		#else
+			setCpuFrequencyMhz(240);
 		#endif
 	}
 
