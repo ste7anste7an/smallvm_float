@@ -160,6 +160,8 @@ static int i2sWriteBytes(const uint8_t *buffer, int byteCount) {
 
 #if defined(HAS_I2S)
 
+static int i2sSampleRate = 0;
+
 static OBJ primI2SBegin(int argCount, OBJ *args) {
 	// I2S needs two clock pins pins and either an input pin, and output pin, or both.
 	// args[0]: sample rate
@@ -197,6 +199,7 @@ static OBJ primI2SBegin(int argCount, OBJ *args) {
 	if (bufferSize > 1023) bufferSize = 1023; // limit on ESP32
 
 	startI2S(sampleRate, bufferSize, isPDM, clockPin, wordClockPin, inputPin, outputPin);
+	i2sSampleRate = sampleRate;
 	return falseObj;
 }
 
@@ -251,6 +254,7 @@ static OBJ primI2SRead(int argCount, OBJ *args) {
 static OBJ primI2SWrite(int argCount, OBJ *args) {
 	// Write samples from the given list to the I2S output device and return the
 	// number of samples written. Each sample will be written to both stereo channels.
+	// The written samples are removed from the list.
 	// args[0] - list of samples to write
 	// args[1] - index (1-based) of the first sample to write
 
@@ -280,12 +284,80 @@ static OBJ primI2SWrite(int argCount, OBJ *args) {
 	return int2obj(written / 4); // return the number of samples written (4 bytes per sample)
 }
 
+#define I2S_DAC_BUF_SIZE 64
+static int16_t i2sDACBuffer[I2S_DAC_BUF_SIZE];
+static int i2sDACCount = 0; // number of samples in i2sDACBuffer
+static int32_t i2sLastMicros = 0; // last time primI2SDACWrite() was called
+
+// xxx stats for debugging
+static int notTime = 0;
+static int singles = 0;
+static int catchups = 0;
+static int fullWrites = 0;
+static int partialWrites = 0;
+static int failedWrites = 0;
+
+static OBJ primI2SDACWrite(int argCount, OBJ *args) {
+	if (argCount < 1) return fail(notEnoughArguments);
+	if (!isInt(args[0])) return fail(needsIntegerError);
+	int i2sDACValue = obj2int(args[0]);
+
+	// make i2sMicrosPerSample slightly less than 1/sample rate so it will
+	// tend to get ahead and fill the i2s output buffers
+	int i2sMicrosPerSample = (1000000 / i2sSampleRate) - 10;
+
+	int32_t now = microsecs();
+	int32_t delta = now - i2sLastMicros;
+	if (delta < 0) delta = now; // xxx TODO improve clock wrap behavior
+	if (delta < i2sMicrosPerSample) return falseObj; // not time for next sample yet
+
+	int count = delta / i2sMicrosPerSample;
+	int32_t extraMicros = delta - (count * i2sMicrosPerSample); // remainder
+
+	// add a stereo sample to the buffer
+	if (i2sDACCount < I2S_DAC_BUF_SIZE) i2sDACBuffer[i2sDACCount++] = i2sDACValue;
+	if (i2sDACCount < I2S_DAC_BUF_SIZE) i2sDACBuffer[i2sDACCount++] = i2sDACValue;
+
+	if (i2sDACCount == I2S_DAC_BUF_SIZE) {
+		// buffer is full; attempt to write it
+		// Assume: i2s buffer size is an even multiple of the DAC buffer size
+		// so that either the entire DAC buffer will be written or none of it.
+
+		int bytesWritten = i2sWriteBytes((const uint8_t *) i2sDACBuffer, 2 * I2S_DAC_BUF_SIZE);
+		if (bytesWritten > 0) i2sDACCount = 0;
+	}
+
+	i2sLastMicros = now - extraMicros; // subtracting extraMicros accepts next sample sooner
+	return trueObj;
+}
+
+static OBJ primI2SDACDebug(int argCount, OBJ *args) {
+	// xxx temporary; output stats for debugging
+
+	reportNum("notTime", notTime);
+	reportNum("singles", singles);
+	reportNum("catchups", catchups);
+	reportNum("failedWrites", failedWrites);
+	reportNum("partialWrites", partialWrites);
+	reportNum("fullWrites", fullWrites);
+
+	notTime = 0;
+	singles = 0;
+	catchups = 0;
+	failedWrites = 0;
+	partialWrites = 0;
+	fullWrites = 0;
+	return falseObj;
+}
+
 #else
 
 static OBJ primI2SBegin(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 static OBJ primI2SEnd(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 static OBJ primI2SRead(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 static OBJ primI2SWrite(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SDACWrite(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
+static OBJ primI2SDACDebug(int argCount, OBJ *args) { return fail(primitiveNotImplemented); }
 
 #endif
 
@@ -693,6 +765,8 @@ static OBJ primGoertzel(int argCount, OBJ *args) {
 static PrimEntry entries[] = {
 	{"i2sBegin", primI2SBegin},
 	{"i2sEnd", primI2SEnd},
+	{"i2sDACWrite", primI2SDACWrite},
+	{"i2sDACDebug", primI2SDACDebug},
 	{"i2sRead", primI2SRead},
 	{"i2sWrite", primI2SWrite},
 	{"fft", primFFT},
