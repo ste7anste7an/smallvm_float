@@ -287,7 +287,7 @@ method microBlocksSpecs SmallCompiler {
 		(array ' ' '[io:setServo]'		'set servo pin _ to _ usecs' 'num num' 0 1500)
 
 		(array 'r' '[net:hasWiFi]'		'has WiFi support')
-		(array ' ' '[net:startWiFi]'	'start WiFi _ password _ : be hotspot _ : IP _ gateway _ subnet _' 'auto auto bool auto auto auto' 'SSID' 'MyPassword' true '192.168.1.42' '192.168.1.1' '255.255.255.0')
+		(array ' ' '[net:startWiFi]'	'start WiFi _ password _ : be hotspot _ : IP _ gateway _ subnet _' 'auto auto bool auto auto auto' 'SSID' 'MyPassword' true '' '' '')
 		(array ' ' '[net:stopWiFi]'		'stop WiFi')
 		(array 'r' '[net:wifiStatus]'	'WiFi status')
 		(array 'r' '[net:myIPAddress]'	'my IP address')

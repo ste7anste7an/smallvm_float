@@ -1,11 +1,13 @@
 module WiFi Comm
 author MicroBlocks
-version 1 10 
+version 1 11 
 tags communication network 
 description 'Connect to a WiFi network. Used in conjunction with other network libraries, such as HTTP client, HTTP server or Web Thing.
+
+Leave the IP, gateway and subnet inputs of the connect block empty to get an address from the network. To use a fixed address fill in all three, for example 192.168.1.42, 192.168.1.1 and 255.255.255.0. A hotspot with an empty password is open; otherwise the password needs at least 8 characters.
 '
 
-  spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '192.168.1.42' '192.168.1.1' '255.255.255.0'
+  spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '' '' ''
   spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _' 'str str' 'Network_Name' 'Network_Password'
   spec ' ' '[net:stopWiFi]' 'stop wifi'
   space
@@ -54,8 +56,9 @@ to wifiConnect ssid password fixedIP gatewayIP subnetIP {
 
 to wifiCreateHotspot ssid password {
   if (not ('[net:hasWiFi]')) {return}
-  if ((size password) < 8) {
-    sayIt 'Password must be at least 8 characters'
+  comment 'An empty password makes an open hotspot; WPA2 needs at least 8 characters.'
+  if (and ((size password) > 0) ((size password) < 8)) {
+    sayIt 'Password must be empty or at least 8 characters'
     return 0
   }
   '[net:startWiFi]' ssid password true
