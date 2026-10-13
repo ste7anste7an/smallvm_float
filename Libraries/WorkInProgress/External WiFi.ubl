@@ -1,11 +1,11 @@
 module 'External WiFi' Comm
 author MicroBlocks
-version 0 4
+version 0 5
 implements WiFi
 tags communication network wifi esp-at calliope
 description 'Connect to a WiFi network through an external ESP-AT WiFi module on two serial pins, such as the Calliope WiFi module (ESP32-C3, ESP-AT 3.3). Use it on boards without WiFi, for example a micro:bit or Calliope mini.
 
-Same blocks as the WiFi library. Used with External HTTP client, which has the same blocks as HTTP client, so projects written for WiFi and HTTP client (for example the SmartIoT library) work unchanged.
+Same blocks as the WiFi library, including the hotspot channel (1 to 13) and IP inputs. Used with External HTTP client, which has the same blocks as HTTP client, so projects written for WiFi and HTTP client (for example the SmartIoT library) work unchanged.
 
 Wiring: board rx pin to the module tx, board tx pin to the module rx, and GND. Default pins: rx 16 and tx 17 on a Calliope mini (its WiFi module socket), rx 2 and tx 1 on other boards (on a micro:bit, P2 to module tx and P1 to module rx). Use "external WiFi module rx pin" for other pins. The module talks at 115200 baud.
 
@@ -15,7 +15,7 @@ The serial link code comes from Ralf Krause''s Calliope WiFi library (version 0.
 variables _extwifi_ready _extwifi_mac _extwifi_connected _extwifi_busy _extwifi_busy_since _extwifi_tx _extwifi_rx
 
   spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '' '' ''
-  spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _' 'str str' 'Network_Name' 'Network_Password'
+  spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _ : channel _ : IP _' 'str str num auto' 'Network_Name' 'Network_Password' 1 ''
   spec ' ' '[net:stopWiFi]' 'stop wifi'
   space
   spec ' ' '[net:setDomainName]' 'wifi set local domain name _ .local' 'str' 'microblocks'
@@ -93,12 +93,17 @@ to wifiConnect ssid password fixedIP gatewayIP subnetIP {
   sayIt 'My IP address is:' ip
 }
 
-to wifiCreateHotspot ssid password {
+to wifiCreateHotspot ssid password channel ip {
   comment 'An empty password makes an open hotspot; WPA2 needs at least 8 characters.'
   if (and ((size password) > 0) ((size password) < 8)) {
     sayIt 'Password must be empty or at least 8 characters'
     return 0
   }
+  if (not (and (channel >= 1) (channel <= 13))) {
+    sayIt 'Channel must be 1 to 13'
+    return 0
+  }
+  ip = ('[data:join]' '' ip)
   _extwifi_busy = true
   _extwifi_busy_since = (millisOp)
   if (not ('_extwifi_init')) {
@@ -108,11 +113,15 @@ to wifiCreateHotspot ssid password {
   }
   '_extwifi_send' '+CWMODE=2' 50
   local 'ok' ('_extwifi_wait' 'OK' 1000)
-  comment 'Channel 1. Encryption 3 is WPA2; 0 is open.'
+  if ((size ip) == 0) {ip = '192.168.4.1'}
+  comment 'The hotspot is the gateway of its own network. Always sent: the module keeps its last address until it is reset.'
+  '_extwifi_send' ('[data:join]' '+CIPAP="' ip '","' ip '","255.255.255.0"') 100
+  ok = ('_extwifi_wait' 'OK' 2000)
+  comment 'Encryption 3 is WPA2; 0 is open.'
   if ((size password) > 0) {
-    '_extwifi_send' ('[data:join]' '+CWSAP="' ssid '","' password '",1,3') 100
+    '_extwifi_send' ('[data:join]' '+CWSAP="' ssid '","' password '",' channel ',3') 100
   } else {
-    '_extwifi_send' ('[data:join]' '+CWSAP="' ssid '","",1,0') 100
+    '_extwifi_send' ('[data:join]' '+CWSAP="' ssid '","",' channel ',0') 100
   }
   _extwifi_connected = ('_extwifi_wait' 'OK' 5000)
   if (not _extwifi_connected) {

@@ -1,14 +1,14 @@
 module WiFi Comm
 author MicroBlocks
-version 1 11 
+version 1 12 
 tags communication network 
 description 'Connect to a WiFi network. Used in conjunction with other network libraries, such as HTTP client, HTTP server or Web Thing.
 
-Leave the IP, gateway and subnet inputs of the connect block empty to get an address from the network. To use a fixed address fill in all three, for example 192.168.1.42, 192.168.1.1 and 255.255.255.0. A hotspot with an empty password is open; otherwise the password needs at least 8 characters.
+Leave the IP, gateway and subnet inputs of the connect block empty to get an address from the network. To use a fixed address fill in all three, for example 192.168.1.42, 192.168.1.1 and 255.255.255.0. A hotspot with an empty password is open; otherwise the password needs at least 8 characters. A hotspot uses channel 1 and the address 192.168.4.1 unless you fill in the channel (1 to 13) or IP inputs, for example 6 and 10.0.0.1. Some devices, for example ones sold in the US or Canada, do not show channels 12 and 13.
 '
 
   spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '' '' ''
-  spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _' 'str str' 'Network_Name' 'Network_Password'
+  spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _ : channel _ : IP _' 'str str num auto' 'Network_Name' 'Network_Password' 1 ''
   spec ' ' '[net:stopWiFi]' 'stop wifi'
   space
   spec ' ' '[net:setDomainName]' 'wifi set local domain name _ .local' 'str' 'microblocks'
@@ -54,14 +54,20 @@ to wifiConnect ssid password fixedIP gatewayIP subnetIP {
   sayIt 'My IP address is:' ('[net:myIPAddress]')
 }
 
-to wifiCreateHotspot ssid password {
+to wifiCreateHotspot ssid password channel ip {
   if (not ('[net:hasWiFi]')) {return}
   comment 'An empty password makes an open hotspot; WPA2 needs at least 8 characters.'
   if (and ((size password) > 0) ((size password) < 8)) {
     sayIt 'Password must be empty or at least 8 characters'
     return 0
   }
-  '[net:startWiFi]' ssid password true
+  if (not (and (channel >= 1) (channel <= 13))) {
+    sayIt 'Channel must be 1 to 13'
+    return 0
+  }
+  comment 'The hotspot is the gateway of its own network.'
+  ip = ('[data:join]' '' ip)
+  '[net:startWiFi]' ssid password true ip ip '255.255.255.0' channel
   if ('Connected' != ('[net:wifiStatus]')) {
     sayIt 'Could not create hotspot'
     return 0
