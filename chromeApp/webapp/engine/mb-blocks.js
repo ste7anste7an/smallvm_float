@@ -5037,37 +5037,18 @@ InputSlotMorph.prototype.fixLayout = function () {
 			+ this.typeInPadding * 2;
 	} else {
 		height = contents.height() + this.edge * 2; // + this.typeInPadding * 2
-		if (this.isNumeric) {
-			width = contents.width()
-				+ Math.floor(arrowWidth * 0.5)
-				+ height
-				+ this.typeInPadding * 2;
-		} else {
-			width = Math.max(
-				contents.width()
-					+ arrowWidth
-					+ this.edge * 2
-					+ this.typeInPadding * 2,
-				contents.rawHeight ? // single vs. multi-line contents
-					contents.rawHeight() + arrowWidth :
-					(fontHeight(contents.fontSize) / 1.3) + arrowWidth
-			);
-		}
+		width = contents.width()
+			+ Math.floor(arrowWidth * 0.5)
+			+ height
+			+ this.typeInPadding * 2;
 	}
 	this.bounds.setExtent(new Point(width, height));
 
-	if (this.isNumeric) {
-		contents.setPosition(new Point(
-			Math.floor(height / 2),
-			this.edge
-		).add(new Point(this.typeInPadding, 0)).add(this.position()));
-	} else {
-		contents.setPosition(new Point(
-			this.edge,
-			this.edge
-		).add(new Point(this.typeInPadding, 0)).add(this.position()));
-	}
-
+	contents.setPosition(new Point(
+		Math.floor(height / 2),
+		this.edge
+	).add(new Point(this.typeInPadding, 0)).add(this.position()));
+	
 	if (arrow.isVisible) {
 		arrow.setPosition(new Point(
 			this.right() - arrowWidth - this.edge,
@@ -5184,35 +5165,26 @@ InputSlotMorph.prototype.render = function (ctx) {
 		.toString();
 	this.cachedClrDark = borderColor.darker(this.contrast).toString();
 
-	if (!this.isNumeric) {
-		ctx.fillRect(
-			this.edge,
-			this.edge,
-			this.width() - this.edge * 2,
-			this.height() - this.edge * 2
-		);
-	} else {
-		r = Math.max((this.height() - (this.edge * 2)) / 2, 0);
-		ctx.beginPath();
-		ctx.arc(
-			r + this.edge,
-			r + this.edge,
-			r,
-			radians(90),
-			radians(-90),
-			false
-		);
-		ctx.arc(
-			this.width() - r - this.edge,
-			r + this.edge,
-			r,
-			radians(-90),
-			radians(90),
-			false
-		);
-		ctx.closePath();
-		ctx.fill();
-	}
+	r = Math.max((this.height() - (this.edge * 2)) / 2, 0);
+	ctx.beginPath();
+	ctx.arc(
+		r + this.edge,
+		r + this.edge,
+		r,
+		radians(90),
+		radians(-90),
+		false
+	);
+	ctx.arc(
+		this.width() - r - this.edge,
+		r + this.edge,
+		r,
+		radians(-90),
+		radians(90),
+		false
+	);
+	ctx.closePath();
+	ctx.fill();
 
 	// draw my "wish" block, if any
 	if (this.selectedBlock) {
