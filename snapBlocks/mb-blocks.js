@@ -5949,7 +5949,7 @@ ColorSlotMorph.prototype.evaluate = function () {
 
 ColorSlotMorph.prototype.fixLayout = function () {
 	// determine my extent
-	var side = this.fontSize + this.edge * 2 + this.typeInPadding * 2;
+	var side = this.fontSize + (4 * this.scale);
 	this.bounds.setWidth(side);
 	this.bounds.setHeight(side);
 };
