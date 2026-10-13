@@ -698,6 +698,24 @@ void hardwareInit() {
 		1, 0, 0, 0, 1, 0, 0, 0, 1, 1,
 		1, 1, 0, 0, 1, 1, 1, 1, 1, 0};
 
+#elif defined(M5Stick_S3)
+
+	#define BOARD_TYPE "M5StickS3"
+	#define DIGITAL_PINS 49
+	#define ANALOG_PINS 10
+	#define TOTAL_PINS 49
+	#define PIN_LED -1 // the green power LED is controlled by M5PM1
+	#define PIN_BUTTON_A 11
+	#define PIN_BUTTON_B 12
+	static const int analogPin[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	// Expose only Grove and Hat2 GPIOs. Reserve USB, Flash/PSRAM and internal peripherals.
+	static char reservedPin[TOTAL_PINS] = {
+		1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 0, 0, 1, 1, 1, 1};
+
 #elif defined(ARDUINO_M5Stack_ATOMS3)
 
 	#if defined(M5Atom_S3_TFT)

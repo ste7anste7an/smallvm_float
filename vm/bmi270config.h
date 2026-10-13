@@ -38,7 +38,7 @@
 *
 */
 
-#if defined(DATABOT_V3)
+#if defined(DATABOT_V3) || defined(M5Stick_S3)
 
 /*! @name  Global array that stores the configuration file of BMI270 */
 static const uint8_t bmi270_config_file[] = {

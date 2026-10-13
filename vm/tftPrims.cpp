@@ -1186,6 +1186,33 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			tft->fillScreen(BLACK);
 		}
 
+	#elif defined(M5Stick_S3)
+		#define TFT_MOSI 39
+		#define TFT_SCLK 40
+		#define TFT_CS 41
+		#define TFT_DC 45
+		#define TFT_RST 21
+		#define TFT_BL 38
+
+		void stickS3PowerInit();
+
+		void tftInit() {
+			stickS3PowerInit(); // enable the LCD power rail before initializing the display
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI, -1);
+			tft = new Arduino_ST7789(bus, TFT_RST, 1, true, 135, 240, 52, 40, 53, 40);
+			if (!tft->begin()) {
+				outputString("tftInit() failed!");
+			} else {
+				backlightPin = TFT_BL;
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH);
+				tftWidth = 240;
+				tftHeight = 135;
+				tftClear();
+				useTFT = true;
+			}
+		}
+
 	#elif defined(M5Atom_S3_TFT)
 		#define TFT_MOSI 21
 		#define TFT_SCLK 17
@@ -1401,7 +1428,7 @@ OBJ primSetBacklight(int argCount, OBJ *args) {
 		if (brightness > 10) brightness = 10;
 		pinMode(34, OUTPUT);
 		analogWrite(34, brightness * 25); // nRF5x boards use 8-bit analogWrite resolution
-	#elif defined(TTGO_RP2040) || defined(ARDUINO_WEACT)
+	#elif defined(TTGO_RP2040) || defined(ARDUINO_WEACT) || defined(M5Stick_S3)
 		pinMode(TFT_BL, OUTPUT);
 		if (brightness < 0) brightness = 0;
 		if (brightness > 10) brightness = 10;
