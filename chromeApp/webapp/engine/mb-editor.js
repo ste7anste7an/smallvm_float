@@ -1935,7 +1935,10 @@ function chromePoint(aWorld) {
 	const page = aWorld.worldCanvas.getBoundingClientRect();
 	const canvas = document.querySelector('#canvas.emscripten');
 	const hand = aWorld.hand.position();
-	return { x: hand.x + page.left - canvas.offsetLeft, y: hand.y + page.top - canvas.offsetTop };
+	return {
+		x: (hand.x * MB_editor.blockSize / 100) + page.left - canvas.offsetLeft,
+		y: (hand.y * MB_editor.blockSize / 100) + page.top - canvas.offsetTop
+	};
 }
 
 // What contextMenu answers when the chrome draws the menu, so the hand opens no Morphic one.
