@@ -55,7 +55,7 @@ Optional stereo channel argument is 0 - mixed, 1- left, 2 - right
 Result is a monophonic list of signed 16-bit samples.
 Note: This will fail if there is not enough memory to store
 the result plus a small read buffer.'
-  local 'channel' (argOrDefault 2 0)
+  local 'channel' (0 + (argOrDefault 2 0))
   local 'samples' (newList sampleCount)
   '[data:delete]' 'all' samples
   local 'buffer' (newList 128)
