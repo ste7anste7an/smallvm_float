@@ -226,6 +226,9 @@ to '_extwifi_init' {
 to '_extwifi_join' ssid password {
   '_extwifi_send' '+CWMODE=1' 50
   if (not ('_extwifi_wait' 'OK' 1000)) {return false}
+  comment 'Station DHCP on. Old firmware keeps a static address in flash, and this is the one form that means the same on every version.'
+  '_extwifi_send' '+CWDHCP=1,1' 50
+  local 'ok' ('_extwifi_wait' 'OK' 1000)
   '_extwifi_send' ('[data:join]' '+CWJAP="' ssid '","' password '"') 500
   comment 'OK comes after WIFI GOT IP; DHCP can take 10 seconds'
   return ('_extwifi_wait' 'OK' 20000 'FAIL')
