@@ -38,18 +38,19 @@
 		<link rel="stylesheet" href="styles/utilities/_drag.css">
 
 		<!-- Developer tools. Disable on live instances -->
-		<script type="text/javascript" src="devtools.js" defer></script>
+		<!-- Disabled for now -->
+		<!-- <script type="text/javascript" src="ui/devtools.js" defer></script> -->
 
 		<!-- Localization -->
-		<script type="text/javascript" src="gettext.js"></script>
+		<script type="text/javascript" src="ui/gettext.js" defer></script>
 
 		<!-- Window Components -->
-		<script type="text/javascript" src="windows.js"></script>
-		<script type="text/javascript" src="graph.js" defer></script>
+		<script type="text/javascript" src="ui/windows.js" defer></script>
+		<script type="text/javascript" src="ui/graph.js" defer></script>
 
 		<!-- Firmware upload support -->
-		<script type="text/javascript" src="lib/usbDfuDevice.js"></script>
-		<script type="text/javascript" src="flasher.js"></script>
+		<script type="text/javascript" src="lib/usbDfuDevice.js" defer></script>
+		<script type="text/javascript" src="engine/flasher.js" defer></script>
 
 	</head>
 
@@ -147,31 +148,31 @@
 		<canvas id="world-canvas" style="position: absolute"></canvas>
 
 		<!-- Snap Blocks -->
-		<script type="text/javascript" src="morphic.js"></script>
-		<script type="text/javascript" src="mb-blocks.js"></script>
-		<script type="text/javascript" src="mb-code-manager.js"></script>
-		<script type="text/javascript" src="mb-comm-port.js"></script>
-		<script type="text/javascript" src="mb-compare.js"></script>
-		<script type="text/javascript" src="mb-compiler.js"></script>
-		<script type="text/javascript" src="mb-connection.js"></script>
-		<script type="text/javascript" src="mb-decompiler.js"></script>
-		<script type="text/javascript" src="mb-file-picker.js"></script>
-		<script type="text/javascript" src="mb-files.js"></script>
-		<script type="text/javascript" src="mb-function.js"></script>
-		<script type="text/javascript" src="mb-help-strings.js"></script>
-		<script type="text/javascript" src="mb-help.js"></script>
-		<script type="text/javascript" src="mb-jsAPI.js"></script>
-		<script type="text/javascript" src="mb-parser.js"></script>
-		<script type="text/javascript" src="mb-project.js"></script>
-		<script type="text/javascript" src="mb-specs.js"></script>
-		<script type="text/javascript" src="mb-tips.js"></script>
-		<script type="text/javascript" src="mb-editor.js"></script>
+		<script type="text/javascript" src="engine/morphic.js"></script>
+		<script type="text/javascript" src="engine/mb-blocks.js"></script>
+		<script type="text/javascript" src="engine/mb-code-manager.js"></script>
+		<script type="text/javascript" src="engine/mb-comm-port.js"></script>
+		<script type="text/javascript" src="engine/mb-compare.js"></script>
+		<script type="text/javascript" src="engine/mb-compiler.js"></script>
+		<script type="text/javascript" src="engine/mb-connection.js"></script>
+		<script type="text/javascript" src="engine/mb-decompiler.js"></script>
+		<script type="text/javascript" src="engine/mb-file-picker.js"></script>
+		<script type="text/javascript" src="engine/mb-files.js"></script>
+		<script type="text/javascript" src="engine/mb-function.js"></script>
+		<script type="text/javascript" src="engine/mb-help-strings.js"></script>
+		<script type="text/javascript" src="engine/mb-help.js"></script>
+		<script type="text/javascript" src="engine/mb-jsAPI.js"></script>
+		<script type="text/javascript" src="engine/mb-parser.js"></script>
+		<script type="text/javascript" src="engine/mb-project.js"></script>
+		<script type="text/javascript" src="engine/mb-specs.js"></script>
+		<script type="text/javascript" src="engine/mb-tips.js"></script>
+		<script type="text/javascript" src="engine/mb-editor.js"></script>
 
 		<!-- IDE -->
-		<script type="text/javascript" src="ide.js"></script>
-		<script type="text/javascript" src="menus.js"></script>
-		<script type="text/javascript" src="buttons.js"></script>
-		<script type="text/javascript" src="categories.js"></script>
+		<script type="text/javascript" src="ui/ide.js"></script>
+		<script type="text/javascript" src="ui/menus.js"></script>
+		<script type="text/javascript" src="ui/buttons.js"></script>
+		<script type="text/javascript" src="ui/categories.js"></script>
 
 		<!-- Start IDE when page is loaded -->
 		<script>
@@ -200,8 +201,9 @@
 
 				setTimeout(() => {
 					// Hack: Wait a bit before starting to let everything finish loading...
-					IDE.init();
+					MorphicPreferences.isFlat = true;
 					world = new WorldMorph(document.getElementById('world-canvas'), false);
+					IDE.init();
 					mbEditor = MB_editor.open(world);
 					IDE.resize(); // place the world canvas over the workspace slot
 					requestAnimationFrame(loop);

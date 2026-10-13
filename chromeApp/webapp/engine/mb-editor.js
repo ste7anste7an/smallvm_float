@@ -1381,26 +1381,9 @@ console.log('unknown');
 
 	applyBlockSize(percent) {
 		// Keep script positions in project file units while changing the rendered scale.
-		const oldScale = this.scriptScale();
-		const fontFactor = percent / this.blockSize;
-		const pane = this.scriptsPane();
-		const scripts = pane ? pane.children.filter(m => m instanceof BlockMorph) : [];
-		const positions = scripts.map(m => [
-			(m.left() - pane.left()) / oldScale,
-			(m.top() - pane.top()) / oldScale,
-		]);
 		this.blockSize = percent;
-		SyntaxElementMorph.prototype.setScale(1.5 * this.scriptScale());
-		if (this.palette) this.updatePalette();
-		if (pane) {
-			scripts.forEach((m, i) => {
-				this.resizeBlock(m, fontFactor);
-				m.setPosition(new Point(
-					pane.left() + positions[i][0] * this.scriptScale(),
-					pane.top() + positions[i][1] * this.scriptScale()));
-			});
-			pane.adjustBounds();
-		}
+		world.zoom(Math.max(Math.min(percent, 250), 50) / 100);
+		IDE.resize();
 	}
 
 	async setBlockScalePercent(percent) {
@@ -1409,6 +1392,7 @@ console.log('unknown');
 			const prefs = this.readUserPreferences();
 			prefs.blockSizePercent = percent;
 			localStorage['user-prefs'] = JSON.stringify(prefs);
+			this.blockSize = percent;
 		}
 		await this.codeManager.syncScripts();
 	}
