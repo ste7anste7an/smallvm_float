@@ -56,6 +56,9 @@
 #elif defined(M5Atom_Matrix) || defined(M5Atom_Lite)
 	#define PIN_WIRE_SCL 21
 	#define PIN_WIRE_SDA 25
+#elif defined(M5Stick_S3)
+	#define PIN_WIRE_SCL 10
+	#define PIN_WIRE_SDA 9
 #elif defined(ARDUINO_M5Stack_ATOMS3)
 	#define PIN_WIRE_SCL 1
 	#define PIN_WIRE_SDA 2
@@ -208,12 +211,17 @@ void writeI2CReg(int deviceID, int reg, int value) {
 static int internalWireStarted = false;
 
 static void startInternalWire() {
+	#if defined(M5Stick_S3)
+		#define M5Stick_S3_INTERNAL_SDA 47
+		#define M5Stick_S3_INTERNAL_SCL 48
+		Wire1.setPins(M5Stick_S3_INTERNAL_SDA, M5Stick_S3_INTERNAL_SCL);
+	#endif
 	Wire1.begin();
 	Wire1.setClock(400000); // i2c fast mode (seems pretty ubiquitous among i2c devices)
 	internalWireStarted = true;
 }
 
-static int readInternalI2CReg(int deviceID, int reg) {
+int readInternalI2CReg(int deviceID, int reg) {
 	if (!internalWireStarted) startInternalWire();
 	Wire1.beginTransmission(deviceID);
 	Wire1.write(reg);
@@ -224,7 +232,7 @@ static int readInternalI2CReg(int deviceID, int reg) {
 	return Wire1.available() ? Wire1.read() : 0;
 }
 
-static void writeInternalI2CReg(int deviceID, int reg, int value) {
+void writeInternalI2CReg(int deviceID, int reg, int value) {
 	if (!internalWireStarted) startInternalWire();
 	Wire1.beginTransmission(deviceID);
 	Wire1.write(reg);
@@ -1941,7 +1949,15 @@ static int readTemperature() {
 }
 // Support Springbot END
 
-#elif defined(DATABOT_V3)
+#elif defined(DATABOT_V3) || defined(M5Stick_S3)
+
+#if defined(M5Stick_S3)
+	// BMI270 and M5PM1 share Wire1; Grove uses Wire on pins 9 and 10.
+	void stickS3PowerInit();
+	#define Wire Wire1
+	#define readI2CReg readInternalI2CReg
+	#define writeI2CReg writeInternalI2CReg
+#endif
 
 #include "bmi270config.h" // 8k proprietary configuration file
 
@@ -1964,9 +1980,6 @@ static void bmi270EnableGyroAutoOffsetComp(); // forward reference
 
 static void bmi270Init() {
 	if (accelStarted) return;
-
-	if (!wireStarted) startWire();
-	if (!wireStarted) return;
 
 	writeI2CReg(BMI270_ADDR, BMI270_CMD, 0xB6); // soft reset
 	delay(5); // leave time for reset to complete (must be > 2 msecs)
@@ -1997,6 +2010,11 @@ static void bmi270Init() {
 		return;
 	}
 	writeI2CReg(BMI270_ADDR, BMI270_RANGE, 0); // set range to +/- 2G
+	#if defined(M5Stick_S3)
+		writeI2CReg(BMI270_ADDR, 0x40, 0xA8); // normal filtering, 100 Hz accelerometer
+		writeI2CReg(BMI270_ADDR, 0x42, 0xA9); // normal filtering, 200 Hz gyroscope
+		writeI2CReg(BMI270_ADDR, 0x43, 0); // +/- 2000 degrees/sec
+	#endif
 	writeI2CReg(BMI270_ADDR, BMI270_PWR_CTRL, 0x0E); // acc_en=1, gyr_en=1, temp_en=1
 	bmi270EnableGyroAutoOffsetComp(); // turn on gyro offset self-compensation
 	accelStarted = true;
@@ -2012,7 +2030,7 @@ static void bmi270ReadData() {
 	Wire.endTransmission(false);
 
 	Wire.requestFrom(BMI270_ADDR, 12);
-	for (int i = 0; i < 12; i++) bmi270data[i] = Wire.read();
+	for (int i = 0; i < 12; i++) bmi270data[i] = Wire.available() ? Wire.read() : 0;
 }
 
 static int readAcceleration(int registerID) {
@@ -2039,7 +2057,11 @@ static void setAccelRange(int range) {
 static int readTemperature() {
 	if (!accelStarted) bmi270Init();
 	int16_t rawTemp = (readI2CReg(BMI270_ADDR, 0x23) << 8) | readI2CReg(BMI270_ADDR, 0x22);
-	return (rawTemp >> 9) + 23 - 13; // -13 adjusts for self-heating in databot case
+	int degreesC = (rawTemp >> 9) + 23;
+	#if defined(DATABOT_V3)
+		degreesC -= 13; // -13 adjusts for self-heating inside the databot case
+	#endif
+	return degreesC;
 }
 
 // Databot V3 Gyro Setup
@@ -2059,7 +2081,7 @@ static uint16_t bmi270ReadFeatWord(uint8_t page, uint8_t addr) {
 	Wire.beginTransmission(BMI270_ADDR);
 	Wire.write(addr);
 	Wire.endTransmission(false);
-	Wire.requestFrom(BMI270_ADDR, (uint8_t)2);
+	Wire.requestFrom(BMI270_ADDR, 2);
 	uint8_t lo = Wire.read();
 	uint8_t hi = Wire.read();
 	return ((uint16_t) hi << 8) | lo;

@@ -1186,6 +1186,73 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			tft->fillScreen(BLACK);
 		}
 
+	#elif defined(M5Stick_S3)
+		#define TFT_MOSI 39
+		#define TFT_SCLK 40
+		#define TFT_CS 41
+		#define TFT_DC 45
+		#define TFT_RST 21
+		#define TFT_BL 38
+
+		// Power management, needed by TFT display
+		#define PM1_ADDR 0x6E
+		#define PM1_POWER_CONFIG 0x06
+		#define PM1_I2C_CONFIG 0x09
+		#define PM1_GPIO_MODE 0x10
+		#define PM1_GPIO_OUTPUT 0x11
+		#define PM1_GPIO_DRIVE 0x13
+		#define PM1_GPIO_FUNCTION 0x16
+
+		static int powerStarted = false;
+
+		static int updatePM1(int reg, int mask, int value) {
+			int oldValue = readInternalI2CReg(PM1_ADDR, reg);
+			if (oldValue < 0) return false;
+			int newValue = (oldValue & ~mask) | (value & mask);
+			writeInternalI2CReg(PM1_ADDR, reg, newValue);
+			return readInternalI2CReg(PM1_ADDR, reg) == newValue;
+		}
+
+		void stickS3PowerInit() {
+			if (powerStarted) return;
+			// The first transaction wakes a sleeping PM1 and may fail.
+			readInternalI2CReg(PM1_ADDR, 0);
+			delay(10);
+			if (readInternalI2CReg(PM1_ADDR, 0) < 0) {
+				outputString("StickS3 M5PM1 not found");
+				return;
+			}
+			writeInternalI2CReg(PM1_ADDR, PM1_I2C_CONFIG, 0); // disable idle sleep, keep 100 kHz
+			int ok = updatePM1(PM1_POWER_CONFIG, 0x0D, 0x05); // charging and IMU LDO; EXT_5V input
+			ok &= updatePM1(PM1_GPIO_FUNCTION, 0xF0, 0); // PYG2 (LCD power) and PYG3 (speaker) as GPIO
+			ok &= updatePM1(PM1_GPIO_DRIVE, 0x0C, 0); // push-pull
+			ok &= updatePM1(PM1_GPIO_OUTPUT, 0x0C, 0x04); // LCD rail on, speaker amplifier off
+			ok &= updatePM1(PM1_GPIO_MODE, 0x0C, 0x0C); // outputs
+			if (!ok) {
+				outputString("StickS3 power initialization failed");
+				return;
+			}
+			delay(100); // allow the LCD power rail to settle
+			powerStarted = true;
+		}
+
+		void tftInit() {
+			stickS3PowerInit(); // enable the LCD power rail before initializing the display
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI, -1);
+			tft = new Arduino_ST7789(bus, TFT_RST, 1, true, 135, 240, 52, 40, 53, 40);
+			if (!tft->begin()) {
+				outputString("tftInit() failed!");
+			} else {
+				backlightPin = TFT_BL;
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH);
+				tftWidth = 240;
+				tftHeight = 135;
+				tftClear();
+				useTFT = true;
+			}
+		}
+
 	#elif defined(M5Atom_S3_TFT)
 		#define TFT_MOSI 21
 		#define TFT_SCLK 17
@@ -1401,7 +1468,7 @@ OBJ primSetBacklight(int argCount, OBJ *args) {
 		if (brightness > 10) brightness = 10;
 		pinMode(34, OUTPUT);
 		analogWrite(34, brightness * 25); // nRF5x boards use 8-bit analogWrite resolution
-	#elif defined(TTGO_RP2040) || defined(ARDUINO_WEACT)
+	#elif defined(TTGO_RP2040) || defined(ARDUINO_WEACT) || defined(M5Stick_S3)
 		pinMode(TFT_BL, OUTPUT);
 		if (brightness < 0) brightness = 0;
 		if (brightness > 10) brightness = 10;

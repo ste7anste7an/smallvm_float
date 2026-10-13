@@ -317,6 +317,8 @@ void loadStartCodeOrClear();
 
 int readI2CReg(int deviceID, int reg);
 void writeI2CReg(int deviceID, int reg, int value);
+int readInternalI2CReg(int deviceID, int reg);
+void writeInternalI2CReg(int deviceID, int reg, int value);
 
 // I/O Support
 
