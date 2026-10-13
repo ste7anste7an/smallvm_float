@@ -199,7 +199,7 @@ void writeI2CReg(int deviceID, int reg, int value) {
 }
 
 #if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) || \
-	defined(ARDUINO_SEEED_XIAO_NRF52840_SENSE)
+	defined(ARDUINO_SEEED_XIAO_NRF52840_SENSE) || defined(M5Stick_S3)
 
 #define HAS_INTERNAL_I2C 1
 
@@ -1952,8 +1952,8 @@ static int readTemperature() {
 #elif defined(DATABOT_V3) || defined(M5Stick_S3)
 
 #if defined(M5Stick_S3)
-	// BMI270 and M5PM1 share Wire1; Grove uses Wire on pins 9 and 10.
-	void stickS3PowerInit();
+	// BMI270 and M5PM1 share Wire1 (internal I2C bus)
+	// These definitions are reverted at the end of the DATABOT_V3/M5Stick_S3 #elif section
 	#define Wire Wire1
 	#define readI2CReg readInternalI2CReg
 	#define writeI2CReg writeInternalI2CReg
@@ -2111,6 +2111,23 @@ static void bmi270EnableGyroAutoOffsetComp() {
 
 	writeI2CReg(BMI270_ADDR, REG_FEAT_PAGE, 0); // restore default feature page
 }
+
+static OBJ primGyro(int argCount, OBJ *args) {
+	if (argCount < 1) return fail(notEnoughArguments);
+	int axis = evalInt(args[0]); // 1 = X, 2 = Y, 3 = Z
+	if ((axis < 1) || (axis > 3)) return zeroObj;
+	bmi270ReadData();
+	int offset = 6 + ((axis - 1) * 2);
+	int val = (int16_t) ((bmi270data[offset + 1] << 8) | bmi270data[offset]);
+	return int2obj((val * 2000) / 32768); // degrees/sec at the configured +/- 2000 range
+}
+
+#if defined(M5Stick_S3)
+	// Revert these definitions
+	#undef Wire
+	#undef readI2CReg
+	#undef writeI2CReg
+#endif
 
 #elif defined(RP2040_PHILHOWER)
 
@@ -3075,6 +3092,10 @@ static PrimEntry entries[] = {
 
 	#if defined(DATABOT_V3)
 	{"batteryMillivolts", primBatteryMillivolts},
+	#endif
+
+	#if defined(M5Stick_S3)
+	{"gyro", primGyro},
 	#endif
 };
 
