@@ -15,6 +15,8 @@
 #   ./buildHelp.sh path/to/out.js  # write somewhere else, to compare
 
 set -e
+
+# switch to the smallvm/tools directory
 cd "$(dirname "$0")"
 
 SRC="../ide/MicroBlocksHelp.gp"
