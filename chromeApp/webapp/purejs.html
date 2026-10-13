@@ -42,15 +42,15 @@
 		<!-- <script type="text/javascript" src="ui/devtools.js" defer></script> -->
 
 		<!-- Localization -->
-		<script type="text/javascript" src="ui/gettext.js"></script>
+		<script type="text/javascript" src="ui/gettext.js" defer></script>
 
 		<!-- Window Components -->
-		<script type="text/javascript" src="ui/windows.js"></script>
+		<script type="text/javascript" src="ui/windows.js" defer></script>
 		<script type="text/javascript" src="ui/graph.js" defer></script>
 
 		<!-- Firmware upload support -->
-		<script type="text/javascript" src="lib/usbDfuDevice.js"></script>
-		<script type="text/javascript" src="engine/flasher.js"></script>
+		<script type="text/javascript" src="lib/usbDfuDevice.js" defer></script>
+		<script type="text/javascript" src="engine/flasher.js" defer></script>
 
 	</head>
 
@@ -201,8 +201,9 @@
 
 				setTimeout(() => {
 					// Hack: Wait a bit before starting to let everything finish loading...
-					IDE.init();
+					MorphicPreferences.isFlat = true;
 					world = new WorldMorph(document.getElementById('world-canvas'), false);
+					IDE.init();
 					mbEditor = MB_editor.open(world);
 					IDE.resize(); // place the world canvas over the workspace slot
 					requestAnimationFrame(loop);
