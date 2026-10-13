@@ -11,14 +11,14 @@
 # loss.
 #
 # Usage:
-#   ./buildHelp.sh                 # write ../snapBlocks/mb-help-strings.js
+#   ./buildHelp.sh                 # write ../chromeApp/webapp/engine/mb-help-strings.js
 #   ./buildHelp.sh path/to/out.js  # write somewhere else, to compare
 
 set -e
 cd "$(dirname "$0")"
 
 SRC="../ide/MicroBlocksHelp.gp"
-OUT="${1:-mb-help-strings.js}"
+OUT="${1:-../chromeApp/webapp/engine/mb-help-strings.js}"
 
 if [ ! -f "$SRC" ]; then
     echo "$SRC not found; run this from a smallvm checkout" >&2
@@ -48,7 +48,7 @@ BEGIN {
     print "";
     print "// mb-help-strings.js - help text for each block, by op name.";
     print "//";
-    print "// GENERATED FILE. Do not edit: run snapBlocks/buildHelp.sh, which reads";
+    print "// GENERATED FILE. Do not edit: run tools/buildHelp.sh, which reads";
     print "// ide/MicroBlocksHelp.gp, and commit what it writes.";
     print "";
     print "MB_HelpStrings = {";
