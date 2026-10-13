@@ -6,7 +6,7 @@
 
 // mb-help-strings.js - help text for each block, by op name.
 //
-// GENERATED FILE. Do not edit: run snapBlocks/buildHelp.sh, which reads
+// GENERATED FILE. Do not edit: run tools/buildHelp.sh, which reads
 // ide/MicroBlocksHelp.gp, and commit what it writes.
 
 MB_HelpStrings = {

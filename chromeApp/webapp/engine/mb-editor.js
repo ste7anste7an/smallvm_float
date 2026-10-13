@@ -1101,7 +1101,7 @@ console.log('unknown');
 			{ selector: 'return', args: [0], isReporter: false, next: null }));
 		this.addToBottom(hat);
 		this.updatePalette();
-		this.scriptChanged(); // xxx is this needed? (from manual merge)
+		this.scriptChanged();
 		return hat;
 	}
 
@@ -2041,8 +2041,7 @@ async function waitMSecs(msecs) {
 }
 
 function localized(s) {
-	// XXX TODO: Use actual localization system
-	return s;
+	return GetText.localize(s);
 }
 
 function isMobile() {

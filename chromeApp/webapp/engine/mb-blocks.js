@@ -135,7 +135,7 @@ document, getDocumentPositionOf, isNaN, isString, newCanvas, parseFloat, isNil,
 radians, useBlurredShadows, SpeechBubbleMorph, modules, StageMorph,
 fontHeight, TableFrameMorph, SpriteMorph, Context, ListWatcherMorph, Rectangle,
 DialogBoxMorph, BlockInputFragmentMorph, PrototypeHatBlockMorph, WHITE, display,
-Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localize, CLEAR, Point,
+Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localized, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
@@ -757,7 +757,7 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 				part = new ReporterBlockMorph();
 				part.category = 'variables';
 				part.color = SpriteMorph.prototype.blockColor.variables;
-				part.setSpec(localize('Input name'));
+				part.setSpec(localized('Input name'));
 				break;
 			default:
 				throw new Error('unknown label part type: "' + info.type + '"');
@@ -1089,7 +1089,7 @@ SyntaxElementMorph.prototype.showBubble = function (value, exportPic, target) {
 				() => ide.saveFileAs(
 					value,
 					'text/plain;charset=utf-8',
-					localize('data')
+					localized('data')
 				)
 			);
 			menu.addItem(
@@ -1168,8 +1168,8 @@ SyntaxElementMorph.prototype.exportPictureWithResult = function (aBubble) {
 	ide.saveFileAs(
 		embedMetadataPNG(pic, this.toXMLString()),
 		'image/png',
-		(ide.getProjectName() || localize('untitled')) + ' ' +
-		localize('script pic')
+		(ide.getProjectName() || localized('untitled')) + ' ' +
+		localized('script pic')
 	);
 };
 
@@ -1572,7 +1572,7 @@ BlockMorph.prototype.localizeBlockSpec = function (spec) {
 	}).join(' ');
 
 	// make sure to also remove any explicit slot specs from the translation
-	translation = this.parseSpec(localize(abstractSpec)).map(str =>
+	translation = this.parseSpec(localized(abstractSpec)).map(str =>
 		(str.length > 1 && prefixes.includes(str[0])) ? '_' : str
 	).join(' ');
 
@@ -1590,6 +1590,7 @@ BlockMorph.prototype.localizeBlockSpec = function (spec) {
 // BlockMorph menu:
 
 BlockMorph.prototype.userMenu = function () {
+	// Obsolete - Old BlockMorph shift-right-click menu used for testing.
 	var menu = new MenuMorph(this),
 		shiftClicked = this.world().currentKey === 16;
 
@@ -4082,6 +4083,7 @@ ScriptsMorph.prototype.contextMenu = function () {
 };
 
 ScriptsMorph.prototype.userMenu = function () {
+	// Obsolete - ScriptsMorph shift-right-click menu used for testing.
 	var menu = new MenuMorph(this),
 		shiftClicked = this.world().currentKey === 16;
 
@@ -4157,14 +4159,14 @@ ScriptsMorph.prototype.exportScriptsPicture = function () {
 			ide.saveFileAs(
 				embedMetadataPNG(pic, xml),
 				'image/png',
-				(ide.getProjectName() || localize('untitled')) + ' ' +
-					localize('script pic')
+				(ide.getProjectName() || localized('untitled')) + ' ' +
+					localized('script pic')
 			);
 		} else {
 			ide.saveCanvasAs(
 				pic,
-				(ide.getProjectName() || localize('untitled')) + ' ' +
-					localize('script pic')
+				(ide.getProjectName() || localized('untitled')) + ' ' +
+					localized('script pic')
 			);
 		}
 	}
@@ -5048,7 +5050,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 		Math.floor(height / 2),
 		this.edge
 	).add(new Point(this.typeInPadding, 0)).add(this.position()));
-	
+
 	if (arrow.isVisible) {
 		arrow.setPosition(new Point(
 			this.right() - arrowWidth - this.edge,
@@ -5340,7 +5342,7 @@ TemplateSlotMorph.prototype.contents = function () {
 
 TemplateSlotMorph.prototype.setContents = function (aString) {
 	var tmp = this.template();
-	tmp.setSpec(aString instanceof Array? localize(aString[0]) : aString);
+	tmp.setSpec(aString instanceof Array? localized(aString[0]) : aString);
 	tmp.fixBlockColor(); // fix zebra coloring
 	tmp.fixLabelColor();
 };
@@ -5700,13 +5702,13 @@ BooleanSlotMorph.prototype.drawKnob = function (ctx, progress) {
 BooleanSlotMorph.prototype.textLabelExtent = function () {
 	var t, f;
 	t = new StringMorph(
-		localize('true'),
+		localized('true'),
 		this.fontSize,
 		null,
 		true // bold
 	);
 	f = new StringMorph(
-		localize('false'),
+		localized('false'),
 		this.fontSize,
 		null,
 		true // bold

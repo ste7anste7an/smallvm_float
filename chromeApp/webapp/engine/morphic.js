@@ -1476,7 +1476,7 @@ function nop() {
 
 function localize(string) {
     // override this function with custom localizations
-    return string;
+    return GetText.localize(string);
 }
 
 function isNil(thing) {
