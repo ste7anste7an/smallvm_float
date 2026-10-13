@@ -279,23 +279,11 @@ GP.apiCall = function (endPoint, params, callback) {
 	}
 };
 
-// menus.js reads the clipboard through these, which gpSupport.js defines in the wasm build.
-// The chrome's paste items are hidden while clipboardBytes is empty, and that test runs
-// as the menu opens, so the buffer is what makes paste reachable.
+// menus.js shows its paste items from GP.clipboardBytes and clipboardText().
+// mb-editor.js fills that buffer and defines clipboardText().
 GP.clipboardBytes = [];
-function clipboardText() {
-	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes));
-}
 
-function setClipboard(text) {
-	// The buffer is what the chrome reads. Writing the browser's own clipboard is
-	// a courtesy: it is missing on an insecure origin and can be refused even on a
-	// secure one, and neither is a reason for the copy to fail.
-	GP.clipboardBytes = Array.from(new TextEncoder().encode(text));
-	try {
-		navigator.clipboard?.writeText?.(text)?.catch(() => {});
-	} catch (e) {} // eslint-disable-line no-empty
-}
+function setClipboard(text) { setGPClipboard(text); }
 
 // The id the chrome answers a menu or a dialog under, counted as primBrowserNextCallId
 // counts it (chromeApp/emscripten/browserPrims.c).
