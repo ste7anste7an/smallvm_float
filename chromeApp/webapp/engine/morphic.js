@@ -12427,6 +12427,7 @@ WorldMorph.prototype.initKeyboardHandler = function () {
                 kbd.world.currentKey = null;
                 kbd.world.keyboardFocus.processInput(event);
             } else {
+            	if (event.inputType == 'insertFromPaste') MB_editor.handlePaste(event);
                 kbd.world.keyboardHandler.value = '';
             }
             event.preventDefault();
