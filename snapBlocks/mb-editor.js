@@ -2119,3 +2119,86 @@ function varMustBeQuoted(varName) {
 	const ch = varName[0];
 	return /\d/.test(ch) || ch === '-';
 }
+
+// Clipboard support (TODO move to own file?)
+
+var MB = {};
+MB.clipboard = document.createElement('textarea');
+MB.clipboard.style.position = 'fixed';
+MB.clipboard.style.left = '0px';
+MB.clipboard.style.top = '0px';
+MB.clipboard.style.width = '1px';
+MB.clipboard.style.height = '1em';
+MB.clipboard.style.border = '0';
+MB.clipboard.style.padding = '0';
+MB.clipboard.style.margin = '0';
+MB.clipboard.style.outline = 'none';
+MB.clipboard.style.opacity = '0';
+document.body.appendChild(MB.clipboard);
+
+function setGPClipboard(s) {
+	// Called by GP's setClipboard primitive
+
+	MB.clipboardBytes = toUTF8Array(s);
+	MB.clipboard.value = s;
+
+	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.writeText)) {
+		navigator.clipboard.writeText(s).catch(() => {});
+	} else {
+		MB.clipboard.focus();
+		MB.clipboard.select();
+		try {
+			document.execCommand('copy');
+		} catch (err) {
+			console.error('setGPClipboard failed', err);
+		}
+	}
+}
+
+async function readGPClipboard(s) {
+	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.readText)) {
+		var s = await navigator.clipboard.readText().catch(() => {});
+		if (s) MB.clipboard.value = s;
+	} else {
+		MB.clipboard.focus();
+		MB.clipboard.select();
+		try {
+			document.execCommand('paste');
+		} catch (err) {
+			console.error('readGPClipboard failed', err);
+		}
+	}
+	MB.clipboardBytes = toUTF8Array(MB.clipboard.value);
+	return MB.clipboardBytes.length;
+}
+
+function toUTF8Array(str) {
+	// Convert a Javascript string into an array of UTF8 bytes.
+	var utf8 = [];
+	for (var i = 0; i < str.length; i++) {
+		var charcode = str.charCodeAt(i);
+		if (charcode < 0x80) utf8.push(charcode);
+		else if (charcode < 0x800) {
+			utf8.push(
+				0xc0 | (charcode >> 6),
+				0x80 | (charcode & 0x3f));
+		}
+		else if (charcode < 0x10000) {
+			utf8.push(
+				0xe0 | (charcode >> 12),
+				0x80 | ((charcode >> 6) & 0x3f),
+				0x80 | (charcode & 0x3f));
+		} else if (charcode <= 0x10FFFF) {
+			utf8.push(
+				0xf0 | (charcode >> 18),
+				0x80 | ((charcode >> 12) & 0x3f),
+				0x80 | ((charcode >> 6) & 0x3f),
+				0x80 | (charcode & 0x3f));
+		}
+	}
+	return utf8;
+}
+
+function clipboardText() {
+	return new TextDecoder().decode(new Uint8Array(MB.clipboardBytes).buffer);
+}
