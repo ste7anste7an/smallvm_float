@@ -1360,6 +1360,13 @@ console.log('unknown');
 		this.undoStateChanged();
 	}
 
+	async updateAfterLanguageChange() {
+		// Reconstruct all scripts with the new translation.
+
+		if (this.scripts == null) return; // not yet initialized
+		await this.restoreUndoState(this.project.codeString());
+	}
+
 	scriptScale() { return this.blockSize / 125; }
 	blockSizePercent() { return this.blockSize; }
 

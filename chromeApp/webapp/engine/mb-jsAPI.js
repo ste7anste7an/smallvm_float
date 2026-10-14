@@ -225,8 +225,11 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'library.showInfoDialog':
 		case 'locale.loadCustomFile':
+			callback();
+			break;
 		case 'locale.setLanguage':
 			callback();
+			MB_editor.updateAfterLanguageChange();
 			break;
 		case 'project.new':
 			// GP answers before acting (MicroBlocksAPI.gp:70), because newProject
