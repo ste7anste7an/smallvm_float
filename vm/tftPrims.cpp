@@ -274,24 +274,17 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 				if (drawing && (0 == depth)) {
 					nezhaMB_CanvasEndDraw();
 					drawing = false;
-					rectsPending = false;
 				}
 			}
 
 			void writePixelPreclipped(int16_t x, int16_t y, uint16_t color) override {
 				startWrite();
-				if (rectsPending) { // rectangles are rendered at CanvasEndDraw but pixels at once
-					nezhaMB_CanvasEndDraw();
-					nezhaMB_CanvasBeginDraw();
-					rectsPending = false;
-				}
 				nezhaMB_CanvasSetPixel(x, y, color);
 				endWrite();
 			}
 			void writeFillRectPreclipped(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override {
 				startWrite();
 				nezhaMB_CanvasFillRect(x, y, w, h, color);
-				rectsPending = true;
 				endWrite();
 			}
 			void writeFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) override {
@@ -313,7 +306,6 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		private:
 			int depth = 0;
 			bool drawing = false;
-			bool rectsPending = false;
 		};
 
 		static void nezhaEndDrawing() {
