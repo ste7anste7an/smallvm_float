@@ -1891,7 +1891,10 @@ console.log('unknown');
 		// Put the message on the block in a red bubble, the channel a runtime
 		// error from the board already uses. A block that is not on screen gets
 		// nothing, the corner showChunkError leaves silent for the same reason.
-		if (!(blockMorph instanceof BlockMorph)) return;
+		if (!(blockMorph instanceof BlockMorph)) {
+			console.log('Error:', errorString); // for debugging
+			return;
+		}
 		this.showResultOn(blockMorph, errorString, true);
 	}
 
