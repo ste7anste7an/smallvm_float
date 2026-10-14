@@ -154,11 +154,13 @@ class MB_Connection {
 			alert(localized('This browser does not support WebBluetooth.'));
 			return;
 		}
-		this.portName = portType;
 		this.port.connect(portType, boardieIFrame);
 		if (portType == 'boardie') {
+			const port = this.port;
 			await waitMSecs(100); // make sure Boardie is ready to receive messages
+			if (this.port !== port) return; // disconnected during the wait
 		}
+		this.portName = portType; // after the wait: updateConnection leaves an unnamed port alone
 		this.connectionStartTime = Date.now();
 		this.portOpenedTime = null;
 		this.lastPingRecvMSecs = 0;
