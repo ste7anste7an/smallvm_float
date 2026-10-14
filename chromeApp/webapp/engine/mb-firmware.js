@@ -10,14 +10,14 @@
 const MB_Firmware = {
 	boardMenu: [
 		'micro:bit', 'Calliope', '-',
-		'Citilab ED1', 'CoCube', 'Databot', 'Databot v3', 'KidsBits', 'micro:STEAMakers',
-		'ESP32 STEAMakers S3', 'Springbot', '-',
+		'Citilab ED1', 'CoCube', 'Databot', 'Databot v3', 'ESP32 STEAMakers', 'KidsBits',
+		'micro:STEAMakers', 'STEAMakers AI', 'Springbot', '-',
 		'RP2040 (Pico or Pico W)', 'MakerPort', '-',
 		'WeAct STM32H743', 'DUELink', '-',
 		'ESP32'],
 	espBoards: [
 		'Citilab ED1', 'CoCube', 'Databot', 'Databot v3', 'ESP32', 'micro:STEAMakers',
-		'ESP32 STEAMakers AI', 'KidsBits', 'CodingBox', 'KidsIOT',
+		'ESP32 STEAMakers', 'STEAMakers AI', 'KidsBits', 'CodingBox', 'KidsIOT',
 		'Springbot', 'Springbot Green', 'Springbot Gold'],
 	dfuBoards: [
 		'WeAct STM32H743', 'DUELink', 'CincoBit', 'PixoBit', 'Clipit', 'DueSTEM', 'Ghizzy', 'Holiday Tree'],
@@ -119,22 +119,33 @@ MB_Firmware.installVM = async function (eraseFlashFlag) {
 	const install = this.installMethod(boardType);
 	if ('hexOrUF2' == install.method) {
 		await this.installHexOrUF2File(install.board, false);
-	} else if (('menu' == install.method) && !eraseFlashFlag) {
-		this.presentBoardTypeMenu();
-	} else {
-		// erasing flash is for ESP boards, and so is every board the erase menu would offer
+	} else if ('dfu' == install.method) {
 		this.notSupportedYet(boardType);
+	} else if (('esp' == install.method) &&
+			(await MB_editor.confirm(localized('Use board type ') + boardType + '?'))) {
+		await this.flashVM(boardType, eraseFlashFlag);
+	} else {
+		this.presentBoardTypeMenu(eraseFlashFlag);
 	}
 }
 
-MB_Firmware.presentBoardTypeMenu = function () {
-	const items = this.boardMenu.map((item) =>
-		('-' == item) ? '-' : [item, () => this.installBoardFromMenu(item)]);
+MB_Firmware.presentBoardTypeMenu = function (eraseFlashFlag) {
+	// Erasing Flash is for ESP boards, so the erase menu offers only those.
+	const items = [];
+	for (const item of this.boardMenu) {
+		if (!eraseFlashFlag || this.espBoards.includes(item)) {
+			items.push(('-' == item) ? '-' : [item, () => this.installBoardFromMenu(item, eraseFlashFlag)]);
+		}
+	}
 	chromeMenuFor(world, items);
 }
 
-MB_Firmware.installBoardFromMenu = function (boardName) {
-	if (this.hexOrUF2File(boardName)) {
+MB_Firmware.installBoardFromMenu = function (boardName, eraseFlashFlag) {
+	if (boardName.startsWith('Springbot')) {
+		this.flashVM('Springbot', eraseFlashFlag);
+	} else if (this.espBoards.includes(boardName)) {
+		this.flashVM(boardName, eraseFlashFlag);
+	} else if (this.hexOrUF2File(boardName)) {
 		this.installHexOrUF2File(boardName, true);
 	} else {
 		this.notSupportedYet(boardName);
@@ -196,4 +207,49 @@ MB_Firmware.installHexOrUF2File = async function (boardName, fromMenu) {
 		await MB_editor.informAndWait(localized('Reconnect to the board by clicking the "Connect" button.'),
 			localized('Firmware Installed'));
 	}
+}
+
+// ESP boards
+
+MB_Firmware.flashVM = async function (boardName, eraseFlashFlag) {
+	// Install the firmware on an ESP board through the chip's ROM boot loader.
+	MB_connection.disconnect(); // so the board's messages do not interfere with the install
+	this.showSpinner();
+	const port = await this.openESPPort();
+	if (!port) {
+		fireIDEEvent('spinner.hide');
+		MB_editor.inform(localized('Could not open serial port'));
+		return;
+	}
+	this.showSpinner();
+	const espTool = new MB_ESPTool(port);
+	// the spinner shows the install's progress twice a second
+	const ticker = setInterval(() => fireIDEEvent('spinner.setTitle', espTool.status), 500);
+	const vmData = await this.fetchVM(MB_ESPTool.vmNameForBoard(boardName));
+	const ok = await espTool.installFirmware(boardName, eraseFlashFlag, vmData);
+	clearInterval(ticker);
+	// the board must be reconnected through the port chooser after an install
+	await port.serialDisconnect();
+	if (ok) {
+		MB_editor.informAndWait(localized('Reconnect to the board by clicking the "Connect" button.'),
+			localized('Firmware Installed'));
+	} else if ('noResponse' == espTool.failure) {
+		MB_editor.informAndWait(localized('The board is not responding.'), localized('Firmware Install'));
+	} else {
+		MB_editor.informAndWait(localized('The firmware install did not finish.'), localized('Firmware Install'));
+	}
+}
+
+MB_Firmware.showSpinner = function () {
+	fireIDEEvent('spinner.show', { title: '', subtitle: 'Do not switch browser tabs!',
+		note: '(press ESC to cancel)', percent: 0 });
+}
+
+MB_Firmware.openESPPort = async function () {
+	// Answer an open MB_CommPort for the install, or null. Opening a port needs a
+	// user gesture, which the answer to this question provides.
+	if (!(await MB_editor.confirm(localized('Open port?')))) return null;
+	const port = new MB_CommPort();
+	await port.serialConnect();
+	return port.isConnected() ? port : null;
 }
