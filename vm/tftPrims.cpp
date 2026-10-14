@@ -1741,8 +1741,18 @@ static int drawString(const char *s, int x, int y, int color16b, int scale, int 
 
 static void drawText(OBJ value, int x, int y, int color16b, int scale, int wrap, int bgColor) {
 	#if defined(NEZHA_ESP32)
+		char numStr[16];
+		char *s;
+		if (isInt(value)) {
+			sprintf(numStr, "%d", obj2int(value));
+			s = numStr;
+		} else if (IS_TYPE(value, StringType) || isBoolean(value)) {
+			s = obj2str(value); // the Nezha font is UTF-8, so no CP437 conversion
+		} else {
+			return;
+		}
 		tft->startWrite();
-		nezhaMB_CanvasDrawText(x, y, obj2str(value), color16b, wrap, scale, bgColor);
+		nezhaMB_CanvasDrawText(x, y, s, color16b, wrap, scale, bgColor);
 		tft->endWrite();
 		return;
 	#endif
