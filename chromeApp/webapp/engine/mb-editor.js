@@ -2165,7 +2165,7 @@ document.body.appendChild(MB.clipboard);
 function setGPClipboard(s) {
 	// Called by GP's setClipboard primitive
 
-	MB.clipboardBytes = toUTF8Array(s);
+	GP.clipboardBytes = toUTF8Array(s);
 	MB.clipboard.value = s;
 
 	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.writeText)) {
@@ -2194,8 +2194,8 @@ async function readGPClipboard(s) {
 			console.error('readGPClipboard failed', err);
 		}
 	}
-	MB.clipboardBytes = toUTF8Array(MB.clipboard.value);
-	return MB.clipboardBytes.length;
+	GP.clipboardBytes = toUTF8Array(MB.clipboard.value);
+	return GP.clipboardBytes.length;
 }
 
 function toUTF8Array(str) {
@@ -2226,5 +2226,5 @@ function toUTF8Array(str) {
 }
 
 function clipboardText() {
-	return new TextDecoder().decode(new Uint8Array(MB.clipboardBytes).buffer);
+	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes).buffer);
 }
