@@ -1476,6 +1476,8 @@ BlockMorph.prototype.setSpec = function (spec, definition) {
 		inputIdx = -1;
 
 	if (!spec) {return; }
+
+	spec = this.localizedBlockSpec(spec);
 	this.parts().forEach(part =>
 		part.destroy()
 	);
@@ -1553,38 +1555,50 @@ BlockMorph.prototype.buildSpec = function () {
 	this.blockSpec = this.blockSpec.trim();
 };
 
-BlockMorph.prototype.localizeBlockSpec = function (spec) {
-	// answer the translated block spec where the translation itself
-	// is in the form of an abstract spec, i.e. with padded underscores
-	// in place for percent-sign prefixed slot specs.
-	var prefixes = ['%', '$'],
-		slotSpecs = [],
-		slotCount = -1,
-		abstractSpec,
-		translation;
+BlockMorph.prototype.localizedSpecSection = function (section) {
+	// Answer the translated block spec section. A section is a set of labels
+	// and input slots separated from other sections by colons. Each secton is
+	// translated separately. The input and output are Snap! style specs with
+	// input slot descriptors starting with %. Those Snap! slot descriptors are
+	// replaced by GP-style underscores before translation, then converted
+	// back to Snap! style descriptors in the translated result.
 
-	abstractSpec = this.parseSpec(spec).map(str => {
-		if (str.length > 1 && prefixes.includes(str[0])) {
-			slotSpecs.push(str);
+	let slotDescriptors = [];
+	let abstractSpec = this.parseSpec(section).map(str => {
+		if (str.length > 1 && ('%' == str[0])) {
+			slotDescriptors.push(str); // record the slot descriptors
 			return '_';
 		}
 		return str;
 	}).join(' ');
 
-	// make sure to also remove any explicit slot specs from the translation
-	translation = this.parseSpec(localized(abstractSpec)).map(str =>
-		(str.length > 1 && prefixes.includes(str[0])) ? '_' : str
+	// remove any Snap! style slot descripters from the translation
+	let translation = this.parseSpec(localized(abstractSpec)).map(str =>
+		(str.length > 1 && ('%' == str[0])) ? '_' : str
 	).join(' ');
 
 	// replace abstract slot placeholders in the translation with their
-	// concrete specs from the original block spec
+	// slot descriptors from the original block spec
+	let slotCount = -1;
 	return translation.split(' ').map(word => {
 		if (word === '_') {
 			slotCount += 1;
-			return slotSpecs[slotCount] || '';
+			return slotDescriptors[slotCount] || '';
 		}
 		return word;
 	}).join(' ');
+};
+
+BlockMorph.prototype.localizedBlockSpec = function (spec) {
+	// Answer a translated block spec. Both input and output strings are
+	// Snap! style specs with input slot descriptors starting with %.
+	// The spec is split into sections and each section is translated
+	// separately since each spec section has a separate section in the
+	// the translation dictionary.
+
+	return spec.split(':').map(section => {
+		return this.localizedSpecSection(section.trim());
+	}).join(' : ');
 };
 
 // BlockMorph menu:
@@ -1859,7 +1873,7 @@ BlockMorph.prototype.setSelector = function (aSelector, inputOffset = 0) {
 	info = SpriteMorph.prototype.blocks[aSelector];
 	this.setCategory(info.category);
 	this.selector = aSelector;
-	this.setSpec(this.localizeBlockSpec(info.spec));
+	this.setSpec(info.spec);
 	this.defaults = info.defaults || [];
 
 	// restore default values
@@ -5362,7 +5376,7 @@ TemplateSlotMorph.prototype.contents = function () {
 
 TemplateSlotMorph.prototype.setContents = function (aString) {
 	var tmp = this.template();
-	tmp.setSpec(aString instanceof Array? localized(aString[0]) : aString);
+	tmp.setSpec(aString instanceof Array ? localized(aString[0]) : aString);
 	tmp.fixBlockColor(); // fix zebra coloring
 	tmp.fixLabelColor();
 };
