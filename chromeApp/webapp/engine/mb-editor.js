@@ -1843,8 +1843,11 @@ console.log('unknown');
 	}
 
 	showError(blockMorph, errorString) {
-		// XXX TO DO
-		console.log('Error:', errorString);
+		// Put the message on the block in a red bubble, the channel a runtime
+		// error from the board already uses. A block that is not on screen gets
+		// nothing, the corner showChunkError leaves silent for the same reason.
+		if (!(blockMorph instanceof BlockMorph)) return;
+		this.showResultOn(blockMorph, errorString, true);
 	}
 
 	showChunkError(chunkID, errorString, location)  {
