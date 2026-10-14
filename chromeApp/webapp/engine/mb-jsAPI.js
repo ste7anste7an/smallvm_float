@@ -38,9 +38,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			// 'serial', 'BLE' or 'boardie' (mb-comm-port.js). GP's webSerialConnect
 			// matches BLE by prefix and treats the rest as serial (MicroBlocksRuntime.gp).
 			if ('Boardie' == params[0]) {
-				// Not wired: Boardie needs the iframe GP builds in GP_openBoardie
-				// (gpSupport.js), which this build does not include.
-				alert(localized('Boardie is not available in this build.'));
+				GP_openBoardie(); // mb-boardie.js
 			} else {
 				MB_connection.connect(String(params[0]).startsWith('BLE') ? 'BLE' : 'serial');
 			}
@@ -48,7 +46,11 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'board.disconnect':
 			// As GP's closePort (MicroBlocksRuntime.gp).
-			MB_connection.disconnect();
+			if (GP.boardie.isOpen) {
+				GP_closeBoardie(); // also disconnects
+			} else {
+				MB_connection.disconnect();
+			}
 			callback(0);
 			break;
 		case 'board.vmVersion':
