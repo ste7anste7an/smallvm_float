@@ -1441,6 +1441,14 @@ console.log('unknown');
 			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve));
 	}
 
+	informAndWait(msg, title) {
+		// Answer a promise of true once the user has read msg and clicked Ok. A window
+		// closed without clicking Ok never answers.
+		if (typeof FloatingWindow === 'undefined') { alert(msg); return Promise.resolve(true); }
+		return new Promise((resolve) => askChrome('window.inform',
+			{ title: title || null, text: String(msg) }, resolve));
+	}
+
 	prompt(question, defaultValue, editRule) {
 		// Answer a promise of the text entered, or null, from the chrome's dialog, as GP's
 		// Page prompt does, or from the browser's own on a page without the chrome.
