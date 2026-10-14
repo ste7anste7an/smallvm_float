@@ -278,8 +278,12 @@ class MB_Parser {
 		if (!spec) spec = MB_Specs.specFor(selector, args, isReporter); // no usable spec; specFor extends its own
 		else if (fromSource) spec = MB_Specs.extendSpecForArgs(spec, args);
 		b.setSpec(spec);
-		let cat = MB_Specs.categoryForSelector(selector);
-		if (cat.includes('Display')) cat = 'Output'; // xxx remove when libraries work
+		// try to get category from libraries in the project first
+		let cat = MB_editor.project.categoryForSelector(selector);
+		if (cat == 'other') {
+			// if selector not found in a library, look in built-in specs
+			cat = MB_Specs.categoryForSelector(selector);
+		}
 		b.setCategory(cat);
 		b.isDraggable = true;
 		let inputs = b.inputs();

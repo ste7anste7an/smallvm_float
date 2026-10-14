@@ -179,7 +179,7 @@ class MB_Project {
 		);
 	}
 
-	// Block Specs
+	// Block Specs and Categories
 
 	recordBlockSpec(opName, spec) {
 		this.blockSpecs.set(opName, spec);
@@ -187,6 +187,15 @@ class MB_Project {
 
 	deleteBlockSpecFor(functionName) {
 		this.blockSpecs.delete(functionName);
+	}
+
+	categoryForSelector(selector) {
+		for (const lib of this.libraries.values()) {
+			if (lib.hasSpecFor(selector)) {
+				return lib.moduleCategory;
+			}
+		}
+		return 'other';
 	}
 
 	// Libraries
@@ -714,6 +723,7 @@ class MB_Module {
 	setPath(aPath) { this.path = aPath; }
 	setDependencies(deps) { this.dependencies = Array.from(deps); }
 	setScripts(newScripts) { this.scripts = Array.from(newScripts); }
+	hasSpecFor(selector) { return this.blockSpecs.has(selector); }
 
 	mintScriptId(x, y, bodyText, taken) {
 		// A name for one top-level script, from its rounded position and body text
