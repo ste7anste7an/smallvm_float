@@ -1713,7 +1713,8 @@ console.log('unknown');
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension: a project or a library.
+		// Act on a file by its extension: a project, a library or a picture.
+		// data is the file's text, except for a picture, which arrives as bytes.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
@@ -1722,6 +1723,20 @@ console.log('unknown');
 				await this.codeManager.saveAllChunksAfterLoad();
 			}
 		}
+		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
+	}
+
+	static isScriptPicture(fileName) {
+		// A picture has to be read as bytes: the scripts it carries are in a
+		// chunk of the file that decoding it as text would not keep.
+		return fileName.toLowerCase().endsWith('.png');
+	}
+
+	async openDroppedFile(file) {
+		// Read one file the user dropped on the window and act on it.
+		const data = MB_Editor.isScriptPicture(file.name)
+			? new Uint8Array(await file.arrayBuffer()) : await file.text();
+		await this.processDroppedFile(file.name, data);
 	}
 
 	importLocalFile(callback) {

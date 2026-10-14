@@ -2834,6 +2834,26 @@ WorldMorph.prototype.droppedText = function (text, fileName) {
 	MB_editor.processDroppedFile(fileName, text);
 };
 
+HandMorph.prototype.processDropWithoutPictures = HandMorph.prototype.processDrop;
+HandMorph.prototype.processDrop = function (event) {
+	// A picture keeps its scripts in a chunk of the file, and the image reader
+	// hands on a canvas, which cannot carry one. Take pictures here, by file
+	// name, and leave every other drop to the reader that suits it.
+	// Read the files the way morphic does: a drop's target is the element under
+	// the pointer and has none of its own, while a chooser's change event does.
+	var files = [...((event instanceof FileList) ? event
+		: event.target.files || event.dataTransfer.files || [])];
+	var rest = files.filter((file) => !MB_Editor.isScriptPicture(file.name));
+	for (const file of files) {
+		if (MB_Editor.isScriptPicture(file.name)) MB_editor.openDroppedFile(file);
+	}
+	if (rest.length === files.length) return this.processDropWithoutPictures(event);
+	// The reader takes the files from the target or the transfer, so hand it the
+	// rest the second way, whichever shape the drop arrived in.
+	if (rest.length > 0) return this.processDropWithoutPictures({ target: {},
+		dataTransfer: { files: rest, getData: () => '' } });
+};
+
 BlockMorph.prototype.destroy = function (justThis) {
 	// private - use IDE_Morph.removeBlock() to first stop all my processes
 	BlockMorph.uber.destroy.call(this);
