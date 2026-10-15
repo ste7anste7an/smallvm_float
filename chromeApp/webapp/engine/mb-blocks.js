@@ -166,6 +166,8 @@ var BlockHighlightMorph;
 var MicroBitDisplaySlotMorph;
 var TemplateSlotMorph;
 var TextSlotMorph;
+var SelectionBandMorph;
+var SelectedScriptsMorph;
 
 // SyntaxElementMorph //////////////////////////////////////////////////
 
@@ -1609,6 +1611,9 @@ BlockMorph.prototype.userMenu = function () {
 		shiftClicked = this.world().currentKey === 16;
 
 	if (!shiftClicked && (typeof Menus !== 'undefined')) {
+		if (MB_editor.scripts.hasSelection()) {
+			return MB_editor.scripts.selectionMenu(this.isFunctionDefinition());
+		}
 		return this.chromeMenu(); // shift-right-click keeps this Morphic menu
 	}
 
@@ -2735,6 +2740,13 @@ BlockMorph.prototype.pickUp = function (wrrld) {
 // BlockMorph events
 
 BlockMorph.prototype.mouseClickLeft = function () {
+	var scripts = MB_editor.scripts;
+	if (scripts.selection && this.world().hand.shiftKey &&
+			(this.parentThatIsA(ScriptsMorph) === scripts)) {
+		scripts.toggleSelected(this.topBlock());
+		return;
+	}
+	scripts.cancelSelection();
 	MB_editor.toggleRunning(this.topBlock());
 	return;
 
@@ -2820,9 +2832,12 @@ BlockMorph.prototype.justDropped = function () {
 
 HandMorph.prototype.grabWithoutTellingChrome = HandMorph.prototype.grab;
 HandMorph.prototype.grab = function (aMorph) {
-	var wasEmpty = this.children.length === 0;
+	var wasEmpty = this.children.length === 0,
+		isScripts = (aMorph instanceof BlockMorph) || (aMorph instanceof SelectedScriptsMorph);
+	// Picking up a block ends a selection, before the hand takes its picture.
+	if (wasEmpty && (aMorph instanceof BlockMorph)) MB_editor.scripts.cancelSelection();
 	this.grabWithoutTellingChrome(aMorph);
-	if (wasEmpty && (aMorph instanceof BlockMorph) && (aMorph.parent === this)) {
+	if (wasEmpty && isScripts && (aMorph.parent === this)) {
 		fireIDEEvent('dragstart');
 	}
 };
@@ -2831,7 +2846,18 @@ HandMorph.prototype.dropWithoutTellingChrome = HandMorph.prototype.drop;
 HandMorph.prototype.drop = function () {
 	var dragged = this.children[0];
 	this.dropWithoutTellingChrome();
-	if (dragged instanceof BlockMorph) fireIDEEvent('dragend');
+	if (dragged instanceof BlockMorph) MB_editor.scripts.cancelSelection();
+	if ((dragged instanceof BlockMorph) || (dragged instanceof SelectedScriptsMorph)) {
+		fireIDEEvent('dragend');
+	}
+};
+
+// Shift is read from the mouse event: a key pressed while focus is on a chrome
+// control never reaches morphic's keyboard.
+HandMorph.prototype.processMouseDownWithoutShift = HandMorph.prototype.processMouseDown;
+HandMorph.prototype.processMouseDown = function (event) {
+	this.shiftKey = !!(event && event.shiftKey);
+	this.processMouseDownWithoutShift(event);
 };
 
 // Files dropped on the window. morphic picks a reader by MIME type and climbs
@@ -4257,12 +4283,15 @@ ScriptsMorph.prototype.wantsDropOf = function (aMorph) {
 		return (!this.rejectsHats && !aMorph.isCustomBlockSpecific()) ||
 			(this.rejectsHats && aMorph.isCustomBlockSpecific());
 	}
-	return aMorph instanceof SyntaxElementMorph;
+	return (aMorph instanceof SyntaxElementMorph) || (aMorph instanceof SelectedScriptsMorph);
 };
 
 ScriptsMorph.prototype.reactToDropOf = function (droppedMorph, hand) {
 	if (droppedMorph instanceof BlockMorph) {
 		droppedMorph.snap(hand);
+	}
+	if (droppedMorph instanceof SelectedScriptsMorph) {
+		droppedMorph.unpackInto(this);
 	}
 	this.adjustBounds();
 	MB_editor.scriptChanged();
@@ -4276,6 +4305,249 @@ ScriptsMorph.prototype.mouseClickLeft = function (pos) {
 
 ScriptsMorph.prototype.selectForEdit = function () {
 	return this;
+};
+
+// ScriptsMorph selecting several scripts
+
+/*
+	A left drag that starts on the empty pane draws a band, and every script
+	with a block under the band is selected. this.selection is null when
+	nothing is being selected, else the top blocks of the selected scripts.
+*/
+
+ScriptsMorph.prototype.mouseDownLeft = function (pos) {
+	// A drag from a selected script carries the whole selection. One from the
+	// empty pane draws a band rather than panning, except on a touch screen.
+	var hand = this.world().hand,
+		target = hand.morphAtPointer(),
+		block = target.parentThatIsA(BlockMorph);
+
+	if (this.hasSelection()) {
+		if (hand.shiftKey) return; // the click adds or removes a script
+		if (block && this.selection.includes(block.topBlock())) {
+			return this.dragSelection();
+		}
+	}
+	if (MorphicPreferences.isTouchDevice) return this.scrollFrame.mouseDownLeft(pos);
+	if (target === this) this.startSelecting(pos);
+};
+
+ScriptsMorph.prototype.topBlocks = function () {
+	return this.children.filter((m) => m instanceof BlockMorph);
+};
+
+ScriptsMorph.prototype.hasSelection = function () {
+	return !!this.selection && (this.selection.length > 0);
+};
+
+ScriptsMorph.prototype.startSelecting = function (pos) {
+	this.cancelSelection();
+	this.selection = [];
+	this.selectionBand = new SelectionBandMorph(this, pos);
+	this.world().add(this.selectionBand);
+	fireIDEEvent('dragstart'); // so a release over a chrome panel still reaches the band
+};
+
+ScriptsMorph.prototype.cancelSelection = function () {
+	if (!this.selection) return;
+	this.topBlocks().forEach((top) => top.showSelected(false));
+	if (this.selectionBand) this.selectionBand.destroy();
+	this.selectionBand = null;
+	this.selection = null;
+};
+
+ScriptsMorph.prototype.toggleSelected = function (top) {
+	var i = this.selection.indexOf(top);
+	if (i < 0) {
+		this.selection.push(top);
+	} else {
+		this.selection.splice(i, 1);
+	}
+	top.showSelected(i < 0);
+};
+
+ScriptsMorph.prototype.takeSelection = function () {
+	// Answer the selected top blocks and end the selection.
+	var tops = this.selection || [];
+	this.cancelSelection();
+	return tops;
+};
+
+ScriptsMorph.prototype.selectionMenu = function (forDefinition) {
+	var items = [];
+	if (forDefinition) {
+		items.push(['drag selection', () => this.dragSelection()]);
+		items.push(['hide block definition', () => this.hideSelectedDefinitions()]);
+	} else {
+		items.push(['run selected', () => this.runSelected('run')]);
+		items.push(['stop selected', () => this.runSelected('stop')]);
+		items.push(['toggle selected', () => this.runSelected('toggle')]);
+		items.push('-');
+		items.push(['copy selection', () => this.copySelection()]);
+		items.push(['duplicate selection', () => this.duplicateSelection()]);
+		items.push(['drag selection', () => this.dragSelection()]);
+		items.push('-');
+		items.push(['delete selection', () => this.deleteSelection()]);
+	}
+	return chromeMenuFor(this.world(), items);
+};
+
+ScriptsMorph.prototype.selectionKey = function (event) {
+	// Answer whether the key acted on the selected scripts.
+	if (!this.selection) return false;
+	if (('Delete' === event.key) || ('Backspace' === event.key)) {
+		this.deleteSelection();
+	} else if ('Enter' === event.key) {
+		this.runSelected(event.shiftKey ? 'toggle' : 'run');
+	} else if ('Escape' === event.key) {
+		this.runSelected('stop');
+	} else {
+		return false;
+	}
+	return true;
+};
+
+ScriptsMorph.prototype.runSelected = function (how) {
+	// 'run' starts the scripts that are not running, 'stop' stops the ones
+	// that are, and 'toggle' does both.
+	this.takeSelection().forEach((top) => {
+		var running = MB_editor.codeManager.isRunning(top);
+		if (running ? (how !== 'run') : (how !== 'stop')) MB_editor.toggleRunning(top);
+	});
+};
+
+ScriptsMorph.prototype.copySelection = function () {
+	setClipboard(MB_editor.scriptsString(this.takeSelection()));
+};
+
+ScriptsMorph.prototype.deleteSelection = function () {
+	this.takeSelection().forEach((top) => top.destroy());
+	MB_editor.scriptChanged(); // their chunks are deleted at the next step
+};
+
+ScriptsMorph.prototype.duplicateSelection = function () {
+	// A second hat would break one hat per function, so definitions are not copied.
+	var copies = this.takeSelection().filter((top) => !top.isFunctionDefinition()).map((top) => top.fullCopy());
+	if (copies.length > 0) this.pickUp(new SelectedScriptsMorph(copies));
+};
+
+ScriptsMorph.prototype.dragSelection = function () {
+	var tops = this.takeSelection();
+	if (tops.length === 1) {
+		this.world().hand.grab(tops[0]);
+	} else if (tops.length > 1) {
+		this.pickUp(new SelectedScriptsMorph(tops));
+	}
+};
+
+ScriptsMorph.prototype.pickUp = function (selected) {
+	// In the pane first, so a drop elsewhere can slide it back here.
+	this.add(selected);
+	this.world().hand.grab(selected);
+};
+
+ScriptsMorph.prototype.hideSelectedDefinitions = function () {
+	this.takeSelection().forEach((top) => {
+		if (top.isFunctionDefinition()) MB_editor.hideDefinition(top.definedFunctionName());
+	});
+	MB_editor.updateProject();
+};
+
+BlockMorph.prototype.showSelected = function (flag) {
+	// Tint every block of this script green, or put its colours back.
+	this.allChildren().forEach((b) => {
+		if (!(b instanceof BlockMorph)) return;
+		if (flag && !b.unselectedColor) {
+			b.unselectedColor = b.color;
+			b.setColor(b.color.mixed(0.5, new Color(0, 255, 0)));
+		} else if (!flag && b.unselectedColor) {
+			b.setColor(b.unselectedColor);
+			b.unselectedColor = null;
+		}
+	});
+};
+
+// SelectionBandMorph //////////////////////////////////////////////////
+
+// I am the band dragged over a scripts pane. I follow the hand while its
+// button is down and select the scripts I touch when it is released.
+
+SelectionBandMorph.prototype = new Morph();
+SelectionBandMorph.prototype.constructor = SelectionBandMorph;
+SelectionBandMorph.uber = Morph.prototype;
+
+function SelectionBandMorph(scripts, origin) {
+	this.init(scripts, origin);
+}
+
+SelectionBandMorph.prototype.init = function (scripts, origin) {
+	SelectionBandMorph.uber.init.call(this);
+	this.scripts = scripts;
+	this.origin = origin;
+	this.color = new Color(0, 128, 0);
+	this.alpha = 50 / 255;
+	this.bounds = new Rectangle(origin.x, origin.y, origin.x, origin.y);
+};
+
+SelectionBandMorph.prototype.destroy = function () {
+	fireIDEEvent('dragend');
+	SelectionBandMorph.uber.destroy.call(this);
+};
+
+SelectionBandMorph.prototype.step = function () {
+	var hand = this.world().hand;
+	this.update(hand.position());
+	if (!hand.mouseButton) this.endSelection();
+};
+
+SelectionBandMorph.prototype.update = function (pos) {
+	var o = this.origin,
+		r = new Rectangle(Math.min(o.x, pos.x), Math.min(o.y, pos.y),
+			Math.max(o.x, pos.x), Math.max(o.y, pos.y));
+	this.changed();
+	this.bounds = r.intersect(this.scripts.scrollFrame.bounds);
+	this.changed();
+	if (this.bounds.area() <= 1) return;
+	this.scripts.topBlocks().forEach((top) => top.showSelected(this.touches(top)));
+};
+
+SelectionBandMorph.prototype.touches = function (top) {
+	return top.allChildren().some((m) => (m instanceof BlockMorph) && m.bounds.intersects(this.bounds));
+};
+
+SelectionBandMorph.prototype.endSelection = function () {
+	var scripts = this.scripts;
+	if (this.bounds.area() > 1) {
+		scripts.selection = scripts.topBlocks().filter((top) => this.touches(top));
+	}
+	scripts.selectionBand = null;
+	this.destroy();
+};
+
+// SelectedScriptsMorph ////////////////////////////////////////////////
+
+// I carry several scripts while they are dragged together, keeping the
+// distances between them, and put them back in the pane I am dropped on.
+
+SelectedScriptsMorph.prototype = new Morph();
+SelectedScriptsMorph.prototype.constructor = SelectedScriptsMorph;
+SelectedScriptsMorph.uber = Morph.prototype;
+
+function SelectedScriptsMorph(tops) {
+	this.init(tops);
+}
+
+SelectedScriptsMorph.prototype.init = function (tops) {
+	SelectedScriptsMorph.uber.init.call(this);
+	this.bounds = tops.map((top) => top.fullBounds()).reduce((a, b) => a.merge(b));
+	tops.forEach((top) => this.add(top));
+};
+
+SelectedScriptsMorph.prototype.render = nop; // only the scripts are drawn
+
+SelectedScriptsMorph.prototype.unpackInto = function (scripts) {
+	this.children.slice().forEach((top) => scripts.add(top));
+	this.destroy();
 };
 
 // ArgMorph //////////////////////////////////////////////////////////
