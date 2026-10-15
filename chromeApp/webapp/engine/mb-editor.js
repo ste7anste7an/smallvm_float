@@ -1677,17 +1677,24 @@ console.log('unknown');
 
 	async importFromURL(url) {
 		// Open what a page address carries: a scripts fragment is pasted into the
-		// project and a project parameter replaces it. A parameter naming a web
-		// address is refused, and an address carrying neither does nothing.
+		// project and a project parameter replaces it, fetched first when it names
+		// a web address. An address carrying neither does nothing.
 
 		const link = MB_ScriptExchange.fromURL(url);
 		if (link == null) return;
 		if ('scripts' === link.kind) return this.pasteScripts(link.text);
 		if ('projectLink' === link.kind) {
-			// Fetching an address named in a link would make opening the page
-			// issue a request the visitor never asked for.
-			alert(localized('Cannot open a project from a web address: ') + decodeURIComponent(link.url));
-			return;
+			let text;
+			try {
+				const response = await fetch(link.url);
+				if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
+				text = await response.text();
+			} catch (error) {
+				console.error('Could not read:', link.url, error);
+				alert(localized('Could not read: ') + link.url);
+				return;
+			}
+			return this.openProjectFromString(text, link.name);
 		}
 		if (!MB_ScriptExchange.isCompleteProject(link.text)) {
 			// Half a link loads half a project over the one the user had.
