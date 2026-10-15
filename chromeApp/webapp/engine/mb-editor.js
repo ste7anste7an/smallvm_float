@@ -30,6 +30,7 @@ class MB_Editor {
 		this.exportedScriptScale = 1; // set by the chrome; the picture uses the on-screen scale
 		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
 		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
+		this.unsavedEdits = false; // the project changed since it was last opened or saved
 		this.category = null; // the selected palette category, or null while a library is
 		this.library = null; // the selected library's name, or null while a category is
 		this.paletteY = 0; // where the next block goes while the palette is being filled
@@ -65,6 +66,11 @@ class MB_Editor {
 
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
+
+		// morphic asks each of the world's own morphs whether the page is holding
+		// work, and warns before the browser unloads it if any says yes
+		// (WorldMorph.hasUnsavedEdits, morphic.js).
+		this.scriptsFrame.hasUnsavedEdits = () => this.hasUnsavedEdits();
 
 		// While a chrome dialog's field has the keys, a click on the world does not take them
 		// back, as gpSupport.js passes GP no keys while GP.delegateKeyboardEvents is set.
@@ -830,6 +836,7 @@ console.log('unknown');
 	scriptChanged() {
 		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
 		this.saveNeeded = true;
+		this.unsavedEdits = true; // until the project is written to a file
 	}
 
 	async step() {
@@ -1107,11 +1114,7 @@ console.log('unknown');
 
 	hasCallsTo(op) {
 		// Answer whether any function or script calls op.
-		let found = false;
-		const scan = (node) => forEachExpression(node, (n) => { found = found || (n.selector === op); });
-		for (const f of this.project.allFunctions()) if (f.cmdList) scan(f.cmdList.expression());
-		for (const entry of this.project.scriptsToScan()) if (entry[2]) scan(entry[2].expression());
-		return found;
+		return this.usersOf(op) > 0;
 	}
 
 	deleteFunction(name) {
@@ -1127,7 +1130,56 @@ console.log('unknown');
 		const modules = [this.project.main, ...this.project.libraries.values()];
 		modules.find((m) => m.functions.includes(func)).removeFunction(func);
 		this.project.deleteBlockSpecFor(name);
+		this.updatePalette();
 		this.scriptChanged();
+		this.updateProjectProperties();
+	}
+
+	usersOf(op) {
+		// How many scripts and function bodies call op, counted the way the
+		// warning before a delete counts them: once each, not once per call.
+		const uses = (node) => {
+			let found = false;
+			forEachExpression(node, (n) => { found = found || (n.selector === op); });
+			return found;
+		};
+		let count = 0;
+		for (const f of this.project.allFunctions()) if (f.cmdList && uses(f.cmdList.expression())) count++;
+		for (const entry of this.project.scriptsToScan()) if (entry[2] && uses(entry[2].expression())) count++;
+		return count;
+	}
+
+	async deleteFunctionWithConfirm(name) {
+		// Ask before removing a block definition, saying how much of the project
+		// still calls the block.
+		this.updateProject();
+		const users = this.usersOf(name);
+		let question = localized('Are you sure you want to remove this block definition?');
+		if (users > 0) {
+			question = localized('This block is still being used in') + ' ' + users + ' ' +
+				localized('scripts or functions.') + '\n\n' + question;
+		}
+		if (!(await this.confirm(question))) return;
+		this.deleteFunction(name);
+	}
+
+	copyToClipboard(text) {
+		// The chrome's clipboard where there is one, so its paste item can see
+		// the text, and the browser's own on a page without the chrome.
+		if (typeof setClipboard === 'function') setClipboard(text);
+		else navigator.clipboard.writeText(text);
+	}
+
+	scriptURL(aBlock, pageURL) {
+		// A link that pastes the script aBlock is in when opened.
+		return this.urlPrefix(pageURL) + '#scripts=' +
+			MB_ScriptExchange.urlEncode(this.scriptStringFor(aBlock));
+	}
+
+	helpURLFor(op) {
+		// The wiki page for a block, or null. A block the user wrote has none.
+		if (typeof MB_Help === 'undefined') return null;
+		return MB_Help.wikiURLFor(op);
 	}
 
 	changeFunctionPrototype(op, blockType, specString, typeString, defaults, argNames) {
@@ -1440,6 +1492,15 @@ console.log('unknown');
 		return this.confirm(localized('Discard current project?'));
 	}
 
+	hasUnsavedEdits() {
+		// Whether a reload or a tab close would lose work: the project was edited
+		// since it was last opened or saved, and there is something left in it.
+		// updateProject() first, as canReplaceCurrentProject does, or a block the
+		// user has just dragged into the pane is not in the project yet.
+		this.updateProject();
+		return this.unsavedEdits && this.project.hasUserCode();
+	}
+
 	confirm(question) {
 		// Answer a promise of true or false from the chrome's dialog, as GP's Page confirm
 		// does, or from the browser's own on a page without the chrome.
@@ -1487,6 +1548,10 @@ console.log('unknown');
 		const cleared = MB_connection.clearBoardIfConnected();
 		// The empty project is an undo state of its own, so undo can return to it.
 		this.storeUndoState();
+
+		// Last before the return, because removeAllScripts above destroys blocks and
+		// each of those is an edit. An empty project has nothing to lose.
+		this.unsavedEdits = false;
 		return cleared;
 	}
 
@@ -1505,6 +1570,7 @@ console.log('unknown');
 		let name = this.projectName || 'untitled.ubp';
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		this.saveTextAsFile(this.project.codeString(), name);
+		this.unsavedEdits = false; // the file holds what the pane holds
 	}
 
 	saveTextAsFile(text, fileName) {
@@ -1673,21 +1739,31 @@ console.log('unknown');
 		await MB_editor.codeManager.saveAllChunksAfterLoad();
 		// Keep the opened project as the state an edit can undo back to.
 		MB_editor.storeUndoState();
+		// Last, for the same reason as in clearProject: loading the project
+		// destroys and builds blocks, and each of those is an edit.
+		MB_editor.unsavedEdits = false;
 	}
 
 	async importFromURL(url) {
 		// Open what a page address carries: a scripts fragment is pasted into the
-		// project and a project parameter replaces it. A parameter naming a web
-		// address is refused, and an address carrying neither does nothing.
+		// project and a project parameter replaces it, fetched first when it names
+		// a web address. An address carrying neither does nothing.
 
 		const link = MB_ScriptExchange.fromURL(url);
 		if (link == null) return;
 		if ('scripts' === link.kind) return this.pasteScripts(link.text);
 		if ('projectLink' === link.kind) {
-			// Fetching an address named in a link would make opening the page
-			// issue a request the visitor never asked for.
-			alert(localized('Cannot open a project from a web address: ') + decodeURIComponent(link.url));
-			return;
+			let text;
+			try {
+				const response = await fetch(link.url);
+				if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
+				text = await response.text();
+			} catch (error) {
+				console.error('Could not read:', link.url, error);
+				alert(localized('Could not read: ') + link.url);
+				return;
+			}
+			return this.openProjectFromString(text, link.name);
 		}
 		if (!MB_ScriptExchange.isCompleteProject(link.text)) {
 			// Half a link loads half a project over the one the user had.
@@ -1848,6 +1924,8 @@ console.log('unknown');
 			this.project.allFunctions().length, 'functions');
 		// Keep the decompiled project as the state redo can return to.
 		this.storeUndoState();
+		// The board still holds this project, so leaving the page loses nothing.
+		this.unsavedEdits = false;
 	}
 
 	// Placeholder functions for UI actopms

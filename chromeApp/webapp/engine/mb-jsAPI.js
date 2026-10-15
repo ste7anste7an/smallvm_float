@@ -91,7 +91,8 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'board.installVM':
 			// params: eraseFlash, downloadFromServer (unused)
 			callback(0);
-			MB_Firmware.installVM(params[0]);
+			// Deferred so the menu item that called this has closed before installVM may open a menu.
+			Promise.resolve().then(() => MB_Firmware.installVM(params[0]));
 			break;
 		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
