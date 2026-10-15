@@ -28,7 +28,7 @@
 	#define DELAY_IF_NEEDED() { } // noop on SAM boards
 #endif
 
-#elif (defined(ESP32_S2) || defined(ESP32_S3)) && defined(ARDUINO_USB_CDC_ON_BOOT)
+#elif (defined(ESP32_S2) || defined(ESP32_S3)) && defined(ESP32_USB_HID)
 
 #define HAS_KEYBOARD_MOUSE 1
 
