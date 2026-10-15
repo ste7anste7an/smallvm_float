@@ -1114,11 +1114,7 @@ console.log('unknown');
 
 	hasCallsTo(op) {
 		// Answer whether any function or script calls op.
-		let found = false;
-		const scan = (node) => forEachExpression(node, (n) => { found = found || (n.selector === op); });
-		for (const f of this.project.allFunctions()) if (f.cmdList) scan(f.cmdList.expression());
-		for (const entry of this.project.scriptsToScan()) if (entry[2]) scan(entry[2].expression());
-		return found;
+		return this.usersOf(op) > 0;
 	}
 
 	deleteFunction(name) {
@@ -1134,7 +1130,56 @@ console.log('unknown');
 		const modules = [this.project.main, ...this.project.libraries.values()];
 		modules.find((m) => m.functions.includes(func)).removeFunction(func);
 		this.project.deleteBlockSpecFor(name);
+		this.updatePalette();
 		this.scriptChanged();
+		this.updateProjectProperties();
+	}
+
+	usersOf(op) {
+		// How many scripts and function bodies call op, counted the way the
+		// warning before a delete counts them: once each, not once per call.
+		const uses = (node) => {
+			let found = false;
+			forEachExpression(node, (n) => { found = found || (n.selector === op); });
+			return found;
+		};
+		let count = 0;
+		for (const f of this.project.allFunctions()) if (f.cmdList && uses(f.cmdList.expression())) count++;
+		for (const entry of this.project.scriptsToScan()) if (entry[2] && uses(entry[2].expression())) count++;
+		return count;
+	}
+
+	async deleteFunctionWithConfirm(name) {
+		// Ask before removing a block definition, saying how much of the project
+		// still calls the block.
+		this.updateProject();
+		const users = this.usersOf(name);
+		let question = localized('Are you sure you want to remove this block definition?');
+		if (users > 0) {
+			question = localized('This block is still being used in') + ' ' + users + ' ' +
+				localized('scripts or functions.') + '\n\n' + question;
+		}
+		if (!(await this.confirm(question))) return;
+		this.deleteFunction(name);
+	}
+
+	copyToClipboard(text) {
+		// The chrome's clipboard where there is one, so its paste item can see
+		// the text, and the browser's own on a page without the chrome.
+		if (typeof setClipboard === 'function') setClipboard(text);
+		else navigator.clipboard.writeText(text);
+	}
+
+	scriptURL(aBlock, pageURL) {
+		// A link that pastes the script aBlock is in when opened.
+		return this.urlPrefix(pageURL) + '#scripts=' +
+			MB_ScriptExchange.urlEncode(this.scriptStringFor(aBlock));
+	}
+
+	helpURLFor(op) {
+		// The wiki page for a block, or null. A block the user wrote has none.
+		if (typeof MB_Help === 'undefined') return null;
+		return MB_Help.wikiURLFor(op);
 	}
 
 	changeFunctionPrototype(op, blockType, specString, typeString, defaults, argNames) {
