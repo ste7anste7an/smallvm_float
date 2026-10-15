@@ -1186,7 +1186,8 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		#define TFT_RST 21
 		#define TFT_BL 38
 
-		// Power management, needed by TFT display
+		// StickS3 M5PM1 power management, needed by TFT display
+		// Register definitions: https://github.com/m5stack/M5PM1
 		#define PM1_ADDR 0x6E
 		#define PM1_POWER_CONFIG 0x06
 		#define PM1_I2C_CONFIG 0x09
