@@ -272,7 +272,7 @@ class MB_FilePicker {
 		}
 		this.listPane = list;
 		this.morph.add(list);
-		this.fixLayout();
+		this.morph.fixLayout(); // a dialog that embeds the picker lays out its own parts too
 	}
 
 	fixLayout() {
