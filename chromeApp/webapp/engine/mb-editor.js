@@ -1647,15 +1647,17 @@ console.log('unknown');
 		// Put a file the user chooses onto the board. The chooser takes any file,
 		// not just a project.
 
-		await this.browserReadBytes(async (fileName, bytes) => {
-			fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
-				subtitle: fileName, note: null, percent: 0 });
-			try {
-				await MB_connection.writeFileToBoard(fileName, bytes);
-			} finally {
-				fireIDEEvent('spinner.hide');
-			}
-		});
+		await this.browserReadBytes((fileName, bytes) => this.writeFileToBoard(fileName, bytes));
+	}
+
+	async writeFileToBoard(fileName, bytes) {
+		fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
+			subtitle: fileName, note: null, percent: 0 });
+		try {
+			await MB_connection.writeFileToBoard(fileName, bytes);
+		} finally {
+			fireIDEEvent('spinner.hide');
+		}
 	}
 
 	async downloadFileFromBoard() {
@@ -1804,8 +1806,9 @@ console.log('unknown');
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension: a project, a library or a picture.
-		// data is the file's text, except for a picture, which arrives as bytes.
+		// Act on a file by its extension: a project, a library or a picture. Any
+		// other file is written to the board, unless it is one the IDE should open.
+		// data is the file's text for a project or a library, and its bytes otherwise.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
@@ -1815,6 +1818,20 @@ console.log('unknown');
 			}
 		}
 		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
+		else if (!MB_Editor.isUnsupportedIDEFile(name)) await this.writeFileToBoard(fileName, data);
+	}
+
+	static isTextFile(fileName) {
+		// A project or a library. Every other file is read as bytes.
+		const name = fileName.toLowerCase();
+		return name.endsWith('.ubp') || name.endsWith('.ubp.txt') || name.endsWith('.ubl');
+	}
+
+	static isUnsupportedIDEFile(fileName) {
+		// Logged data, firmware, a translation or a .gp file: the IDE's to open, not
+		// the board's, though it does not open them yet.
+		const name = fileName.toLowerCase();
+		return ['.csv', '.bin', '.po', '.gp'].some((ext) => name.endsWith(ext));
 	}
 
 	static isScriptPicture(fileName) {
@@ -1825,8 +1842,8 @@ console.log('unknown');
 
 	async openDroppedFile(file) {
 		// Read one file the user dropped or chose and act on it.
-		const data = MB_Editor.isScriptPicture(file.name)
-			? new Uint8Array(await file.arrayBuffer()) : await file.text();
+		const data = MB_Editor.isTextFile(file.name)
+			? await file.text() : new Uint8Array(await file.arrayBuffer());
 		await this.processDroppedFile(file.name, data);
 	}
 

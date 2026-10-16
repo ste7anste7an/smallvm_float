@@ -2852,16 +2852,16 @@ WorldMorph.prototype.droppedText = function (text, fileName) {
 
 HandMorph.prototype.processDropWithoutPictures = HandMorph.prototype.processDrop;
 HandMorph.prototype.processDrop = function (event) {
-	// A picture keeps its scripts in a chunk of the file, and the image reader
-	// hands on a canvas, which cannot carry one. Take pictures here, by file
-	// name, and leave every other drop to the reader that suits it.
+	// morphic picks a reader by MIME type, and would hand a picture on as a
+	// canvas, which cannot carry its scripts. Take every file but a project or a
+	// library here, by name, and read it as bytes.
 	// Read the files the way morphic does: a drop's target is the element under
 	// the pointer and has none of its own, while a chooser's change event does.
 	var files = [...((event instanceof FileList) ? event
 		: event.target.files || event.dataTransfer.files || [])];
-	var rest = files.filter((file) => !MB_Editor.isScriptPicture(file.name));
+	var rest = files.filter((file) => MB_Editor.isTextFile(file.name));
 	for (const file of files) {
-		if (MB_Editor.isScriptPicture(file.name)) MB_editor.openDroppedFile(file);
+		if (!MB_Editor.isTextFile(file.name)) MB_editor.openDroppedFile(file);
 	}
 	if (rest.length === files.length) return this.processDropWithoutPictures(event);
 	// The reader takes the files from the target or the transfer, so hand it the
