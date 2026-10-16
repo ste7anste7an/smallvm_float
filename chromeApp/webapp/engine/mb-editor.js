@@ -1668,15 +1668,19 @@ console.log('unknown');
 		// Put a file the user chooses onto the board. The chooser takes any file,
 		// not just a project.
 
-		await this.browserReadBytes(async (fileName, bytes) => {
-			fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
-				subtitle: fileName, note: null, percent: 0 });
-			try {
-				await MB_connection.writeFileToBoard(fileName, bytes);
-			} finally {
-				fireIDEEvent('spinner.hide');
-			}
-		});
+		await this.browserReadBytes((fileName, bytes) => this.writeFileToBoard(fileName, bytes));
+	}
+
+	async writeFileToBoard(fileName, bytes) {
+		// Another transfer is running, and its spinner is the one showing.
+		if (MB_connection.busy()) return false;
+		fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
+			subtitle: fileName, note: null, percent: 0 });
+		try {
+			return await MB_connection.writeFileToBoard(fileName, bytes);
+		} finally {
+			fireIDEEvent('spinner.hide');
+		}
 	}
 
 	async downloadFileFromBoard() {
@@ -1808,7 +1812,7 @@ console.log('unknown');
 
 	browserReadFile(ext) {
 		// Let the user choose a file with the browser's file chooser, limited to
-		// the extension if one is given. The file goes to processDroppedFile.
+		// the extension if one is given. The file is read as a dropped one is.
 
 		const inp = document.createElement('input');
 		inp.type = 'file';
@@ -1818,15 +1822,16 @@ console.log('unknown');
 		inp.addEventListener('change', async () => {
 			inp.remove();
 			const file = inp.files[0];
-			if (file) await this.processDroppedFile(file.name, await file.text());
+			if (file) await this.openDroppedFile(file);
 		});
 		document.body.appendChild(inp);
 		inp.click();
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension: a project, a library or a picture.
-		// data is the file's text, except for a picture, which arrives as bytes.
+		// Act on a file by its extension: a project, a library, graph data or a
+		// picture. Any other file is written to the board, unless it is one the IDE
+		// should open. data is the file's text for the first three, and its bytes otherwise.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
@@ -1835,7 +1840,31 @@ console.log('unknown');
 				await this.codeManager.saveAllChunksAfterLoad();
 			}
 		}
+		else if (name.endsWith('.csv')) this.importLoggedData(data);
 		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
+		else if (!MB_Editor.isUnsupportedIDEFile(name)) await this.writeFileToBoard(fileName, data);
+	}
+
+	importLoggedData(text) {
+		// Replace the graph's data with the file's: one sample a line, its values
+		// separated by a comma and a space.
+		const lines = text.replaceAll(',', '').split(/\r\n|\r|\n/);
+		if (lines[lines.length - 1] === '') lines.pop(); // the final newline
+		this.clearLoggedData();
+		for (const line of lines) this.addLoggedData(line);
+	}
+
+	static isTextFile(fileName) {
+		// A project, a library or graph data. Every other file is read as bytes.
+		const name = fileName.toLowerCase();
+		return ['.ubp', '.ubp.txt', '.ubl', '.csv'].some((ext) => name.endsWith(ext));
+	}
+
+	static isUnsupportedIDEFile(fileName) {
+		// Firmware, a translation or a .gp file: the IDE's to open, not the
+		// board's, though it does not open them yet.
+		const name = fileName.toLowerCase();
+		return ['.bin', '.po', '.gp'].some((ext) => name.endsWith(ext));
 	}
 
 	static isScriptPicture(fileName) {
@@ -1844,10 +1873,22 @@ console.log('unknown');
 		return fileName.toLowerCase().endsWith('.png');
 	}
 
+	async openDroppedFiles(files) {
+		// One at a time, in order: a project load and a board write must not overlap,
+		// and the board takes one file transfer at a time.
+		for (const file of files) {
+			try {
+				await this.openDroppedFile(file);
+			} catch (e) {
+				console.error(e);
+			}
+		}
+	}
+
 	async openDroppedFile(file) {
-		// Read one file the user dropped on the window and act on it.
-		const data = MB_Editor.isScriptPicture(file.name)
-			? new Uint8Array(await file.arrayBuffer()) : await file.text();
+		// Read one file the user dropped or chose and act on it.
+		const data = MB_Editor.isTextFile(file.name)
+			? await file.text() : new Uint8Array(await file.arrayBuffer());
 		await this.processDroppedFile(file.name, data);
 	}
 

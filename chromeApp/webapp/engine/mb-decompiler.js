@@ -5,7 +5,6 @@
 // Copyright 2026 John Maloney and Bernat Romagosa
 
 // mb-decompiler.js - Decompiles bytecodes back to block trees
-// XXX Preliminary port; not yet tested or debugged!
 // Works internally in block tree nodes (see below) and converts them to
 // blocks in decompileProject, which is where the rest of the IDE takes over.
 
