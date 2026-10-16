@@ -33,6 +33,44 @@ static OBJ primTouchRead(int argCount, OBJ *args) {
 	return int2obj(EM_ASM_INT({ return window.keys.get($0); }, code) ? 0 : 255);
 }
 
+// Microphone input
+
+void initMicrophone() {
+	EM_ASM_({
+		if (!window.micRecorder) {
+			navigator.mediaDevices.getUserMedia(
+				{ audio: true, video: false }
+			).then(function (stream) {
+				window.micRecorder = new MediaRecorder(stream);
+				window.lastMicSample = 0;
+				window.micRecorder.ondataavailable = function (e) {
+					if (e.data.size) {
+						e.data['bytes']().then(
+							function(bytes) {
+								window.lastMicSample =
+									bytes.reduce(function(a,b) { return a + b; }) / e.data.size;
+							}
+						);
+					}
+				};
+				window.micRecorder.start(1);
+				window.micRecorder.requestData();
+			});
+		}
+	});
+};
+
+static OBJ primMicrophone(int argCount, OBJ *args) {
+	initMicrophone();
+	return int2obj(
+		EM_ASM_INT({
+			let sample = window.lastMicSample;
+			window.lastMicSample /= 2;
+			return sample;
+		})
+	);
+}
+
 // Stubs
 
 static OBJ primAcceleration(int argCount, OBJ *args) { return int2obj(0); }
@@ -43,7 +81,6 @@ OBJ primMBTiltZ(int argCount, OBJ *args) { return int2obj(0); }
 static OBJ primI2cRead(int argCount, OBJ *args) { return int2obj(0); }
 static OBJ primI2cWrite(int argCount, OBJ *args) { return int2obj(0); }
 static OBJ primReadDHT(int argCount, OBJ *args) { return int2obj(0); }
-static OBJ primMicrophone(int argCount, OBJ *args) { return int2obj(0); }
 
 static PrimEntry entries[] = {
 	{"acceleration", primAcceleration},
