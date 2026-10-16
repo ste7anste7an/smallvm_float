@@ -5774,6 +5774,10 @@ CursorMorph.prototype.processKeyDown = function (event) {
         singleLineText = this.target instanceof StringMorph,
         dest;
  
+    if (event.isComposing || event.keyCode === 229) {
+        return; // the input method owns Enter, Esc, Tab and arrows while composing
+    }
+
     if (!isNil(this.target.receiver) && (event.ctrlKey || event.metaKey)) {
         if (keyName === 'd') {
             event.preventDefault();
@@ -5923,7 +5927,9 @@ CursorMorph.prototype.processInput = function (event) {
 
 CursorMorph.prototype.updateTextAreaPosition = function () {
     var pos = getDocumentPositionOf(this.target.world().worldCanvas),
-        origin = this.target.bounds.origin.add(new Point(pos.x, pos.y));
+        origin = this.target.bounds.origin.multiplyBy(ZOOM).add(
+            new Point(pos.x, pos.y)
+        );
  
     function number2px (n) {
         return Math.ceil(n) + 'px';
@@ -12355,8 +12361,9 @@ WorldMorph.prototype.initKeyboardHandler = function () {
     kbd.world = this;
     kbd.style.zIndex = -1;
     kbd.autofocus = true;
-    kbd.style.width = '0px';
-    kbd.style.height = '0px';
+    // Chrome misplaces committed IME text in a zero-size borderless textarea
+    kbd.style.width = '1px';
+    kbd.style.height = '1px';
     document.body.appendChild(kbd);
     this.keyboardHandler = kbd;
 
