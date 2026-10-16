@@ -2071,10 +2071,10 @@ console.log('unknown');
 	}
 
 	static isUnsupportedIDEFile(fileName) {
-		// Firmware, a translation or a .gp file: the IDE's to open, not the
-		// board's, though it does not open them yet.
+		// Firmware or a translation: the IDE's to open, not the board's, though
+		// it does not open them yet.
 		const name = fileName.toLowerCase();
-		return ['.bin', '.po', '.gp'].some((ext) => name.endsWith(ext));
+		return ['.bin', '.po'].some((ext) => name.endsWith(ext));
 	}
 
 	static isScriptPicture(fileName) {
