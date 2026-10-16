@@ -1,6 +1,6 @@
 module WebPanel Data
 author MicroBlocks
-version 1 4 
+version 1 5 
 depends '_HTTP server' _Strings WiFi '_WebSocket server' 
 description 'Quickly create a web panel that shows auto-updating readouts of sensor values and different web controls to trigger actions.
 '
@@ -241,6 +241,7 @@ to 'webpnl reset web panel' {
   _webpnl_sliders = 0
   _webpnl_inputs = 0
   _webpnl_css_style = 0
+  _webpnl_inputs = 0
   '_webpnl init'
 }
 

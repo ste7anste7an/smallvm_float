@@ -1,0 +1,101 @@
+module 'Signal Processing' Operators
+author MicroBlocks
+version 1 0
+tags fft spectrum frequency pitch tuner goertzel tone note dsp
+description 'Frequency analysis of a list of samples: an FFT spectrum, the strongest frequency, the pitch of a note, and the level of a single tone. Samples are integers between -32768 and 32767, taken at a steady sample rate (in samples per second). Lists hold 64 to 1024 samples; the FFT needs a power of two (64, 128, 256, 512 or 1024) and pitch at most 512. Frequencies are reported in hundredths of a Hz (44000 is 440 Hz), since MicroBlocks has no fractions. Not supported on the micro:bit v1.'
+
+  spec 'r' 'dsp_fft' 'fft magnitudes of _' 'auto' 'list'
+  spec 'r' 'dsp_peakFrequency' 'peak frequency (Hz x100) of _ sample rate _' 'auto num' 'list' 100
+  space
+  spec 'r' 'dsp_pitch' 'pitch (Hz x100) of _ sample rate _' 'auto num' 'list' 8000
+  spec 'r' 'dsp_pitchHz' 'pitch (Hz) of _ sample rate _' 'auto num' 'list' 8000
+  spec 'r' 'dsp_level' 'level of _ Hz in _ sample rate _' 'num auto num' 440 'list' 8000
+  space
+  spec 'r' 'dsp_midiNote' 'MIDI note of Hz x100 _' 'num' 44000
+  spec 'r' 'dsp_cents' 'cents off note of Hz x100 _' 'num' 44000
+  spec 'r' 'dsp_noteName' 'note name of MIDI _' 'num' 69
+  space
+  spec 'r' '_dsp_nearestNote' '_dsp_nearestNote _' 'num' 44000
+
+to '_dsp_nearestNote' hz100 {
+  comment 'Return a list of the nearest MIDI note and the cents from it.'
+  if (hz100 <= 0) {
+    return ('[data:makeList]' 0 0)
+  }
+  local 'f' hz100
+  local 'octave' 0
+  comment 'Move f to the octave from C4 - 50 cents to C5 - 50 cents.'
+  repeatUntil (f >= 25417) {
+    f = (f * 2)
+    octave += -12
+  }
+  repeatUntil (f < 50834) {
+    f = (f / 2)
+    octave += 12
+  }
+  local 'notes' ('[data:makeList]' 26163 27718 29366 31113 32963 34923 36999 39200 41530 44000 46616 49388 52325)
+  local 'best' 1
+  local 'bestCents' 10000
+  for i 13 {
+    local 'note' (at i notes)
+    comment '1200 / ln 2 is 1731; 2(f - n)/(f + n) approximates ln (f / n) closely.'
+    local 'cents' ((3462 * (f - note)) / (f + note))
+    if ((absoluteValue cents) < (absoluteValue bestCents)) {
+      best = i
+      bestCents = cents
+    }
+  }
+  return ('[data:makeList]' ((59 + best) + octave) bestCents)
+}
+
+to dsp_cents hz100 {
+  return (at 2 ('_dsp_nearestNote' hz100))
+}
+
+to dsp_fft samples {
+  comment 'Item k + 1 is the amplitude at k * sample rate / (size of samples) Hz.
+The second half of the list mirrors the first.'
+  local 'magnitudes' (newList (size samples) 0)
+  '[sound:fft]' samples magnitudes
+  return magnitudes
+}
+
+to dsp_level freq samples sampleRate {
+  local 'results' (newList 1 0)
+  '[sound:goertzel]' samples sampleRate ('[data:makeList]' freq) results
+  return (at 1 results)
+}
+
+to dsp_midiNote hz100 {
+  return (at 1 ('_dsp_nearestNote' hz100))
+}
+
+to dsp_noteName midi {
+  local 'names' ('[data:makeList]' 'C' 'C#' 'D' 'D#' 'E' 'F' 'F#' 'G' 'G#' 'A' 'A#' 'B')
+  return ('[data:join]' (at ((midi % 12) + 1) names) ((midi / 12) - 1))
+}
+
+to dsp_peakFrequency samples sampleRate {
+  comment 'Skips bins 0 and 1, where a steady offset such as gravity shows.'
+  local 'magnitudes' (dsp_fft samples)
+  local 'n' (size magnitudes)
+  local 'best' 0
+  local 'bestLevel' 0
+  for i ('[data:range]' 3 ((n / 2) + 1)) {
+    if ((at i magnitudes) > bestLevel) {
+      best = (i - 1)
+      bestLevel = (at i magnitudes)
+    }
+  }
+  local 'scaled' (best * sampleRate)
+  return ((100 * (scaled / n)) + ((100 * (scaled % n)) / n))
+}
+
+to dsp_pitch samples sampleRate {
+  return ('[sound:pitch]' samples sampleRate)
+}
+
+to dsp_pitchHz samples sampleRate {
+  return ((('[sound:pitch]' samples sampleRate) + 50) / 100)
+}
+

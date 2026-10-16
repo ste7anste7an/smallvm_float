@@ -1,0 +1,383 @@
+module 'External HTTP client' Comm
+author MicroBlocks
+version 0 2
+depends 'External WiFi'
+implements 'HTTP client'
+tags http network get post put delete esp-at calliope
+choices requestTypes GET POST PUT DELETE
+description 'Send HTTP requests and get responses back through an external ESP-AT WiFi module, such as the Calliope WiFi module (ESP32-C3, ESP-AT 3.3). Needs External WiFi.
+
+Same blocks as the HTTP client library, so projects and libraries written for HTTP client (for example SmartIoT) work unchanged.
+
+Importing External HTTP client replaces the HTTP client library in a project, and importing HTTP client switches back.
+
+HTTPS uses the module''s SSL link without checking the server certificate. The serial link code comes from Ralf Krause''s Calliope WiFi library (version 0.63).'
+
+  spec 'r' 'url' 'fetch URL _' 'str' 'https://microblocks.fun/example.txt'
+  space
+  spec 'r' 'http܃//' 'http #SVG#colon-double-slash _ : port _' 'auto num' 'microblocks.fun/example.txt' 80
+  spec 'r' 'https܃//' 'https #SVG#colon-double-slash _ : port _' 'auto num' 'microblocks.fun/example.txt' 443
+  space
+  spec ' ' 'request' '_ data _ to http #SVG#colon-double-slash _ : port _ : useHTTPS _ : content type _ : extra headers _' 'menu.requestTypes str str num bool str str' 'POST' 'MicroBlocks is fun' 'microblocks.fun' 80 false
+  space
+  spec 'r' '_http_body_start' '_http_body_start _' 'auto' ''
+  spec 'r' '_http_header_text' '_http_header_text _' 'auto' ''
+  spec 'r' '_http_status_text' '_http_status_text _' 'auto' ''
+  spec 'r' '_http_header' '_header _ of response _' 'auto auto' 'content-length' ''
+  spec 'r' '_http_status' '_status of response _' 'auto' ''
+  spec 'r' '_line_end' '_line_end'
+  spec 'r' '_lowercase' '_lowercase _' 'auto' 'ABC Def gH'
+  spec 'r' '_request_url' '_request_url _ method _ body _ : port _ : useHTTPS _ : content type _ : extra headers _' 'str menu.requestTypes str num bool str str' '' 'GET' '' 80 false
+  spec 'r' '_readHTTPResponse' '_readHTTPResponse'
+  spec 'r' '_http_expected_length' '_http_expected_length _' 'str' ''
+  spec 'r' '_http_dechunk' '_http_dechunk _' 'str'
+  spec 'r' '_httpResponseBody' '_httpResponseBody _' 'str' ''
+  spec 'r' '_ext_http_build' '_ext_http_build _ _ _ _ _ _' 'auto auto auto auto auto auto' '' '' '' '' '' ''
+  spec 'r' '_ext_http_send' '_ext_http_send host _ port _ request _ tls _' 'auto auto auto bool' '' 80 '' false
+  spec 'r' '_ext_http_collect' '_ext_http_collect link _ timeout _ ms' 'num num' 4 10000
+  spec 'r' '_ext_link_closed?' '_ext_link_closed? _ link _' 'auto num' '' 4
+  spec 'r' '_ext_next_ipd' '_ext_next_ipd _' 'auto' ''
+
+to '_httpResponseBody' response {
+  if (response != '') {if (('_http_status' response) == 200) {
+    if (('[data:find]' 'Transfer-Encoding: chunked' response) > 0) {
+      return ('_http_dechunk' response)
+    } else {
+      return ('[data:copyFromTo]' response ('_http_body_start' response))
+    }
+  } else {
+    return ('_http_status_text' response)
+  }}
+  return 'Failed to get response'
+}
+
+to '_http_body_start' response {
+  return (('[data:find]' ('[data:unicodeString]' ('[data:makeList]' 13 10 13 10)) response) + 4)
+}
+
+to '_http_expected_length' response {
+  if (('_http_body_start' response) < 10) {
+    comment 'Incomplete HTTP headers'
+    return 0
+  }
+  local 'start' (('[data:find]' 'Content-Length: ' response) + 16)
+  if (start < 16) {
+    comment 'Headers complete but no ''Content-Length:'' header'
+    return -1
+  }
+  comment 'Extract the content length and return the total expected length (including headers).'
+  local 'end' ('[data:find]' ('_line_end') response start)
+  local 'contentLength' ('[data:convertType]' ('[data:copyFromTo]' response start (end - 1)) 'number')
+  return ((('_http_body_start' response) + contentLength) - 1)
+}
+
+to '_http_header' header response {
+  local 'header text' ('_http_header_text' response)
+  header = ('_lowercase' header)
+  repeatUntil ((size (v 'header text')) < 3) {
+    local 'key' ('[data:copyFromTo]' (v 'header text') 1 (('[data:find]' ':' (v 'header text')) - 1))
+    if (('_lowercase' key) == header) {
+      return ('[data:copyFromTo]' (v 'header text') (('[data:find]' ':' (v 'header text')) + 2) (('[data:find]' ('_line_end') (v 'header text')) - 1))
+    }
+    'header text' = ('[data:copyFromTo]' (v 'header text') (('[data:find]' ('_line_end') (v 'header text')) + 2))
+  }
+  return (booleanConstant false)
+}
+
+to '_http_header_text' response {
+  local 'headersStart' (('[data:find]' ('_line_end') response) + 2)
+  return ('[data:copyFromTo]' response headersStart (('_http_body_start' response) - 1))
+}
+
+to '_http_status' response {
+  return (('[data:copyFromTo]' ('_http_status_text' response) 1 4) + 0)
+}
+
+to '_http_status_text' response {
+  return ('[data:copyFromTo]' response ('[data:find]' ' ' response) ('[data:find]' ('_line_end') response))
+}
+
+to '_line_end' {
+  return ('[data:unicodeString]' ('[data:makeList]' 13 10))
+}
+
+to '_lowercase' string {
+  local 'lowercased' ''
+  local 'char code' ''
+  for c (size string) {
+    'char code' = ('[data:unicodeAt]' c string)
+    if (and ((v 'char code') >= 65) ((v 'char code') <= 90)) {
+      'char code' = ((v 'char code') + 32)
+    }
+    lowercased = ('[data:join]' lowercased ('[data:unicodeString]' (v 'char code')))
+  }
+  return lowercased
+}
+
+to decompose url {
+  local 'host' ''
+  local 'path' ''
+  local 'auxUrl' ''
+  local 'colonPosition' ('[data:find]' '://' url)
+  local 'protocol' (ifExpression (('[data:find]' 'https://' ('_lowercase' url)) > 0) 'https' (ifExpression (('[data:find]' 'http://' ('_lowercase' url)) > 0) 'http' 'https'))
+  local 'port' (ifExpression (protocol == 'https') 443 80)
+  if (colonPosition > 4) {
+    auxUrl = ('[data:copyFromTo]' url (colonPosition + 3))
+  } else {
+    auxUrl = url
+  }
+  local 'slashPosition' ('[data:find]' '/' auxUrl)
+  if (slashPosition > 0) {
+    host = ('[data:copyFromTo]' auxUrl 1 (slashPosition - 1))
+    path = ('[data:copyFromTo]' auxUrl (slashPosition + 1))
+  } else {
+    host = auxUrl
+  }
+  colonPosition = ('[data:find]' ':' host)
+  if (colonPosition > 0) {
+    port = ('[data:convertType]' ('[data:copyFromTo]' host (colonPosition + 1)) 'number')
+    host = ('[data:copyFromTo]' host 1 (colonPosition - 1))
+  }
+  return ('[data:makeList]' protocol host path port)
+}
+
+to 'https܃//' url optionalPort {
+  local 'port' (argOrDefault 2 443)
+  local 'response' ('_request_url' url 'GET' '' port true)
+  return ('_httpResponseBody' response)
+}
+
+to 'http܃//' url optionalPort {
+  local 'port' (argOrDefault 2 80)
+  local 'response' ('_request_url' url 'GET' '' port false)
+  return ('_httpResponseBody' response)
+}
+
+to request method data url optionalPort optionalHTTPS optionalContentType optionalExtraHeaders {
+  local 'useHTTPS' (argOrDefault 5 (booleanConstant false))
+  local 'port' (argOrDefault 4 (ifExpression useHTTPS 443 80))
+  local 'contentType' (argOrDefault 6 '')
+  local 'extraHeaders' (argOrDefault 7 ('[data:makeList]'))
+  local 'response' ('_request_url' url method data port useHTTPS contentType extraHeaders)
+  if (response != '') {
+    local 'status' ('_http_status' response)
+    local 'body start' ('_http_body_start' response)
+    if (and (200 == status) ((v 'body start') > 0)) {
+      sayIt ('[data:copyFromTo]' response (v 'body start'))
+    } else {
+      sayIt ('_http_status_text' response)
+    }
+  } else {
+    sayIt 'Failed to get response'
+  }
+}
+
+to url url {
+  comment 'Returns the content of a web page.
+The URL can be with or without explicit protocol and/or port. If omitted, the default protocol is https (port 443). In the case of http, the default port is 80.
+These forms are valid:
+https://microblocks.fun/example.txt
+http://microblocks.fun/example.txt
+microblocks.fun/example.txt (https by default)
+https://tls-v1-2.badssl.com:1012 (specific port)'
+  local 'infoURL' (decompose url)
+  local 'response' ('_request_url' ('[data:join]' (at 2 infoURL) (ifExpression ((size (at 3 infoURL)) > 0) ('[data:join]' '/' (at 3 infoURL)) '')) 'GET' '' (at 4 infoURL) ((at 1 infoURL) == 'https'))
+  return ('_httpResponseBody' response)
+}
+
+to '_request_url' url method body optionalPort optionalHTTPS optionalContentType optionalExtraHeaders {
+  local 'useHTTPS' (argOrDefault 5 (booleanConstant false))
+  local 'port' (argOrDefault 4 (ifExpression useHTTPS 443 80))
+  local 'contentType' (argOrDefault 6 '')
+  local 'extraHeaders' (argOrDefault 7 ('[data:makeList]'))
+  if (isType extraHeaders 'string') {
+    extraHeaders = ('[data:makeList]' extraHeaders)
+  }
+  local 'host' ''
+  local 'path' ''
+  local 'slashPosition' ('[data:find]' '/' url)
+  if (slashPosition > 0) {
+    host = ('[data:copyFromTo]' url 1 (slashPosition - 1))
+    path = ('[data:copyFromTo]' url (slashPosition + 1))
+  } else {
+    host = url
+  }
+  if (not ('_extwifi_connected?')) {
+    return ('[data:join]' '0 Not Connected' ('_line_end'))
+  }
+  port = ('[data:convertType]' port 'number')
+  local 'request' ('_ext_http_build' method ('[data:join]' host ':' port) path body contentType ('[data:joinStrings]' extraHeaders ('_line_end')))
+  return ('_ext_http_send' host port request useHTTPS)
+}
+
+to '_readHTTPResponse' {
+  return ('_ext_http_collect' 4 10000)
+}
+
+to '_http_dechunk' response {
+  comment 'Chunk sizes count bytes, so work on a byte array'
+  response = ('[data:asByteArray]' ('[data:join]' '' response))
+  local 'crlf' ('_line_end')
+  local 'result' ('[data:makeList]')
+  local 'chunk_start' ('_http_body_start' response)
+  if (chunk_start < 5) {
+    return ''
+  }
+  forever {
+    local 'chunk_size_end' ('[data:find]' crlf response chunk_start)
+    if (chunk_size_end <= chunk_start) {
+      return ('[data:joinStrings]' result)
+    }
+    local 'size_text' ('[data:join]' '' ('[data:copyFromTo]' response chunk_start (chunk_size_end - 1)))
+    comment 'Ignore chunk extensions after a semicolon'
+    local 'semicolon' ('[data:find]' ';' size_text)
+    if (semicolon > 0) {
+      size_text = ('[data:copyFromTo]' size_text 1 (semicolon - 1))
+    }
+    local 'byte_count' (hexToInt size_text)
+    if (byte_count <= 0) {
+      return ('[data:joinStrings]' result)
+    }
+    local 'data_start' (chunk_size_end + 2)
+    '[data:addLast]' ('[data:copyFromTo]' response data_start ((data_start + byte_count) - 1)) result
+    comment 'Skip the data and the CR LF after it'
+    chunk_start = ((data_start + byte_count) + 2)
+  }
+}
+
+to '_ext_http_build' method hostAndPort path body contentType extraHeaders {
+  comment 'The same request the HTTP client primitive sends. Content-Length counts bytes.'
+  local 'crlf' ('_line_end')
+  if (('[data:find]' '/' path) != 1) {
+    path = ('[data:join]' '/' path)
+  }
+  local 'request' ('[data:join]' method ' ' path ' HTTP/1.1' crlf 'Host: ' hostAndPort crlf 'Connection: close' crlf 'User-Agent: MicroBlocks' crlf 'Accept: */*' crlf)
+  if ((size extraHeaders) > 0) {
+    request = ('[data:join]' request extraHeaders)
+    if (('[data:copyFromTo]' extraHeaders ((size extraHeaders) - 1)) != crlf) {
+      request = ('[data:join]' request crlf)
+    }
+  }
+  local 'bodyBytes' ('[data:asByteArray]' ('[data:join]' '' body))
+  if (and ((size bodyBytes) > 0) (method != 'GET')) {
+    if ((size contentType) == 0) {
+      contentType = 'text/plain'
+    }
+    request = ('[data:join]' request 'Content-Type: ' contentType crlf 'Content-Length: ' (size bodyBytes) crlf crlf)
+    return ('[data:join]' ('[data:asByteArray]' request) bodyBytes)
+  }
+  return ('[data:asByteArray]' ('[data:join]' request crlf))
+}
+
+to '_ext_http_send' host port request tls {
+  local 'total_size' (size request)
+  comment 'Link 4, so a web server on the same module can keep links 0 to 3'
+  local 'link' 4
+  '_extwifi_lock'
+  comment 'Links need CIPMUX=1'
+  '_extwifi_send' '+CIPMUX=1' 20
+  local 'ok' ('_extwifi_wait' 'OK' 500)
+  '_extwifi_send' ('[data:join]' '+CIPSTART=' link ',"' (ifExpression (tls == true) 'SSL' 'TCP') '","' host '",' port) 10
+  ok = ('_extwifi_wait' 'OK' 10000)
+  if (not ok) {
+    '_extwifi_unlock'
+    return ('[data:join]' '0 Could not connect to server' ('_line_end'))
+  }
+  '_extwifi_send' ('[data:join]' '+CIPSEND=' link ',' total_size) 5
+  ok = ('_extwifi_wait' '>' 2000)
+  if (not ok) {
+    '_extwifi_send' ('[data:join]' '+CIPCLOSE=' link) 5
+    ok = ('_extwifi_wait' 'OK' 1000)
+    '_extwifi_unlock'
+    return ('[data:join]' '0 Could not send request' ('_line_end'))
+  }
+  local 'next_byte' 1
+  repeatUntil (next_byte > total_size) {
+    next_byte += ('[serial:writeBytes]' request next_byte)
+    waitMillis 2
+  }
+  comment 'SEND OK is not awaited here: the reply may follow it in the same read'
+  local 'response' ('_ext_http_collect' link 10000)
+  '_extwifi_unlock'
+  return response
+}
+
+to '_ext_http_collect' link timeout {
+  comment 'Collect the data of all +IPD,link,length:data packets until link,CLOSED'
+  comment 'Works on byte arrays, because the length counts bytes, not characters'
+  local 'raw' ('[data:asByteArray]' '')
+  local 'response' ('[data:asByteArray]' '')
+  local 'done' false
+  local 'p' 0
+  local 'packet' ''
+  local 'start' (millisOp)
+  repeatUntil (or done ((millisSince start) > timeout)) {
+    '_extwifi_still_busy'
+    packet = ('[serial:read]')
+    if ((size packet) == 0) {
+      waitMillis 2
+    } else {
+      raw = ('[data:join]' raw packet)
+      start = (millisOp)
+      comment 'repeat until tests first, so p must start as a list'
+      p = ('[data:makeList]')
+      repeatUntil (not (isType p 'list')) {
+        if ('_ext_link_closed?' raw link) {
+          done = true
+        }
+        p = ('_ext_next_ipd' raw)
+        if (isType p 'list') {
+          if ((at 1 p) == link) {
+            response = ('[data:join]' response ('[data:copyFromTo]' raw ((at 3 p) + 1) (at 4 p)))
+          }
+          raw = ('[data:copyFromTo]' raw ((at 4 p) + 1))
+        }
+      }
+      if (and (p == -1) ((size raw) > 64)) {
+        comment 'No packet: keep only the end, it may hold the start of the next one'
+        raw = ('[data:copyFromTo]' raw ((size raw) - 15))
+      }
+    }
+  }
+  if (not done) {
+    comment 'Timeout: close the link ourselves'
+    '_extwifi_send' ('[data:join]' '+CIPCLOSE=' link) 5
+    local 'ok' ('_extwifi_wait' 'OK' 1000)
+  }
+  return ('[data:join]' '' response)
+}
+
+to '_ext_link_closed?' raw link {
+  comment 'Look at the messages in front of the next packet'
+  local 'text' raw
+  local 'ipd' ('[data:find]' '+IPD,' raw)
+  if (ipd > 0) {
+    text = ('[data:copyFromTo]' raw 1 (ipd - 1))
+  }
+  return (or (('[data:find]' ('[data:join]' link ',CLOSED') text) > 0) (('[data:find]' 'SEND FAIL' text) > 0))
+}
+
+to '_ext_next_ipd' buf {
+  comment 'Find the first +IPD,id,length:data packet in buf. Reports -1 if there is none,'
+  comment '0 if it is not complete yet, else a list: id, start, colon, end (id -1: broken)'
+  local 'ipd' ('[data:find]' '+IPD,' buf)
+  if (ipd < 0) {
+    return -1
+  }
+  local 'colon' ('[data:find]' ':' buf (ipd + 5))
+  if (or ((colon - ipd) > 40) (and (colon < 0) (((size buf) - ipd) > 40))) {
+    return ('[data:makeList]' -1 ipd ipd (ipd + 4))
+  }
+  if (colon < 0) {
+    return 0
+  }
+  local 'fields' ('[data:split]' ('[data:join]' '' ('[data:copyFromTo]' buf (ipd + 5) (colon - 1))) ',')
+  if ((size fields) < 2) {
+    return ('[data:makeList]' -1 ipd ipd (ipd + 4))
+  }
+  local 'end' (colon + ((at 2 fields) * 1))
+  if ((size buf) < end) {
+    return 0
+  }
+  return ('[data:makeList]' ((at 1 fields) * 1) ipd colon end)
+}

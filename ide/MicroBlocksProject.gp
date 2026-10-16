@@ -107,6 +107,10 @@ method addLibrary MicroBlocksProject aMicroBlocksModule {
 		updatingLibrary oldLib aMicroBlocksModule
 	}
 	remove libraries libName
+	// only one library that implements a given library can be in the project
+	for lib (values libraries) {
+		if (replaces aMicroBlocksModule lib) { removeLibraryNamed this (moduleName lib) }
+	}
 	if (not (isImplementationLib aMicroBlocksModule)) {
 		atPut libraries libName aMicroBlocksModule
 	}
@@ -135,6 +139,36 @@ method removeLibraryNamed MicroBlocksProject libName {
 	}
 }
 
+method replacementFor MicroBlocksProject libName {
+	// Return a library other than libName that implements libName, or nil if there is none.
+	if (beginsWith libName '_') { libName = (substring libName 2) }
+	for lib (values libraries) {
+		if (and (libName != (moduleName lib)) (implementsLib lib libName)) { return lib }
+	}
+	return nil
+}
+
+method functionsInSeveralLibraries MicroBlocksProject {
+	// Return a list of lines such as 'wifiConnect: External WiFi, WiFi', one for each function
+	// defined in more than one library. Only one of those definitions is used.
+	libsByName = (dictionary)
+	for lib (values libraries) {
+		for f (functions lib) {
+			funcName = (functionName f)
+			if (isNil (at libsByName funcName)) { atPut libsByName funcName (list) }
+			add (at libsByName funcName) (moduleName lib)
+		}
+	}
+	result = (list)
+	for funcName (sorted (keys libsByName)) {
+		libNames = (at libsByName funcName)
+		if ((count libNames) > 1) {
+			add result (join funcName ': ' (joinStrings (sorted libNames) ', '))
+		}
+	}
+	return result
+}
+
 method categoryForOp MicroBlocksProject op {
 	// Return the category for the give op if it is in one of my libraries.
 
@@ -154,8 +188,10 @@ method checkForNewerLibraryVersions MicroBlocksProject autoConfirm {
 	if (isNil autoConfirm) { autoConfirm = false }
 
 	for libName (keys libraries) {
-		newVersion = (getNewerVersion (at libraries libName))
-		if (notNil newVersion) {
+		lib = (at libraries libName) // nil if an earlier update replaced it
+		newVersion = nil
+		if (notNil lib) { newVersion = (getNewerVersion lib) }
+		if (and (notNil newVersion) (isNil (replacementFor this libName))) {
 			if (or
 				autoConfirm
 				(confirm (global 'page') nil (join
@@ -670,7 +706,7 @@ method equal MicroBlocksProject proj {
 
 // MicroBlocksModule Class
 
-defineClass MicroBlocksModule moduleName moduleCategory dependencies version author description tags path variableNames blockList functions scripts blockSpecs choices translationSources isImplementation
+defineClass MicroBlocksModule moduleName moduleCategory dependencies implementedLibs version author description tags path variableNames blockList functions scripts blockSpecs choices translationSources isImplementation
 
 to newMicroBlocksModule modName {
 	return (initialize (new 'MicroBlocksModule') modName)
@@ -680,6 +716,7 @@ method initialize MicroBlocksModule name {
 	moduleName = name
 	moduleCategory = 'Library'
 	dependencies = (array)
+	implementedLibs = (array)
 	version = (array 1 0)
 	author = 'unknown'
 	description = ''
@@ -708,6 +745,7 @@ method tags MicroBlocksModule { return (copy tags) }
 method choices MicroBlocksModule { return choices }
 method path MicroBlocksModule { return path }
 method dependencies MicroBlocksModule { return (copy dependencies) }
+method implementedLibs MicroBlocksModule { return (copy implementedLibs) }
 method isImplementationLib MicroBlocksModule { return isImplementation }
 method beImplementation MicroBlocksModule { isImplementation = true }
 method setDependencies MicroBlocksModule deps { dependencies = (toArray (copy deps)) }
@@ -720,6 +758,87 @@ method setVersion MicroBlocksModule versionArray {
 }
 method setTags MicroBlocksModule tagList { tags = (copy (toArray tagList)) }
 method setPath MicroBlocksModule aPath { path = aPath }
+
+method implementsLib MicroBlocksModule libName {
+	// Return true if this library can stand in for the library with the given name.
+	return (or (libName == moduleName) (contains implementedLibs libName))
+}
+
+method replaces MicroBlocksModule otherLib {
+	// Return true if this library and otherLib implement the same library.
+	if (implementsLib otherLib moduleName) { return true }
+	for libName implementedLibs {
+		if (implementsLib otherLib libName) { return true }
+	}
+	return false
+}
+
+method embeddedLibraryNamed MicroBlocksModule libName {
+	// Return the embedded library with the given name, or nil if there is none.
+	libFileName = (join libName '.ubl')
+	for filePath (browserEmbeddedLibs this) {
+		if ((filePart filePath) == libFileName) {
+			return (loadFromCmds (newMicroBlocksModule libName) (parse (readEmbeddedFile filePath)))
+		}
+	}
+	return nil
+}
+
+method apiOpsOf MicroBlocksModule otherLib {
+	// Return the op of every function and block of otherLib. A block may call a primitive directly,
+	// and a library that implements otherLib covers it with a function of the same name.
+	result = (list)
+	for f (functions otherLib) { add result (functionName f) }
+	for op (blockList otherLib) {
+		if (and (not (isOneOf op '-' 'advanced')) (not (contains result op))) { add result op }
+	}
+	return result
+}
+
+method missingFunctionsOf MicroBlocksModule otherLib {
+	// Return the ops of otherLib, including primitive blocks, that this library does not define as functions.
+	result = (list)
+	for op (apiOpsOf this otherLib) {
+		if (isNil (functionNamed this op)) { add result op }
+	}
+	return result
+}
+
+method mismatchedFunctionsOf MicroBlocksModule otherLib {
+	// Return a description of each op of otherLib that this library defines with a different block,
+	// such as 'wifiConnect (inputs, label)'.
+	result = (list)
+	for op (apiOpsOf this otherLib) {
+		myFunc = (functionNamed this op)
+		if (notNil myFunc) {
+			diffs = (list)
+			otherFunc = (functionNamed otherLib op)
+			if (and (notNil otherFunc) ((count (argNames myFunc)) != (count (argNames otherFunc)))) {
+				add diffs 'inputs'
+			}
+			mySpec = (specParts this (at blockSpecs op))
+			otherSpec = (specParts this (at (blockSpecs otherLib) op))
+			if (or (isNil mySpec) (isNil otherSpec)) {
+				if (or (notNil mySpec) (notNil otherSpec)) { add diffs 'block' }
+			} else {
+				if ((at mySpec 1) != (at otherSpec 1)) { add diffs 'type' }
+				if ((at mySpec 2) != (at otherSpec 2)) { add diffs 'label' }
+				if ((at mySpec 3) != (at otherSpec 3)) { add diffs 'slots' }
+			}
+			if (notEmpty diffs) { add result (join op ' (' (joinStrings diffs ', ') ')') }
+		}
+	}
+	return result
+}
+
+method specParts MicroBlocksModule spec {
+	// Return an array of the block type, label, and slot types of a block spec, or nil if spec is nil.
+	if (isNil spec) { return nil }
+	parts = (argList (first (parse (specDefinitionString spec))))
+	slotTypes = ''
+	if ((count parts) > 3) { slotTypes = (at parts 4) }
+	return (array (at parts 1) (at parts 3) slotTypes)
+}
 
 method dependencyName MicroBlocksModule dep {
 	slashPos = (findLast dep '/')
@@ -859,6 +978,11 @@ method codeString MicroBlocksModule owningProject newLibName {
 		add result (arrayToDeclaration this dependencies 'depends')
 	}
 
+	// add implements declaration
+	if ((count implementedLibs) > 0) {
+		add result (arrayToDeclaration this implementedLibs 'implements')
+	}
+
 	// add tag declaration
 	if ((count tags) > 0) {
 		add result (arrayToDeclaration this tags 'tags')
@@ -991,6 +1115,7 @@ method loadFromCmds MicroBlocksModule cmdList {
 	loadVersion this cmdList
 	loadAuthor this cmdList
 	loadDependencies this cmdList
+	loadImplements this cmdList
 	loadTags this cmdList
 	loadDescription this cmdList
 	loadChoices this cmdList
@@ -1024,24 +1149,15 @@ method getNewerVersion MicroBlocksModule {
 
 	if (moduleName == 'main') { return nil }
 
-	embeddedFiles = (browserEmbeddedLibs this)
-
-	// Find the embedded lib path
-	moduleFileName = (join moduleName '.ubl')
+	candidate = (embeddedLibraryNamed this moduleName)
+	if (isNil candidate) { return nil }
 	v1 = version // current version
-	for filePath embeddedFiles {
-		if ((filePart filePath) == moduleFileName) {
-			cmdList = (parse (readEmbeddedFile filePath))
-			candidate = (newMicroBlocksModule moduleName)
-			loadFromCmds candidate cmdList
-			v2 = (version candidate)
-			if (or
-				((at v2 1) > (at v1 1))
-				(and ((at v1 1) == (at v2 1)) ((at v2 2) > (at v1 2)))
-			) {
-				return candidate
-			}
-		}
+	v2 = (version candidate)
+	if (or
+		((at v2 1) > (at v1 1))
+		(and ((at v1 1) == (at v2 1)) ((at v2 2) > (at v1 2)))
+	) {
+		return candidate
 	}
 	return nil
 }
@@ -1167,11 +1283,24 @@ method loadDependencies MicroBlocksModule cmdList {
 	dependencies = (toArray deps)
 }
 
+method loadImplements MicroBlocksModule cmdList {
+	libNames = (list)
+	for cmd cmdList {
+		if ('implements' == (primName cmd)) {
+			for libName (stringArgs this cmd) { add libNames (toString libName) }
+		}
+	}
+	implementedLibs = (toArray libNames)
+}
+
 method importDependencies MicroBlocksModule scripter {
 	project = (project scripter)
 	for dependency dependencies {
-		if (isNil (libraryNamed project dependency)) {
-			// don't import a dependent library if it is already loaded
+		if (and
+			(isNil (libraryNamed project dependency))
+			(isNil (replacementFor project (dependencyName this dependency)))
+		) {
+			// don't import a dependent library if it, or a library that implements it, is already loaded
 			importDependency this dependency scripter
 		}
 	}

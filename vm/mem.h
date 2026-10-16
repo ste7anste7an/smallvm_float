@@ -76,7 +76,7 @@ extern "C" {
 	defined(ARDUINO_CALLIOPE_MINI) || defined(CALLIOPE_V3) || defined(PICO_ED) || \
 	defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_NRF52840_CLUE) || \
 	defined(ARDUINO_Mbits) || defined(STEAMaker) || defined(FOXBIT) || defined(DUELink) || \
-	defined(SPRINGBOT) || defined(COCUBE) || defined(GNUBLOCKS)
+	defined(SPRINGBOT) || defined(COCUBE) || defined(GNUBLOCKS) || defined(M5Stick_S3)
 		#define HAS_A_B_BUTTONS 1
 #endif
 

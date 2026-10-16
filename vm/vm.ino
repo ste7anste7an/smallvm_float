@@ -50,7 +50,6 @@ void setup() {
 	checkForDoubleTap();
 #endif
 
-	boardEarlyInit();
 	memInit();
 	primsInit();
 	hardwareInit();
@@ -58,7 +57,7 @@ void setup() {
 	restoreScripts();
 	if (BLE_isEnabled()) BLE_start();
 	if (resetDoubleTap) loadStartCodeOrClear();
-	startAll();
+	if (boardStartAtBoot()) startAll();
 }
 
 void loop() {

@@ -1,0 +1,33 @@
+module 'Nezha ESP32 Speech Recognition' Input
+author 'Elecfreaks Team'
+version 1 0 
+choices Language CN EN 
+description 'Speech recognition'
+
+  spec ' ' 'nezha_SR_Enable' 'enable speech recognition _' 'menu.Language' 'CN'
+  spec ' ' 'nezha_SR_Disable' 'disable speech recognition'
+  spec ' ' 'nezha_SR_Register' 'when _ is recognized send broadcast _' 'str str'
+  space
+  spec 'r' '_nezha_SR_ParseLanguage' '_nezha_SR_ParseLanguage _' 'menu.Language' 'CN'
+
+to '_nezha_SR_ParseLanguage' language {
+  if (or (language == 'CN') (language == '中文')) {
+    return 0
+  } (or (language == 'EN') (language == '英文')) {
+    return 1
+  }
+  return 0
+}
+
+to nezha_SR_Disable {
+  '[elfreaks:SR_Disable]'
+}
+
+to nezha_SR_Enable language {
+  '[elfreaks:SR_Enable]' ('_nezha_SR_ParseLanguage' language)
+}
+
+to nezha_SR_Register str message {
+  '[elfreaks:SR_Register]' str message
+}
+

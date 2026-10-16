@@ -1,0 +1,331 @@
+module 'External WiFi' Comm
+author MicroBlocks
+version 0 3
+implements WiFi
+tags communication network wifi esp-at calliope
+description 'Connect to a WiFi network through an external ESP-AT WiFi module on two serial pins, such as the Calliope WiFi module (ESP32-C3, ESP-AT 3.3). Use it on boards without WiFi, for example a micro:bit or Calliope mini.
+
+Same blocks as the WiFi library. Used with External HTTP client, which has the same blocks as HTTP client, so projects written for WiFi and HTTP client (for example the SmartIoT library) work unchanged.
+
+Wiring: board rx pin to the module tx, board tx pin to the module rx, and GND. Default pins: rx 16 and tx 17 on a Calliope mini (its WiFi module socket), rx 2 and tx 1 on other boards (on a micro:bit, P2 to module tx and P1 to module rx). Use "external WiFi module rx pin" for other pins. The module talks at 115200 baud.
+
+Importing External WiFi replaces the WiFi library in a project, and importing WiFi switches back.
+
+The serial link code comes from Ralf Krause''s Calliope WiFi library (version 0.63).'
+variables _extwifi_ready _extwifi_mac _extwifi_connected _extwifi_busy _extwifi_busy_since _extwifi_tx _extwifi_rx
+
+  spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '192.168.1.42' '192.168.1.1' '255.255.255.0'
+  spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _' 'str str' 'Network_Name' 'Network_Password'
+  spec ' ' '[net:stopWiFi]' 'stop wifi'
+  space
+  spec ' ' '[net:setDomainName]' 'wifi set local domain name _ .local' 'str' 'microblocks'
+  space
+  spec 'r' 'getIPAddress' 'IP address'
+  spec 'r' '[net:myMAC]' 'MAC address'
+  space
+  spec ' ' '[net:allowWiFiAndBLE]' 'allow WiFi while using BLE _' 'bool' true
+  space
+  spec ' ' 'extwifi_set_rx_tx_pins' 'external WiFi module rx pin _ tx pin _' 'num num' 2 1
+  spec 'r' '_extwifi_connected?' '_extwifi_connected?'
+  spec 'r' '_extwifi_init' '_extwifi_init'
+  spec 'r' '_extwifi_join' '_extwifi_join _ _' 'str str' '' ''
+  spec 'r' '_extwifi_ip' '_extwifi_ip'
+  spec 'r' '_extwifi_field' '_extwifi_field _ _' 'auto str' '' ''
+  spec ' ' '_extwifi_mdns' '_extwifi_mdns _' 'str' 'microblocks'
+  spec ' ' '_extwifi_blink' '_extwifi_blink'
+  spec ' ' '_extwifi_lock' '_extwifi_lock'
+  spec ' ' '_extwifi_unlock' '_extwifi_unlock'
+  spec ' ' '_extwifi_still_busy' '_extwifi_still_busy'
+  spec ' ' '_extwifi_send' '_extwifi_send AT _ wait _ ms' 'str num' '' 10
+  spec 'r' '_extwifi_wait' '_extwifi_wait for _ timeout _ ms : fail _' 'str num str' 'OK' 1000 'ERROR'
+  spec 'r' '_extwifi_read_all' '_extwifi_read_all timeout _ ms' 'num' 100
+
+to getIPAddress {
+  return ('[net:myIPAddress]')
+}
+
+to '[net:hasWiFi]' {
+  return true
+}
+
+to '[net:wifiStatus]' {
+  if ('_extwifi_connected?') {return 'Connected'}
+  return 'Not connected'
+}
+
+to '[net:myIPAddress]' {
+  if (not (_extwifi_ready == true)) {return '0.0.0.0'}
+  '_extwifi_lock'
+  local 'ip' ('_extwifi_ip')
+  '_extwifi_unlock'
+  return ip
+}
+
+to wifiConnect ssid password fixedIP gatewayIP subnetIP {
+  comment 'Connecting resets the module, so it takes the serial link even if a stopped task left it locked.'
+  _extwifi_busy = true
+  _extwifi_busy_since = (millisOp)
+  if (not ('_extwifi_init')) {
+    '_extwifi_unlock'
+    sayIt 'WiFi module not found'
+    return 0
+  }
+  setUserLED true
+  _extwifi_connected = ('_extwifi_join' ssid password)
+  setUserLED false
+  if (and _extwifi_connected ((pushArgCount) >= 5)) {
+    comment 'A static address only when all three fields are filled, as the WiFi primitive does. Blank fields keep the DHCP lease.'
+    if (and (and ((size fixedIP) > 0) ((size gatewayIP) > 0)) ((size subnetIP) > 0)) {
+      '_extwifi_send' ('[data:join]' '+CIPSTA="' fixedIP '","' gatewayIP '","' subnetIP '"') 50
+      local 'ok' ('_extwifi_wait' 'OK' 2000)
+    }
+  }
+  local 'ip' ('_extwifi_ip')
+  if (ip == '0.0.0.0') {
+    _extwifi_connected = false
+    '_extwifi_unlock'
+    sayIt 'Could not connect'
+    return 0
+  }
+  '_extwifi_blink'
+  '_extwifi_mdns' 'microblocks'
+  '_extwifi_unlock'
+  sayIt 'My IP address is:' ip
+}
+
+to wifiCreateHotspot ssid password {
+  if ((size password) < 8) {
+    sayIt 'Password must be at least 8 characters'
+    return 0
+  }
+  _extwifi_busy = true
+  _extwifi_busy_since = (millisOp)
+  if (not ('_extwifi_init')) {
+    '_extwifi_unlock'
+    sayIt 'WiFi module not found'
+    return 0
+  }
+  '_extwifi_send' '+CWMODE=2' 50
+  local 'ok' ('_extwifi_wait' 'OK' 1000)
+  comment 'Channel 1, WPA2'
+  '_extwifi_send' ('[data:join]' '+CWSAP="' ssid '","' password '",1,3') 100
+  _extwifi_connected = ('_extwifi_wait' 'OK' 5000)
+  if (not _extwifi_connected) {
+    '_extwifi_unlock'
+    sayIt 'Could not create hotspot'
+    return 0
+  }
+  comment 'Hand out addresses to devices that join (mode 2 is the access point). Older AT firmware answers ERROR, which is harmless.'
+  '_extwifi_send' '+CWDHCP=1,2' 50
+  ok = ('_extwifi_wait' 'OK' 1000)
+  '_extwifi_blink'
+  '_extwifi_mdns' 'microblocks'
+  local 'ip' ('_extwifi_ip')
+  '_extwifi_unlock'
+  sayIt 'My IP address is:' ip
+}
+
+to '[net:stopWiFi]' {
+  if (not (_extwifi_ready == true)) {return}
+  '_extwifi_lock'
+  '_extwifi_send' '+CWQAP' 20
+  local 'ok' ('_extwifi_wait' 'OK' 2000)
+  comment 'Mode 0 switches the radio off'
+  '_extwifi_send' '+CWMODE=0' 20
+  ok = ('_extwifi_wait' 'OK' 1000)
+  _extwifi_connected = false
+  '_extwifi_unlock'
+}
+
+to '[net:setDomainName]' name {
+  if (not ('_extwifi_connected?')) {return}
+  '_extwifi_lock'
+  '_extwifi_mdns' name
+  '_extwifi_unlock'
+}
+
+to '[net:myMAC]' {
+  if (not (_extwifi_ready == true)) {
+    '_extwifi_lock'
+    local 'ok' ('_extwifi_init')
+    '_extwifi_unlock'
+  }
+  if (_extwifi_mac == 0) {return ''}
+  return _extwifi_mac
+}
+
+to '[net:allowWiFiAndBLE]' allow {
+  comment 'An external module has its own radio, so WiFi and BLE do not share one. Nothing to do.'
+}
+
+to extwifi_set_rx_tx_pins rx tx {
+  comment 'The pins take effect the next time the module is set up (wifi connect does that).'
+  _extwifi_tx = tx
+  _extwifi_rx = rx
+  _extwifi_ready = false
+  _extwifi_connected = false
+}
+
+to '_extwifi_connected?' {
+  return (_extwifi_connected == true)
+}
+
+to '_extwifi_init' {
+  comment 'Open the serial link and reset the module. Reports true when the module answers.'
+  if (_extwifi_tx == 0) {
+    comment 'Default pins: the Calliope mini WiFi socket (17, 16), else pins 1 and 2'
+    if (('[data:find]' 'Calliope' (boardType)) > 0) {
+      _extwifi_tx = 17
+      _extwifi_rx = 16
+    } else {
+      _extwifi_tx = 1
+      _extwifi_rx = 2
+    }
+  }
+  _extwifi_ready = false
+  _extwifi_connected = false
+  '[serial:open]' 115200 _extwifi_rx _extwifi_tx
+  local 'ok' false
+  local 'junk' ('_extwifi_read_all' 100)
+  repeat 3 {
+    if (not ok) {
+      '_extwifi_send' '' 10
+      ok = ('_extwifi_wait' 'OK' 300)
+    }
+  }
+  if (not ok) {return false}
+  '_extwifi_send' '+CWQAP' 20
+  ok = ('_extwifi_wait' 'OK' 2000)
+  '_extwifi_send' '+RST' 500
+  ok = ('_extwifi_wait' 'ready' 3000)
+  comment 'No echo, settings not stored in flash, station mode, no background auto-connect'
+  '_extwifi_send' 'E0' 10
+  '_extwifi_send' '+SYSSTORE=0' 10
+  '_extwifi_send' '+CWMODE=1' 10
+  '_extwifi_send' '+CWAUTOCONN=0' 10
+  junk = ('_extwifi_read_all' 100)
+  '_extwifi_send' '+CIFSR' 50
+  _extwifi_mac = ('_extwifi_field' ('_extwifi_read_all' 100) 'STAMAC,"')
+  comment 'Uppercase hex, as the WiFi primitive reports it'
+  local 'codes' ('[data:makeList]')
+  for i (size _extwifi_mac) {
+    local 'ch' ('[data:unicodeAt]' i _extwifi_mac)
+    if (and (97 <= ch) (ch <= 102)) {ch = (ch - 32)}
+    '[data:addLast]' ch codes
+  }
+  _extwifi_mac = ('[data:unicodeString]' codes)
+  _extwifi_ready = ((size _extwifi_mac) > 0)
+  return _extwifi_ready
+}
+
+to '_extwifi_join' ssid password {
+  '_extwifi_send' '+CWMODE=1' 50
+  if (not ('_extwifi_wait' 'OK' 1000)) {return false}
+  '_extwifi_send' ('[data:join]' '+CWJAP="' ssid '","' password '"') 500
+  comment 'OK comes after WIFI GOT IP; DHCP can take 10 seconds'
+  return ('_extwifi_wait' 'OK' 20000 'FAIL')
+}
+
+to '_extwifi_ip' {
+  local 'junk' ('_extwifi_read_all' 20)
+  '_extwifi_send' '+CIFSR' 50
+  local 'data' ('_extwifi_read_all' 100)
+  local 'ip' ('_extwifi_field' data 'STAIP,"')
+  if (or (ip == '') (ip == '0.0.0.0')) {
+    comment 'A hotspot has an access point address instead'
+    ip = ('_extwifi_field' data 'APIP,"')
+  }
+  if (ip == '') {return '0.0.0.0'}
+  return ip
+}
+
+to '_extwifi_field' data key {
+  comment 'The quoted value after key, as in +CIFSR:STAIP,"192.168.1.5"'
+  local 'i' ('[data:find]' key data)
+  if (i < 0) {return ''}
+  i += (size key)
+  local 'j' ('[data:find]' '"' data i)
+  if (j < 0) {return ''}
+  return ('[data:join]' '' ('[data:copyFromTo]' data i (j - 1)))
+}
+
+to '_extwifi_mdns' name {
+  comment 'Best effort: modules without mDNS answer ERROR'
+  '_extwifi_send' '+MDNS=0' 50
+  local 'ok' ('_extwifi_wait' 'OK' 1000)
+  '_extwifi_send' ('[data:join]' '+MDNS=1,"' name '","_http",80') 50
+  ok = ('_extwifi_wait' 'OK' 2000)
+}
+
+to '_extwifi_blink' {
+  repeat 6 {
+    comment 'Quick blinks when connected'
+    setUserLED true
+    waitMillis 50
+    setUserLED false
+    waitMillis 50
+  }
+}
+
+to '_extwifi_lock' {
+  comment 'Only one task at a time may talk to the module. The holder calls _extwifi_still_busy while it waits, so a lock untouched for 3 seconds was left by a stopped task.'
+  waitUntil (or (not (_extwifi_busy == true)) ((millisSince _extwifi_busy_since) > 3000))
+  _extwifi_busy = true
+  _extwifi_busy_since = (millisOp)
+}
+
+to '_extwifi_unlock' {
+  _extwifi_busy = false
+}
+
+to '_extwifi_still_busy' {
+  _extwifi_busy_since = (millisOp)
+}
+
+to '_extwifi_send' cmd delay {
+  local 'crlf' ('[data:unicodeString]' ('[data:makeList]' 13 10))
+  '[serial:write]' ('[data:join]' 'AT' cmd crlf)
+  waitMillis delay
+}
+
+to '_extwifi_wait' t timeout optionalFail {
+  comment 'Wait for the text t. Reports false at timeout, at ERROR, or at the fail text.'
+  local 'fail' (argOrDefault 3 'ERROR')
+  local 'buffer' ''
+  local 'packet' ''
+  local 'start' (millisOp)
+  repeatUntil ((millisSince start) > timeout) {
+    '_extwifi_still_busy'
+    packet = ('[serial:read]')
+    if ((size packet) > 0) {
+      buffer = ('[data:join]' buffer packet)
+      if (or (('[data:find]' 'ERROR' buffer) > 0) (('[data:find]' fail buffer) > 0)) {
+        return false
+      }
+      if (('[data:find]' t buffer) > 0) {
+        return true
+      }
+    } else {
+      waitMillis 5
+    }
+  }
+  return false
+}
+
+to '_extwifi_read_all' timeout {
+  comment 'Read until the serial line is quiet for timeout ms'
+  local 'buffer' ''
+  local 'packet' ''
+  local 'start' (millisOp)
+  repeatUntil ((millisSince start) > timeout) {
+    '_extwifi_still_busy'
+    packet = ('[serial:read]')
+    if ((size packet) > 0) {
+      buffer = ('[data:join]' buffer packet)
+      start = (millisOp)
+    } else {
+      waitMillis 2
+    }
+  }
+  return ('[data:join]' '' buffer)
+}

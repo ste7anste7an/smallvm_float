@@ -1,0 +1,524 @@
+module main
+author MicroBlocks
+version 1 0 
+description 'Sends two numbers to the ELECFREAKS SmartIoT cloud every five seconds and reacts to its Remote control switch.
+
+Before running: sign in at smartiot.space, add a device, then put your WiFi name and password, your user token and the device''s topic into the first script.
+
+Any number of scripts can wait for the switch. Each runs once per flip because it ends by waiting for the switch to change back.'
+variables count flips 
+
+script 50 50 {
+whenStarted
+wifiConnect 'Network_Name' ''
+'smartiot connect' 'YourUserToken' '1'
+if ('smartiot connected') {
+  sayIt 'Connected to SmartIoT'
+} else {
+  sayIt ('smartiot last response')
+  stopTask
+}
+count = 0
+forever {
+  count += 1
+  'smartiot set data' count (random 0 100)
+  'smartiot upload'
+  waitMillis 5000
+}
+}
+
+script 520 50 {
+whenCondition ('smartiot switch is' 'on')
+sayIt 'Switch is on'
+waitUntil ('smartiot switch is' 'off')
+sayIt 'Switch is off'
+}
+
+script 520 250 {
+whenCondition ('smartiot switch is' 'on')
+flips += 1
+waitUntil ('smartiot switch is' 'off')
+}
+
+
+module 'HTTP client' Comm
+author MicroBlocks
+version 1 14 
+depends WiFi 
+tags http network get post put delete 
+choices requestTypes GET POST PUT DELETE 
+description 'Send HTTP requests and get responses back. You can use this library to fetch or store data in online servers, or to control other Wifi-enabled boards.
+'
+
+  spec 'r' 'url' 'fetch URL _' 'str' 'https://microblocks.fun/example.txt'
+  space
+  spec 'r' 'http܃//' 'http #SVG#colon-double-slash _ : port _' 'auto num' 'microblocks.fun/example.txt' 80
+  spec 'r' 'https܃//' 'https #SVG#colon-double-slash _ : port _' 'auto num' 'microblocks.fun/example.txt' 443
+  space
+  spec ' ' 'request' '_ data _ to http #SVG#colon-double-slash _ : port _ : useHTTPS _ : content type _ : extra headers _' 'menu.requestTypes str str num bool str str' 'POST' 'MicroBlocks is fun' 'microblocks.fun' 80 false
+  space
+  spec 'r' '_http_body_start' '_http_body_start _' 'auto' ''
+  spec 'r' '_http_header_text' '_http_header_text _' 'auto' ''
+  spec 'r' '_http_status_text' '_http_status_text _' 'auto' ''
+  spec 'r' '_http_header' '_header _ of response _' 'auto auto' 'content-length' ''
+  spec 'r' '_http_status' '_status of response _' 'auto' ''
+  spec 'r' '_line_end' '_line_end'
+  spec 'r' '_lowercase' '_lowercase _' 'auto' 'ABC Def gH'
+  spec 'r' '_request_url' '_request_url _ method _ body _ : port _ : useHTTPS _ : content type _ : extra headers _' 'str menu.requestTypes str num bool str str' '' 'GET' '' 80 false
+  spec 'r' '_readHTTPResponse' '_readHTTPResponse'
+  spec 'r' '_http_expected_length' '_http_expected_length _' 'str' ''
+  spec 'r' '_http_dechunk' '_http_dechunk _' 'str'
+  spec 'r' '_httpResponseBody' '_httpResponseBody _' 'str' ''
+
+to '_httpResponseBody' response {
+  if (response != '') {if (('_http_status' response) == 200) {
+    if (('[data:find]' 'Transfer-Encoding: chunked' response) > 0) {
+      return ('_http_dechunk' response)
+    } else {
+      return ('[data:copyFromTo]' response ('_http_body_start' response))
+    }
+  } else {
+    return ('_http_status_text' response)
+  }}
+  return 'Failed to get response'
+}
+
+to '_http_body_start' response {
+  return (('[data:find]' ('[data:unicodeString]' ('[data:makeList]' 13 10 13 10)) response) + 4)
+}
+
+to '_http_dechunk' response {
+  local 'crlf' ('[data:join]' ('[data:unicodeString]' 13) ('[data:unicodeString]' 10))
+  local 'result' ('[data:makeList]')
+  local 'chunk_start' ('_http_body_start' response)
+  forever {
+    local 'chunk_size_end' ('[data:find]' crlf response chunk_start)
+    local 'byte_count' 0
+    if (chunk_size_end != -1) {
+      byte_count = (hexToInt ('[data:copyFromTo]' response chunk_start chunk_size_end))
+    }
+    if (byte_count > 0) {
+      chunk_start = ((chunk_size_end + 2) + byte_count)
+      '[data:addLast]' ('[data:copyFromTo]' response (chunk_size_end + 2) chunk_start) result
+    } else {
+      return ('[data:joinStrings]' result)
+    }
+  }
+}
+
+to '_http_expected_length' response {
+  if (('_http_body_start' response) < 10) {
+    comment 'Incomplete HTTP headers'
+    return 0
+  }
+  local 'start' (('[data:find]' 'Content-Length: ' response) + 16)
+  if (start < 16) {
+    comment 'Headers complete but no ''Content-Length:'' header'
+    return -1
+  }
+  comment 'Extract the content length and return the total expected length (including headers).'
+  local 'end' ('[data:find]' ('_line_end') response start)
+  local 'contentLength' ('[data:convertType]' ('[data:copyFromTo]' response start (end - 1)) 'number')
+  return ((('_http_body_start' response) + contentLength) - 1)
+}
+
+to '_http_header' header response {
+  local 'header text' ('_http_header_text' response)
+  header = ('_lowercase' header)
+  repeatUntil ((size (v 'header text')) < 3) {
+    local 'key' ('[data:copyFromTo]' (v 'header text') 1 (('[data:find]' ':' (v 'header text')) - 1))
+    if (('_lowercase' key) == header) {
+      return ('[data:copyFromTo]' (v 'header text') (('[data:find]' ':' (v 'header text')) + 2) (('[data:find]' ('_line_end') (v 'header text')) - 1))
+    }
+    'header text' = ('[data:copyFromTo]' (v 'header text') (('[data:find]' ('_line_end') (v 'header text')) + 2))
+  }
+  return (booleanConstant false)
+}
+
+to '_http_header_text' response {
+  local 'headersStart' (('[data:find]' ('_line_end') response) + 2)
+  return ('[data:copyFromTo]' response headersStart (('_http_body_start' response) - 1))
+}
+
+to '_http_status' response {
+  return (('[data:copyFromTo]' ('_http_status_text' response) 1 4) + 0)
+}
+
+to '_http_status_text' response {
+  return ('[data:copyFromTo]' response ('[data:find]' ' ' response) ('[data:find]' ('_line_end') response))
+}
+
+to '_line_end' {
+  return ('[data:unicodeString]' ('[data:makeList]' 13 10))
+}
+
+to '_lowercase' string {
+  local 'lowercased' ''
+  local 'char code' ''
+  for c (size string) {
+    'char code' = ('[data:unicodeAt]' c string)
+    if (and ((v 'char code') >= 65) ((v 'char code') <= 90)) {
+      'char code' = ((v 'char code') + 32)
+    }
+    lowercased = ('[data:join]' lowercased ('[data:unicodeString]' (v 'char code')))
+  }
+  return lowercased
+}
+
+to '_readHTTPResponse' {
+  local 'response' ''
+  local 'expectedLength' 0
+  local 'lastChunkTime' (millisOp)
+  local 'last chunk' ('[data:convertType]' ('[data:makeList]' 13 10 48 13 10 13 10) 'string')
+  repeatUntil (not ('[net:httpIsConnected]')) {
+    local 'chunk' ('[net:httpResponse]')
+    if ((size chunk) > 0) {
+      response = ('[data:join]' response chunk)
+      lastChunkTime = (millisOp)
+      local 'i' ('[data:find]' (v 'last chunk') response)
+      if (and (and (i > 0) (i == ((size response) - 6))) (('[data:find]' 'Transfer-Encoding: chunked' response) > 0)) {
+        exitLoop
+      }
+      if (expectedLength == 0) {
+        expectedLength = ('_http_expected_length' response)
+      }
+      if (and (expectedLength > 0) ((size response) >= expectedLength)) {
+        exitLoop
+      }
+    } (((millisOp) - lastChunkTime) > 10000) {
+      exitLoop
+    }
+    waitMillis 10
+  }
+  response = ('[data:join]' response ('[net:httpResponse]'))
+  return response
+}
+
+to '_request_url' url method body optionalPort optionalHTTPS optionalContentType optionalExtraHeaders {
+  local 'useHTTPS' (argOrDefault 5 (booleanConstant false))
+  local 'port' (argOrDefault 4 (ifExpression useHTTPS 443 80))
+  local 'contentType' (argOrDefault 6 '')
+  local 'extraHeaders' (argOrDefault 7 ('[data:makeList]'))
+  if (isType extraHeaders 'string') {
+    extraHeaders = ('[data:makeList]' extraHeaders)
+  }
+  local 'host' ''
+  local 'path' ''
+  local 'slashPosition' ('[data:find]' '/' url)
+  if (slashPosition > 0) {
+    host = ('[data:copyFromTo]' url 1 (slashPosition - 1))
+    path = ('[data:copyFromTo]' url (slashPosition + 1))
+  } else {
+    host = url
+  }
+  if (('[net:wifiStatus]') != 'Connected') {
+    return ('[data:join]' '0 Not Connected' ('_line_end'))
+  }
+  port = ('[data:convertType]' port 'number')
+  if useHTTPS {
+    '[net:httpSecureConnect]' host port
+  } else {
+    '[net:httpConnect]' host port
+  }
+  if (not ('[net:httpIsConnected]')) {
+    return ('[data:join]' '0 Could not connect to server' ('_line_end'))
+  }
+  '[net:httpRequest]' method ('[data:join]' host ':' port) path body contentType ('[data:joinStrings]' extraHeaders ('_line_end'))
+  return ('_readHTTPResponse')
+}
+
+to decompose url {
+  local 'host' ''
+  local 'path' ''
+  local 'auxUrl' ''
+  local 'colonPosition' ('[data:find]' '://' url)
+  local 'protocol' (ifExpression (('[data:find]' 'https://' ('_lowercase' url)) > 0) 'https' (ifExpression (('[data:find]' 'http://' ('_lowercase' url)) > 0) 'http' 'https'))
+  local 'port' (ifExpression (protocol == 'https') 443 80)
+  if (colonPosition > 4) {
+    auxUrl = ('[data:copyFromTo]' url (colonPosition + 3))
+  } else {
+    auxUrl = url
+  }
+  local 'slashPosition' ('[data:find]' '/' auxUrl)
+  if (slashPosition > 0) {
+    host = ('[data:copyFromTo]' auxUrl 1 (slashPosition - 1))
+    path = ('[data:copyFromTo]' auxUrl (slashPosition + 1))
+  } else {
+    host = auxUrl
+  }
+  colonPosition = ('[data:find]' ':' host)
+  if (colonPosition > 0) {
+    port = ('[data:convertType]' ('[data:copyFromTo]' host (colonPosition + 1)) 'number')
+    host = ('[data:copyFromTo]' host 1 (colonPosition - 1))
+  }
+  return ('[data:makeList]' protocol host path port)
+}
+
+to 'https܃//' url optionalPort {
+  local 'port' (argOrDefault 2 443)
+  local 'response' ('_request_url' url 'GET' '' port true)
+  return ('_httpResponseBody' response)
+}
+
+to 'http܃//' url optionalPort {
+  local 'port' (argOrDefault 2 80)
+  local 'response' ('_request_url' url 'GET' '' port false)
+  return ('_httpResponseBody' response)
+}
+
+to request method data url optionalPort optionalHTTPS optionalContentType optionalExtraHeaders {
+  local 'useHTTPS' (argOrDefault 5 (booleanConstant false))
+  local 'port' (argOrDefault 4 (ifExpression useHTTPS 443 80))
+  local 'contentType' (argOrDefault 6 '')
+  local 'extraHeaders' (argOrDefault 7 ('[data:makeList]'))
+  local 'response' ('_request_url' url method data port useHTTPS contentType extraHeaders)
+  if (response != '') {
+    local 'status' ('_http_status' response)
+    local 'body start' ('_http_body_start' response)
+    if (and (200 == status) ((v 'body start') > 0)) {
+      sayIt ('[data:copyFromTo]' response (v 'body start'))
+    } else {
+      sayIt ('_http_status_text' response)
+    }
+  } else {
+    sayIt 'Failed to get response'
+  }
+}
+
+to url url {
+  comment 'Returns the content of a web page.
+The URL can be with or without explicit protocol and/or port. If omitted, the default protocol is https (port 443). In the case of http, the default port is 80.
+These forms are valid:
+https://microblocks.fun/example.txt
+http://microblocks.fun/example.txt
+microblocks.fun/example.txt (https by default)
+https://tls-v1-2.badssl.com:1012 (specific port)'
+  local 'infoURL' (decompose url)
+  local 'response' ('_request_url' ('[data:join]' (at 2 infoURL) (ifExpression ((size (at 3 infoURL)) > 0) ('[data:join]' '/' (at 3 infoURL)) '')) 'GET' '' (at 4 infoURL) ((at 1 infoURL) == 'https'))
+  return ('_httpResponseBody' response)
+}
+
+
+module 'SmartIoT Space' Comm
+author MicroBlocks
+version 1 0 
+depends WiFi '_HTTP client' 
+tags iot cloud internet elecfreaks smartiot network dashboard 
+choices smartiot_switchMenu on off 
+description 'Send data to the ELECFREAKS SmartIoT cloud (smartiot.space) and read its on/off switch.
+
+Sign in at smartiot.space, create a device, and copy your user token and the device''s topic. Connect to WiFi first, then use the connect block.
+
+Upload up to eight numbers at once and see them as charts on the SmartIoT site. To react when someone flips the switch on the site, use ( SmartIoT switch on ) in a "when" block and end the script with "wait until" the switch changes back, so it runs once per flip. Or use ( when SmartIoT switch _ send broadcast _ ) and "when I receive" scripts.
+
+SmartIoT uses plain HTTP on port 8080, so the token is not encrypted and some school networks may block it.'
+variables _smartiot_userToken _smartiot_topicName _smartiot_server _smartiot_serverPort _smartiot_isConnected _smartiot_data _smartiot_reply _smartiot_busy _smartiot_lastUpload _smartiot_lastPoll _smartiot_switchOn _smartiot_listeners 
+
+  spec ' ' 'smartiot switch broadcast' 'when SmartIoT switch _ send broadcast _' 'menu.smartiot_switchMenu str' 'on' ''
+  spec ' ' 'smartiot connect' 'Connect SmartIoT with userToken _ topic _' 'str str' 'YourUserToken' '1'
+  spec ' ' 'smartiot set data' 'set data to send SmartIoT Data 1 _ : Data 2 _ : Data 3 _ : Data 4 _ : Data 5 _ : Data 6 _ : Data 7 _ : Data 8 _' 'num num num num num num num num' 0 0 0 0 0 0 0 0
+  spec ' ' 'smartiot upload' 'Upload data to SmartIoT'
+  spec 'r' 'smartiot connected' 'SmartIoT connection'
+  spec 'r' 'smartiot switch is' 'SmartIoT switch _' 'menu.smartiot_switchMenu' 'on'
+  space
+  spec ' ' 'smartiot set server' 'set SmartIoT server host _ port _' 'str num' 'http://www.smartiot.space' 8080
+  spec 'r' 'smartiot last response' 'SmartIoT last response'
+  spec 'r' '_smartiot get' '_smartiot get _' 'str' ''
+  spec ' ' '_smartiot poll switch' '_smartiot poll switch'
+  spec ' ' '_smartiot broadcast loop' '_smartiot broadcast loop'
+
+to '_smartiot broadcast loop' {
+  local 'wasOn' ('smartiot switch is' 'on')
+  forever {
+    local 'isOn' ('smartiot switch is' 'on')
+    if (isOn != wasOn) {
+      for listener _smartiot_listeners {
+        if ((at 1 listener) == (ifExpression isOn 'on' 'off')) {sendBroadcast (at 2 listener)}
+      }
+      wasOn = isOn
+    }
+    waitMillis 100
+  }
+}
+
+to '_smartiot get' path {
+  comment 'The VM has a single HTTP connection, so requests from different tasks take turns.'
+  waitUntil (not (_smartiot_busy == true))
+  _smartiot_busy = true
+  if (_smartiot_server == 0) {
+    'smartiot set server' 'www.smartiot.space' 8080
+  }
+  local 'response' ('_request_url' ('[data:join]' _smartiot_server path) 'GET' '' _smartiot_serverPort false)
+  _smartiot_busy = false
+  return ('_httpResponseBody' response)
+}
+
+to '_smartiot poll switch' {
+  comment 'Asks the server at most once a second; every reader shares the answer.'
+  if (not (_smartiot_isConnected == true)) {
+    return
+  }
+  if (and (_smartiot_lastPoll != 0) ((millisSince _smartiot_lastPoll) < 1000)) {
+    return
+  }
+  _smartiot_lastPoll = (millisOp)
+  local 'response' ('_smartiot get' ('[data:join]' '/iot/iotTopic/getTopicStatus/' _smartiot_userToken '/' _smartiot_topicName))
+  if (('[data:find]' 'switchOn' response) > 0) {
+    _smartiot_switchOn = true
+  } (('[data:find]' 'switchOff' response) > 0) {
+    _smartiot_switchOn = false
+  }
+}
+
+to 'smartiot connect' token topic {
+  _smartiot_userToken = token
+  _smartiot_topicName = topic
+  _smartiot_isConnected = false
+  _smartiot_switchOn = 0
+  _smartiot_lastPoll = 0
+  repeat 3 {
+    local 'response' ('_smartiot get' ('[data:join]' '/iot/iotTopic/getTopicStatus/' token '/' topic))
+    _smartiot_reply = response
+    if (('[misc:jsonGet]' response 'code') == 200) {
+      _smartiot_isConnected = true
+      '_smartiot poll switch'
+      return
+    }
+    waitMillis 200
+  }
+}
+
+to 'smartiot connected' {
+  return (_smartiot_isConnected == true)
+}
+
+to 'smartiot last response' {
+  if (_smartiot_reply == 0) {return ''}
+  return _smartiot_reply
+}
+
+to 'smartiot set data' n1 n2 n3 n4 n5 n6 n7 n8 {
+  local 'query' ''
+  for i 8 {
+    query = ('[data:join]' query '&data' i '=' (argOrDefault i 0))
+  }
+  _smartiot_data = query
+}
+
+to 'smartiot set server' host port {
+  host = ('[data:convertType]' host 'string')
+  if (('[data:find]' '://' host) > 0) {
+    host = ('[data:copyFromTo]' host (('[data:find]' '://' host) + 3))
+  }
+  if (and ((size host) > 0) ((at 'last' host) == '/')) {
+    host = ('[data:copyFromTo]' host 1 ((size host) - 1))
+  }
+  _smartiot_server = host
+  _smartiot_serverPort = port
+}
+
+to 'smartiot switch broadcast' state message {
+  comment 'Broadcasts the message each time the switch changes to the given state. The broadcast starts the watching loop if it is not already running.'
+  if (_smartiot_listeners == 0) {
+    _smartiot_listeners = ('[data:makeList]')
+  }
+  '[data:addLast]' ('[data:makeList]' state message) _smartiot_listeners
+  sendBroadcast '_smartiot broadcast loop'
+}
+
+to 'smartiot switch is' state {
+  '_smartiot poll switch'
+  if (state == 'off') {
+    return (_smartiot_switchOn == false)
+  }
+  return (_smartiot_switchOn == true)
+}
+
+to 'smartiot upload' {
+  if (not (_smartiot_isConnected == true)) {return}
+  if (_smartiot_data == 0) {'smartiot set data'}
+  comment 'Space uploads at least a second apart.'
+  if (and (_smartiot_lastUpload != 0) ((millisSince _smartiot_lastUpload) < 1000)) {
+    waitMillis (1000 - (millisSince _smartiot_lastUpload))
+  }
+  _smartiot_reply = ('_smartiot get' ('[data:join]' '/iot/iotTopicData/addTopicData?userToken=' _smartiot_userToken '&topicName=' _smartiot_topicName _smartiot_data))
+  _smartiot_lastUpload = (millisOp)
+}
+
+
+module WiFi Comm
+author MicroBlocks
+version 1 10 
+tags communication network 
+description 'Connect to a WiFi network. Used in conjunction with other network libraries, such as HTTP client, HTTP server or Web Thing.
+'
+
+  spec ' ' 'wifiConnect' 'wifi connect to _ password _ : IP _ gateway _ subnet _' 'str str auto auto auto' 'Network_Name' '' '192.168.1.42' '192.168.1.1' '255.255.255.0'
+  spec ' ' 'wifiCreateHotspot' 'wifi create hotspot _ password _' 'str str' 'Network_Name' 'Network_Password'
+  spec ' ' '[net:stopWiFi]' 'stop wifi'
+  space
+  spec ' ' '[net:setDomainName]' 'wifi set local domain name _ .local' 'str' 'microblocks'
+  space
+  spec 'r' 'getIPAddress' 'IP address'
+  spec 'r' '[net:myMAC]' 'MAC address'
+  space
+  spec ' ' '[net:allowWiFiAndBLE]' 'allow WiFi while using BLE _' 'bool' true
+
+to getIPAddress {
+  return ('[net:myIPAddress]')
+}
+
+to wifiConnect ssid password fixedIP gatewayIP subnetIP {
+  if (not ('[net:hasWiFi]')) {return}
+  '[net:stopWiFi]'
+  if ((pushArgCount) < 5) {
+    '[net:startWiFi]' ssid password
+  } else {
+    '[net:startWiFi]' ssid password false fixedIP gatewayIP subnetIP
+  }
+  local 'startMSecs' (millisOp)
+  repeatUntil (('[net:myIPAddress]') != '0.0.0.0') {
+    comment 'Timeout after N seconds'
+    if (((millisOp) - startMSecs) > 30000) {
+      sayIt 'Could not connect'
+      return 0
+    }
+    comment 'Slow blink while trying to connect'
+    setUserLED true
+    waitMillis 300
+    setUserLED false
+    waitMillis 300
+  }
+  repeat 6 {
+    comment 'Quick blinks when connected'
+    setUserLED true
+    waitMillis 50
+    setUserLED false
+    waitMillis 50
+  }
+  '[net:setDomainName]' 'microblocks'
+  sayIt 'My IP address is:' ('[net:myIPAddress]')
+}
+
+to wifiCreateHotspot ssid password {
+  if (not ('[net:hasWiFi]')) {return}
+  if ((size password) < 8) {
+    sayIt 'Password must be at least 8 characters'
+    return 0
+  }
+  '[net:startWiFi]' ssid password true
+  if ('Connected' != ('[net:wifiStatus]')) {
+    sayIt 'Could not create hotspot'
+    return 0
+  }
+  repeat 6 {
+    comment 'Quick blinks when connected'
+    setUserLED true
+    waitMillis 50
+    setUserLED false
+    waitMillis 50
+  }
+  '[net:setDomainName]' 'microblocks'
+  sayIt 'My IP address is:' ('[net:myIPAddress]')
+}
+

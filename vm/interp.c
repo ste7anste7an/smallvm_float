@@ -1349,9 +1349,11 @@ static void runTask(Task *task) {
 #if defined(ESP32) || defined(ESP8266) || defined(GNUBLOCKS) || defined(ARDUINO_ARCH_SAMD) || \
 	defined(ARDUINO_ARCH_RP2040) || defined(PICO_RP2350)
 
-	#if !defined(ESP32_ORIGINAL) && !defined(ESP32_S3_MATRIX_PORTAL)
+	#if !defined(ESP32_ORIGINAL) && !defined(ESP32_S3_MATRIX_PORTAL) && !defined(NEZHA_ESP32)
 		// original ESP32 fails with TG1WDT_SYS_RESET when napping
 		// S3_MATRIX_PORTAL pixel scanning (DMA) does not work with napping enabled
+		// NEZHA_ESP32 runs background tasks that need full speed CPU so cannot nap
+
 		#define CAN_NAP 1
 	#endif
 
@@ -1428,7 +1430,7 @@ void vmLoop() {
 			#ifdef CAN_NAP
 				if (!napIfPossible()) count = 95;
 			#else
-				count = 95; // must be under 30 on mbed to avoid serial errors
+				count = 95;
 			#endif
 		} else if ((count & 0xF) == 0) {
 			captureIncomingBytes();
@@ -1536,7 +1538,7 @@ void runTasksUntilDone() {
 	while (hasActiveTasks) {
 		if (count-- <= 0) {
 			processMessage();
-			count = 100; // reduce to 30 when building on mbed to avoid serial errors
+			count = 100;
 		}
 		hasActiveTasks = false;
 		uint32 usecs = 0; // compute times only the first time they are needed

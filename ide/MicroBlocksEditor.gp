@@ -293,6 +293,7 @@ method openProject MicroBlocksEditor projectData projectName updateLibraries {
 	updateLibraryList scripter
 	developerModeChanged scripter
 	saveAllChunksAfterLoad (smallRuntime)
+	reportFunctionsInSeveralLibraries scripter
 }
 
 method openFromBoard MicroBlocksEditor {

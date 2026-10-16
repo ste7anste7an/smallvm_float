@@ -16,6 +16,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(NEZHA_ESP32)
+	#include <NezhaMicroBlocks.h> // nezha_microblocks library (lib_deps)
+#endif
+
 #if defined(PICO_ED) || defined(XRP) || defined(GIZMO_MECHATRONICS) || \
 	defined(ARDUINO_SEEED_XIAO_RP2350)
 		#define Wire Wire1
@@ -52,6 +56,9 @@
 #elif defined(M5Atom_Matrix) || defined(M5Atom_Lite)
 	#define PIN_WIRE_SCL 21
 	#define PIN_WIRE_SDA 25
+#elif defined(M5Stick_S3)
+	#define PIN_WIRE_SCL 10
+	#define PIN_WIRE_SDA 9
 #elif defined(ARDUINO_M5Stack_ATOMS3)
 	#define PIN_WIRE_SCL 1
 	#define PIN_WIRE_SDA 2
@@ -191,8 +198,8 @@ void writeI2CReg(int deviceID, int reg, int value) {
 	}
 }
 
-#if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) ||  defined(NEZHA_ESP32) || \
-	defined(ARDUINO_SEEED_XIAO_NRF52840_SENSE)
+#if defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3) || \
+	defined(ARDUINO_SEEED_XIAO_NRF52840_SENSE) || defined(M5Stick_S3)
 
 #define HAS_INTERNAL_I2C 1
 
@@ -204,18 +211,17 @@ void writeI2CReg(int deviceID, int reg, int value) {
 static int internalWireStarted = false;
 
 static void startInternalWire() {
-	#if defined(NEZHA_ESP32)
-		// The Nezha's internal I2C bus, SDA 39 / SCL 38,
-		// connect to the gyro, mic, speaker and expansion MCU.
-		Wire1.setPins(39, 38);
+	#if defined(M5Stick_S3)
+		#define M5Stick_S3_INTERNAL_SDA 47
+		#define M5Stick_S3_INTERNAL_SCL 48
+		Wire1.setPins(M5Stick_S3_INTERNAL_SDA, M5Stick_S3_INTERNAL_SCL);
 	#endif
-
 	Wire1.begin();
 	Wire1.setClock(400000); // i2c fast mode (seems pretty ubiquitous among i2c devices)
 	internalWireStarted = true;
 }
 
-static int readInternalI2CReg(int deviceID, int reg) {
+int readInternalI2CReg(int deviceID, int reg) {
 	if (!internalWireStarted) startInternalWire();
 	Wire1.beginTransmission(deviceID);
 	Wire1.write(reg);
@@ -226,7 +232,7 @@ static int readInternalI2CReg(int deviceID, int reg) {
 	return Wire1.available() ? Wire1.read() : 0;
 }
 
-static void writeInternalI2CReg(int deviceID, int reg, int value) {
+void writeInternalI2CReg(int deviceID, int reg, int value) {
 	if (!internalWireStarted) startInternalWire();
 	Wire1.beginTransmission(deviceID);
 	Wire1.write(reg);
@@ -249,7 +255,7 @@ OBJ primI2cGet(OBJ *args) {
 	if (!isInt(args[0]) || !isInt(args[1])) return fail(needsIntegerError);
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 
 	return int2obj(readI2CReg(deviceID, registerID));
@@ -260,7 +266,7 @@ OBJ primI2cSet(OBJ *args) {
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
 	int value = obj2int(args[2]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 	if ((value < 0) || (value > 255)) return fail(i2cValueOutOfRange);
 
@@ -276,7 +282,7 @@ static OBJ primInternalI2cGet(int argCount, OBJ *args) {
 	if (!isInt(args[0]) || !isInt(args[1])) return fail(needsIntegerError);
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 
 	return int2obj(readInternalI2CReg(deviceID, registerID));
@@ -287,7 +293,7 @@ static OBJ primInternalI2cSet(int argCount, OBJ *args) {
 	int deviceID = obj2int(args[0]);
 	int registerID = obj2int(args[1]);
 	int value = obj2int(args[2]);
-	if ((deviceID < 0) || (deviceID > 128)) return fail(i2cDeviceIDOutOfRange);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	if ((registerID < 0) || (registerID > 255)) return fail(i2cRegisterIDOutOfRange);
 	if ((value < 0) || (value > 255)) return fail(i2cValueOutOfRange);
 
@@ -307,6 +313,7 @@ OBJ primI2cExists(int argCount, OBJ *args) {
 
 	if ((argCount < 1) || !isInt(args[0])) return falseObj;
 	int i2cAddress = obj2int(args[0]);
+	if ((i2cAddress < 0) || (i2cAddress > 127)) return falseObj;
 
 	if (!wireStarted) startWire();
 	if (!wireStarted) return falseObj;
@@ -323,6 +330,7 @@ static OBJ primI2cRead(int argCount, OBJ *args) {
 
 	if ((argCount < 2) || !isInt(args[0])) return zeroObj;
 	int deviceID = obj2int(args[0]);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	OBJ obj = args[1];
 	int count = 0;
 	uint8 *bytes = NULL; // will point to byte array bytes if obj is a byte array
@@ -368,6 +376,7 @@ static OBJ primI2cWrite(int argCount, OBJ *args) {
 
 	if ((argCount < 2) || !isInt(args[0])) return zeroObj;
 	int deviceID = obj2int(args[0]);
+	if ((deviceID < 0) || (deviceID > 127)) return fail(i2cDeviceIDOutOfRange);
 	OBJ data = args[1];
 	int stop = ((argCount < 3) || (trueObj == args[2]));
 
@@ -1616,9 +1625,9 @@ static int databotMageneticField() {
 	return 0;
 }
 
-#elif defined(FOXBIT) || defined(NEZHA_ESP32)
+#elif defined(FOXBIT)
 
-#if defined(NEZHA_ESP32)
+#if defined(NEZHA_ESP32_DISABLED)
 	// The Nezha's QMI8658 is on the internal I2C bus, not the main one, and its
 	// address is not fixed. Elecfreaks' own driver probes 0x6A, falls back to
 	// 0x6B and then verifies the part ID (boards/Elecfreaks/drivers/Qmi8658.cpp),
@@ -1641,7 +1650,7 @@ static int databotMageneticField() {
 #define QMI8658_ACCEL_XOUT 53
 
 static void startQMI8658() {
-	#if defined(NEZHA_ESP32)
+	#if defined(NEZHA_ESP32_DISABLED)
 		// The internal I2C helpers start their own bus on first use. Find which
 		// address the part answers on before configuring it.
 		if (readInternalI2CReg(0x6A, QMI8658_PART_ID_REG) == QMI8658_PART_ID) {
@@ -1673,7 +1682,7 @@ static int qmi8658Read16Bit(int reg) {
 
 static int readAcceleration(int registerID) {
 	int val = 0;
-	#if defined(NEZHA_ESP32)
+	#if defined(NEZHA_ESP32_DISABLED)
 		if (1 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 2); // x-axis
 		if (3 == registerID) val = qmi8658Read16Bit(QMI8658_ACCEL_XOUT); // y-axis
 		if (5 == registerID) val = -qmi8658Read16Bit(QMI8658_ACCEL_XOUT + 4); // z-axis
@@ -1940,7 +1949,15 @@ static int readTemperature() {
 }
 // Support Springbot END
 
-#elif defined(DATABOT_V3)
+#elif defined(DATABOT_V3) || defined(M5Stick_S3)
+
+#if defined(M5Stick_S3)
+	// BMI270 and M5PM1 share Wire1 (internal I2C bus)
+	// These definitions are reverted at the end of the DATABOT_V3/M5Stick_S3 #elif section
+	#define Wire Wire1
+	#define readI2CReg readInternalI2CReg
+	#define writeI2CReg writeInternalI2CReg
+#endif
 
 #include "bmi270config.h" // 8k proprietary configuration file
 
@@ -1963,9 +1980,6 @@ static void bmi270EnableGyroAutoOffsetComp(); // forward reference
 
 static void bmi270Init() {
 	if (accelStarted) return;
-
-	if (!wireStarted) startWire();
-	if (!wireStarted) return;
 
 	writeI2CReg(BMI270_ADDR, BMI270_CMD, 0xB6); // soft reset
 	delay(5); // leave time for reset to complete (must be > 2 msecs)
@@ -1996,6 +2010,11 @@ static void bmi270Init() {
 		return;
 	}
 	writeI2CReg(BMI270_ADDR, BMI270_RANGE, 0); // set range to +/- 2G
+	#if defined(M5Stick_S3)
+		writeI2CReg(BMI270_ADDR, 0x40, 0xA8); // normal filtering, 100 Hz accelerometer
+		writeI2CReg(BMI270_ADDR, 0x42, 0xA9); // normal filtering, 200 Hz gyroscope
+		writeI2CReg(BMI270_ADDR, 0x43, 0); // +/- 2000 degrees/sec
+	#endif
 	writeI2CReg(BMI270_ADDR, BMI270_PWR_CTRL, 0x0E); // acc_en=1, gyr_en=1, temp_en=1
 	bmi270EnableGyroAutoOffsetComp(); // turn on gyro offset self-compensation
 	accelStarted = true;
@@ -2011,7 +2030,7 @@ static void bmi270ReadData() {
 	Wire.endTransmission(false);
 
 	Wire.requestFrom(BMI270_ADDR, 12);
-	for (int i = 0; i < 12; i++) bmi270data[i] = Wire.read();
+	for (int i = 0; i < 12; i++) bmi270data[i] = Wire.available() ? Wire.read() : 0;
 }
 
 static int readAcceleration(int registerID) {
@@ -2038,7 +2057,11 @@ static void setAccelRange(int range) {
 static int readTemperature() {
 	if (!accelStarted) bmi270Init();
 	int16_t rawTemp = (readI2CReg(BMI270_ADDR, 0x23) << 8) | readI2CReg(BMI270_ADDR, 0x22);
-	return (rawTemp >> 9) + 23 - 13; // -13 adjusts for self-heating in databot case
+	int degreesC = (rawTemp >> 9) + 23;
+	#if defined(DATABOT_V3)
+		degreesC -= 13; // -13 adjusts for self-heating inside the databot case
+	#endif
+	return degreesC;
 }
 
 // Databot V3 Gyro Setup
@@ -2058,7 +2081,7 @@ static uint16_t bmi270ReadFeatWord(uint8_t page, uint8_t addr) {
 	Wire.beginTransmission(BMI270_ADDR);
 	Wire.write(addr);
 	Wire.endTransmission(false);
-	Wire.requestFrom(BMI270_ADDR, (uint8_t)2);
+	Wire.requestFrom(BMI270_ADDR, 2);
 	uint8_t lo = Wire.read();
 	uint8_t hi = Wire.read();
 	return ((uint16_t) hi << 8) | lo;
@@ -2089,11 +2112,48 @@ static void bmi270EnableGyroAutoOffsetComp() {
 	writeI2CReg(BMI270_ADDR, REG_FEAT_PAGE, 0); // restore default feature page
 }
 
+static OBJ primGyro(int argCount, OBJ *args) {
+	if (argCount < 1) return fail(notEnoughArguments);
+	int axis = evalInt(args[0]); // 1 = X, 2 = Y, 3 = Z
+	if ((axis < 1) || (axis > 3)) return zeroObj;
+	bmi270ReadData();
+	int offset = 6 + ((axis - 1) * 2);
+	int val = (int16_t) ((bmi270data[offset + 1] << 8) | bmi270data[offset]);
+	return int2obj((val * 2000) / 32768); // degrees/sec at the configured +/- 2000 range
+}
+
+#if defined(M5Stick_S3)
+	// Revert these definitions
+	#undef Wire
+	#undef readI2CReg
+	#undef writeI2CReg
+#endif
+
 #elif defined(RP2040_PHILHOWER)
 
 static int readTemperature() { return analogReadTemp(); }
 static int readAcceleration(int reg) { return 0; } // RP2040 has no accelerometer
 static void setAccelRange(int range) { } // RP2040 has no accelerometer
+
+#elif defined(NEZHA_ESP32)
+
+static int readTemperature() {
+	int fudgeFactor = 8; // adjusts for internal heating
+	return nezhaMB_TemperatureC() - fudgeFactor;
+}
+
+static int readAcceleration(int reg) {
+	int val = 0;
+
+	if (1 == reg) val = -nezhaMB_RawAccelerationY(); // x-axis (left-right tilt)
+	if (3 == reg) val = nezhaMB_RawAccelerationX();  // y-axis (front-back tilt)
+	if (5 == reg) val = -nezhaMB_RawAccelerationZ(); // z-axis
+	return (100 * val) >> 14;
+}
+
+static void setAccelRange(int range) {
+	nezhaMB_SetAccelerometerRange(range);
+}
 
 #else // stubs for non-micro:bit boards
 
@@ -2375,11 +2435,6 @@ static OBJ primBatteryMillivolts(int argCount, OBJ *args) {
 	int voltage = (readPMU12BitReg(0x78) * 11) / 10;
 	return int2obj(voltage);
 }
-// xxx
-// float AXP173::getBatVoltage() {
-//   float ADCLSB = 1.1 / 1000.0;
-//   return _I2C_read12Bit(0x78) * ADCLSB;
-// }
 
 #endif // end dabatbot v3 support
 
@@ -2735,15 +2790,19 @@ static int readDigitalMicrophone() {
 }
 
 #elif defined(DATABOT) || defined(DATABOT_V3) || \
-	defined(ARDUINO_M5STACK_Core2) || defined(ARDUINO_XIAO_ESP32S3) || \
-	defined(NEZHA_ESP32)
+	defined(ARDUINO_M5STACK_Core2) || defined(ARDUINO_XIAO_ESP32S3)
 
 #define USE_DIGITAL_MICROPHONE 1
 
 #include <driver/i2s.h>
 
 // I2S port and pins
+
+// This I2S_PORT is also used by the Arduino I2S library
+// However, only I2S_NUM_0 supports I2S_MODE_PDM so we have to use it.
+
 #define I2S_PORT I2S_NUM_0
+
 #if defined(DATABOT)
 	#define I2S_WS 19
 	#define I2S_SD 18
@@ -2763,11 +2822,6 @@ static int readDigitalMicrophone() {
 	#define I2S_SD 41
 	#define I2S_SCK -1
 	#define I2S_MODE (I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM)
-#elif defined(NEZHA_ESP32)
-	#define I2S_WS 47
-	#define I2S_SD 48
-	#define I2S_SCK 3
-	#define I2S_MODE (I2S_MODE_MASTER | I2S_MODE_RX)
 #endif
 
 // Microphone input buffer (minimum sample count is 8)
@@ -3038,6 +3092,10 @@ static PrimEntry entries[] = {
 
 	#if defined(DATABOT_V3)
 	{"batteryMillivolts", primBatteryMillivolts},
+	#endif
+
+	#if defined(M5Stick_S3)
+	{"gyro", primGyro},
 	#endif
 };
 

@@ -1,10 +1,10 @@
 module Touch Input
 author MicroBlocks
-version 1 14 
+version 1 15 
 description 'Support for one or two MPR121 12-channel i2c touch sensors.
-Detects MPR121 chips at I2C addresses 90 and, optionally, 92 to handle up to 24 touch pins.
+Detects MPR121 chips at I2C addresses 90 and, optionally 91 or 92 to handle up to 24 touch pins.
 '
-variables _touch_pinCount _touch_state _touch_isTouched _touch_eventPending _touch_last_touched_pin _touch_last_released_pin 
+variables _touch_pinCount _touch_state _touch_isTouched _touch_eventPending _touch_last_touched_pin _touch_last_released_pin _touch_reg2
 
   spec 'r' 'touch_isTouched' 'is pin _ touched?' 'menu.range:1-24' 1
   space
@@ -33,7 +33,13 @@ multiple calls to _touch_init at startup'
   if ((i2cGet 90 0) >= 0) {
     _touch_pinCount = 12
   }
+  if ((i2cGet 91 0) >= 0) {
+    _touch_reg2 = 91
+  }
   if ((i2cGet 92 0) >= 0) {
+    _touch_reg2 = 92
+  }
+  if (_touch_reg2 != 0) {
     _touch_pinCount = 24
   }
   _touch_isTouched = (newList _touch_pinCount (booleanConstant false))
@@ -81,7 +87,6 @@ to '_touch_readState' addr {
 
 to '_touch_setRegister' reg value {
   local 'addr1' 90
-  local 'addr2' 92
   if (isType reg 'string') {
     reg = (hexToInt reg)
   }
@@ -90,7 +95,7 @@ to '_touch_setRegister' reg value {
   }
   i2cSet addr1 reg value
   if (_touch_pinCount > 12) {
-    i2cSet addr2 reg value
+    i2cSet _touch_reg2 reg value
   }
 }
 
@@ -101,7 +106,7 @@ to '_touch_update' {
     _touch_state = ('_touch_readState' 90)
   }
   if (_touch_pinCount > 12) {
-    _touch_state = ((('_touch_readState' 92) << 12) | _touch_state)
+    _touch_state = ((('_touch_readState' _touch_reg2) << 12) | _touch_state)
   }
   for i _touch_pinCount {
     local 'isTouchedNow' ((_touch_state & (1 << (i - 1))) != 0)

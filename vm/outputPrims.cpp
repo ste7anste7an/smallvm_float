@@ -14,6 +14,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(NEZHA_ESP32)
+	#include <NezhaMicroBlocks.h> // nezha_microblocks library (lib_deps)
+#endif
+
 // LED Matrix Pins on BBC micro:bit and Calliope
 
 static int disableLEDDisplay = false; // disable micro:bit 5x5 display and light sensor when true
@@ -763,6 +767,8 @@ static OBJ primLightLevel(int argCount, OBJ *args) {
 		} else {
 			lightLevel = 0;
 		}
+	#elif defined(NEZHA_ESP32)
+		return int2obj(nezhaMB_LightLevel());
 	#else
 		lightReadingRequested = true;
 	#endif
@@ -1104,6 +1110,8 @@ static void initNeoPixelPin(int pinNum) { // ESP32
 			pinNum = 39; // internal NeoPixel pin
 		#elif defined(NEZHA_ESP32)
 			pinNum = 8; // internal NeoPixel pin
+		#elif defined(STEAMakersAI)
+			pinNum = 45; // internal NeoPixel pin
 		#elif defined(ESP32_S3)
 			pinNum = 48; // ESP32-S3-DevKitC-1 internal NeoPixel pin
 		#elif defined(ESP32_C3)
@@ -1418,6 +1426,17 @@ OBJ primNeoPixelSend(int argCount, OBJ *args) {
 	OBJ arg = args[0];
 	if (IS_TYPE(arg, ListType)) {
 		int count = obj2int(FIELD(arg, 0));
+		#if defined(NEZHA_ESP32)
+			// Special case: to avoid occasional glitches Nezha ESP32's three
+			// built-in NeoPixels disable interrupts while sending the entire stream.
+			// WARNING: Do NOT disable interrupts when sending more than ~10
+			// NeoPixels because keeping interrupts disabled for long periods
+			// can interfere with communications or even cause the ESP32 to crash.
+			uint32 oldIRQ;
+			if (count <= 10) {
+				asm volatile ("rsil %0, 15" : "=r" (oldIRQ));
+			}
+		#endif
 		for (int i = 0; i < count; i++) {
 			OBJ item = FIELD(arg, i + 1);
 			int rgb = evalInt(item);
@@ -1435,6 +1454,12 @@ OBJ primNeoPixelSend(int argCount, OBJ *args) {
 			}
 			sendNeoPixelData(val);
 		}
+		#if defined(NEZHA_ESP32)
+			// restore interrupts if they were disabled
+			if (count <= 10) {
+				asm volatile ("wsr %0, ps; rsync" :: "r" (oldIRQ));
+			}
+		#endif
 	} else {
 		int rgb = evalInt(arg);
 		int r = gamma((rgb >> 16) & 0xFF);
@@ -1510,7 +1535,7 @@ void turnOffInternalNeoPixels() {
 		count = 3;
 	#elif defined(WUKONG2040)
 		count = 2;
-	#elif defined(ARDUINO_CALLIOPE_MINI) || defined(ARDUINO_NRF52840_CLUE)
+	#elif defined(ARDUINO_CALLIOPE_MINI) || defined(ARDUINO_NRF52840_CLUE) || defined(STEAMakersAI)
 		count = 1;
 	#elif defined(NEZHA_ESP32)
 		count = 3;

@@ -1,0 +1,62 @@
+module 'Gas (ENS160)' Input
+author MicroBlocks
+version 1 3 
+description 'Air quality (CO2 and VOC) library for Sciosense ENS160 (I2C addr: 0x53).
+
+https://www.mouser.com/datasheet/2/1081/SC_001224_DS_1_ENS160_Datasheet_Rev_0_95-2258311.pdf'
+variables _ens160_addr 
+
+  spec 'r' 'ens160_CO2' 'ens160 eCO2'
+  spec 'r' 'ens160_tovc' 'ens160 TVOC'
+  spec 'r' 'ens160_aqi' 'ens160 air quality index'
+  advanced
+  spec ' ' 'ens160_setTempHumidity' 'ens160 set temperature _ relative humidity _ %' 'num num' 25 50
+  space
+  spec ' ' '_ens160_init' '_ens160_init'
+  spec ' ' '_ens160_writeReg16' '_ens160_writeReg16 _ _' 'num num' 0 0
+  spec 'r' '_ens160_readData' '_ens160_readData _' 'num' 0
+
+to '_ens160_init' {
+  _ens160_addr = (hexToInt '53')
+  i2cSet _ens160_addr (hexToInt '10') (hexToInt 'F0')
+  waitMillis 10
+  i2cSet _ens160_addr (hexToInt '10') (hexToInt '2')
+  comment 'Set default temperature and humidity.
+For more accurate results, use the
+actual temperature and humidity from,
+for example, an SHT40 sensor.'
+  ens160_setTempHumidity 40 33
+}
+
+to '_ens160_readData' reg {
+  if (_ens160_addr == 0) {'_ens160_init'}
+  return (((i2cGet _ens160_addr (reg + 1)) << 8) | (i2cGet _ens160_addr reg))
+}
+
+to '_ens160_writeReg16' reg value {
+  if (_ens160_addr == 0) {'_ens160_init'}
+  local 'buffer' ('[data:newByteArray]' 3)
+  atPut 1 buffer reg
+  atPut 2 buffer (value & 255)
+  atPut 3 buffer ((value >> 8) & 255)
+  '[sensors:i2cWrite]' _ens160_addr buffer
+}
+
+to ens160_CO2 {
+  return ('_ens160_readData' (hexToInt '24'))
+}
+
+to ens160_aqi {
+  if (_ens160_addr == 0) {'_ens160_init'}
+  return (i2cGet _ens160_addr (hexToInt '21'))
+}
+
+to ens160_setTempHumidity degreesC humidity {
+  '_ens160_writeReg16' (hexToInt '13') ((degreesC + 273) << 6)
+  '_ens160_writeReg16' (hexToInt '15') (humidity << 9)
+}
+
+to ens160_tovc {
+  return ('_ens160_readData' (hexToInt '22'))
+}
+

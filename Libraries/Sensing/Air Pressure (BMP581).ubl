@@ -1,0 +1,122 @@
+module 'Air Pressure (BMP581)' Input
+author MicroBlocks
+version 1 2 
+description 'Air pressure and altimeter library based on BMP581 sensor (I2C addr: 0x46).
+
+https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp581-ds004.pdf'
+variables _bmp581_basePressure _bmp581_baseMeters 
+
+  spec 'r' 'bmp581_pressure' 'bmp581 air pressure (mBar)'
+  spec 'r' 'bmp581_temperature' 'bmp581 temperature (°C)'
+  space
+  spec 'r' 'bmp581_altitudeCentimeters' 'bmp581 altitude (cm)'
+  spec 'r' 'bmp581_altitudeFeet' 'bmp581 altitude (feet)'
+  spec ' ' 'bmp581_resetAltitude' 'bmp581 reset altitude to zero'
+  advanced
+  spec ' ' 'bmp581_setBasePressure' 'bmp581 set base pressure (mBar) _ at _ meters' 'num num' 1013 0
+  space
+  spec ' ' '_bmp581_init' '_bmp581_init'
+  spec 'r' '_bmp581_altitudeMillimeters' '_bmp581_altitudeMillimeters'
+  spec 'r' '_bmp581_rawPressure' '_bmp581_rawPressure'
+  spec 'r' '_bmp581_readData' '_bmp581_readData'
+
+to '_bmp581_altitudeMillimeters' {
+  if (_bmp581_basePressure == 0) {
+    comment 'if base altitude not set, use zero (useful for relative measurments)'
+    bmp581_resetAltitude
+  }
+  mmChange = ('[misc:pressureToAltitude]' _bmp581_basePressure ('_bmp581_rawPressure'))
+  return ((1000 * _bmp581_baseMeters) + mmChange)
+}
+
+to '_bmp581_init' {
+  local 'bmp581_addr' (hexToInt '46')
+  comment 'Soft reset'
+  i2cSet bmp581_addr (hexToInt '7E') (hexToInt 'B6')
+  comment 'wait for status_nvm_rdy (datasheet 4.3.9)'
+  local 'start' (millisOp)
+  waitUntil (or ((i2cGet bmp581_addr (hexToInt '28')) == 2) (((millisOp) - start) > 100))
+  comment 'enable pressure readings'
+  i2cSet bmp581_addr (hexToInt '36') (hexToInt '40')
+  comment 'Set up IIR filtering'
+  i2cSet bmp581_addr (hexToInt '31') ((4 << 3) | 4)
+  i2cSet bmp581_addr (hexToInt '30') ((1 << 5) | ((1 << 3) | 3))
+  comment 'Continuous filtering, 240 Hz'
+  i2cSet bmp581_addr (hexToInt '37') 1
+  comment 'Wait a bit for sensor to stabilize'
+  waitMillis 5
+}
+
+to '_bmp581_rawPressure' {
+  local 'data' ('_bmp581_readData')
+  comment '24-big signed value, 6-bits of fraction'
+  local 'result' ((((at 6 data) << 16) | ((at 5 data) << 8)) | (at 4 data))
+  comment 'result is pressure in Pascals * 64'
+  return result
+}
+
+to '_bmp581_readData' {
+  local 'bmp581_addr' (hexToInt '46')
+  local 'mode' (i2cGet bmp581_addr (hexToInt '37'))
+  if (mode < 0) {
+    comment 'No sensor: return all zeros'
+    return ('[data:newByteArray]' 6)
+  }
+  if ((mode & 3) != 1) {
+    comment 'Initialize if needed (i.e. mode is not "continuous")'
+    '_bmp581_init'
+    waitMillis 5
+  }
+  comment 'wait for fresh data'
+  local 'start' (millisOp)
+  waitUntil (or (((i2cGet bmp581_addr (hexToInt '27')) & 2) == 0) (((millisOp) - start) > 100))
+  local 'data' ('[data:newByteArray]' 6)
+  '[sensors:i2cWrite]' bmp581_addr (hexToInt '1D')
+  '[sensors:i2cRead]' bmp581_addr data
+  return data
+}
+
+to bmp581_altitudeCentimeters {
+  return (('_bmp581_altitudeMillimeters') / 10)
+}
+
+to bmp581_altitudeFeet {
+  return (('_bmp581_altitudeMillimeters') / 305)
+}
+
+to bmp581_pressure {
+  return (('_bmp581_rawPressure') / 6400)
+}
+
+to bmp581_resetAltitude {
+  comment 'Use this block to reset the altitude to zero.
+Altitudes are then relative to the elevation at the time of reset.
+This can be used to show altitude changes when climbing stairs or
+riding in an elevator.'
+  local 'total' 0
+  repeat 20 {
+    total += ('_bmp581_rawPressure')
+    waitMillis 1
+  }
+  _bmp581_basePressure = (total / 20)
+  _bmp581_baseMeters = 0
+}
+
+to bmp581_setBasePressure basePressurePascals baseMeters {
+  comment 'This allows one to measure absolute altitude given
+the current air pressure at a known elevation nearby.'
+  _bmp581_basePressure = (6400 * basePressurePascals)
+  _bmp581_baseMeters = baseMeters
+}
+
+to bmp581_temperature {
+  local 'data' ('_bmp581_readData')
+  comment '24-big signed value, 16-bits of fraction'
+  local 'result' ((((at 3 data) << 16) | ((at 2 data) << 8)) | (at 1 data))
+  comment 'sign extend 24 bit value'
+  result = ((result << 7) >> 7)
+  comment 'result is degrees C x 65536 (16 bits of fraction)'
+  comment 'round to nearest degree C'
+  return ((result + 32768) >> 16)
+}
+

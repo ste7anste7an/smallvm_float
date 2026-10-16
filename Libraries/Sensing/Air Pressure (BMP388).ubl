@@ -1,7 +1,9 @@
 module 'Air Pressure (BMP388)' Input
 author MicroBlocks
-version 1 0 
-description ''
+version 1 2 
+description 'Library for BMP388 air pressure sensor.
+This sensor is used in the KidsBits Coding Box.
+'
 variables _bmp388_addr _bmp388_basePressure _bmp388_baseAltitude 
 
   spec 'r' 'bmp388_airPressureMbar' 'bmp388 air pressure (mBar)'
@@ -20,7 +22,10 @@ to '_bmp388_altitudeMillimeters' {
     comment 'if base altitude not set, use zero (useful for relative measurments)'
     bmp388_setCurrentAltitude 0
   }
-  return ('[misc:pressureToAltitude]' ('_bmp388_rawPressure') _bmp388_basePressure)
+  mmChange = ('[misc:pressureToAltitude]' _bmp388_basePressure ('_bmp388_rawPressure'))
+  comment 'For some reason, the bmp388_ rawPressure increases with altitude causing the sign
+of mmChange to be inverted. Work aound that by subtracting it instead of adding it.'
+  return ((1000 * _bmp388_baseAltitude) - mmChange)
 }
 
 to '_bmp388_init' {
@@ -47,7 +52,7 @@ to '_bmp388_rawPressure' {
   local 'tmp' ('[data:newByteArray]' 3)
   '[sensors:i2cRead]' _bmp388_addr tmp
   comment 'High 18-bits of 24-bit value.'
-  return (((at 3 tmp) << 10) | (((at 2 tmp) << 2) | ((at 1 tmp) >> 6)))
+  return (((at 3 tmp) << 16) | (((at 2 tmp) << 8) | ((at 1 tmp) >> 0)))
 }
 
 to '_bmp388_rawTemp' {
@@ -60,7 +65,8 @@ to '_bmp388_rawTemp' {
 }
 
 to bmp388_airPressureMbar {
-  return ((10 * ('_bmp388_rawPressure')) / 1063)
+  comment 'Use the upper 18 bits of 24-bit raw pressure value'
+  return ((10 * (('_bmp388_rawPressure') >> 6)) / 1063)
 }
 
 to bmp388_altitudeCentimeters {

@@ -385,21 +385,21 @@ static void flashErase(int *startAddr, int *endAddr) {
 }
 
 static void flashWriteData(int *dst, int wordCount, uint8_t *src) {
-	uint32_t n, count, addr = (uint32_t)dst;
+	uint32_t n, count, addr = (uint32_t) dst;
 
 	if (wordCount < 1) return;
 	count = wordCount * 4;
 	if ((addr & 0xFF) > 0) {
 		n = 256 - (addr & 0xFF);
 		if (n > count) n = count;
-		teensy4_flash_write(addr, src, n);
+		teensy4_flash_write((void *) addr, src, n);
 		addr += n;
 		count -= n;
 	}
 	while (count > 0) {
 		n = count;
 		if (n > 256) n = 256;
-		teensy4_flash_write(addr, src, n);
+		teensy4_flash_write((void *) addr, src, n);
 		addr += n;
 		count -= n;
 	}

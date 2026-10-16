@@ -1,6 +1,6 @@
 module MIDI Output
 author MicroBlocks
-version 1 22 
+version 1 30 
 choices druminst 'Acoustic Bass Drum' 'Bass Drum 1' 'Side Stick' 'Acoustic Snare' 'Hand Clap' 'Electric Snare' 'Low Floor Tom' 'Closed Hi-Hat' 'High Floor Tom' 'Pedal Hi-Hat' 'Low Tom' 'Open Hi-Hat' 'Low-Mid Tom' 'Hi-Mid Tom' 'Crash Cymbal 1' 'High Tom' 'Ride Cymbal 1' 'Chinese Cymbal' 'Ride Bell' Tambourine 'Splash Cymbal' Cowbell 'Crash Cymbal 2' Vibraslap 'Ride Cymbal 2' 'Hi Bongo' 'Low Bongo' 'Mute Hi Conga' 'Open Hi Conga' 'Low Conga' 'High Timbale' 'Low Timbale' 'High Agogo' 'Low Agogo' Cabasa Maracas 'Short Whistle' 'Long Whistle' 'Short Guiro' 'Long Guiro' Claves 'Hi Wood Block' 'Low Wood Block' 'Mute Cuica' 'Open Cuica' 'Mute Triangle' 'Open Triangle' 
 choices _midiPin USB 
 choices instrument piano 'chromatic percussion' organ guitar bass strings ensemble brass reed pipe 'synth lead' 'synth pad' 'synth SFX' ethnic percussive 'gm;SFX' 
@@ -19,7 +19,7 @@ USB MIDI
 --------
 Alternatively, if you want to use the MIDI library to control a USB MIDI device -or a virtual synth running in your PC, even while MicroBlocks is running- you can do so by setting the `use USB MIDI` flag to true in the `set MIDI pin` block.
 '
-variables _MIDI_initialized _MIDI_pin _MIDI_drums _MIDI_clock_on 
+variables _MIDI_initialized _MIDI_pin _MIDI_drums _MIDI_clock_on _MIDI_message_buffer _MIDI_input_note
 
   spec ' ' 'MIDI_play MIDI note' 'play MIDI note _ for _ ms on channel _ volume _' 'auto auto auto auto' 60 500 1 127
   spec ' ' 'MIDI_send note' 'set MIDI note _ to _ on channel _ volume _' 'auto bool auto auto' 60 true 1 127
@@ -48,6 +48,8 @@ variables _MIDI_initialized _MIDI_pin _MIDI_drums _MIDI_clock_on
   space
   spec ' ' 'MIDI_set MIDI pin' 'set MIDI signal to pin _' 'auto._midiPin' 8
   space
+  spec 'r' 'MIDI last note received' 'note received'
+  space
   spec ' ' '_MIDI init' '_MIDI init'
   space
   spec ' ' '_MIDI command' '_MIDI command _ channel _ arg1 _ : arg2 _' 'num num num num' 9 1 60 127
@@ -58,6 +60,17 @@ variables _MIDI_initialized _MIDI_pin _MIDI_drums _MIDI_clock_on
   space
   spec 'r' '_trimmedLowercase' '_trimmedLowercase _' 'str' 'A. b C...'
   spec ' ' '_arp play MIDI note' '_arp play MIDI note _ for _ on channel _ volume _' 'auto auto auto auto' 60 500 1 127
+  space
+  spec ' ' '_MIDI_start_processing' '_MIDI_start_processing'
+  spec ' ' '_MIDI_start_reading' '_MIDI_start_reading'
+
+to 'MIDI last note received' {
+  if ((v '_MIDI_message_buffer') == 0) {
+    sendBroadcast '_MIDI_start_reading'
+    sendBroadcast '_MIDI_start_processing'
+  }
+  return _MIDI_input_note
+}
 
 to 'MIDI_change MIDI control' control channel value {
   local 'controlChangeCmd' 11
@@ -295,6 +308,38 @@ to '_MIDI_Roland_control' control value channel {
     '_MIDI_NRPN' 1 32 channel value
   } (control == 75) {
     '_MIDI_NRPN' 1 100 channel value
+  }
+}
+
+to '_MIDI_start_processing' {
+  local 'note' 0
+  local 'volume' 0
+  forever {
+    waitUntil ((size (v '_MIDI_message_buffer')) >= 1)
+    repeatUntil ((at 1 (v '_MIDI_message_buffer')) == 144) {
+      '[data:delete]' 1 (v '_MIDI_message_buffer')
+    }
+    '[data:delete]' 1 (v '_MIDI_message_buffer')
+    waitUntil ((size (v '_MIDI_message_buffer')) >= 2)
+    note = (at 1 (v '_MIDI_message_buffer'))
+    '[data:delete]' 1 (v '_MIDI_message_buffer')
+    volume = (at 1 (v '_MIDI_message_buffer'))
+    '[data:delete]' 1 (v '_MIDI_message_buffer')
+    if (volume > 0) {
+      _MIDI_input_note = note
+    } else {
+      _MIDI_input_note = ''
+    }
+  }
+}
+
+to '_MIDI_start_reading' {
+  '_MIDI_message_buffer' = ('[data:makeList]')
+  '[serial:open]' 31250
+  forever {
+    for byte ('[serial:read]') {
+      '[data:addLast]' byte (v '_MIDI_message_buffer')
+    }
   }
 }
 

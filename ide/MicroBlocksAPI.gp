@@ -158,10 +158,10 @@ method dispatchCall MicroBlocksAPI callObject {
 		pasteScripts (scriptEditor scripter)
 	} (endPoint == 'scripts.paste') {
 		respondAPIRequest this id 0 // respond first so the request is deleted
-		pasteScripts (scriptEditor scripter)
+		pasteScripts (scriptEditor scripter) (getClipboard)
 	} (endPoint == 'scripts.saveImage') {
 		respondAPIRequest this id 0 // respond first so the request is deleted
-		saveScriptsImage (scriptEditor scripter)
+		saveScriptsImage (scriptEditor scripter) (getClipboard)
 	} (endPoint == 'scripts.setExportedScriptScale') {
 		respondAPIRequest this id 0 // respond first so the request is deleted
 		setExportScale (scriptEditor scripter) (at params 1)

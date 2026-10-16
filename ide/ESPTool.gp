@@ -498,6 +498,8 @@ method vmNameForBoard ESPTool boardName {
 	} ('ESP32' == boardName) { return 'vm_esp32.bin'
 	} ('Citilab ED1' == boardName) { return 'vm_citilab-ed1.bin'
 	} ('micro:STEAMakers' == boardName) { return 'vm_micro_steamakers.bin'
+	} ('ESP32 STEAMakers' == boardName) { return 'vm_esp32_steamakers.bin'
+	} ('STEAMakers AI' == boardName) { return 'vm_steamakers_ai.bin'
 	} ('KidsBits' == boardName) { return 'vm_kids_bits.bin'
 	} ('KidsIOT' == boardName) { return 'vm_kids_bits.bin'
 	} ('CodingBox' == boardName) { return 'vm_kids_bits.bin'
@@ -536,14 +538,19 @@ method uploadESP8266VM ESPTool vmData eraseFlag {
 
 method uploadESP32VM ESPTool vmData eraseFlag boardName {
 	if (isNil eraseFlag) { eraseFlag = false }
+	isNezhaBoard = (notNil (findSubstring 'nezha' (toLowerCase boardName)))
 
 	ok = (connect this)
 	if (not ok) { return false }
 
 	ok = (uploadStub this)
 	if (not ok) { return false }
-
-	ok = (setFlashParameters this)
+	if isNezhaBoard {
+		ok = (setFlashParameters this 16)
+		setAllInOneBinary this true
+	} else {
+		ok = (setFlashParameters this 4)
+	}
 	if (not ok) { return false }
 
 	if eraseFlag { eraseFlash this }
@@ -601,6 +608,7 @@ method uploadCompressed ESPTool startAddr data {
 	start = (msecsSinceStart)
 
 	packetSize = 800 // 800 is good; 900 works; 984 fails
+	gcIfNeededFor ((byteCount data) / 2) // zlibEncode needs up to twice the data size in one piece
 	compressedData = (zlibEncode data)
 	compressedBytecount = (byteCount compressedData)
 	packetCount = (ceiling (compressedBytecount / packetSize))
@@ -684,14 +692,14 @@ method uploadUncompressed ESPTool startAddr flashData {
 	}
 }
 
-method setFlashParameters ESPTool {
-	// Assumes Flash is 4 MB for now. (Later, could detect the actual size.)
+method setFlashParameters ESPTool flashSizeMB {
+	// Takes Flash size (in MB) as a parameter for now. Later, could detect actual size.
 	// Of John's boards, all are 4 MB except the M5Stack, which is 16 MB.
 	// Other parameters are fixed.
 
 	args = (list)
 	add32Int this args 0 // Flash ID
-	add32Int this args (4 * (1024 * 1024)) // total size; assume 4 MB
+	add32Int this args (flashSizeMB * (1024 * 1024)) // total Flash size
 	add32Int this args (64 * 1024) // block size
 	add32Int this args (4 * 1024) // sector size
 	add32Int this args 256 // page size

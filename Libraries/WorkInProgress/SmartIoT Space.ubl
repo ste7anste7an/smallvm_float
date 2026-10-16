@@ -1,0 +1,146 @@
+module 'SmartIoT Space' Comm
+author MicroBlocks
+version 1 0 
+depends WiFi '_HTTP client' 
+tags iot cloud internet elecfreaks smartiot network dashboard 
+choices smartiot_switchMenu on off 
+description 'Send data to the ELECFREAKS SmartIoT cloud (smartiot.space) and read its on/off switch.
+
+Sign in at smartiot.space, create a device, and copy your user token and the device''s topic. Connect to WiFi first, then use the connect block.
+
+Upload up to eight numbers at once and see them as charts on the SmartIoT site. To react when someone flips the switch on the site, use ( SmartIoT switch on ) in a "when" block and end the script with "wait until" the switch changes back, so it runs once per flip. Or use ( when SmartIoT switch _ send broadcast _ ) and "when I receive" scripts.
+
+SmartIoT uses plain HTTP on port 8080, so the token is not encrypted and some school networks may block it.'
+variables _smartiot_userToken _smartiot_topicName _smartiot_server _smartiot_serverPort _smartiot_isConnected _smartiot_data _smartiot_reply _smartiot_busy _smartiot_lastUpload _smartiot_lastPoll _smartiot_switchOn _smartiot_listeners 
+
+  spec ' ' 'smartiot switch broadcast' 'when SmartIoT switch _ send broadcast _' 'menu.smartiot_switchMenu str' 'on' ''
+  spec ' ' 'smartiot connect' 'connect SmartIoT with usertoken _ topic _' 'str str' 'YourUserToken' '1'
+  spec ' ' 'smartiot set data' 'set data to send SmartIoT field 1 _ : field 2 _ : field 3 _ : field 4 _ : field 5 _ : field 6 _ : field 7 _ : field 8 _' 'num num num num num num num num' 0 0 0 0 0 0 0 0
+  spec ' ' 'smartiot upload' 'upload data to SmartIoT'
+  spec 'r' 'smartiot connected' 'SmartIoT connection'
+  spec 'r' 'smartiot switch is' 'SmartIoT switch _' 'menu.smartiot_switchMenu' 'on'
+  space
+  spec ' ' 'smartiot set server' 'set SmartIoT server host _ port _' 'str num' 'http://www.smartiot.space' 8080
+  spec 'r' 'smartiot last response' 'SmartIoT last response'
+  spec 'r' '_smartiot get' '_smartiot get _' 'str' ''
+  spec ' ' '_smartiot poll switch' '_smartiot poll switch'
+  spec ' ' '_smartiot broadcast loop' '_smartiot broadcast loop'
+
+to '_smartiot broadcast loop' {
+  local 'wasOn' ('smartiot switch is' 'on')
+  forever {
+    local 'isOn' ('smartiot switch is' 'on')
+    if (isOn != wasOn) {
+      for listener _smartiot_listeners {
+        if ((at 1 listener) == (ifExpression isOn 'on' 'off')) {sendBroadcast (at 2 listener)}
+      }
+      wasOn = isOn
+    }
+    waitMillis 100
+  }
+}
+
+to '_smartiot get' path {
+  comment 'The VM has a single HTTP connection, so requests from different tasks take turns.'
+  waitUntil (not (_smartiot_busy == true))
+  _smartiot_busy = true
+  if (_smartiot_server == 0) {
+    'smartiot set server' 'www.smartiot.space' 8080
+  }
+  local 'response' ('_request_url' ('[data:join]' _smartiot_server path) 'GET' '' _smartiot_serverPort false)
+  _smartiot_busy = false
+  return ('_httpResponseBody' response)
+}
+
+to '_smartiot poll switch' {
+  comment 'Asks the server at most once a second; every reader shares the answer.'
+  if (not (_smartiot_isConnected == true)) {
+    return
+  }
+  if (and (_smartiot_lastPoll != 0) ((millisSince _smartiot_lastPoll) < 1000)) {
+    return
+  }
+  _smartiot_lastPoll = (millisOp)
+  local 'response' ('_smartiot get' ('[data:join]' '/iot/iotTopic/getTopicStatus/' _smartiot_userToken '/' _smartiot_topicName))
+  if (('[data:find]' 'switchOn' response) > 0) {
+    _smartiot_switchOn = true
+  } (('[data:find]' 'switchOff' response) > 0) {
+    _smartiot_switchOn = false
+  }
+}
+
+to 'smartiot connect' token topic {
+  _smartiot_userToken = token
+  _smartiot_topicName = topic
+  _smartiot_isConnected = false
+  _smartiot_switchOn = 0
+  _smartiot_lastPoll = 0
+  repeat 3 {
+    local 'response' ('_smartiot get' ('[data:join]' '/iot/iotTopic/getTopicStatus/' token '/' topic))
+    _smartiot_reply = response
+    if (('[misc:jsonGet]' response 'code') == 200) {
+      _smartiot_isConnected = true
+      '_smartiot poll switch'
+      return
+    }
+    waitMillis 200
+  }
+}
+
+to 'smartiot connected' {
+  return (_smartiot_isConnected == true)
+}
+
+to 'smartiot last response' {
+  if (_smartiot_reply == 0) {return ''}
+  return _smartiot_reply
+}
+
+to 'smartiot set data' n1 n2 n3 n4 n5 n6 n7 n8 {
+  local 'query' ''
+  for i 8 {
+    query = ('[data:join]' query '&data' i '=' (argOrDefault i 0))
+  }
+  _smartiot_data = query
+}
+
+to 'smartiot set server' host port {
+  host = ('[data:convertType]' host 'string')
+  if (('[data:find]' '://' host) > 0) {
+    host = ('[data:copyFromTo]' host (('[data:find]' '://' host) + 3))
+  }
+  if (and ((size host) > 0) ((at 'last' host) == '/')) {
+    host = ('[data:copyFromTo]' host 1 ((size host) - 1))
+  }
+  _smartiot_server = host
+  _smartiot_serverPort = port
+}
+
+to 'smartiot switch broadcast' state message {
+  comment 'Broadcasts the message each time the switch changes to the given state. The broadcast starts the watching loop if it is not already running.'
+  if (_smartiot_listeners == 0) {
+    _smartiot_listeners = ('[data:makeList]')
+  }
+  '[data:addLast]' ('[data:makeList]' state message) _smartiot_listeners
+  sendBroadcast '_smartiot broadcast loop'
+}
+
+to 'smartiot switch is' state {
+  '_smartiot poll switch'
+  if (state == 'off') {
+    return (_smartiot_switchOn == false)
+  }
+  return (_smartiot_switchOn == true)
+}
+
+to 'smartiot upload' {
+  if (not (_smartiot_isConnected == true)) {return}
+  if (_smartiot_data == 0) {'smartiot set data'}
+  comment 'Space uploads at least a second apart.'
+  if (and (_smartiot_lastUpload != 0) ((millisSince _smartiot_lastUpload) < 1000)) {
+    waitMillis (1000 - (millisSince _smartiot_lastUpload))
+  }
+  _smartiot_reply = ('_smartiot get' ('[data:join]' '/iot/iotTopicData/addTopicData?userToken=' _smartiot_userToken '&topicName=' _smartiot_topicName _smartiot_data))
+  _smartiot_lastUpload = (millisOp)
+}
+

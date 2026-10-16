@@ -35,18 +35,22 @@ extern "C" {
 	#define STARTUP_GESTURE_ALWAYS 1 // the startup gesture works at any time, not just after boot
 #endif
 
+#if defined(NEZHA_ESP32)
+	#define BOARD_BLE_NAME "MicroBlocks Nezha ESP32"
+#endif
+
 #ifndef BOARD_BLE_NAME
 	#define BOARD_BLE_NAME "MicroBlocks"
 #endif
 
 // Board lifecycle hooks. All are called on the VM thread.
 
-void boardEarlyInit();	// start of setup(), before memory, primitives and pins
 void boardInit();		// end of hardwareInit(), after pins and the display are set up
 void boardAddPrims();	// end of primsInit(), to add or fill in the board's own primitive sets
 void boardPoll();		// with the VM's other background work, about every 100 VM loop cycles
 void boardStopAll();	// when the VM resets its outputs: the stop button, starting a program, reset
 void boardIDEConnectionChanged(int isConnected); // when the IDE connects or disconnects
+int boardStartAtBoot(); // true if the VM should start the user's program at the end of setup()
 
 // VM thread requests, for board code running on its own task or core.
 // VM state must only be changed on the VM thread. Board code queues the work here and

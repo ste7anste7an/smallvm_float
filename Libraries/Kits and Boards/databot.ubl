@@ -1,6 +1,6 @@
 module databot
 author MicroBlocks
-version 1 6 
+version 1 7 
 depends 'Air Pressure (LPS22HB)' 'Gas (SGP30)' 'Temperature Humidity (SHTC3)' 'Light & Gesture (APDS9960)' 
 choices databot_tempUnits '°C' '°F' 
 description ''
@@ -169,7 +169,7 @@ to databot_temperature units {
   if (units == '°C') {
     return (shtc3_temperature)
   } else {
-    return (32 + (9 * ((shtc3_temperature) / 5)))
+    return (32 + ((9 * (shtc3_temperature)) / 5))
   }
 }
 

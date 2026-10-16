@@ -1,7 +1,10 @@
 #!/bin/bash
-# Rebuild and update the precompiled binaries.
+# Rebuild and update the extra VM binaries.
 rm -f *.hex *.bin *.uf2
 cd ..
+
+pio run -e nezha_for_esp32
+esptool.py --chip esp32s3 merge_bin -o extraVMs/vm_nezha_for_esp32.bin --flash_mode dio --flash_freq 80m --flash_size 16MB 0x0 .pio/build/nezha_for_esp32/bootloader.bin 0x8000 .pio/build/nezha_for_esp32/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/nezha_for_esp32/firmware.bin 0x540000 .pio/libdeps/nezha_for_esp32/nezha_for_esp32/firmware/resource.bin 0x7b3000 .pio/libdeps/nezha_for_esp32/nezha_for_esp32/firmware/ui_data.bin 0xab3000 .pio/libdeps/nezha_for_esp32/nezha_for_esp32/firmware/srmodels.bin
 
 pio run -e calliope
 cp .pio/build/calliope/firmware.hex extraVMs/vm_calliope_v1_v2.hex

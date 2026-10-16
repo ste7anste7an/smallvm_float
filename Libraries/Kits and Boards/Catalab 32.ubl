@@ -1,7 +1,7 @@
 module 'Catalab 32'
 author 'Allan Moreira'
 version 1 5 
-depends Tone _Servo '_Temperature Humidity (DHT11, DHT22)' '_Distance (HC-SR04)' NeoPixel 'External Display' TFT 'Tiny OLED' 'LED Display' 
+depends Tone _Servo '_Temperature Humidity (DHT11, DHT22)' '_Distance (HC-SR04)' NeoPixel 'External Displays' TFT 'Tiny OLED' 'LED Display' 
 tags tags oled ldr hall motor 'hc-sr04' tft dht11 encoder '4' keys tactil tft i2c 
 choices catalab_led_cor red yellow green 
 choices catalab_joystick X Y 'button pressed?' 

@@ -1,0 +1,1477 @@
+module Input Control
+author 'Elecfreaks Team'
+version 1 10 
+choices planetXRTCReadField year month day weekday hour minute seconds 
+choices planetXRTCField year month day weekday hour minute seconds 
+choices planetXDistanceUnit cm mm inch 
+choices ioAdcPort J1 J2 J3 J4 
+choices planetXRTCSetField year month day hour minute seconds 
+choices planetXTrackBitChannel '1' '2' '3' '4' 
+choices planetXTrackBitSense '0' '1' 
+choices planetXTrackBitPattern '0000' '0001' '0010' '0011' '0100' '0101' '0110' '0111' '1000' '1001' '1010' '1011' '1100' '1101' '1110' '1111' 
+choices planetXTempUnit Celsius Fahrenheit 
+choices planetXTrackingState '00' '01' '10' '11' 
+choices planetXGas 'carbon monoxide' 'carbon dioxide' smoke alcohol 
+choices planetXBME280State 'temperature (°C)' 'humidity (0-100%)' 'pressure (hPa)' 'altitude (m)' 
+choices planetXDHT11State 'temperature (C)' 'humidity (0-100)' 
+choices planetXButton C D 
+choices planetXWaterSpeed slow medium fast 
+description 'button
+
+crash sensor
+
+ultrasonic sensor
+
+pyroelectric sensor
+
+DHT11
+
+DS18B20
+
+Line inspection sensor
+
+Noise sensor
+
+Light sensor
+
+Soil moisture sensor
+
+water level sensor
+
+UV sensor
+
+gas sensor
+
+PM2.5
+
+dust sensor
+
+potentiometer
+
+RFID
+
+environmental sensor
+
+real-time clock
+
+Four-channel grayscale line-following sensors'
+variables _gpio_buttonEdges _gpio_dsLastTemp _gpio_sr04_last _gpio_sr04_misses _gpio_dht_temperature _gpio_dht_humidity _gpio_dhtData _gpio_dhtLastReadTime _gpio_dhtRawPulses _gpio_tmClockPin _gpio_tmDataPin _gpio_tmBrightness _gpio_tmDigits _gpio_npPixels _gpio_npPin _gpio_npHasWhite _gpio_npRangeStart _gpio_npRangeLength _gpio_mp3Pin _gpio_wifiConnected _gpio_wifiLastResponse _gpio_wifiTXPin _gpio_wifiRXPin _gpio_wifiBaudRate _gpio_i2cReady _gpio_matrixReady _gpio_matrixBuf _gpio_asrEvents _planetX_rfidReady _planetX_rfidStatus _planetX_rfidRetBits _planetX_rfidRetCount _planetX_rfidAck _planetX_rfidRecv _planetX_rfidUid _planetX_rfidBlock _planetX_rfidWrite _planetX_rfidKey _planetX_extI2CReady _planetX_bmeReady _planetX_bmeAddr _planetX_bmeDigT1 _planetX_bmeDigT2 _planetX_bmeDigT3 _planetX_bmeDigP1 _planetX_bmeDigP2 _planetX_bmeDigP3 _planetX_bmeDigP4 _planetX_bmeDigP5 _planetX_bmeDigP6 _planetX_bmeDigP7 _planetX_bmeDigP8 _planetX_bmeDigP9 _planetX_bmeDigH1 _planetX_bmeDigH2 _planetX_bmeDigH3 _planetX_bmeDigH4 _planetX_bmeDigH5 _planetX_bmeDigH6 _planetX_bmeTemperature _planetX_bmePressure _planetX_bmeHumidity _planetX_gestureReady _planetX_asrReady _planetX_asrData _planetX_asrLastCode _planetX_colorReady _planetX_colorHue _planetX_colorClear _planetX_colorR _planetX_colorG _planetX_colorB _planetX_colorAddr _planetX_colorNewMode _planetX_rtcReady _planetX_trackBitReady _planetX_trackBitStateValue _planetX_trackBitStateValid _planetX_i2cRequestBusy _planetX_rfidStart _planetX_rfidController _planetX_wsResponse _planetX_i2cQueue 
+
+  spec ' ' 'buttonEventBroadcast' 'when button _ key _ is pressed send broadcast _' 'menu.ioAdcPort menu.planetXButton str' 'J1' 'C' ''
+  spec 'r' 'buttonCD' 'button _ key _ is pressed' 'menu.ioAdcPort menu.planetXButton' 'J1' 'C'
+  space
+  spec 'r' 'Crash' 'crash sensor _ pressed?' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'ultrasoundSensor' 'ultrasonic sensor _ distance, unit _' 'menu.ioAdcPort menu.planetXDistanceUnit' 'J1' 'cm'
+  space
+  spec 'r' 'PIR' 'PIR sensor _ detects motion?' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'dht11Sensor' 'temperature and humidity sensor _ _ value' 'menu.ioAdcPort menu.planetXDHT11State' 'J1' 'temperature (C)'
+  space
+  spec 'r' 'Ds18b20Temp' 'temperature sensor _ temperature, unit _' 'menu.ioAdcPort menu.planetXTempUnit' 'J1' 'Celsius'
+  space
+  spec 'r' 'trackingSensor' 'line-tracking sensor _ detects _' 'menu.ioAdcPort menu.planetXTrackingState' 'J1' '00'
+  space
+  spec 'r' 'noiseSensor' 'noise sensor _ level (dB)' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'lightSensor' 'light sensor _ level (lux)' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'soilHumidity' 'soil moisture sensor _ value (0-100)' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'waterLevel' 'water level sensor _ speed _ value (0-100)' 'menu.ioAdcPort menu.planetXWaterSpeed' 'J1' 'fast'
+  space
+  spec 'r' 'UVLevel' 'UV sensor _ level (0-15)' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'gasValueV2' 'gas sensor _ _ concentration' 'menu.ioAdcPort menu.planetXGas' 'J1' 'carbon monoxide'
+  space
+  spec 'r' 'PM25' 'PM2.5 sensor _ concentration' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'Dust' 'dust sensor _ value' 'menu.ioAdcPort' 'J1'
+  space
+  spec 'r' 'trimpot' 'trimpot _ analog value' 'menu.ioAdcPort' 'J1'
+  space
+  space
+  spec ' ' 'rfidWriteData' 'RFID sensor write data _ to card' 'str' ''
+  spec 'r' 'rfidDetectCard' 'RFID sensor detects card?'
+  spec 'r' 'rfidReadData' 'RFID sensor read data from card'
+  space
+  spec 'r' 'bme280Sensor' 'BME280 sensor _ value' 'menu.planetXBME280State' 'temperature (°C)'
+  space
+  spec ' ' 'rtcSetDataV2' 'real-time clock set to _ _' 'num menu.planetXRTCSetField' 2026 'year'
+  spec 'r' 'rtcReadData' 'real-time clock get _' 'menu.planetXRTCReadField' 'year'
+  space
+  spec 'r' 'trackBitStateValue' 'return four-channel grayscale line sensor state value'
+  spec 'r' 'trackBitChannelState' 'four-channel grayscale line sensor channel _ detects _' 'menu.planetXTrackBitChannel menu.planetXTrackBitSense' '1' '1'
+  spec 'r' 'trackBitState' 'four-channel grayscale line sensor detects state _' 'menu.planetXTrackBitPattern' '0000'
+  spec 'r' 'trackBitGray' 'four-channel grayscale line sensor channel _ gray value' 'menu.planetXTrackBitChannel' '1'
+
+to Crash port {
+  return (not (digitalReadOp ('_gpio_pinForPort' port 'B') 'up'))
+}
+
+to Ds18b20Temp port unit {
+  local 'tempC' (('_gpio_ds18b20Raw' ('_gpio_pinForPort' port 'B')) / 16)
+  if (or (unit == 'Fahrenheit') (unit == '华氏度')) {
+    return ((tempC * 18) / 10) '+' 32
+  }
+  return tempC
+}
+
+to Dust port {
+  local 'voPin' ('_gpio_pinForPort' port 'A')
+  local 'ledPin' ('_gpio_pinForPort' port 'B')
+  local 'raw' ('[elfreaks_dev_sensor:dustRaw]' voPin ledPin)
+  local 'mv' ('[misc:rescale]' raw 0 1023 0 4650)
+  local 'dust' (((mv - 380) * 5) / 29)
+  return (maximum 0 dust)
+}
+
+to PIR port {
+  return (digitalReadOp ('_gpio_pinForPort' port 'B'))
+}
+
+to PM25 port {
+  local 'pin' ('_gpio_pinForPort' port 'B')
+  '[sensors:captureStart]' pin
+  local 'start' (millisOp)
+  repeatUntil (or (('[sensors:captureCount]') >= 3) ((millisSince start) > 1000)) {
+    waitMillis 1
+  }
+  local 'pulses' ('[sensors:captureEnd]')
+  if ((size pulses) < 2) {
+    return 0
+  }
+  local 'pulseWidth' (at 2 pulses)
+  if (pulseWidth < 0) {
+    return 0
+  }
+  return pulseWidth
+}
+
+to UVLevel port {
+  local 'value' (minimum (analogReadOp ('_gpio_pinForPort' port 'A')) 625)
+  return ('[misc:rescale]' value 0 625 0 15)
+}
+
+to '_gpio_buttonNow' port button {
+  local 'pinC' ('_gpio_pinForPort' port 'A')
+  local 'pinD' ('_gpio_pinForPort' port 'B')
+  digitalReadOp pinC 'up'
+  digitalReadOp pinD 'up'
+  waitMillis 1
+  local 'cPressed' (not (digitalReadOp pinC 'up'))
+  local 'dPressed' (not (digitalReadOp pinD 'up'))
+  if (button == 'C') {
+    return cPressed
+  } (button == 'D') {
+    return dPressed
+  }
+  return (and cPressed dPressed)
+}
+
+to '_gpio_dhtCaptureData' pin {
+  '[sensors:captureStart]' pin
+  waitMillis 10
+  local 'pulses' ('[sensors:captureEnd]')
+  local 'pulseCount' (size pulses)
+  if (pulseCount < 80) {
+    return 0
+  }
+  if (pulseCount > 80) {
+    pulses = ('[data:copyFromTo]' pulses (pulseCount - 79))
+  }
+  _gpio_dhtRawPulses = pulses
+  local 'byte' 0
+  for i 40 {
+    if ((at ((2 * i) - 1) pulses) > 40) {byte += 1}
+    if ((i % 8) == 0) {
+      atPut (i / 8) _gpio_dhtData byte
+      byte = 0
+    } else {
+      byte = (byte << 1)
+    }
+  }
+}
+
+to '_gpio_dhtChecksumOkay' {
+  if (not (isType _gpio_dhtData 'list')) {return false}
+  local 'checksum' 0
+  for i 4 {
+    checksum += (at i _gpio_dhtData)
+  }
+  checksum = (checksum & 255)
+  return (checksum == (at 5 _gpio_dhtData))
+}
+
+to '_gpio_dhtReadData' pin {
+  if (_gpio_dhtData == 0) {_gpio_dhtData = (newList 5)}
+  atPut 'all' _gpio_dhtData 1
+  local 'data' ('[elfreaks_dev_sensor:dhtRead]' pin)
+  if (isType data 'list') {
+    _gpio_dhtData = data
+  }
+}
+
+to '_gpio_dhtReady' {
+  local 'elapsed' ((millisOp) - _gpio_dhtLastReadTime)
+  return (or (elapsed < 0) (elapsed > 2000))
+}
+
+to '_gpio_dhtUpdate' pin {
+  if ('_gpio_dhtReady') {
+    '_gpio_dhtReadData' pin
+    _gpio_dhtLastReadTime = (millisOp)
+    if ('_gpio_dhtChecksumOkay') {
+      local 'newTemp' (at 3 _gpio_dhtData)
+      local 'newHum' (at 1 _gpio_dhtData)
+      if (and (newTemp != 0) (newHum != 0)) {
+        _gpio_dht_temperature = newTemp
+        _gpio_dht_humidity = newHum
+      }
+    }
+  }
+}
+
+to '_gpio_ds18b20Address' pin {
+  '[1wire:init]' pin
+  '[1wire:scanStart]'
+  waitMillis 10
+  local 'addr' ('[data:newByteArray]' 8)
+  if (not ('[1wire:scanNext]' addr)) {
+    return 0
+  }
+  local 'family' (at 1 addr)
+  if (not (or (family == 34) (or (family == 40) (family == 66)))) {
+    return 0
+  }
+  return addr
+}
+
+to '_gpio_ds18b20Raw' pin {
+  local 'addr' ('_gpio_ds18b20Address' pin)
+  if (addr == 0) {
+    return 0
+  }
+  '[1wire:select]' addr
+  '[1wire:writeByte]' (hexToInt '44') true
+  waitMillis 750
+  '[1wire:select]' addr
+  '[1wire:writeByte]' (hexToInt 'BE')
+  local 'dataBytes' ('[data:newByteArray]' 9)
+  for i 9 {
+    atPut i dataBytes ('[1wire:readByte]')
+  }
+  if (('[1wire:crc8]' dataBytes) != 0) {
+    return _gpio_dsLastTemp
+  }
+  local 'result' (((at 2 dataBytes) << 8) | (at 1 dataBytes))
+  if (result >= 32768) {
+    result = (result - 65536)
+  }
+  _gpio_dsLastTemp = result
+  return result
+}
+
+to '_gpio_humidityDHT11' pin {
+  '_gpio_dhtUpdate' pin
+  return _gpio_dht_humidity
+}
+
+to '_gpio_pinForPort' port pin {
+  if (pin == 'B') {
+    if (port == 'J2') {
+      return 7
+    } (port == 'J3') {
+      return 16
+    } (port == 'J4') {
+      return 18
+    }
+    return 5
+  }
+  if (port == 'J2') {
+    return 6
+  } (port == 'J3') {
+    return 15
+  } (port == 'J4') {
+    return 17
+  }
+  return 4
+}
+
+to '_gpio_temperatureDHT11' pin {
+  '_gpio_dhtUpdate' pin
+  return _gpio_dht_temperature
+}
+
+to '_planetX_bmeEnsure' {
+  '_planetX_extI2CInit'
+  if _planetX_bmeReady {
+    return true
+  }
+  if ('_planetX_bmeTryInit' 118) {
+    return true
+  }
+  if ('_planetX_bmeTryInit' 119) {
+    return true
+  }
+  return false
+}
+
+to '_planetX_bmeReadInt16LE' reg {
+  return ('_planetX_bmeToInt16' ('_planetX_bmeReadUInt16LE' reg))
+}
+
+to '_planetX_bmeReadInt8' reg {
+  return ('_planetX_bmeToInt8' ('_planetX_bmeReadReg' reg))
+}
+
+to '_planetX_bmeReadReg' reg {
+  return ('_planetX_i2cReadReg' _planetX_bmeAddr reg)
+}
+
+to '_planetX_bmeReadUInt16LE' reg {
+  return ('_planetX_i2cReadUInt16LE' _planetX_bmeAddr reg)
+}
+
+to '_planetX_bmeToInt12' value {
+  if (value > 2047) {return (value - 4096)}
+  return value
+}
+
+to '_planetX_bmeToInt16' value {
+  if (value > 32767) {return (value - 65536)}
+  return value
+}
+
+to '_planetX_bmeToInt8' value {
+  if (value > 127) {return (value - 256)}
+  return value
+}
+
+to '_planetX_bmeTryInit' addr {
+  '_planetX_extI2CInit'
+  _planetX_bmeAddr = addr
+  if (or (addr < 1) (not ('_planetX_i2cExists' addr))) {
+    return false
+  }
+  if (('_planetX_bmeReadReg' 208) != 96) {
+    return false
+  }
+  _planetX_bmeDigT1 = ('_planetX_bmeReadUInt16LE' 136)
+  _planetX_bmeDigT2 = ('_planetX_bmeReadInt16LE' 138)
+  _planetX_bmeDigT3 = ('_planetX_bmeReadInt16LE' 140)
+  _planetX_bmeDigP1 = ('_planetX_bmeReadUInt16LE' 142)
+  _planetX_bmeDigP2 = ('_planetX_bmeReadInt16LE' 144)
+  _planetX_bmeDigP3 = ('_planetX_bmeReadInt16LE' 146)
+  _planetX_bmeDigP4 = ('_planetX_bmeReadInt16LE' 148)
+  _planetX_bmeDigP5 = ('_planetX_bmeReadInt16LE' 150)
+  _planetX_bmeDigP6 = ('_planetX_bmeReadInt16LE' 152)
+  _planetX_bmeDigP7 = ('_planetX_bmeReadInt16LE' 154)
+  _planetX_bmeDigP8 = ('_planetX_bmeReadInt16LE' 156)
+  _planetX_bmeDigP9 = ('_planetX_bmeReadInt16LE' 158)
+  _planetX_bmeDigH1 = ('_planetX_bmeReadReg' 161)
+  _planetX_bmeDigH2 = ('_planetX_bmeReadInt16LE' 225)
+  _planetX_bmeDigH3 = ('_planetX_bmeReadReg' 227)
+  local 'e5' ('_planetX_bmeReadReg' 229)
+  _planetX_bmeDigH4 = ('_planetX_bmeToInt12' ((('_planetX_bmeReadReg' 228) << 4) + (e5 % 16)))
+  _planetX_bmeDigH5 = ('_planetX_bmeToInt12' ((('_planetX_bmeReadReg' 230) << 4) + (e5 >> 4)))
+  _planetX_bmeDigH6 = ('_planetX_bmeReadInt8' 231)
+  '_planetX_bmeWriteReg' 242 4
+  '_planetX_bmeWriteReg' 244 47
+  '_planetX_bmeWriteReg' 245 12
+  '_planetX_bmeWriteReg' 244 47
+  _planetX_bmeReady = true
+  return true
+}
+
+to '_planetX_bmeUpdateValues' {
+  local 'adc_T' (((('_planetX_bmeReadReg' 250) << 12) + (('_planetX_bmeReadReg' 251) << 4)) + (('_planetX_bmeReadReg' 252) >> 4))
+  local 'var1' ((((adc_T >> 3) - (_planetX_bmeDigT1 << 1)) * _planetX_bmeDigT2) >> 11)
+  local 'var2' ((((((adc_T >> 4) - _planetX_bmeDigT1) * ((adc_T >> 4) - _planetX_bmeDigT1)) >> 12) * _planetX_bmeDigT3) >> 14)
+  local 't' (var1 + var2)
+  _planetX_bmeTemperature = ('_planetX_divRound' (((t * 5) + 128) >> 8) 100)
+  local 'pVar1' ((t >> 1) - 64000)
+  local 'pBase' (pVar1 >> 2)
+  local 'pVar2' (((pBase * pBase) >> 11) * _planetX_bmeDigP6)
+  pVar2 = (pVar2 + ((pVar1 * _planetX_bmeDigP5) << 1))
+  pVar2 = ((pVar2 >> 2) + (_planetX_bmeDigP4 << 16))
+  pVar1 = ((((_planetX_bmeDigP3 * ((pBase * pBase) >> 13)) >> 3) + ((_planetX_bmeDigP2 * pVar1) >> 1)) >> 18)
+  local 'pScale' (32768 + pVar1)
+  pVar1 = (((pScale / 128) * _planetX_bmeDigP1) / 256)
+  if (pVar1 == 0) {
+    return
+  }
+  local 'adc_P' (((('_planetX_bmeReadReg' 247) << 12) + (('_planetX_bmeReadReg' 248) << 4)) + (('_planetX_bmeReadReg' 249) >> 4))
+  local 'pDelta' ((1048576 - adc_P) - (pVar2 >> 12))
+  local 'pRaw' ((pDelta * 625) / pVar1)
+  pRaw = (pRaw * 10)
+  pVar1 = ((_planetX_bmeDigP9 * (((pRaw >> 3) * (pRaw >> 3)) >> 13)) >> 12)
+  pVar2 = (((pRaw >> 2) * _planetX_bmeDigP8) >> 13)
+  _planetX_bmePressure = ('_planetX_divRound' (pRaw + (((pVar1 + pVar2) + _planetX_bmeDigP7) >> 4)) 100)
+  _planetX_bmePressure = (_planetX_bmePressure - 4)
+  local 'adc_H' ((('_planetX_bmeReadReg' 253) << 8) + ('_planetX_bmeReadReg' 254))
+  local 'hVar' (t - 76800)
+  local 'hA' (((adc_H * 1024) - (_planetX_bmeDigH4 * 65536)) - ((_planetX_bmeDigH5 * hVar) / 16))
+  local 'hC1' (1024 + ((_planetX_bmeDigH3 * hVar) / 65536))
+  local 'hC2' (1024 + ((((_planetX_bmeDigH6 * hVar) / 65536) * hC1) / 1024))
+  local 'hB' ((_planetX_bmeDigH2 * hC2) / 65536)
+  local 'hScaled' (((hA / 128) * hB) / 8)
+  local 'hC3' (1024 - ((_planetX_bmeDigH1 * hScaled) / 524288))
+  hScaled = ((hScaled * hC3) / 1024)
+  _planetX_bmeHumidity = ('_planetX_divRound' hScaled 1024)
+  _planetX_bmeHumidity = (maximum 0 (minimum _planetX_bmeHumidity 100))
+}
+
+to '_planetX_bmeWriteReg' reg value {
+  '_planetX_i2cWrite' _planetX_bmeAddr ('[data:makeList]' reg value)
+}
+
+to '_planetX_divRound' value scale {
+  if (value >= 0) {return ((value + (scale / 2)) / scale)}
+  return ((value - (scale / 2)) / scale)
+}
+
+to '_planetX_extI2CInit' {
+  _planetX_extI2CReady = true
+  return true
+}
+
+to '_planetX_i2cExists' addr {
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'present' ('[sensors:i2cExists]' addr)
+  '_planetX_i2cRelease'
+  return present
+}
+
+to '_planetX_i2cRead' addr bytes {
+  if (or ((size bytes) <= 0) ((size bytes) > 32)) {return false}
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'read' false
+  if ('[sensors:i2cExists]' addr) {
+    read = (('[sensors:i2cRead]' addr bytes) == (size bytes))
+  }
+  '_planetX_i2cRelease'
+  return read
+}
+
+to '_planetX_i2cReadReg' addr reg {
+  if (not ('_planetX_i2cAcquire')) {return 0}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'buf' ('[data:newByteArray]' 1 0)
+  local 'value' 0
+  if ('[sensors:i2cExists]' addr) {
+    '[sensors:i2cWrite]' addr ('[data:makeList]' reg) false
+    if (('[sensors:i2cRead]' addr buf) == 1) {
+      value = (at 1 buf)
+    }
+  }
+  '_planetX_i2cRelease'
+  return value
+}
+
+to '_planetX_i2cReadUInt16LE' addr reg {
+  if (not ('_planetX_i2cAcquire')) {return 0}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'buf' ('[data:newByteArray]' 2 0)
+  local 'value' 0
+  if ('[sensors:i2cExists]' addr) {
+    '[sensors:i2cWrite]' addr ('[data:makeList]' reg) false
+    if (('[sensors:i2cRead]' addr buf) == 2) {
+      value = ((at 1 buf) + ((at 2 buf) << 8))
+    }
+  }
+  '_planetX_i2cRelease'
+  return value
+}
+
+to '_planetX_i2cWrite' addr bytes {
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'present' ('[sensors:i2cExists]' addr)
+  if present {
+    '[sensors:i2cWrite]' addr bytes
+  }
+  '_planetX_i2cRelease'
+  return present
+}
+
+to '_planetX_rfidAckOk' {
+  return (and ((at 2 _planetX_rfidAck) == 0) (and ((at 3 _planetX_rfidAck) == 0) (and ((at 4 _planetX_rfidAck) == 255) ((at 5 _planetX_rfidAck) == 0))))
+}
+
+to '_planetX_rfidBlockToText' {
+  local 'text' ''
+  for i 16 {
+    local 'code' (at i _planetX_rfidBlock)
+    if (and (code >= 32) (code < 127)) {
+      text = ('[data:join]' text ('[data:unicodeString]' code))
+    }
+  }
+  return text
+}
+
+to '_planetX_rfidCheckCard' {
+  if (not ('_planetX_rfidWakeup')) {return false}
+  local 'cmd' ('[data:newByteArray]' 11 0)
+  atPut 1 cmd 0
+  atPut 2 cmd 0
+  atPut 3 cmd 255
+  atPut 4 cmd 4
+  atPut 5 cmd 252
+  atPut 6 cmd 212
+  atPut 7 cmd 74
+  atPut 8 cmd 1
+  atPut 9 cmd 0
+  atPut 10 cmd 225
+  atPut 11 cmd 0
+  if (not ('_planetX_rfidWriteAndRead' cmd 20)) {
+    return false
+  }
+  if (not ('_planetX_rfidAckOk')) {
+    return false
+  }
+  if (or ((at 7 _planetX_rfidRecv) != 213) (not ('_planetX_rfidCheckDcs' 20))) {
+    return false
+  }
+  for i 4 {
+    atPut i _planetX_rfidUid (at (i + 14) _planetX_rfidRecv)
+  }
+  return (not (and ((at 1 _planetX_rfidUid) == 255) (and ((at 2 _planetX_rfidUid) == 255) (and ((at 3 _planetX_rfidUid) == 255) ((at 4 _planetX_rfidUid) == 255)))))
+}
+
+to '_planetX_rfidCheckDcs' recvLen {
+  local 'sum' 0
+  local 'pos' 2
+  repeat (recvLen - 3) {
+    if (and (pos != 5) (pos != 6)) {sum += (at pos _planetX_rfidRecv)}
+    pos += 1
+  }
+  return (((255 - (sum & 255)) & 255) == (at (recvLen - 1) _planetX_rfidRecv))
+}
+
+to '_planetX_rfidEnsure' {
+  if _planetX_rfidReady {return true}
+  _planetX_rfidAck = ('[data:newByteArray]' 8 0)
+  _planetX_rfidRecv = ('[data:newByteArray]' 32 0)
+  _planetX_rfidUid = ('[data:newByteArray]' 5 0)
+  _planetX_rfidBlock = ('[data:newByteArray]' 16 0)
+  _planetX_rfidWrite = ('[data:newByteArray]' 16 0)
+  _planetX_rfidKey = ('[data:newByteArray]' 6 255)
+  _planetX_rfidReady = true
+  return true
+}
+
+to '_planetX_rfidExpired' {
+  return ((millisSince _planetX_rfidStart) >= 2500)
+}
+
+to '_planetX_rfidPasswdCheck' {
+  local 'cmd' ('[data:newByteArray]' 22 0)
+  atPut 1 cmd 0
+  atPut 2 cmd 0
+  atPut 3 cmd 255
+  atPut 4 cmd 15
+  atPut 5 cmd 241
+  atPut 6 cmd 212
+  atPut 7 cmd 64
+  atPut 8 cmd 1
+  atPut 9 cmd 96
+  atPut 10 cmd 8
+  for i 6 {
+    atPut (i + 10) cmd (at i _planetX_rfidKey)
+  }
+  for i 4 {
+    atPut (i + 16) cmd (at i _planetX_rfidUid)
+  }
+  atPut 22 cmd 0
+  '_planetX_rfidSetCmdDcs' cmd 21
+  if (not ('_planetX_rfidWriteAndRead' cmd 11)) {
+    return false
+  }
+  if (not ('_planetX_rfidAckOk')) {
+    return false
+  }
+  return (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 65) (and ((at 9 _planetX_rfidRecv) == 0) ('_planetX_rfidCheckDcs' 11))))
+}
+
+to '_planetX_rfidPnOperation' operation {
+  if (not ('_planetX_rfidCheckCard')) {return false}
+  if (operation == 0) {return true}
+  if (not ('_planetX_rfidPasswdCheck')) {return false}
+  if (operation == 1) {return ('_planetX_rfidReadBlock8')}
+  return ('_planetX_rfidWriteBlock8')
+}
+
+to '_planetX_rfidReadBlock8' {
+  local 'cmd' ('[data:newByteArray]' 12 0)
+  atPut 1 cmd 0
+  atPut 2 cmd 0
+  atPut 3 cmd 255
+  atPut 4 cmd 5
+  atPut 5 cmd 251
+  atPut 6 cmd 212
+  atPut 7 cmd 64
+  atPut 8 cmd 1
+  atPut 9 cmd 48
+  atPut 10 cmd 8
+  atPut 12 cmd 0
+  '_planetX_rfidSetCmdDcs' cmd 11
+  if (not ('_planetX_rfidWriteAndRead' cmd 27)) {
+    return false
+  }
+  if (or ((at 7 _planetX_rfidRecv) != 213) (or ((at 8 _planetX_rfidRecv) != 65) (or ((at 9 _planetX_rfidRecv) != 0) (not ('_planetX_rfidCheckDcs' 27))))) {
+    return false
+  }
+  for i 16 {
+    atPut i _planetX_rfidBlock (at (i + 9) _planetX_rfidRecv)
+  }
+  return true
+}
+
+to '_planetX_rfidRun' operation text {
+  local 'result' false
+  if (operation == 1) {
+    result = ''
+  }
+  if (not ('_planetX_i2cAcquire')) {
+    return result
+  }
+  '[sensors:i2cSetClockSpeed]' 200000
+  _planetX_rfidStart = (millisOp)
+  '_planetX_rfidEnsure'
+  '_planetX_rfidTextToBlock' text
+  if ('_planetX_rfidSelectController') {
+    local 'ok' false
+    if (_planetX_rfidController == 36) {
+      ok = ('_planetX_rfidPnOperation' operation)
+    } else {
+      ok = ('_planetX_wsOperation' operation)
+    }
+    if (operation == 1) {
+      if ok {result = ('_planetX_rfidBlockToText')}
+    } else {
+      result = ok
+    }
+  }
+  '_planetX_i2cRelease'
+  return result
+}
+
+to '_planetX_rfidSelectController' {
+  if (or (_planetX_rfidController == 36) (_planetX_rfidController == 40)) {return true}
+  if ('[sensors:i2cExists]' 36) {if ('_planetX_rfidWakeup') {
+    _planetX_rfidController = 36
+    return true
+  }}
+  if ('[sensors:i2cExists]' 40) {
+    local 'version' ('_planetX_wsRead' 55)
+    if (and (version > 0) (version < 255)) {
+      if ('_planetX_wsInit') {
+        _planetX_rfidController = 40
+        return true
+      }
+    }
+  }
+  return false
+}
+
+to '_planetX_rfidSetCmdDcs' cmd dcsPos {
+  local 'sum' 0
+  local 'pos' 1
+  repeat (dcsPos - 1) {
+    if (and (pos != 4) (pos != 5)) {sum += (at pos cmd)}
+    pos += 1
+  }
+  atPut dcsPos cmd ((255 - (sum & 255)) & 255)
+}
+
+to '_planetX_rfidTextToBlock' text {
+  atPut 'all' _planetX_rfidWrite 0
+  if (not (isType text 'string')) {
+    return
+  }
+  local 'bytes' ('[data:asByteArray]' text)
+  local 'idx' 1
+  for i (minimum 16 (size bytes)) {
+    local 'code' (at i bytes)
+    if (and (code >= 32) (code < 127)) {
+      atPut idx _planetX_rfidWrite code
+      idx += 1
+    }
+  }
+}
+
+to '_planetX_rfidWakeup' {
+  if (not ('_planetX_rfidEnsure')) {return false}
+  local 'cmd' ('[data:newByteArray]' 12 0)
+  atPut 1 cmd 0
+  atPut 2 cmd 0
+  atPut 3 cmd 255
+  atPut 4 cmd 5
+  atPut 5 cmd 251
+  atPut 6 cmd 212
+  atPut 7 cmd 20
+  atPut 8 cmd 1
+  atPut 9 cmd 20
+  atPut 10 cmd 1
+  atPut 11 cmd 2
+  atPut 12 cmd 0
+  if (not ('_planetX_rfidWriteAndRead' cmd 10)) {
+    return false
+  }
+  return (and ('_planetX_rfidAckOk') (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 21) ('_planetX_rfidCheckDcs' 10))))
+}
+
+to '_planetX_rfidWriteAndRead' writeBuf recvLen {
+  atPut 'all' _planetX_rfidAck 0
+  _planetX_rfidRecv = ('[data:newByteArray]' recvLen 0)
+  if (or (recvLen > 32) ('_planetX_rfidExpired')) {
+    return false
+  }
+  '[sensors:i2cWrite]' 36 writeBuf
+  waitMillis 20
+  if ('_planetX_rfidExpired') {
+    return false
+  }
+  if (('[sensors:i2cRead]' 36 _planetX_rfidAck) != 8) {
+    return false
+  }
+  if (not ('_planetX_rfidAckOk')) {
+    return false
+  }
+  waitMillis 20
+  if ('_planetX_rfidExpired') {
+    return false
+  }
+  return (('[sensors:i2cRead]' 36 _planetX_rfidRecv) == recvLen)
+}
+
+to '_planetX_rfidWriteBlock8' {
+  local 'cmd' ('[data:newByteArray]' 28 0)
+  atPut 1 cmd 0
+  atPut 2 cmd 0
+  atPut 3 cmd 255
+  atPut 4 cmd 21
+  atPut 5 cmd 235
+  atPut 6 cmd 212
+  atPut 7 cmd 64
+  atPut 8 cmd 1
+  atPut 9 cmd 160
+  atPut 10 cmd 8
+  for i 16 {
+    atPut (i + 10) cmd (at i _planetX_rfidWrite)
+  }
+  atPut 28 cmd 0
+  '_planetX_rfidSetCmdDcs' cmd 27
+  if (not ('_planetX_rfidWriteAndRead' cmd 12)) {
+    return false
+  }
+  return (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 65) (and ((at 9 _planetX_rfidRecv) == 0) ('_planetX_rfidCheckDcs' 12))))
+}
+
+to '_planetX_rtcDecToHex' value {
+  return (((value / 10) * 16) + (value % 10))
+}
+
+to '_planetX_rtcEnsure' {
+  '_planetX_extI2CInit'
+  if _planetX_rtcReady {
+    return true
+  }
+  if (not ('_planetX_i2cExists' 104)) {
+    return false
+  }
+  _planetX_rtcReady = true
+  return true
+}
+
+to '_planetX_rtcGetSecond' {
+  return (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 0)) 59)
+}
+
+to '_planetX_rtcHexToDec' value {
+  return (((value >> 4) * 10) + (value % 16))
+}
+
+to '_planetX_rtcIsField' value {
+  return (or (or (or (value == 'year') (value == '年')) (or (value == 'month') (value == '月'))) (or (or (or (value == 'day') (value == '日')) (or (value == 'weekday') (value == '星期'))) (or (or (or (value == 'hour') (value == '时')) (or (value == 'minute') (value == '分'))) (or (value == 'seconds') (value == '秒')))))
+}
+
+to '_planetX_rtcReadReg' reg {
+  return ('_planetX_i2cReadReg' 104 reg)
+}
+
+to '_planetX_rtcStart' {
+  local 't' ('_planetX_rtcGetSecond')
+  '_planetX_rtcWriteReg' 0 ('_planetX_rtcDecToHex' (t & 127))
+}
+
+to '_planetX_rtcWriteReg' reg value {
+  '_planetX_i2cWrite' 104 ('[data:makeList]' reg value)
+}
+
+to '_planetX_trackBitChannelIndex' channel {
+  if (channel == '2') {return 1}
+  if (channel == '3') {return 2}
+  if (channel == '4') {return 3}
+  return 0
+}
+
+to '_planetX_trackBitEnsure' {
+  '_planetX_extI2CInit'
+  if _planetX_trackBitReady {
+    return true
+  }
+  if (not ('_planetX_i2cExists' 26)) {
+    return false
+  }
+  _planetX_trackBitReady = true
+  return true
+}
+
+to '_planetX_trackBitPatternCode' pattern {
+  if (pattern == '0000') {return 0}
+  if (pattern == '0001') {return 8}
+  if (pattern == '0010') {return 4}
+  if (pattern == '0011') {return 12}
+  if (pattern == '0100') {return 2}
+  if (pattern == '0101') {return 10}
+  if (pattern == '0110') {return 6}
+  if (pattern == '0111') {return 14}
+  if (pattern == '1000') {return 1}
+  if (pattern == '1001') {return 9}
+  if (pattern == '1010') {return 5}
+  if (pattern == '1011') {return 13}
+  if (pattern == '1100') {return 3}
+  if (pattern == '1101') {return 11}
+  if (pattern == '1110') {return 7}
+  if (pattern == '1111') {return 15}
+  return -1
+}
+
+to '_planetX_trackBitReadRaw' reg {
+  if (not ('_planetX_i2cAcquire')) {return -1}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'buf' ('[data:newByteArray]' 1 0)
+  local 'value' -1
+  if ('[sensors:i2cExists]' 26) {
+    '[sensors:i2cWrite]' 26 ('[data:makeList]' reg) false
+    if (('[sensors:i2cRead]' 26 buf) == 1) {
+      value = (at 1 buf)
+    }
+  }
+  '_planetX_i2cRelease'
+  return value
+}
+
+to '_planetX_wsAck' data {
+  if (not ('_planetX_wsToCard' 12 data)) {return false}
+  if (or (_planetX_rfidRetBits != 4) (_planetX_rfidRetCount < 1)) {return false}
+  return (((at 1 _planetX_wsResponse) & 15) == 10)
+}
+
+to '_planetX_wsAttempt' operation {
+  if (not ('_planetX_wsInit')) {return false}
+  if (not ('_planetX_wsRequest')) {return false}
+  if (not ('_planetX_wsUid')) {return false}
+  if (operation == 0) {return true}
+  local 'ok' false
+  if ('_planetX_wsSelect') {
+    if ('_planetX_wsAuth') {if (operation == 1) {
+      ok = ('_planetX_wsReadBlock')
+    } else {
+      ok = ('_planetX_wsWriteBlock')
+    }}
+  }
+  '_planetX_wsBits' 8 8 false
+  return ok
+}
+
+to '_planetX_wsAuth' {
+  local 'data' ('[data:newByteArray]' 12 255)
+  atPut 1 data 96
+  atPut 2 data 11
+  for i 4 {
+    atPut (i + 8) data (at i _planetX_rfidUid)
+  }
+  if (not ('_planetX_wsToCard' 14 data)) {
+    return false
+  }
+  local 'status' ('_planetX_wsRead' 8)
+  return (and (status >= 0) ((status & 8) != 0))
+}
+
+to '_planetX_wsBits' reg mask set {
+  local 'value' ('_planetX_wsRead' reg)
+  if (value < 0) {
+    return false
+  }
+  if set {
+    value = (value | mask)
+  } else {
+    value = (value & (255 ^ mask))
+  }
+  return ('_planetX_wsWrite' reg value)
+}
+
+to '_planetX_wsInit' {
+  local 'regs' ('[data:makeList]' 1 42 43 45 46 21 17)
+  local 'values' ('[data:makeList]' 15 141 62 30 0 64 61)
+  for i (size regs) {
+    if (not ('_planetX_wsWrite' (at i regs) (at i values))) {return false}
+  }
+  return ('_planetX_wsBits' 20 3 true)
+}
+
+to '_planetX_wsOperation' operation {
+  repeat 3 {
+    if ('_planetX_rfidExpired') {return false}
+    if ('_planetX_wsAttempt' operation) {return true}
+    if (operation == 0) {return false}
+  }
+  return false
+}
+
+to '_planetX_wsPrepare' command data {
+  local 'irqEnable' 119
+  if (command == 14) {
+    irqEnable = 18
+  }
+  if (not ('_planetX_wsWrite' 2 (irqEnable | 128))) {
+    return false
+  }
+  if (not ('_planetX_wsBits' 4 128 false)) {
+    return false
+  }
+  if (not ('_planetX_wsBits' 10 128 true)) {
+    return false
+  }
+  if (not ('_planetX_wsWrite' 1 0)) {
+    return false
+  }
+  for byte data {
+    if (not ('_planetX_wsWrite' 9 byte)) {return false}
+  }
+  if (not ('_planetX_wsWrite' 1 command)) {
+    return false
+  }
+  if (command == 12) {
+    return ('_planetX_wsBits' 13 128 true)
+  }
+  return true
+}
+
+to '_planetX_wsRead' reg {
+  if ('_planetX_rfidExpired') {return -1}
+  local 'buf' ('[data:newByteArray]' 1 0)
+  '[sensors:i2cWrite]' 40 ('[data:makeList]' reg) false
+  if (('[sensors:i2cRead]' 40 buf) != 1) {
+    return -1
+  }
+  return (at 1 buf)
+}
+
+to '_planetX_wsReadBlock' {
+  local 'data' ('_planetX_wsWithCRC' ('[data:makeList]' 48 8))
+  if ((size data) != 4) {
+    return false
+  }
+  if (not ('_planetX_wsToCard' 12 data)) {
+    return false
+  }
+  if (_planetX_rfidRetCount != 16) {
+    return false
+  }
+  _planetX_rfidBlock = ('[data:copyFromTo]' _planetX_wsResponse 1 16)
+  return true
+}
+
+to '_planetX_wsReadFifo' {
+  local 'count' ('_planetX_wsRead' 10)
+  local 'control' ('_planetX_wsRead' 12)
+  if (or (count < 0) (control < 0)) {
+    return false
+  }
+  local 'lastBits' (control & 7)
+  _planetX_rfidRetBits = (count * 8)
+  if (and (count > 0) (lastBits > 0)) {
+    _planetX_rfidRetBits = (((count - 1) * 8) + lastBits)
+  }
+  _planetX_rfidRetCount = (minimum 16 (maximum 1 count))
+  _planetX_wsResponse = ('[data:newByteArray]' _planetX_rfidRetCount 0)
+  for i _planetX_rfidRetCount {
+    local 'value' ('_planetX_wsRead' 9)
+    if (value < 0) {
+      return false
+    }
+    atPut i _planetX_wsResponse value
+  }
+  return true
+}
+
+to '_planetX_wsRequest' {
+  if (not ('_planetX_wsWrite' 13 7)) {return false}
+  if (not ('_planetX_wsToCard' 12 ('[data:makeList]' 38))) {return false}
+  return (_planetX_rfidRetBits == 16)
+}
+
+to '_planetX_wsSelect' {
+  local 'data' ('[data:newByteArray]' 7 0)
+  atPut 1 data 147
+  atPut 2 data 112
+  for i 5 {
+    atPut (i + 2) data (at i _planetX_rfidUid)
+  }
+  data = ('_planetX_wsWithCRC' data)
+  if ((size data) != 9) {
+    return false
+  }
+  if (not ('_planetX_wsToCard' 12 data)) {
+    return false
+  }
+  return (_planetX_rfidRetBits == 24)
+}
+
+to '_planetX_wsToCard' command data {
+  _planetX_rfidRetBits = 0
+  _planetX_rfidRetCount = 0
+  _planetX_wsResponse = ('[data:newByteArray]' 0)
+  if (not ('_planetX_wsPrepare' command data)) {
+    return false
+  }
+  local 'mask' 49
+  if (command == 14) {
+    mask = 17
+  }
+  local 'irq' ('_planetX_wsWaitIRQ' 4 mask 1000)
+  if (command == 12) {
+    '_planetX_wsBits' 13 128 false
+  }
+  if (or (irq < 0) ((irq & 1) != 0)) {
+    return false
+  }
+  local 'error' ('_planetX_wsRead' 6)
+  if (or (error < 0) ((error & 27) != 0)) {
+    return false
+  }
+  if (command == 14) {
+    return true
+  }
+  return ('_planetX_wsReadFifo')
+}
+
+to '_planetX_wsUid' {
+  if (not ('_planetX_wsWrite' 13 0)) {return false}
+  if (not ('_planetX_wsToCard' 12 ('[data:makeList]' 147 32))) {return false}
+  if (_planetX_rfidRetCount != 5) {return false}
+  local 'checksum' 0
+  local 'present' false
+  for i 4 {
+    checksum = (checksum ^ (at i _planetX_wsResponse))
+    if ((at i _planetX_wsResponse) != 0) {
+      present = true
+    }
+  }
+  if (or (not present) (checksum != (at 5 _planetX_wsResponse))) {
+    return false
+  }
+  _planetX_rfidUid = ('[data:copyFromTo]' _planetX_wsResponse 1 5)
+  return true
+}
+
+to '_planetX_wsWaitIRQ' reg mask attempts {
+  repeat attempts {
+    local 'irq' ('_planetX_wsRead' reg)
+    if (irq < 0) {
+      return -1
+    }
+    if ((irq & mask) != 0) {
+      return irq
+    }
+    if ('_planetX_rfidExpired') {
+      return -1
+    }
+    waitMillis 1
+  }
+  return -1
+}
+
+to '_planetX_wsWithCRC' data {
+  if (not ('_planetX_wsBits' 5 4 false)) {return ('[data:newByteArray]' 0)}
+  if (not ('_planetX_wsBits' 10 128 true)) {return ('[data:newByteArray]' 0)}
+  for byte data {
+    if (not ('_planetX_wsWrite' 9 byte)) {return ('[data:newByteArray]' 0)}
+  }
+  if (not ('_planetX_wsWrite' 1 3)) {
+    return ('[data:newByteArray]' 0)
+  }
+  if (('_planetX_wsWaitIRQ' 5 4 255) < 0) {
+    return ('[data:newByteArray]' 0)
+  }
+  local 'low' ('_planetX_wsRead' 34)
+  local 'high' ('_planetX_wsRead' 33)
+  if (or (low < 0) (high < 0)) {
+    return ('[data:newByteArray]' 0)
+  }
+  local 'out' ('[data:newByteArray]' ((size data) + 2) 0)
+  for i (size data) {
+    atPut i out (at i data)
+  }
+  atPut ((size data) + 1) out low
+  atPut ((size data) + 2) out high
+  return out
+}
+
+to '_planetX_wsWrite' reg value {
+  if ('_planetX_rfidExpired') {return false}
+  '[sensors:i2cWrite]' 40 ('[data:makeList]' reg value)
+  return true
+}
+
+to '_planetX_wsWriteBlock' {
+  local 'data' ('_planetX_wsWithCRC' ('[data:makeList]' 160 8))
+  if ((size data) != 4) {
+    return false
+  }
+  if (not ('_planetX_wsAck' data)) {
+    return false
+  }
+  data = ('_planetX_wsWithCRC' _planetX_rfidWrite)
+  if ((size data) != 18) {
+    return false
+  }
+  return ('_planetX_wsAck' data)
+}
+
+to bme280Sensor state {
+  if (not ('_planetX_bmeEnsure')) {return 0}
+  '_planetX_bmeUpdateValues'
+  if (or (state == 'temperature (°C)') (state == '温度(℃)')) {
+    return _planetX_bmeTemperature
+  }
+  if (or (state == 'humidity (0-100%)') (state == '湿度(0~100%)')) {
+    return _planetX_bmeHumidity
+  }
+  if (or (state == 'pressure (hPa)') (state == '气压(hPa)')) {
+    return _planetX_bmePressure
+  }
+  if (or (state == 'altitude (m)') (state == '海拔(M)')) {
+    return ((1022 - _planetX_bmePressure) * 9)
+  }
+  return 0
+}
+
+to buttonCD port button {
+  return ('_gpio_buttonNow' port button)
+}
+
+to buttonEventBroadcast port button message {
+  '[elfreaks:Event_RegisterPlanetXButton]' port button message
+}
+
+to dht11Sensor port state {
+  local 'pin' ('_gpio_pinForPort' port 'B')
+  if (or (state == 'humidity (0-100)') (state == '湿度(0-100)')) {
+    return ('_gpio_humidityDHT11' pin)
+  }
+  return ('_gpio_temperatureDHT11' pin)
+}
+
+to gasValue gasType port {
+  return (gasValueV2 port gasType)
+}
+
+to gasValueV2 port gasType {
+  if (not (or (or (port == 'J1') (port == 'J2')) (or (port == 'J3') (port == 'J4')))) {
+    local 'oldGasType' port
+    port = gasType
+    gasType = oldGasType
+  }
+  local 'value' (analogReadOp ('_gpio_pinForPort' port 'A'))
+  if (or (gasType == 'carbon dioxide') (gasType == '二氧化碳')) {
+    return (1024 - value)
+  }
+  return value
+}
+
+to lightSensor port {
+  local 'pin' ('_gpio_pinForPort' port 'A')
+  local 'value' 0
+  for i 100 {
+    value += (analogReadOp pin)
+  }
+  value = (value / 100)
+  if (value < 200) {
+    value = ('[misc:rescale]' value 0 200 0 1600)
+  } else {
+    value = ('[misc:rescale]' value 200 1023 1600 14000)
+  }
+  return (maximum 0 value)
+}
+
+to noiseSensor port {
+  local 'pin' ('_gpio_pinForPort' port 'A')
+  local 'baseline' 0
+  for i 200 {
+    baseline += (analogReadOp pin)
+  }
+  baseline = (baseline / 200)
+  local 'sumHigh' 0
+  local 'sumLow' 0
+  local 'countHigh' 0
+  local 'countLow' 0
+  for i 200 {
+    local 'sample' (analogReadOp pin)
+    if (sample >= baseline) {
+      sumHigh += sample
+      countHigh += 1
+    } else {
+      sumLow += sample
+      countLow += 1
+    }
+  }
+  if (countHigh > 0) {
+    sumHigh = (sumHigh / countHigh)
+  } else {
+    sumHigh = baseline
+  }
+  if (countLow > 0) {
+    sumLow = (sumLow / countLow)
+  } else {
+    sumLow = baseline
+  }
+  local 'noise' (sumHigh - sumLow)
+  if (noise <= 4) {
+    noise = ('[misc:rescale]' noise 0 4 30 50)
+  } (noise <= 8) {
+    noise = ('[misc:rescale]' noise 4 8 50 55)
+  } (noise <= 14) {
+    noise = ('[misc:rescale]' noise 9 14 55 60)
+  } (noise <= 32) {
+    noise = ('[misc:rescale]' noise 15 32 60 70)
+  } (noise <= 60) {
+    noise = ('[misc:rescale]' noise 33 60 70 75)
+  } (noise <= 100) {
+    noise = ('[misc:rescale]' noise 61 100 75 80)
+  } (noise <= 150) {
+    noise = ('[misc:rescale]' noise 101 150 80 85)
+  } (noise <= 231) {
+    noise = ('[misc:rescale]' noise 151 231 85 90)
+  } else {
+    noise = ('[misc:rescale]' noise 231 1023 90 120)
+  }
+  return noise
+}
+
+to rfidDetectCard {
+  return ('_planetX_rfidRun' 0 '')
+}
+
+to rfidReadData {
+  return ('_planetX_rfidRun' 1 '')
+}
+
+to rfidWriteData text {
+  return ('_planetX_rfidRun' 2 text)
+}
+
+to rtcReadData data {
+  if (not ('_planetX_rtcEnsure')) {return 0}
+  if (or (data == 'year') (data == '年')) {return ((minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 6)) 99) + 2000)}
+  if (or (data == 'month') (data == '月')) {return (maximum (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 5)) 12) 1)}
+  if (or (data == 'day') (data == '日')) {return (maximum (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 4)) 31) 1)}
+  if (or (data == 'weekday') (data == '星期')) {return (maximum (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 3)) 7) 1)}
+  if (or (data == 'hour') (data == '时')) {return (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 2)) 23)}
+  if (or (data == 'minute') (data == '分')) {return (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 1)) 59)}
+  if (or (data == 'seconds') (data == '秒')) {return (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 0)) 59)}
+  return 0
+}
+
+to rtcSetData data num {
+  rtcSetDataV2 num data
+}
+
+to rtcSetDataV2 num data {
+  if ('_planetX_rtcIsField' num) {
+    local 'oldData' num
+    num = data
+    data = oldData
+  }
+  if (not ('_planetX_rtcEnsure')) {
+    return
+  }
+  if (or (data == 'year') (data == '年')) {
+    '_planetX_rtcWriteReg' 6 ('_planetX_rtcDecToHex' (num % 100))
+  }
+  if (or (data == 'month') (data == '月')) {
+    '_planetX_rtcWriteReg' 5 ('_planetX_rtcDecToHex' (num % 13))
+  }
+  if (or (data == 'day') (data == '日')) {
+    '_planetX_rtcWriteReg' 4 ('_planetX_rtcDecToHex' (num % 32))
+  }
+  if (or (data == 'weekday') (data == '星期')) {
+    '_planetX_rtcWriteReg' 3 ('_planetX_rtcDecToHex' (num % 8))
+  }
+  if (or (data == 'hour') (data == '时')) {
+    '_planetX_rtcWriteReg' 2 ('_planetX_rtcDecToHex' (num % 24))
+  }
+  if (or (data == 'minute') (data == '分')) {
+    '_planetX_rtcWriteReg' 1 ('_planetX_rtcDecToHex' (num % 60))
+  }
+  if (or (data == 'seconds') (data == '秒')) {
+    '_planetX_rtcWriteReg' 0 ('_planetX_rtcDecToHex' (num % 60))
+  }
+  '_planetX_rtcStart'
+}
+
+to soilHumidity port {
+  local 'value' ('[misc:rescale]' (analogReadOp ('_gpio_pinForPort' port 'A')) 0 1023 0 100)
+  return (maximum 0 (minimum (100 - value) 100))
+}
+
+to trackBitChannelState channel state {
+  if (not ('_planetX_trackBitEnsure')) {return false}
+  local 'tempVal' ('_planetX_trackBitReadRaw' 4)
+  if (tempVal < 0) {
+    _planetX_trackBitReady = false
+    _planetX_trackBitStateValid = false
+    return false
+  }
+  local 'mask' (1 << ('_planetX_trackBitChannelIndex' channel))
+  if (state == '1') {
+    return ((tempVal & mask) != 0)
+  }
+  return ((tempVal & mask) == 0)
+}
+
+to trackBitGray channel {
+  if (not ('_planetX_trackBitEnsure')) {return 0}
+  local 'grayValue' ('_planetX_trackBitReadRaw' ('_planetX_trackBitChannelIndex' channel))
+  if (grayValue < 0) {
+    _planetX_trackBitReady = false
+    _planetX_trackBitStateValid = false
+    return 0
+  }
+  return grayValue
+}
+
+to trackBitOffset {
+  if (not ('_planetX_trackBitEnsure')) {return 0}
+  local 'offsetHigh' ('_planetX_trackBitReadRaw' 5)
+  local 'offsetLow' ('_planetX_trackBitReadRaw' 6)
+  if (or (offsetHigh < 0) (offsetLow < 0)) {
+    _planetX_trackBitReady = false
+    _planetX_trackBitStateValid = false
+    return 0
+  }
+  local 'offset' ((offsetHigh << 8) + offsetLow)
+  return (offset - 3000)
+}
+
+to trackBitState pattern {
+  local 'stateValue' (trackBitStateValue)
+  return (and _planetX_trackBitStateValid (stateValue == ('_planetX_trackBitPatternCode' pattern)))
+}
+
+to trackBitStateValue {
+  if (not ('_planetX_trackBitEnsure')) {
+    _planetX_trackBitStateValid = false
+    return 0
+  }
+  local 'stateValue' ('_planetX_trackBitReadRaw' 4)
+  if (stateValue < 0) {
+    _planetX_trackBitReady = false
+    _planetX_trackBitStateValid = false
+    return 0
+  }
+  _planetX_trackBitStateValue = (stateValue & 15)
+  _planetX_trackBitStateValid = true
+  waitMillis 5
+  return _planetX_trackBitStateValue
+}
+
+to trackBitUpdateState {
+  return (trackBitStateValue)
+}
+
+to trackingSensor port state {
+  local 'leftPin' ('_gpio_pinForPort' port 'A')
+  local 'rightPin' ('_gpio_pinForPort' port 'B')
+  local 'leftBlack' (not (digitalReadOp leftPin 'up'))
+  local 'rightBlack' (not (digitalReadOp rightPin 'up'))
+  if (and leftBlack (and rightBlack (or (state == '00') (state == '● ●')))) {
+    return true
+  } (and leftBlack (and (not rightBlack) (or (state == '01') (state == '● ◌')))) {
+    return true
+  } (and (not leftBlack) (and rightBlack (or (state == '10') (state == '◌ ●')))) {
+    return true
+  } (and (not leftBlack) (and (not rightBlack) (or (state == '11') (state == '◌ ◌')))) {
+    return true
+  }
+  return false
+}
+
+to trimpot port {
+  return (analogReadOp ('_gpio_pinForPort' port 'A'))
+}
+
+to ultrasoundSensor port unit {
+  local 'trig' ('_gpio_pinForPort' port 'A')
+  local 'echo' ('_gpio_pinForPort' port 'B')
+  digitalWriteOp trig false
+  waitMicros 2
+  digitalWriteOp trig true
+  waitMicros 50
+  digitalWriteOp trig false
+  '[sensors:captureStart]' echo
+  local 'start' (millisOp)
+  repeatUntil (('[sensors:captureCount]') >= 2) {
+    if ((millisSince start) > 24) {exitLoop}
+    waitMillis 1
+  }
+  local 'pulses' ('[sensors:captureEnd]')
+  local 'distance' 400
+  if (and ((size pulses) >= 2) ((at 2 pulses) > 0)) {
+    _gpio_sr04_misses = 0
+    _gpio_sr04_last = ((10 * (at 2 pulses)) / 583)
+    distance = _gpio_sr04_last
+  } else {
+    _gpio_sr04_misses += 1
+    if (_gpio_sr04_misses < 10) {
+      distance = _gpio_sr04_last
+    }
+  }
+  if (or (or (unit == 'inch') (unit == '英尺')) (unit == '英寸')) {
+    return (((distance * 100) + 127) / 254)
+  }
+  if (or (unit == 'mm') (unit == '毫米')) {
+    return (distance * 10)
+  }
+  return distance
+}
+
+to waterLevel port optionalSpeed {
+  local 'speed' (argOrDefault 2 'fast')
+  local 'sampleCount' 1
+  local 'sampleDelay' 0
+  if (or (speed == 'slow') (speed == '慢')) {
+    sampleCount = 16
+    sampleDelay = 4
+  } (or (speed == 'medium') (speed == '中')) {
+    sampleCount = 8
+    sampleDelay = 2
+  }
+  local 'total' 0
+  repeat sampleCount {
+    total += (analogReadOp ('_gpio_pinForPort' port 'A'))
+    if (sampleDelay > 0) {
+      waitMillis sampleDelay
+    }
+  }
+  local 'rawValue' (total / sampleCount)
+  local 'value' ('[misc:rescale]' rawValue 50 600 0 100)
+  return (maximum 0 (minimum value 100))
+}
+

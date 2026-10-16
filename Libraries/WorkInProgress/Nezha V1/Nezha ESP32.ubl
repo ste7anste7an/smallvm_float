@@ -1,0 +1,467 @@
+module 'Nezha ESP32' Data
+author 'Elecfreaks Team'
+version 1 3 
+depends 'SmartIoT Space' 
+tags nezha esp32 button rgb display sound 
+choices nezha32_titleBarState show hide 
+choices nezha32_soundName 'Chinese style' country symphony lyrical Japanese punk pop 'jazz music' blues 'door opening' 'birthday song' wind rain thunder 
+choices nezha32_buttonMenu A B C 'A+B' 'A+C' 'B+C' 
+choices nezha32_pressReleaseMenu pressed released 
+choices nezha32_melodyMenu 'C D E F G A B C5' 'C5 B A G F E D C' 'C E G C5' 'C F A C5' 'C D E C C D E C' 'G G A G C5 B' 
+choices nezha32_axisMenu X Y Z 
+description '
+Support for the Nezha for ESP32:
+  Buttons
+  RGB LEDs
+  Screen display
+  Sound control
+  Gyroscope'
+variables _nezha32_buttonEdges _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm 
+
+  spec 'r' '_nezha32_buttonEvent' 'button _ _ event?' 'menu.nezha32_buttonMenu menu.nezha32_pressReleaseMenu' 'A' 'pressed'
+  space
+  space
+  spec 'r' '[elfreaks_dev_sensor:lightLevel]' 'Nezha light level'
+  spec 'r' '[elfreaks_dev_sensor:noiseDb]' 'Nezha loudness'
+  space
+  space
+  spec ' ' '_nezha32_gyroReset' 'reset gyro'
+  spec 'r' '_nezha32_getGaryAngle' 'angle of _ axis of the gyroscope (0-360 degrees)' 'menu.nezha32_axisMenu' 'X'
+  spec 'r' '_nezha32_getGaryAcc' 'acceleration of _ axis of the gyroscope (unit mg)' 'menu.nezha32_axisMenu' 'X'
+  space
+  space
+  spec ' ' '_nezha32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1
+  spec ' ' '_nezha32_board_rgb_off' 'turn off _ RGB LED' 'menu.range:1-3' 1
+  spec ' ' '_nezha32_board_rgb_all' 'set all RGB LEDs to _' 'color'
+  spec ' ' '_nezha32_board_rgb_off_all' 'turn off all RGB LEDs'
+  space
+  space
+  spec ' ' '_nezha32_lvgl_title_bar' '_ title bar' 'menu.nezha32_titleBarState' 'show'
+  spec ' ' '_nezha32_lvgl_set_bg' 'screen background color _' 'color'
+  space
+  space
+  spec ' ' '_nezha32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1'
+  spec 'r' '_nezha32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32
+  spec ' ' '_nezha32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text'
+  spec ' ' '_nezha32_screenDelete' 'delete object ID _' 'num' 1
+  spec ' ' '_nezha32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10
+  spec ' ' '_nezha32_clear' 'clear display'
+  space
+  space
+  spec ' ' '_nezha32_sound_set_volume' 'set volume to _ %' 'num' 100
+  spec ' ' '_nezha32_play_melody' 'play melody _ at tempo _ bpm' 'str.nezha32_melodyMenu num' 'C D E F G A B C5' 120
+  spec ' ' '_nezha32_play_sound' 'play sound _' 'menu.nezha32_soundName' 'Chinese style'
+  spec ' ' '_nezha32_sound_play_tone' 'play tone _ Hz for _ ms' 'num num' 440 500
+  spec ' ' '_nezha32_sound_stop_all_sounds' 'stop all sounds'
+
+to '_efsound_background_loop' {
+  local 'my_id' 0
+  repeatUntil (or (_efsound_bg_melody == '') (my_id == _efsound_play_id)) {
+    my_id = _efsound_play_id
+    '_efsound_play_melody_once' _efsound_bg_melody my_id
+  }
+}
+
+to '_efsound_canonical_sound_name' soundName {
+  if (or (soundName == '中国风') (soundName == '中國風')) {return 'Chinese style'}
+  if (or (soundName == '乡村') (soundName == '鄉村')) {return 'country'}
+  if (or (soundName == '交响') (soundName == '交響')) {return 'symphony'}
+  if (soundName == '抒情') {return 'lyrical'}
+  if (soundName == '日式') {return 'Japanese'}
+  if (soundName == '朋克') {return 'punk'}
+  if (soundName == '流行') {return 'pop'}
+  if (soundName == '爵士') {return 'jazz music'}
+  if (or (soundName == '蓝调') (soundName == '藍調')) {return 'blues'}
+  if (or (soundName == '开门声') (soundName == '開門聲')) {return 'door opening'}
+  if (soundName == '生日歌') {return 'birthday song'}
+  if (or (soundName == '风声') (soundName == '風聲')) {return 'wind'}
+  if (or (soundName == '雨声') (soundName == '雨聲')) {return 'rain'}
+  if (or (soundName == '打雷声') (soundName == '打雷聲')) {return 'thunder'}
+  return soundName
+}
+
+to '_efsound_init' {
+  if (_efsound_tempo <= 0) {_efsound_tempo = 120}
+  if (_efsound_play_id == 0) {_efsound_play_id = 1}
+}
+
+to '_efsound_note_frequency_from_string' note {
+  note = ('_efsound_upper_trimmed' note)
+  if (or (note == '') (or (note == '-') (note == 'R'))) {
+    return 0
+  }
+  local 'name' (at 1 note)
+  local 'pos' 2
+  if ((size note) >= 2) {
+    local 'acc' (at 2 note)
+    if (or (acc == '#') (acc == 'B')) {
+      name = ('[data:join]' name acc)
+      pos = 3
+    }
+  }
+  local 'octave' 4
+  if ((size note) >= pos) {
+    local 'ch' ('[data:unicodeAt]' pos note)
+    if (and (48 <= ch) (ch <= 57)) {
+      octave = (ch - 48)
+    }
+  }
+  local 'semitone' ('_efsound_semitone' name)
+  if (semitone <= 0) {
+    return 0
+  }
+  local 'freqs' ('[data:makeList]' 262 277 294 311 330 349 370 392 415 440 466 494)
+  local 'freq' (at semitone freqs)
+  if (octave < 4) {
+    repeat (4 - octave) {
+      freq = (freq / 2)
+    }
+  } else {
+    repeat (octave - 4) {
+      freq = (freq * 2)
+    }
+  }
+  return freq
+}
+
+to '_efsound_play_melody_once' melody playId {
+  local 'tokens' ('[data:split]' melody ' ')
+  for i (size tokens) {
+    if (and (playId > 0) (playId != _efsound_play_id)) {return (booleanConstant false)}
+    local 'token' (at i tokens)
+    if (token != '') {
+      '_efsound_play_melody_token' token _efsound_bg_bpm playId
+    }
+  }
+  return (booleanConstant true)
+}
+
+to '_efsound_play_melody_token' token bpm playId {
+  if (and (playId > 0) (playId != _efsound_play_id)) {return 0}
+  token = ('_efsound_upper_trimmed' token)
+  if (token == '') {
+    return 0
+  }
+  local 'note_part' token
+  local 'duration_units' 4
+  local 'colon' ('[data:find]' ':' token)
+  if (colon > 0) {
+    note_part = ('[data:copyFromTo]' token 1 (colon - 1))
+    duration_units = ('[data:convertType]' ('[data:copyFromTo]' token (colon + 1)) 'number')
+    if (duration_units <= 0) {
+      duration_units = 4
+    }
+  }
+  local 'duration' (((60000 / bpm) * duration_units) / 4)
+  duration = (minimum 60000 duration)
+  local 'freq' ('_efsound_note_frequency_from_string' note_part)
+  if (freq <= 0) {
+    '[elfreaks_dev_sensor:stopTone]'
+  } else {
+    '[elfreaks_dev_sensor:startTone]' freq
+  }
+  local 'remaining' duration
+  repeatUntil (or (remaining <= 0) (and (playId > 0) (playId != _efsound_play_id))) {
+    waitMillis (minimum 20 remaining)
+    remaining = (remaining - 20)
+  }
+  if (and (playId > 0) (playId != _efsound_play_id)) {
+    return 0
+  }
+  if (freq > 0) {
+    '[elfreaks_dev_sensor:stopTone]'
+  }
+}
+
+to '_efsound_semitone' note {
+  note = ('_efsound_upper_trimmed' note)
+  if (note == 'C') {
+    return 1
+  }
+  if (or (note == 'C#') (note == 'DB')) {
+    return 2
+  }
+  if (note == 'D') {
+    return 3
+  }
+  if (or (note == 'D#') (note == 'EB')) {
+    return 4
+  }
+  if (or (note == 'E') (note == 'FB')) {
+    return 5
+  }
+  if (or (note == 'F') (note == 'E#')) {
+    return 6
+  }
+  if (or (note == 'F#') (note == 'GB')) {
+    return 7
+  }
+  if (note == 'G') {
+    return 8
+  }
+  if (or (note == 'G#') (note == 'AB')) {
+    return 9
+  }
+  if (note == 'A') {
+    return 10
+  }
+  if (or (note == 'A#') (note == 'BB')) {
+    return 11
+  }
+  if (or (note == 'B') (note == 'CB')) {
+    return 12
+  }
+  return 0
+}
+
+to '_efsound_sound_asset_name' soundName {
+  soundName = ('_efsound_canonical_sound_name' soundName)
+  if (soundName == 'Chinese style') {
+    return 'china_style'
+  }
+  if (soundName == 'country') {
+    return 'country'
+  }
+  if (soundName == 'symphony') {
+    return 'symphony'
+  }
+  if (soundName == 'lyrical') {
+    return 'lyrical'
+  }
+  if (soundName == 'Japanese') {
+    return 'japanese'
+  }
+  if (soundName == 'punk') {
+    return 'punk_music'
+  }
+  if (soundName == 'pop') {
+    return 'pop_music'
+  }
+  if (soundName == 'jazz music') {
+    return 'jazz'
+  }
+  if (soundName == 'blues') {
+    return 'blues'
+  }
+  if (soundName == 'door opening') {
+    return 'door_open'
+  }
+  if (soundName == 'birthday song') {
+    return 'birthday'
+  }
+  if (soundName == 'wind') {
+    return 'wind'
+  }
+  if (soundName == 'rain') {
+    return 'rain'
+  }
+  if (soundName == 'thunder') {
+    return 'thunder'
+  }
+  return ('[data:join]' '' soundName)
+}
+
+to '_efsound_upper_trimmed' s {
+  local 'result' (newList (size s))
+  '[data:delete]' 'all' result
+  for i (size s) {
+    local 'ch' ('[data:unicodeAt]' i s)
+    if (ch > 32) {
+      if (and (97 <= ch) (ch <= 122)) {ch = (ch - 32)}
+      '[data:addLast]' ch result
+    }
+  }
+  return ('[data:unicodeString]' result)
+}
+
+to '_nezha32_board_rgb' led color {
+  '[elfreaks_dev_sensor:boardRgbSet]' (led - 1) ((color >> 16) & 255) ((color >> 8) & 255) (color & 255)
+}
+
+to '_nezha32_board_rgb_all' color {
+  '[elfreaks_dev_sensor:boardRgbSetAll]' ((color >> 16) & 255) ((color >> 8) & 255) (color & 255)
+}
+
+to '_nezha32_board_rgb_off' led {
+  '[elfreaks_dev_sensor:boardRgbSet]' (led - 1) 0 0 0
+}
+
+to '_nezha32_board_rgb_off_all' {
+  '[elfreaks_dev_sensor:boardRgbSetAll]' 0 0 0
+}
+
+to '_nezha32_buttonEdgeEntry' key {
+  if (_nezha32_buttonEdges == 0) {_nezha32_buttonEdges = ('[data:makeList]')}
+  for edge _nezha32_buttonEdges {
+    if ((at 1 edge) == key) {return edge}
+  }
+  local 'newEdge' ('[data:makeList]' key false false false)
+  '[data:addLast]' newEdge _nezha32_buttonEdges
+  return newEdge
+}
+
+to '_nezha32_buttonEvent' button event {
+  local 'entry' ('_nezha32_buttonEdgeEntry' button)
+  local 'now' ('_nezha32_buttonNow' button)
+  local 'was' (at 2 entry)
+  if (now != was) {
+    atPut 2 entry now
+    if now {
+      atPut 3 entry true
+    } else {
+      atPut 4 entry true
+    }
+  }
+  if (or (event == 'pressed') (event == '按下')) {
+    if (at 3 entry) {
+      atPut 3 entry false
+      return true
+    }
+    return false
+  }
+  if (at 4 entry) {
+    atPut 4 entry false
+    return true
+  }
+  return false
+}
+
+to '_nezha32_buttonNow' button {
+  local 'aPressed' ('[elfreaks_dev_sensor:buttonA]')
+  local 'bPressed' ('[elfreaks_dev_sensor:buttonB]')
+  local 'cPressed' ('[elfreaks_dev_sensor:buttonC]')
+  if (button == 'A') {
+    return aPressed
+  } (button == 'B') {
+    return bPressed
+  } (button == 'C') {
+    return cPressed
+  } (button == 'A+B') {
+    return (and aPressed bPressed)
+  } (button == 'A+C') {
+    return (and aPressed cPressed)
+  } (button == 'B+C') {
+    return (and bPressed cPressed)
+  }
+  return false
+}
+
+to '_nezha32_clear' {
+  '[tft:clear]'
+}
+
+to '_nezha32_getGaryAcc' axis {
+  local 'ax' 0
+  if (axis == 'Y') {
+    ax = 1
+  } (axis == 'Z') {
+    ax = 2
+  }
+  return (('[elfreaks_dev_sensor:getGaryAcc]' ax) * 1000)
+}
+
+to '_nezha32_getGaryAngle' axis {
+  local 'ax' 0
+  if (axis == 'Y') {
+    ax = 1
+  } (axis == 'Z') {
+    ax = 2
+  }
+  return ('[elfreaks_dev_sensor:getGaryAngle]' ax)
+}
+
+to '_nezha32_gyroReset' {
+  '[elfreaks_dev_sensor:gyroReset]'
+}
+
+to '_nezha32_lvgl_set_bg' color {
+  '[tft:screenSetBackground]' color
+}
+
+to '_nezha32_lvgl_title_bar' state {
+  if (or (state == 'hide') (or (state == '隐藏') (state == '隱藏'))) {
+    '[tft:screenSetTitleBarVisible]' false
+  } else {
+    '[tft:screenSetTitleBarVisible]' true
+  }
+}
+
+to '_nezha32_play_melody' melody bpm {
+  '_efsound_init'
+  if (('_efsound_upper_trimmed' melody) == '') {
+    '_nezha32_stop_melody'
+    return 0
+  }
+  if (bpm <= 0) {
+    bpm = _efsound_tempo
+  }
+  efsound_set_tempo bpm
+  _efsound_play_id += 1
+  _efsound_bg_melody = melody
+  _efsound_bg_bpm = bpm
+  sendBroadcast '_efsound_background_loop'
+}
+
+to '_nezha32_play_sound' soundName {
+  local 'ok' ('[elfreaks_dev_sensor:playSoundByName]' ('_efsound_sound_asset_name' soundName) true)
+  if ok {
+    _efsound_play_id += 1
+    _efsound_bg_melody = ''
+  }
+}
+
+to '_nezha32_screenDelete' id {
+  '[tft:screenDelete]' id
+}
+
+to '_nezha32_screenText' text x y color {
+  return ('[tft:screenText]' text x y 0 1 color 0 true)
+}
+
+to '_nezha32_screenTextToLine' text line color {
+  if (isType line 'number') {
+    '[tft:screenLineText]' line text color
+  } else {
+    '[tft:screenLineText]' ('[data:find]' line ('[data:makeList]' '1' '2' '3' '4' '5' '6' '7' '8' '9')) text color
+  }
+}
+
+to '_nezha32_screenUpdateText' id text color {
+  '[tft:screenUpdateText]' id text 0 0 0 1 color 0 true
+}
+
+to '_nezha32_setPixel' x y color {
+  '[tft:setPixel]' x y color
+  waitMillis 10
+}
+
+to '_nezha32_sound_play_tone' frequency ms {
+  if (ms <= 0) {return ('[elfreaks_dev_sensor:startTone]' frequency)}
+  ms = (minimum 60000 ms)
+  local 'ok' ('[elfreaks_dev_sensor:startTimedTone]' frequency ms)
+  if ok {
+    waitMillis ms
+  }
+  return ok
+}
+
+to '_nezha32_sound_set_volume' volume {
+  volume = (maximum 0 volume)
+  volume = (minimum 100 volume)
+  '[elfreaks_dev_sensor:setSpeakerVolumePercent]' volume
+}
+
+to '_nezha32_sound_stop_all_sounds' {
+  '_nezha32_stop_melody'
+}
+
+to '_nezha32_stop_melody' {
+  _efsound_play_id += 1
+  _efsound_bg_melody = ''
+  '[elfreaks_dev_sensor:stopTone]'
+}
+
+to efsound_set_tempo bpm {
+  if (bpm > 0) {_efsound_tempo = (maximum 1 bpm)}
+}
+

@@ -578,6 +578,15 @@ method loadNewProjectFromData MicroBlocksScripter aString updateLibraries {
 	restoreScripts this
 }
 
+method reportFunctionsInSeveralLibraries MicroBlocksScripter {
+	duplicates = (functionsInSeveralLibraries mbProject)
+	if (notEmpty duplicates) {
+		inform (global 'page') (join
+			(localized 'These functions are defined in more than one library, so only one of each is used:')
+			' ' (joinStrings duplicates '; ') '.')
+	}
+}
+
 method setProject MicroBlocksScripter aMicroBlocksProject {
 	mbProject = aMicroBlocksProject
 	restoreScripts this
@@ -1364,6 +1373,7 @@ method importLibraryFromUrl MicroBlocksScripter fullUrl {
 }
 
 method importLibraryFromString MicroBlocksScripter data libName fileName asImplementation {
+	oldLibs = (values (libraries mbProject))
 	moduleName = (addLibraryFromString mbProject (toString data) libName fileName)
 	if asImplementation { beImplementation (libraryNamed mbProject libName) }
 	librariesChanged (smallRuntime)
@@ -1375,6 +1385,38 @@ method importLibraryFromString MicroBlocksScripter data libName fileName asImple
 	updateBlocks this
 	saveScripts this
 	restoreScripts this
+
+	// last, since closing the dialog with its X skips anything after it in the browser
+	reportReplacedLibraries this (libraryNamed mbProject moduleName) oldLibs
+}
+
+method reportReplacedLibraries MicroBlocksScripter lib oldLibs {
+	// Tell the user which libraries lib replaced. For the author of lib, also list the functions
+	// of each library it implements that it lacks or defines with a different block.
+	if (isNil lib) { return }
+	msg = (list)
+	for oldLib oldLibs {
+		oldName = (moduleName oldLib)
+		if (and (oldName != (moduleName lib)) (isNil (libraryNamed mbProject oldName)) (replaces lib oldLib)) {
+			add msg (join (localized '%1 replaces %2' (array (moduleName lib) oldName)) '.')
+		}
+	}
+	for libName (implementedLibs lib) {
+		embeddedLib = (embeddedLibraryNamed lib libName)
+		if (notNil embeddedLib) {
+			missing = (missingFunctionsOf lib embeddedLib)
+			if (notEmpty missing) {
+				add msg (join (localized 'Blocks and functions of %1 that this library does not define:' libName)
+					' ' (joinStrings missing ', ') '.')
+			}
+			mismatched = (mismatchedFunctionsOf lib embeddedLib)
+			if (notEmpty mismatched) {
+				add msg (join (localized 'Blocks and functions of %1 that differ in this library:' libName)
+					' ' (joinStrings mismatched ', ') '.')
+			}
+		}
+	}
+	if (notEmpty msg) { inform (global 'page') (joinStrings msg (newline)) }
 }
 
 method updateLibraryList MicroBlocksScripter {

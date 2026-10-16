@@ -12,9 +12,10 @@
 #include "interp.h"
 #include <inttypes.h>
 
-#if defined(NRF51) || defined(ARDUINO_ARCH_SAMD) || \
-	defined(__ZEPHYR__) || defined(DUELink) || defined(ESP8266) || defined(ESP32_S3_MATRIX_PORTAL) || \
-	defined(NEZHA_ESP32) // Nezha: the Elecfreaks library owns the display and registers the tft set
+// #define NEZHA_ESP32_DIRECT_DRAW 1
+
+#if defined(NRF51) || defined(ARDUINO_ARCH_SAMD) || defined(__ZEPHYR__) || defined(DUELink) || \
+	defined(ESP8266) || defined(ESP32_S3_MATRIX_PORTAL)
 
 // TFT primitives are not supported
 #define NO_EXTERNAL_DISPLAY_PRIMS
@@ -130,7 +131,14 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		}
 	}
 
+	#if defined(NEZHA_ESP32)
+		static void nezhaEndDrawing();
+	#endif
+
 	static void inline UPDATE_DISPLAY() {
+		#if defined(NEZHA_ESP32)
+			nezhaEndDrawing(); // a block's drawing reaches the screen in one piece
+		#endif
 		if (isOLED && !deferUpdates) {
 			oledUpdate();
 			taskSleep(3); // make this task sleep a bit since writing to OLED takes 30+ msecs
@@ -192,6 +200,130 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 				useTFT = true;
 			}
 		}
+
+	#elif defined(NEZHA_ESP32) && defined(NEZHA_ESP32_DIRECT_DRAW) && !defined(NO_EXTERNAL_DISPLAY_PRIMS)
+		// This code is for testing direct drawing to the TFT display from MicroBlocks.
+		// Comes before NEZHA_ESP32 entry so it overrides if NEZHA_ESP32_DIRECT_DRAW is defined
+		// The NEZHA_ESP32 screen is 240 x 320 pixels minus title bar (0 or 28 pixels)
+		#define TFT_BL		9
+		#define TFT_MOSI	10
+		#define TFT_SCLK	11
+		#define TFT_DC		12
+		#define TFT_RST		13
+		#define TFT_CS		42
+
+		#include <NezhaMicroBlocks.h>
+
+		void tftInit() { } // don't initialize at startup
+
+		void nezhaTFTOpen() {
+			delay(100); // allow time for last Nezha display update to complete (min 50 msecs)
+			int topBarHeight = 28; // could be passed as a parameter
+			tftWidth = nezhaMB_CanvasWidth();
+			tftHeight = 320 - topBarHeight;
+
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
+			tft = new Arduino_ST7789(bus, TFT_RST, 2, true,
+					tftWidth, tftHeight, 0, topBarHeight, 0, topBarHeight);
+			if (!tft->begin()) {
+				outputString("Nezha tftInit() failed!");
+			} else {
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH); // turn on backlight
+				tftClear();
+				useTFT = true;
+			}
+		}
+
+		void nezhaTFTClose() {
+			if (!tft) {
+				tftClear();
+				delete tft;
+			}
+			tftWidth = 0;
+			tftHeight = 0;
+			useTFT = false;
+		}
+
+		static void nezhaEndDrawing() { } // noop
+
+	#elif defined(NEZHA_ESP32)
+		// The Elecfreaks library owns the screen and shows a title bar above a canvas.
+		// NezhaDisplay forwards Arduino_GFX drawing to the library's canvas calls.
+
+		#include <NezhaMicroBlocks.h>
+
+		class NezhaDisplay : public Arduino_GFX {
+		public:
+			NezhaDisplay(int w, int h) : Arduino_GFX(w, h) { }
+			bool begin(int32_t speed = GFX_NOT_DEFINED) override { return true; }
+
+			// CanvasBeginDraw takes a lock that is not recursive, so a drawing begins once
+			// and stays open until UPDATE_DISPLAY() ends it at the end of the block.
+			void startWrite() override {
+				depth++;
+				if (!drawing) {
+					nezhaMB_CanvasBeginDraw();
+					drawing = true;
+				}
+			}
+			void endWrite() override {
+				if (depth > 0) depth--;
+			}
+			void endDrawing() {
+				if (drawing && (0 == depth)) {
+					nezhaMB_CanvasEndDraw();
+					drawing = false;
+				}
+			}
+
+			void writePixelPreclipped(int16_t x, int16_t y, uint16_t color) override {
+				startWrite();
+				nezhaMB_CanvasSetPixel(x, y, color);
+				endWrite();
+			}
+			void writeFillRectPreclipped(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override {
+				startWrite();
+				nezhaMB_CanvasFillRect(x, y, w, h, color);
+				endWrite();
+			}
+			void writeFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) override {
+				writeFillRect(x, y, w, 1, color);
+			}
+			void writeFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) override {
+				writeFillRect(x, y, 1, h, color);
+			}
+			void draw16bitRGBBitmap(int16_t x, int16_t y, uint16_t *bitmap, int16_t w, int16_t h) override {
+				if ((x < 0) || (y < 0) || ((x + w) > _width) || ((y + h) > _height)) {
+					Arduino_GFX::draw16bitRGBBitmap(x, y, bitmap, w, h); // clips pixel by pixel
+					return;
+				}
+				startWrite();
+				nezhaMB_CanvasDrawBitmap(x, y, w, h, bitmap);
+				endWrite();
+			}
+
+		private:
+			int depth = 0;
+			bool drawing = false;
+		};
+
+		static void nezhaEndDrawing() {
+			if (tft) ((NezhaDisplay *) tft)->endDrawing();
+		}
+
+		void tftInit() {
+			// called from boardInit(), after nezhaMB_BoardInit() has started the library's UI
+			tftWidth = nezhaMB_CanvasWidth();
+			tftHeight = nezhaMB_CanvasHeight();
+			tft = new NezhaDisplay(tftWidth, tftHeight);
+			tft->begin();
+			tftClear();
+			useTFT = true;
+		}
+
+		void nezhaTFTOpen() { } // stub
+		void nezhaTFTClose() { } // stub
 
 	#elif defined(ARDUINO_M5Stick_Plus)
 		#define TFT_CS		5
@@ -932,6 +1064,8 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 		void tftInit() {
 			display.begin();
 			tft = &display;
+			tftWidth = TFT_WIDTH;
+			tftHeight = TFT_HEIGHT;
 			useTFT = true;
 		}
 
@@ -1044,6 +1178,74 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 			tft->fillScreen(BLACK);
 		}
 
+	#elif defined(M5Stick_S3)
+		#define TFT_MOSI 39
+		#define TFT_SCLK 40
+		#define TFT_CS 41
+		#define TFT_DC 45
+		#define TFT_RST 21
+		#define TFT_BL 38
+
+		// StickS3 M5PM1 power management, needed by TFT display
+		// Register definitions: https://github.com/m5stack/M5PM1
+		#define PM1_ADDR 0x6E
+		#define PM1_POWER_CONFIG 0x06
+		#define PM1_I2C_CONFIG 0x09
+		#define PM1_GPIO_MODE 0x10
+		#define PM1_GPIO_OUTPUT 0x11
+		#define PM1_GPIO_DRIVE 0x13
+		#define PM1_GPIO_FUNCTION 0x16
+
+		static int powerStarted = false;
+
+		static int updatePM1(int reg, int mask, int value) {
+			int oldValue = readInternalI2CReg(PM1_ADDR, reg);
+			if (oldValue < 0) return false;
+			int newValue = (oldValue & ~mask) | (value & mask);
+			writeInternalI2CReg(PM1_ADDR, reg, newValue);
+			return readInternalI2CReg(PM1_ADDR, reg) == newValue;
+		}
+
+		void stickS3PowerInit() {
+			if (powerStarted) return;
+			// The first transaction wakes a sleeping PM1 and may fail.
+			readInternalI2CReg(PM1_ADDR, 0);
+			delay(10);
+			if (readInternalI2CReg(PM1_ADDR, 0) < 0) {
+				outputString("StickS3 M5PM1 not found");
+				return;
+			}
+			writeInternalI2CReg(PM1_ADDR, PM1_I2C_CONFIG, 0); // disable idle sleep, keep 100 kHz
+			int ok = updatePM1(PM1_POWER_CONFIG, 0x0D, 0x05); // charging and IMU LDO; EXT_5V input
+			ok &= updatePM1(PM1_GPIO_FUNCTION, 0xF0, 0); // PYG2 (LCD power) and PYG3 (speaker) as GPIO
+			ok &= updatePM1(PM1_GPIO_DRIVE, 0x0C, 0); // push-pull
+			ok &= updatePM1(PM1_GPIO_OUTPUT, 0x0C, 0x04); // LCD rail on, speaker amplifier off
+			ok &= updatePM1(PM1_GPIO_MODE, 0x0C, 0x0C); // outputs
+			if (!ok) {
+				outputString("StickS3 power initialization failed");
+				return;
+			}
+			delay(100); // allow the LCD power rail to settle
+			powerStarted = true;
+		}
+
+		void tftInit() {
+			stickS3PowerInit(); // enable the LCD power rail before initializing the display
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI, -1);
+			tft = new Arduino_ST7789(bus, TFT_RST, 1, true, 135, 240, 52, 40, 53, 40);
+			if (!tft->begin()) {
+				outputString("tftInit() failed!");
+			} else {
+				backlightPin = TFT_BL;
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH);
+				tftWidth = 240;
+				tftHeight = 135;
+				tftClear();
+				useTFT = true;
+			}
+		}
+
 	#elif defined(M5Atom_S3_TFT)
 		#define TFT_MOSI 21
 		#define TFT_SCLK 17
@@ -1062,6 +1264,33 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 				digitalWrite(TFT_BL, HIGH); // turn on backlight
 				tftWidth = 128;
 				tftHeight = 128;
+				tftClear();
+				useTFT = true;
+			}
+		}
+
+	#elif defined(STEAMakersAI)
+		#define TFT_MOSI 21
+		#define TFT_SCLK 20
+		#define TFT_CS 41
+		#define TFT_DC 40
+		#define TFT_RST 38
+		#define TFT_BL 42
+		#define TFT_WIDTH 240
+		#define TFT_HEIGHT 240
+
+		void tftInit() {
+			Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
+			tft = new Arduino_ST7789(bus, TFT_RST, 0, true,
+					TFT_WIDTH, TFT_HEIGHT, 0, 0, 0, 0);
+			if (!tft->begin()) {
+				outputString("tftInit() failed!");
+			} else {
+				pinMode(TFT_BL, OUTPUT);
+				digitalWrite(TFT_BL, HIGH); // turn on backlight
+				backlightPin = TFT_BL;
+				tftWidth = TFT_WIDTH;
+				tftHeight = TFT_HEIGHT;
 				tftClear();
 				useTFT = true;
 			}
@@ -1232,7 +1461,7 @@ OBJ primSetBacklight(int argCount, OBJ *args) {
 		if (brightness > 10) brightness = 10;
 		pinMode(34, OUTPUT);
 		analogWrite(34, brightness * 25); // nRF5x boards use 8-bit analogWrite resolution
-	#elif defined(TTGO_RP2040) || defined(ARDUINO_WEACT)
+	#elif defined(TTGO_RP2040) || defined(ARDUINO_WEACT) || defined(M5Stick_S3)
 		pinMode(TFT_BL, OUTPUT);
 		if (brightness < 0) brightness = 0;
 		if (brightness > 10) brightness = 10;
@@ -1483,7 +1712,8 @@ static void drawChar(int x, int y, uint8_t *glyph, int color, int scale) {
 	tft->endWrite();
 }
 
-static void drawString(const char *s, int x, int y, int color16b, int scale, int wrap) {
+static int drawString(const char *s, int x, int y, int color16b, int scale, int wrap) {
+	// Draw one line of text, wrapping if requested. Return the y of the last row drawn.
 	const int lineH = 8 * scale;
 	const int letterW = 6 * scale;
 	const int lastX = tftWidth - letterW;
@@ -1499,27 +1729,52 @@ static void drawString(const char *s, int x, int y, int color16b, int scale, int
 		drawChar(x, y, (uint8_t *) &mbFont[offset], color16b, scale);
 		x += letterW;
 	}
+	return y;
 }
 
 static void drawText(OBJ value, int x, int y, int color16b, int scale, int wrap, int bgColor) {
+	#if defined(NEZHA_ESP32)
+		char numStr[16];
+		char *s;
+		if (isInt(value)) {
+			sprintf(numStr, "%d", obj2int(value));
+			s = numStr;
+		} else if (IS_TYPE(value, StringType) || isBoolean(value)) {
+			s = obj2str(value); // the Nezha font is UTF-8, so no CP437 conversion
+		} else {
+			return;
+		}
+		tft->startWrite();
+		nezhaMB_CanvasDrawText(x, y, s, color16b, wrap, scale, bgColor);
+		tft->endWrite();
+		return;
+	#endif
+
 	int lineH = 8 * scale;
 	int letterW = 6 * scale;
 	char buffer[1000];
 
 	if (IS_TYPE(value, StringType)) {
-		int count = UTF8ToCP437(obj2str(value), buffer, sizeof(buffer));
-		if (bgColor != -1) tft->fillRect(x, y, count * letterW, lineH, bgColor);
-		drawString(buffer, x, y, color16b, scale, wrap);
+		UTF8ToCP437(obj2str(value), buffer, sizeof(buffer));
 	} else if (trueObj == value) {
-		if (bgColor != -1) tft->fillRect(x, y, 4 * letterW, lineH, bgColor);
-		drawString("true", x, y, color16b, scale, wrap);
+		strcpy(buffer, "true");
 	} else if (falseObj == value) {
-		if (bgColor != -1) tft->fillRect(x, y, 5 * letterW, lineH, bgColor);
-		drawString("false", x, y, color16b, scale, wrap);
+		strcpy(buffer, "false");
 	} else if (isInt(value)) {
 		sprintf(buffer, "%d", obj2int(value));
-		if (bgColor != -1) tft->fillRect(x, y, strlen(buffer) * letterW, lineH, bgColor);
-		drawString(buffer, x, y, color16b, scale, wrap);
+	} else {
+		return;
+	}
+
+	// Draw each line; a newline returns to the starting x and moves down one line.
+	char *line = buffer;
+	while (true) {
+		char *lineEnd = strchr(line, 10);
+		if (lineEnd) *lineEnd = 0;
+		if (bgColor != -1) tft->fillRect(x, y, strlen(line) * letterW, lineH, bgColor);
+		y = drawString(line, x, y, color16b, scale, wrap) + lineH;
+		if (!lineEnd) break;
+		line = lineEnd + 1;
 	}
 }
 
@@ -1684,6 +1939,12 @@ OBJ primResumeUpdates(int argCount, OBJ *args) {
 }
 
 OBJ primInvertDisplay(int argCount, OBJ *args) {
+	#if defined(NEZHA_ESP32_DIRECT_DRAW)
+		// xxx testing: open Nezha TFT in direct draw mode
+		if (!tft) nezhaTFTOpen();
+		return falseObj;
+	#endif
+
 	if (!tft) return falseObj;
 	if (argCount < 1) return fail(notEnoughArguments);
 	int invertFlag = (args[0] == trueObj);
@@ -1999,6 +2260,24 @@ static void init_9341(int rotation, int dcPin, int csPin, int blPin,
 	}
 }
 
+static void init_9A01(int rotation, int dcPin, int csPin, int blPin,
+int resetPin = GFX_NOT_DEFINED, int invertColors = true) {
+	if (!tft) delete tft;
+	Arduino_DataBus *bus = makeDataBus(dcPin, csPin);
+	tft = new Arduino_GC9A01(bus, resetPin, rotation, invertColors);
+	if (!tft->begin()) {
+		freeDisplayController();
+		outputString("Display initialization failed!");
+	} else {
+		tftWidth = 240;
+		tftHeight = 240;
+		isOLED = false;
+		turnOnBacklight(blPin);
+		tftClear();
+		useTFT = true;
+	}
+}
+
 static void init_OLED(int w, int h, int flipVertical) {
 	if ((w < 32) || (w > 128) || (h < 16) || (h > 128)) return;
 	if (!tft) delete tft;
@@ -2126,6 +2405,24 @@ static OBJ primInitILI9341(int argCount, OBJ *args) {
 	return falseObj;
 }
 
+static OBJ primInitGC9A01A(int argCount, OBJ *args) {
+	if (argCount < 4) return fail(notEnoughArguments);
+	if (!(isInt(args[0]) && isInt(args[1]) && isInt(args[2]) && isInt(args[3]))) {
+		return fail(needsIntegerError);
+	}
+	int rotation = obj2int(args[0]);
+	if (rotation < 0) rotation = 0;
+	if (rotation > 3) rotation = 3;
+	int dcPin = mapDigitalPinNum(obj2int(args[1]));
+	int csPin = mapDigitalPinNum(obj2int(args[2]));
+	int blPin = mapDigitalPinNum(obj2int(args[3]));
+	int rstPin = mapDigitalPinNum(((argCount > 4) && isInt(args[4])) ? obj2int(args[4]) : -1);
+//	int invertDisplay = ((argCount < 6) || (args[5] == trueObj));
+	int invertDisplay = ((argCount > 5) && (args[5] == trueObj)) ? false : true;
+	init_9A01(rotation, dcPin, csPin, blPin, rstPin, invertDisplay);
+	return falseObj;
+}
+
 static OBJ primInitOLED(int argCount, OBJ *args) {
 	if (argCount < 2) return fail(notEnoughArguments);
 	if (!(isInt(args[0]) && isInt(args[1]))) return fail(needsIntegerError);
@@ -2247,6 +2544,7 @@ static PrimEntry entries[] = {
 		{"init7789", primInitST7789},
 		{"init7796", primInitST7796},
 		{"init9341", primInitILI9341},
+		{"init9A01", primInitGC9A01A},
 		{"initOLED", primInitOLED},
 		{"closeDisplay", primCloseDisplay},
 	#endif

@@ -1,0 +1,214 @@
+module DatabotV3
+author MicroBlocks
+version 1 6 
+depends 'Air Pressure (BMP581)' 'Color & Proximity (APDS9151)' 'DatabotV3 Motion' '_Gas (ENS160)' '_Temperature Humidity (SHT40)' '_Gesture (PAJ7620)' '_Distance (VL53L1x)' 
+choices databotV3_tempUnits '°C' '°F' 
+description 'Library for the databot v3.
+If your databot has A and B buttons,  use this library.
+For earlier models of the databot (no buttons), use the "databot" library.
+'
+variables _databotV3_pixels 
+
+  spec ' ' 'databotV3_beep' 'databotV3 beep'
+  spec 'r' 'databotV3_batteryLevel' 'databotV3 battery level (%)'
+  space
+  spec ' ' 'databotV3_setAllLEDs' 'databotV3 set all LEDs color _' 'color'
+  spec ' ' 'databotV3_setLED' 'databotV3 set LED _ color _' 'num color' 1
+  spec 'r' 'databotV3_RGB' 'color r _ g _ b _ (0-255)' 'num num num' 100 0 100
+  space
+  spec 'r' 'databotV3_light' 'databotV3 light level'
+  spec 'r' 'databotV3_distance' 'databotV3 distance (mm)'
+  space
+  spec 'r' 'databotV3_temperature' 'databotV3 temperature _' 'menu.databotV3_tempUnits' '°C'
+  spec 'r' 'databotV3_relative_humidity' 'databotV3 relative humidity (%)'
+  spec 'r' 'databotV3_temp_probe' 'databotV3 temperature probe _ _ (x10)' 'menu.range:1-3 menu.databotV3_tempUnits' 1 '°C'
+  space
+  spec 'r' 'databotV3_CO2' 'databotV3 eCO2'
+  spec 'r' 'databotV3_TVOC' 'databotV3 TVOC'
+  spec 'r' 'databotV3_AQI' 'databotV3 air quality index'
+  space
+  spec 'r' 'databotV3_gesture' 'databotV3 gesture'
+  space
+  spec 'r' 'databotV3_uvIndex' 'databotV3 UV Index'
+  spec 'r' 'databotV3_UVA' 'databotV3 UVA power (uW / cm^2)'
+  space
+  spec 'r' 'databotV3_analog' 'databotV3 analog input _' 'menu.range:1-3' 1
+  space
+  spec ' ' '_databotV3_initLEDs' '_databotV3_initLEDs'
+  spec 'r' '_databotV3_DS18B20_address' '_databotV3_DS18B20_address pin _' 'num' 4
+  spec 'r' '_databotV3_raw_temperature' '_databotV3_raw_temperature pin _' 'num' 4
+
+to '_databotV3_DS18B20_address' pin {
+  '[1wire:init]' pin
+  '[1wire:scanStart]'
+  waitMillis 10
+  local 'addr' ('[data:newByteArray]' 8)
+  if (not ('[1wire:scanNext]' addr)) {
+    comment 'No response; temperature probe not plugged in?'
+    return 0
+  }
+  local 'family' (at 1 addr)
+  if (not (or (family == 34) (or (family == 40) (family == 66)))) {
+    comment 'Device is not a DS1822, DS18B20, or DS28EA00 temperature sensor'
+    return 0
+  }
+  return addr
+}
+
+to '_databotV3_initLEDs' {
+  '[display:neoPixelSetPin]' -1 false
+  if (not (isType _databotV3_pixels 'list')) {
+    _databotV3_pixels = (newList 3)
+  }
+}
+
+to '_databotV3_raw_temperature' pin {
+  comment 'Read the raw temperature. This function waits
+a full second fo the temperature sensor to
+measure the temperature, so it is best called
+from a dedicated task.'
+  local 'addr' ('_databotV3_DS18B20_address' pin)
+  if (addr == 0) {
+    sayIt 'Temperature probe not plugged in?'
+    waitMillis 2000
+    return 0
+  }
+  '[1wire:select]' addr
+  '[1wire:writeByte]' (hexToInt '44') true
+  waitMillis 1
+  '[1wire:select]' addr
+  '[1wire:writeByte]' (hexToInt 'BE')
+  local 'data' ('[data:newByteArray]' 9)
+  for i 9 {
+    atPut i data ('[1wire:readByte]')
+  }
+  if (('[1wire:crc8]' data) != 0) {
+    sayIt 'Bad temperature CRC'
+    return 0
+  }
+  local 'result' (((at 2 data) << 8) | (at 1 data))
+  if (result >= 32768) {
+    comment 'Sign-extend 16-bit negative number'
+    result = (result - 65536)
+  }
+  return result
+}
+
+to databotV3_AQI {
+  return (ens160_aqi)
+}
+
+to databotV3_CO2 {
+  return (ens160_CO2)
+}
+
+to databotV3_RGB r g b {
+  r = (maximum 0 (minimum r 255))
+  g = (maximum 0 (minimum g 255))
+  b = (maximum 0 (minimum b 255))
+  return (((r << 16) | (g << 8)) | b)
+}
+
+to databotV3_TVOC {
+  return (ens160_tovc)
+}
+
+to databotV3_UVA {
+  comment 'Returns the UV-A power in uW per square centimeter.'
+  local 'millivoltsX10' ((33000 * (analogReadOp 3)) / 1023)
+  local 'divisor' (43 * 113)
+  return (((1000 * millivoltsX10) + (divisor / 2)) / (43 * 113))
+}
+
+to databotV3_analog which {
+  local 'analogPin' 5
+  if (2 == which) {
+    analogPin = 7
+  } (3 == which) {
+    analogPin = 6
+  }
+  return (analogReadOp analogPin)
+}
+
+to databotV3_batteryLevel {
+  local 'millivolts' ('[sensors:batteryMillivolts]')
+  if (millivolts < 3248) {
+    return 0
+  }
+  return (minimum ((millivolts - 3121) / 10) 100)
+}
+
+to databotV3_beep {
+  '[io:playTone]' -1 440
+  waitMillis 100
+  '[io:playTone]' -1 0
+}
+
+to databotV3_distance {
+  return ('VL53L1x distance (mm)')
+}
+
+to databotV3_gesture {
+  return ('paj7620 read')
+}
+
+to databotV3_light {
+  return (apds9151_lightLevel)
+}
+
+to databotV3_relative_humidity {
+  return (sht40_humidity)
+}
+
+to databotV3_setAllLEDs color {
+  '_databotV3_initLEDs'
+  atPut 'all' _databotV3_pixels color
+  '[display:neoPixelSend]' _databotV3_pixels
+  waitMicros 300
+}
+
+to databotV3_setLED index color {
+  '_databotV3_initLEDs'
+  if (and (1 <= index) (index <= 3)) {
+    if (3 == index) {
+      index = 2
+    } (2 == index) {
+      index = 3
+    }
+    atPut index _databotV3_pixels color
+    '[display:neoPixelSend]' _databotV3_pixels
+    waitMicros 300
+  }
+}
+
+to databotV3_temp_probe which unit {
+  local 'probePin' 12
+  if (2 == which) {
+    probePin = 10
+  } (3 == which) {
+    probePin = 11
+  }
+  local 'raw' ('_databotV3_raw_temperature' probePin)
+  if ('°F' == unit) {
+    return ((((10 * 9) * raw) / (16 * 5)) + 320)
+  } else {
+    return ((10 * raw) / 16)
+  }
+}
+
+to databotV3_temperature units {
+  if (units == '°C') {
+    return (sht40_temperature)
+  } else {
+    return (32 + ((9 * (sht40_temperature)) / 5))
+  }
+}
+
+to databotV3_uvIndex {
+  local 'millivoltsX10' ((33000 * (analogReadOp 3)) / 1023)
+  if (millivoltsX10 < 2000) {
+    return 0
+  }
+  return ((millivoltsX10 - 1320) / 94)
+}
+

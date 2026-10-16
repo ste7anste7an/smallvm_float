@@ -15,12 +15,12 @@
 
 #if !defined(HAS_BOARD_HOOKS)
 
-void boardEarlyInit() { }
 void boardInit() { }
 void boardAddPrims() { }
 void boardPoll() { }
 void boardStopAll() { }
 void boardIDEConnectionChanged(int isConnected) { }
+int boardStartAtBoot() { return true; }
 
 #endif
 

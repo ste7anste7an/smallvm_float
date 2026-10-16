@@ -18,6 +18,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(NEZHA_ESP32)
+	#include <NezhaMicroBlocks.h>
+#endif
+
 #if !defined(ARDUINO_API_VERSION)
 	// typedef PinMode as int for use on platforms that do not use the Arduino Core API
 	typedef int PinMode;
@@ -170,6 +174,10 @@ void hardwareInit() {
 	#if defined(DATABOT_V3)
 		databotV3Init();
 	#endif
+	#if defined(NEZHA_ESP32)
+		// This call suppresses some spurious error messages at startup.
+		gpio_install_isr_service(0);
+	#endif
 	initPins();
 	initRandomSeed();
 	turnOffInternalNeoPixels();
@@ -181,7 +189,7 @@ void hardwareInit() {
 		touchSetCycles(0x800, 0x900);
 		writeI2CReg(0x20, 0, 0); // initialize IO expander
 	#endif
-	#if !defined(IS_XIAO)
+	#if !defined(IS_XIAO) && !defined(NEZHA_ESP32)
 		tftInit();
 		tftClear();
 	#endif
@@ -690,6 +698,24 @@ void hardwareInit() {
 		1, 0, 0, 0, 1, 0, 0, 0, 1, 1,
 		1, 1, 0, 0, 1, 1, 1, 1, 1, 0};
 
+#elif defined(M5Stick_S3)
+
+	#define BOARD_TYPE "M5StickS3"
+	#define DIGITAL_PINS 49
+	#define ANALOG_PINS 10
+	#define TOTAL_PINS 49
+	#define PIN_LED -1 // the green power LED is controlled by M5PM1
+	#define PIN_BUTTON_A 11
+	#define PIN_BUTTON_B 12
+	static const int analogPin[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	// Expose only Grove and Hat2 GPIOs. Reserve USB, Flash/PSRAM and internal peripherals.
+	static char reservedPin[TOTAL_PINS] = {
+		1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 0, 0, 1, 1, 1, 1};
+
 #elif defined(ARDUINO_M5Stack_ATOMS3)
 
 	#if defined(M5Atom_S3_TFT)
@@ -1075,6 +1101,22 @@ void hardwareInit() {
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 0, 1, 1};
 
+#elif defined(STEAMakersAI)
+	#define BOARD_TYPE "STEAMakers AI"
+	#define DIGITAL_PINS 49
+	#define ANALOG_PINS 20
+	#define TOTAL_PINS 49
+	static const int analogPin[] = {};
+	#define PIN_LED 45
+	#define NEOPIXEL_PIN_LED true
+	#define PIN_BUTTON_A 0
+	static const char reservedPin[TOTAL_PINS] = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+		1, 1, 0, 0, 0, 0, 0, 0, 0};
+
 #elif defined(ESP32_S3)
 	#define BOARD_TYPE "ESP32-S3"
 	#define DIGITAL_PINS 49
@@ -1140,7 +1182,9 @@ void hardwareInit() {
 	#endif
 
 #elif defined(ARDUINO_ARCH_ESP32)
-	#ifdef ARDUINO_IOT_BUS
+	#if defined(ESP32STEAMakers)
+		#define BOARD_TYPE "ESP32 STEAMakers"
+	#elif defined(ARDUINO_IOT_BUS)
 		#define BOARD_TYPE "IOT-BUS"
 		#define LED_BUILTIN 5
 		#define PIN_BUTTON_A 15
@@ -2278,6 +2322,8 @@ OBJ primButtonA(OBJ *args) {
 		int pinButton = 28; // Button A, the LDR button (PA_14), is the same on all DUELink boards.
 		setPinMode(pinButton, INPUT_PULLDOWN); // Arduino pin, not edge pin number
 		return (HIGH == digitalRead(pinButton)) ? trueObj : falseObj;
+	#elif defined(NEZHA_ESP32)
+		return nezhaMB_ButtonA() ? trueObj : falseObj;
 	#else
 		return falseObj;
 	#endif
@@ -2309,6 +2355,8 @@ OBJ primButtonB(OBJ *args) {
 		} else { return falseObj; }
 		setPinMode(pinButton, INPUT_PULLDOWN); // Arduino pin, not edge pin number
 		return (HIGH == digitalRead(pinButton)) ? trueObj : falseObj;
+	#elif defined(NEZHA_ESP32)
+		return nezhaMB_ButtonB() ? trueObj : falseObj;
 	#else
 		return falseObj;
 	#endif
@@ -3134,6 +3182,17 @@ OBJ primPlayTone(int argCount, OBJ *args) {
 			else if (DUE_PID == 0x070001) pin = 7; // Buzzer
 			else return trueObj; // no default tone pin on other DUELink boards
 		}
+	#elif defined(NEZHA_ESP32)
+		if ((pin < 0) || (pin >= DIGITAL_PINS) || RESERVED(pin)) {
+			// no usable pin: play the tone on the built-in speaker
+			int freq = obj2int(freqArg);
+			if (freq > 0) {
+				nezhaMB_AudioStartContinuousTone(freq);
+			} else {
+				nezhaMB_AudioStop(0);
+			}
+			return trueObj;
+		}
 	#else
 		if ((pin < 0) || (pin >= DIGITAL_PINS)) pin = DEFAULT_TONE_PIN;
 	#endif
@@ -3502,11 +3561,17 @@ static OBJ primSquareWave(int argCount, OBJ *args) {
 
 	extern "C" void lightSleep(int msecs) {
 		if (servosRunning) return; // changing clock speed messes up servo timing
+
+		int lowCPUFrequency;
 		#if defined(ESP32_S2) || defined(ESP32_C3) || defined(ESP32_C6)
-			setCpuFrequencyMhz(80); // lowest safe clock speed on S2, C3, and C6 is 80 MHz
+			lowCPUFrequency = 80; // lowest safe clock speed on S2, C3, and C6 is 80 MHz
 		#else
-			setCpuFrequencyMhz(bleRunning ? 80 : 10); // must use 80 MHz if BLE is enabled
+			// use 10 MHz if possible for maximum power savings
+			// lowest possible speed is 80 MHz if BLE or WiFi is active
+			lowCPUFrequency = (bleRunning || wifiActive) ? 80 : 10;
 		#endif
+
+		setCpuFrequencyMhz(lowCPUFrequency);
 
 		delay(msecs);
 

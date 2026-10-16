@@ -31,12 +31,7 @@ JohnWorkInProgress
 *.deb
 *.pem
 
-# ignore snapBlocks copies of Examples and Libraries folders
-snapBlocks/files.txt
-snapBlocks/Examples
-snapBlocks/Libraries
-snapBlocks/gp_wasm.*
-snapBlocks/test-pureJS
+chromeApp/webapp/files.txt
 
 # ELECTRON STUFF BELOW
 
@@ -199,5 +194,6 @@ electron/node_modules/*
 
 # Local IDE + OS junk
 .vscode/
+.idea/
 .DS_Store
 **/.DS_Store
