@@ -1710,10 +1710,10 @@ BlockMorph.prototype.chromeMenu = function () {
 
 	items.push('-');
 	if (this.canExpand()) {
-		items.push(['expand', () => this.expand()]);
+		items.push(['expand', () => { this.expand(); this.scriptChanged(); }]);
 	}
 	if (this.canContract()) {
-		items.push(['collapse', () => this.contract()]);
+		items.push(['collapse', () => { this.contract(); this.scriptChanged(); }]);
 	}
 	if (this.canExpand() || this.canContract()) {
 		items.push('-');
@@ -2013,13 +2013,22 @@ BlockMorph.prototype.expand = function () {
 }
 
 BlockMorph.prototype.contract = function () {
-	// Expand the given block if possible.
+	// Remove my last expansion section. Blocks in its slots are kept on the scripts pane.
 
 	if (!this.canContract()) return;
 
-	if (this.expander) this.expander.destroy(); // remove the expander before appending parts
-	for (const _ of this.specForContract().split(/\s+/)) {
-		this.removeChild(this.children.at(-1));
+	if (this.expander) this.expander.destroy(); // remove the expander before removing parts
+	const nb = this.nextBlock ? this.nextBlock() : null; // a child, often the last one
+	const parts = this.children.filter(m => m !== nb);
+	const scripts = this.parentThatIsA(ScriptsMorph);
+	for (const p of parts.slice(-this.specForContract().split(/\s+/).length)) {
+		this.removeChild(p);
+		const keep = (p instanceof CSlotMorph) ? p.nestedBlock() : p;
+		if (scripts && keep instanceof BlockMorph && !keep.isTemplate) {
+			const pos = keep.topLeft();
+			scripts.add(keep);
+			keep.setPosition(pos.add(20));
+		}
 	}
 	this.cachedInputs = null;
 	this.addExpander();
@@ -2073,7 +2082,7 @@ BlockMorph.prototype.specForExpand = function () {
 }
 
 BlockMorph.prototype.specForContract = function () {
-	// Return a string containing the block spec section for the next level of expansion.
+	// Return a string containing the block spec section that the last expansion added.
 
 	let currentInputCount = this.inputs().length;
 	let specSections = this.blockSpec.split(':').map(s => s.trim());
@@ -2082,7 +2091,8 @@ BlockMorph.prototype.specForContract = function () {
 	for (let i = 1; i < specSections.length; i++) {
 		count += this.inputCountForSpecSection(specSections[i]);
 		if (count >= currentInputCount) {
-			return specSections[i - 1];
+			let result = specSections[i];
+			return (result == '...') ? specSections[i - 1] : result;
 		}
 	}
 	return specSections.at(-1);
