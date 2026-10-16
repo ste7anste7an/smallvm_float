@@ -266,7 +266,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'scripts.setExportedScriptScale':
 			callback(0);
-			MB_editor.exportedScriptScale = Number(params[0]);
+			MB_editor.exportedScriptScale = Number(params[0]) / 100;
 			break;
 		case 'scripts.restoreZoom':
 			MB_editor.restoreZoom();
