@@ -4180,48 +4180,6 @@ ScriptsMorph.prototype.contextMenu = function () {
 	return chromeDrawnMenu;
 };
 
-ScriptsMorph.prototype.userMenu = function () {
-	// Obsolete - ScriptsMorph shift-right-click menu used for testing.
-	var menu = new MenuMorph(this),
-		shiftClicked = this.world().currentKey === 16;
-
-	menu.addItem(
-		'connect',
-		() => { MB_connection.connect('serial') },
-		'connect via serial for testing');
-	menu.addLine();
-
-	menu.addItem(
-		'new project', () => { MB_editor.newProject() }, 'clear current project');
-	menu.addItem(
-		'open project', () => { MB_editor.openProject() }, 'open a project from a file');
-	menu.addItem(
-		'save project', () => { MB_editor.saveProject() }, 'save this project to a file');
-	menu.addItem(
-		'read from board', () => { MB_editor.openProjectFromBoard() },
-		'replace this project with the one\nstored on the connected board');
-	menu.addLine();
-
-	menu.addItem(
-		'run', () => { MB_editor.startAll() }, 'run the current project');
-	menu.addItem(
-		'stop', () => { MB_editor.stopAll() }, 'stop all scripts');
-	menu.addLine();
-
-	menu.addItem('clean up', 'cleanUp', 'arrange scripts\nvertically');
-	menu.addItem('save picture of all scripts', () => { MB_editor.saveScriptsImage() });
-
-	menu.addLine();
-	menu.addItem('compile function test',
-		async () => {
-			data = await MB_Files.readFile('Examples/Blink.ubp');
-			this.doGPCall('test.compileExample', [data])
-		},
-		'Compile a function from the "Blink" project');
-
-	return menu;
-};
-
 // ScriptsMorph user menu features:
 
 ScriptsMorph.prototype.definitionsFirst = function (a, b) {
@@ -4814,31 +4772,6 @@ CommandSlotMorph.prototype.evaluate = function () {
 
 CommandSlotMorph.prototype.isEmptySlot = function () {
 	return !this.isStatic && (this.nestedBlock() === null);
-};
-
-// CommandSlotMorph context menu ops
-
-CommandSlotMorph.prototype.attach = function () {
-	// for context menu demo and testing purposes
-	// override inherited version to adjust new owner's layout
-	var choices = this.overlappedMorphs(),
-		menu = new MenuMorph(this, 'choose new parent:');
-
-	choices.forEach(each =>
-		menu.addItem(
-			each.toString().slice(0, 50),
-			() => {
-				each.add(this);
-				this.isDraggable = false;
-				if (each.fixLayout) {
-					each.fixLayout();
-				}
-			}
-		)
-	);
-	if (choices.length > 0) {
-		menu.popUpAtHand(this.world());
-	}
 };
 
 // CommandSlotMorph drawing:

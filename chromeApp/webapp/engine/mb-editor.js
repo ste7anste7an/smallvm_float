@@ -143,16 +143,6 @@ class MB_Editor {
 		allScripts.forEach((m) => { m.destroy(); });
 	}
 
-	addBlockToScripts(b) {
-		// For testing. Add the given block to the scripts pane at a random position.
-
-		let scriptsPane = this.scriptsPane();
-		b.setPosition(new Point(this.randomBetween(200, 800), this.randomBetween(10, 300)));
-		scriptsPane.add(b);
-		scriptsPane.adjustBounds();
-		scriptsPane.changed();
-	}
-
 	addBlockToScriptsAt(b, x, y) {
 		// Add the given block to the scripts pane at the given position.
 		// x and y are relative to the pane, which is what updateProject records.
