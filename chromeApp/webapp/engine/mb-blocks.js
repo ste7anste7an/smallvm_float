@@ -1383,7 +1383,9 @@ BlockMorph.prototype.allBlocks = function () {
 }
 
 BlockMorph.prototype.forAllBlocks = function (func) {
-	// Call the given function on all command and reporter blocks in this script.
+	// Call the given function on all command and reporter blocks in this script,
+	// in GP's allBlocks order: each block, then its inputs left to right, then
+	// the next block. The inputs are pushed last to first so they pop in order.
 
 	let todo = [this];
 	while (todo.length > 0) {
@@ -1392,7 +1394,7 @@ BlockMorph.prototype.forAllBlocks = function (func) {
 		if (b instanceof CommandBlockMorph) {
 			if (b.nextBlock()) todo.push(b.nextBlock());
 		}
-		for (const arg of b.inputs()) {
+		for (const arg of b.inputs().slice().reverse()) {
 			if (arg instanceof BlockMorph) {
 				todo.push(arg);
 			} else if (arg instanceof CommandSlotMorph && arg.nestedBlock()) {
