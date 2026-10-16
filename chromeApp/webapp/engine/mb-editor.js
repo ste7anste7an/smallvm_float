@@ -1787,7 +1787,7 @@ console.log('unknown');
 
 	browserReadFile(ext) {
 		// Let the user choose a file with the browser's file chooser, limited to
-		// the extension if one is given. The file goes to processDroppedFile.
+		// the extension if one is given. The file is read as a dropped one is.
 
 		const inp = document.createElement('input');
 		inp.type = 'file';
@@ -1797,7 +1797,7 @@ console.log('unknown');
 		inp.addEventListener('change', async () => {
 			inp.remove();
 			const file = inp.files[0];
-			if (file) await this.processDroppedFile(file.name, await file.text());
+			if (file) await this.openDroppedFile(file);
 		});
 		document.body.appendChild(inp);
 		inp.click();
@@ -1824,7 +1824,7 @@ console.log('unknown');
 	}
 
 	async openDroppedFile(file) {
-		// Read one file the user dropped on the window and act on it.
+		// Read one file the user dropped or chose and act on it.
 		const data = MB_Editor.isScriptPicture(file.name)
 			? new Uint8Array(await file.arrayBuffer()) : await file.text();
 		await this.processDroppedFile(file.name, data);
