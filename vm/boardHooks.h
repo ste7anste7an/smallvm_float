@@ -36,7 +36,7 @@ extern "C" {
 #endif
 
 #if defined(NEZHA_ESP32)
-	#define BOARD_BLE_NAME "MicroBlocks Nezha ESP32"
+	#define BOARD_BLE_NAME "Nezha ESP32"
 #endif
 
 #ifndef BOARD_BLE_NAME
