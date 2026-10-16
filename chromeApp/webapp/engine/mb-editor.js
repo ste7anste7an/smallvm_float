@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_Files, MB_FilePicker, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -911,6 +911,14 @@ console.log('unknown');
 		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
 	}
 
+	showLibraryInfo(libName) {
+		// A read-only window with a library's description, version, author and dependencies.
+
+		const lib = this.project.libraryNamed(libName);
+		if (!lib) return;
+		new MB_LibraryInfoDialog(lib).open(world);
+	}
+
 	async reloadLibrary(libName) {
 		// Replace a library with the shipped file of its name and show it. Only a
 		// library with a shipped path qualifies; one that arrived with the project
@@ -930,12 +938,12 @@ console.log('unknown');
 	}
 
 	importLibrary() {
-		// Show the file picker on the shipped libraries. Its Computer button
+		// Show the library picker on the shipped libraries. Its Computer button
 		// leads to the browser's chooser, whose file arrives at processDroppedFile.
 
 		const open = MB_FilePicker.findOpen(world);
 		if (open) open.removeFromOwner();
-		new MB_FilePicker((path) => this.openLibraryFile(path), this.lastLibraryFolder, ['.ubl']).open(world);
+		new MB_LibraryImportDialog((path) => this.openLibraryFile(path), this.lastLibraryFolder).open(world);
 	}
 
 	async openLibraryFile(filePath) {
