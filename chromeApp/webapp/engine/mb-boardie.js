@@ -15,6 +15,7 @@ GP.boardie = {
 	isOpen: false,
 	isOpening: false, // the panel's html is being fetched
 	position: null, // where the panel was last dragged to; windows.js records it
+	files: {}, // Boardie's files, name to text, kept current by its messages
 	reset: function () {
 		let win = this.iframe.contentWindow;
 		win.postMessage(new Uint8Array([ 0xFA, 0x0F, 3 ]), '*'); // system reset w/ Boardie option
@@ -59,6 +60,7 @@ function GP_openBoardie() {
 	let boardie = GP.boardie;
 	if (boardie.isOpen || boardie.isOpening) return;
 	boardie.isOpening = true;
+	boardie.files = {}; // Boardie sends every file in its storage when it starts
 
 	if (MB_connection.port != null) MB_connection.disconnect(); // close serial port if open
 
@@ -140,7 +142,7 @@ function GP_closeBoardie() {
 	}
 }
 
-// Boardie's messages other than bytes: its keyboard and its sound indicator.
+// Boardie's messages other than bytes: its keyboard, its sound indicator and its files.
 window.addEventListener('message', (evt) => {
 	let boardie = GP.boardie, msg = evt.data;
 	if (!boardie.isOpen || (evt.source !== boardie.iframe.contentWindow)) return;
@@ -151,6 +153,12 @@ window.addEventListener('message', (evt) => {
 			return;
 		case 'boardieKeyUp':
 			boardie.unpress(msg[1]);
+			return;
+		case 'boardieGetFile':
+			boardie.files[msg[1]] = msg[2];
+			return;
+		case 'boardieDeleteFile':
+			delete boardie.files[msg[1]];
 			return;
 		case 'boardieSoundStart':
 			boardie.element.querySelector('.audio').classList.add('--is-active');
