@@ -587,7 +587,7 @@ method updateFields MicroBlocksLibraryPropertiesFrame {
 	if (and editFlag (notNil path)) {
 		if (beginsWith path '/') {
 			setText sourceText (join (gpFolder) '/Libraries' path '.ubl')
-		} (beginsWith path 'http://') {
+		} (or (beginsWith path 'http://') (beginsWith path 'https://')) {
 			setText sourceText path
 		} else {
 			setText sourceText (localized 'built-in library')

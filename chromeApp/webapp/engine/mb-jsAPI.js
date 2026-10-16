@@ -225,6 +225,9 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.exportMyBlocksAsLibrary();
 			break;
 		case 'library.showInfoDialog':
+			callback(0);
+			MB_editor.showLibraryInfo(params[0]);
+			break;
 		case 'locale.loadCustomFile':
 			callback();
 			break;
