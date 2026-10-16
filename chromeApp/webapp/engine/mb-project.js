@@ -538,7 +538,7 @@ class MB_Project {
 			if (fileName) {
 				if (fileName.startsWith('//Libraries/')) {
 					lib.path = this.withoutExtension(fileName.slice('//Libraries/'.length));
-				} else if (fileName.startsWith('http://')) {
+				} else if (fileName.startsWith('http://') || fileName.startsWith('https://')) {
 					lib.path = fileName;
 				} else {
 					lib.path = null;
