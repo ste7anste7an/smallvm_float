@@ -1651,10 +1651,12 @@ console.log('unknown');
 	}
 
 	async writeFileToBoard(fileName, bytes) {
+		// Another transfer is running, and its spinner is the one showing.
+		if (MB_connection.busy()) return false;
 		fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
 			subtitle: fileName, note: null, percent: 0 });
 		try {
-			await MB_connection.writeFileToBoard(fileName, bytes);
+			return await MB_connection.writeFileToBoard(fileName, bytes);
 		} finally {
 			fireIDEEvent('spinner.hide');
 		}
@@ -1838,6 +1840,18 @@ console.log('unknown');
 		// A picture has to be read as bytes: the scripts it carries are in a
 		// chunk of the file that decoding it as text would not keep.
 		return fileName.toLowerCase().endsWith('.png');
+	}
+
+	async openDroppedFiles(files) {
+		// One at a time, in order: a project load and a board write must not overlap,
+		// and the board takes one file transfer at a time.
+		for (const file of files) {
+			try {
+				await this.openDroppedFile(file);
+			} catch (e) {
+				console.error(e);
+			}
+		}
 	}
 
 	async openDroppedFile(file) {
