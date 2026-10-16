@@ -1,25 +1,27 @@
 module 'Nezha ESP32' Data
 author 'Elecfreaks Team'
-version 1 4
-depends 'Network/SmartIoT Space'
+version 1 4 
+depends 'Network/SmartIoT Space' 
+tags nezha esp32 onboard button rgb display sound gyro 
+choices nezha32_portMenu J1 J2 J3 J4 
+choices nezha32_pressReleaseMenu pressed released 
+choices nezha32_buttonMenu A B C 'A+B' 'A+C' 'B+C' 
+choices nezha32_titleBarState show hide 
+choices nezha32_melodyMenu 'C D E F G A B C5' 'C5 B A G F E D C' 'C E G C5' 'C F A C5' 'C D E C C D E C' 'G G A G C5 B' 
+choices nezha32_soundName 'Chinese style' country symphony lyrical Japanese punk pop 'jazz music' blues 'door opening' 'birthday song' wind rain thunder 
+choices nezha32_axisMenu X Y Z 
 description 'Onboard buttons
+
 RGB LED
+
 Screen display
+
 Sound control
+
 Gyroscope
+
 Port IO pin lookup'
-tags nezha esp32 onboard button rgb display sound gyro
-
-variables _nezha32_buttonEdges _nezha32_buttonLoopStarted _nezha32_buttonLoopHeartbeat _nezha32_buttonRawMask _nezha32_buttonRawSince _nezha32_buttonStableMask _nezha32_buttonPhase _nezha32_buttonCandidateMask _nezha32_buttonCandidateSince _nezha32_buttonActiveMask
-
-choices nezha32_portMenu 'J1' 'J2' 'J3' 'J4'
-choices nezha32_buttonMenu 'A' 'B' 'C' 'A+B' 'A+C' 'B+C'
-choices nezha32_axisMenu 'X' 'Y' 'Z'
-choices nezha32_pressReleaseMenu 'pressed' 'released'
-choices nezha32_titleBarState 'show' 'hide'
-choices nezha32_melodyMenu 'C D E F G A B C5' 'C5 B A G F E D C' 'C E G C5' 'C F A C5' 'C D E C C D E C' 'G G A G C5 B'
-choices nezha32_soundName 'Chinese style' 'country' 'symphony' 'lyrical' 'Japanese' 'punk' 'pop' 'jazz music' 'blues' 'door opening' 'birthday song' 'wind' 'rain' 'thunder'
-variables _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm
+variables _nezha32_buttonEdges _nezha32_buttonLoopStarted _nezha32_buttonLoopHeartbeat _nezha32_buttonRawMask _nezha32_buttonRawSince _nezha32_buttonStableMask _nezha32_buttonPhase _nezha32_buttonCandidateMask _nezha32_buttonCandidateSince _nezha32_buttonActiveMask _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm 
 
   spec 'r' 'nezha32_buttonEvent' 'button _ _ event?' 'menu.nezha32_buttonMenu menu.nezha32_pressReleaseMenu' 'A' 'pressed'
   space
@@ -33,23 +35,23 @@ variables _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm
   spec 'r' '[elfreaks_dev_sensor:noiseDb]' 'Nezha loudness'
   space
   space
-  spec 'r' 'nezha32_getColorVal' 'set color to _' 'color' 16777215
-  space  
-  spec ' ' 'nezha32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1 16777215
-  spec ' ' 'nezha32_board_rgb_all' 'set all RGB LEDs to _' 'color' 16777215
+  spec 'r' 'nezha32_getColorVal' 'set color to _' 'color'
+  space
+  spec ' ' 'nezha32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1
+  spec ' ' 'nezha32_board_rgb_all' 'set all RGB LEDs to _' 'color'
   spec ' ' 'nezha32_board_rgb_off' 'turn off _ RGB LED' 'menu.range:1-3' 1
   spec ' ' 'nezha32_board_rgb_off_all' 'turn off all RGB LEDs'
   space
   space
   spec ' ' 'nezha32_lvgl_title_bar' '_ title bar' 'menu.nezha32_titleBarState' 'show'
-  spec ' ' 'nezha32_lvgl_set_bg' 'screen background color _' 'color' 16777215
+  spec ' ' 'nezha32_lvgl_set_bg' 'screen background color _' 'color'
   space
   space
-  spec ' ' 'nezha32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1' 16777215
-  spec 'r' 'nezha32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32 16777215
-  spec ' ' 'nezha32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text' 16777215
+  spec ' ' 'nezha32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1'
+  spec 'r' 'nezha32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32
+  spec ' ' 'nezha32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text'
   spec ' ' 'nezha32_screenDelete' 'delete object ID _' 'num' 1
-  spec ' ' 'nezha32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10 16776509
+  spec ' ' 'nezha32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10
   spec ' ' 'nezha32_clear' 'clear display'
   space
   space
@@ -62,23 +64,21 @@ variables _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm
   space
   spec 'r' 'nezha32_getIoNum' 'pin for port _ _' 'menu.nezha32_portMenu menu.range:1-2' 'J1' 1
   advanced
-
-  // Compatibility selectors for existing projects.
   spec 'r' 'nezhaEsp32_buttonEvent' 'button _ _ event?' 'menu.nezha32_buttonMenu menu.nezha32_pressReleaseMenu' 'A' 'pressed'
   spec 'r' 'nezhaEsp32_getGaryAngle' 'Obtain the angle of the _ axis of the gyroscope (0-360 degrees)' 'menu.nezha32_axisMenu' 'X'
   spec 'r' 'nezhaEsp32_getGaryAcc' 'Obtain the acceleration of the _ axis of the gyroscope (unit g)' 'menu.nezha32_axisMenu' 'X'
-  spec 'r' 'nezhaEsp32_getColorVal' 'set color to _' 'color' 16777215
-  spec ' ' 'nezhaEsp32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1 16777215
-  spec ' ' 'nezhaEsp32_board_rgb_all' 'set all RGB LEDs to _' 'color' 16777215
+  spec 'r' 'nezhaEsp32_getColorVal' 'set color to _' 'color'
+  spec ' ' 'nezhaEsp32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1
+  spec ' ' 'nezhaEsp32_board_rgb_all' 'set all RGB LEDs to _' 'color'
   spec ' ' 'nezhaEsp32_board_rgb_off' 'turn off _ RGB LED' 'menu.range:1-3' 1
   spec ' ' 'nezhaEsp32_board_rgb_off_all' 'turn off all RGB LEDs'
   spec ' ' 'nezhaEsp32_lvgl_title_bar' '_ title bar' 'menu.nezha32_titleBarState' 'show'
-  spec ' ' 'nezhaEsp32_lvgl_set_bg' 'screen background color _' 'color' 16777215
-  spec ' ' 'nezhaEsp32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1' 16777215
-  spec 'r' 'nezhaEsp32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32 16777215
-  spec ' ' 'nezhaEsp32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text' 16777215
+  spec ' ' 'nezhaEsp32_lvgl_set_bg' 'screen background color _' 'color'
+  spec ' ' 'nezhaEsp32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1'
+  spec 'r' 'nezhaEsp32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32
+  spec ' ' 'nezhaEsp32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text'
   spec ' ' 'nezhaEsp32_screenDelete' 'delete object ID _' 'num' 1
-  spec ' ' 'nezhaEsp32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10 16776509
+  spec ' ' 'nezhaEsp32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10
   spec ' ' 'nezhaEsp32_clear' 'clear display'
   spec ' ' 'nezhaEsp32_sound_set_volume' 'set volume to _ %' 'num' 100
   spec ' ' 'nezhaEsp32_play_melody' 'play melody _ at tempo _ bpm' 'str.nezha32_melodyMenu num' 'C D E F G A B C5' 120
@@ -94,9 +94,6 @@ variables _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm
   spec 'r' 'nezhaEsp32_getIoNum' 'pin for port _ _' 'menu.nezha32_portMenu menu.range:1-2' 'J1' 1
   spec ' ' 'setSmartIotAddr' 'set SmartIoT server host _ port _' 'str num' 'http://www.smartiot.space' 8080
   spec 'r' 'smartIotLastResponse' 'SmartIoT last response'
-
-
-  // Selectors used by WorkInProgress projects remain available.
   spec 'r' '_nezha32_buttonEvent' 'button _ _ event?' 'menu.nezha32_buttonMenu menu.nezha32_pressReleaseMenu' 'A' 'pressed'
   spec ' ' '_nezha32_gyroReset' 'reset gyro'
   spec 'r' '_nezha32_getGaryAngle' 'angle of _ axis of the gyroscope (0-360 degrees)' 'menu.nezha32_axisMenu' 'X'
@@ -119,22 +116,12 @@ variables _efsound_tempo _efsound_play_id _efsound_bg_melody _efsound_bg_bpm
   spec ' ' '_nezha32_sound_play_tone' 'play tone _ Hz for _ ms' 'num num' 440 500
   spec ' ' '_nezha32_sound_stop_all_sounds' 'stop all sounds'
 
-to 'nezha32_getColorVal' color {
-  return color
-}
-
-to 'nezha32_clear' {
-  [elfreaks_dev_sensor:clear]
-}
-
-to 'nezha32_setPixel' x y color {
-  [tft:setPixel] x y color
-  waitMillis 10
-}
-
-to '_efsound_init' {
-  if (_efsound_tempo <= 0) {_efsound_tempo = 120}
-  if (_efsound_play_id == 0) {_efsound_play_id = 1}
+to '_efsound_background_loop' {
+  local 'my_id' 0
+  repeatUntil (or (_efsound_bg_melody == '') (my_id == _efsound_play_id)) {
+    my_id = _efsound_play_id
+    '_efsound_play_melody_once' _efsound_bg_melody my_id
+  }
 }
 
 to '_efsound_canonical_sound_name' soundName {
@@ -155,22 +142,184 @@ to '_efsound_canonical_sound_name' soundName {
   return soundName
 }
 
+to '_efsound_init' {
+  if (_efsound_tempo <= 0) {_efsound_tempo = 120}
+  if (_efsound_play_id == 0) {_efsound_play_id = 1}
+}
+
+to '_efsound_note_frequency_from_string' note {
+  note = ('_efsound_upper_trimmed' note)
+  if (or (note == '') (or (note == '-') (note == 'R'))) {
+    return 0
+  }
+  local 'name' (at 1 note)
+  local 'pos' 2
+  if ((size note) >= 2) {
+    local 'acc' (at 2 note)
+    if (or (acc == '#') (acc == 'B')) {
+      name = ('[data:join]' name acc)
+      pos = 3
+    }
+  }
+  local 'octave' 4
+  if ((size note) >= pos) {
+    local 'ch' ('[data:unicodeAt]' pos note)
+    if (and (48 <= ch) (ch <= 57)) {
+      octave = (ch - 48)
+    }
+  }
+  local 'semitone' ('_efsound_semitone' name)
+  if (semitone <= 0) {
+    return 0
+  }
+  local 'freqs' ('[data:makeList]' 262 277 294 311 330 349 370 392 415 440 466 494)
+  local 'freq' (at semitone freqs)
+  if (octave < 4) {
+    repeat (4 - octave) {
+      freq = (freq / 2)
+    }
+  } else {
+    repeat (octave - 4) {
+      freq = (freq * 2)
+    }
+  }
+  return freq
+}
+
+to '_efsound_play_melody_once' melody playId {
+  local 'tokens' ('[data:split]' melody ' ')
+  for i (size tokens) {
+    if (and (playId > 0) (playId != _efsound_play_id)) {return (booleanConstant false)}
+    local 'token' (at i tokens)
+    if (token != '') {
+      '_efsound_play_melody_token' token _efsound_bg_bpm playId
+    }
+  }
+  return (booleanConstant true)
+}
+
+to '_efsound_play_melody_token' token bpm playId {
+  if (and (playId > 0) (playId != _efsound_play_id)) {return 0}
+  token = ('_efsound_upper_trimmed' token)
+  if (token == '') {
+    return 0
+  }
+  local 'note_part' token
+  local 'duration_units' 4
+  local 'colon' ('[data:find]' ':' token)
+  if (colon > 0) {
+    note_part = ('[data:copyFromTo]' token 1 (colon - 1))
+    duration_units = ('[data:convertType]' ('[data:copyFromTo]' token (colon + 1)) 'number')
+    if (duration_units <= 0) {
+      duration_units = 4
+    }
+  }
+  local 'duration' (((60000 / bpm) * duration_units) / 4)
+  duration = (minimum 60000 duration)
+  local 'freq' ('_efsound_note_frequency_from_string' note_part)
+  if (freq <= 0) {
+    '[elfreaks_dev_sensor:stopTone]'
+  } else {
+    '[elfreaks_dev_sensor:startTone]' freq
+  }
+  local 'remaining' duration
+  repeatUntil (or (remaining <= 0) (and (playId > 0) (playId != _efsound_play_id))) {
+    waitMillis (minimum 20 remaining)
+    remaining = (remaining - 20)
+  }
+  if (and (playId > 0) (playId != _efsound_play_id)) {
+    return 0
+  }
+  if (freq > 0) {
+    '[elfreaks_dev_sensor:stopTone]'
+  }
+}
+
+to '_efsound_semitone' note {
+  note = ('_efsound_upper_trimmed' note)
+  if (note == 'C') {
+    return 1
+  }
+  if (or (note == 'C#') (note == 'DB')) {
+    return 2
+  }
+  if (note == 'D') {
+    return 3
+  }
+  if (or (note == 'D#') (note == 'EB')) {
+    return 4
+  }
+  if (or (note == 'E') (note == 'FB')) {
+    return 5
+  }
+  if (or (note == 'F') (note == 'E#')) {
+    return 6
+  }
+  if (or (note == 'F#') (note == 'GB')) {
+    return 7
+  }
+  if (note == 'G') {
+    return 8
+  }
+  if (or (note == 'G#') (note == 'AB')) {
+    return 9
+  }
+  if (note == 'A') {
+    return 10
+  }
+  if (or (note == 'A#') (note == 'BB')) {
+    return 11
+  }
+  if (or (note == 'B') (note == 'CB')) {
+    return 12
+  }
+  return 0
+}
+
 to '_efsound_sound_asset_name' soundName {
   soundName = ('_efsound_canonical_sound_name' soundName)
-  if (soundName == 'Chinese style') {return 'china_style'}
-  if (soundName == 'country') {return 'country'}
-  if (soundName == 'symphony') {return 'symphony'}
-  if (soundName == 'lyrical') {return 'lyrical'}
-  if (soundName == 'Japanese') {return 'japanese'}
-  if (soundName == 'punk') {return 'punk_music'}
-  if (soundName == 'pop') {return 'pop_music'}
-  if (soundName == 'jazz music') {return 'jazz'}
-  if (soundName == 'blues') {return 'blues'}
-  if (soundName == 'door opening') {return 'door_open'}
-  if (soundName == 'birthday song') {return 'birthday'}
-  if (soundName == 'wind') {return 'wind'}
-  if (soundName == 'rain') {return 'rain'}
-  if (soundName == 'thunder') {return 'thunder'}
+  if (soundName == 'Chinese style') {
+    return 'china_style'
+  }
+  if (soundName == 'country') {
+    return 'country'
+  }
+  if (soundName == 'symphony') {
+    return 'symphony'
+  }
+  if (soundName == 'lyrical') {
+    return 'lyrical'
+  }
+  if (soundName == 'Japanese') {
+    return 'japanese'
+  }
+  if (soundName == 'punk') {
+    return 'punk_music'
+  }
+  if (soundName == 'pop') {
+    return 'pop_music'
+  }
+  if (soundName == 'jazz music') {
+    return 'jazz'
+  }
+  if (soundName == 'blues') {
+    return 'blues'
+  }
+  if (soundName == 'door opening') {
+    return 'door_open'
+  }
+  if (soundName == 'birthday song') {
+    return 'birthday'
+  }
+  if (soundName == 'wind') {
+    return 'wind'
+  }
+  if (soundName == 'rain') {
+    return 'rain'
+  }
+  if (soundName == 'thunder') {
+    return 'thunder'
+  }
   return ('[data:join]' '' soundName)
 }
 
@@ -187,176 +336,63 @@ to '_efsound_upper_trimmed' s {
   return ('[data:unicodeString]' result)
 }
 
-to '_efsound_semitone' note {
-  note = ('_efsound_upper_trimmed' note)
-  if (note == 'C') {return 1}
-  if (or (note == 'C#') (note == 'DB')) {return 2}
-  if (note == 'D') {return 3}
-  if (or (note == 'D#') (note == 'EB')) {return 4}
-  if (or (note == 'E') (note == 'FB')) {return 5}
-  if (or (note == 'F') (note == 'E#')) {return 6}
-  if (or (note == 'F#') (note == 'GB')) {return 7}
-  if (note == 'G') {return 8}
-  if (or (note == 'G#') (note == 'AB')) {return 9}
-  if (note == 'A') {return 10}
-  if (or (note == 'A#') (note == 'BB')) {return 11}
-  if (or (note == 'B') (note == 'CB')) {return 12}
-  return 0
+to '_nezha32_board_rgb' led color {
+  nezha32_board_rgb led color
 }
 
-to '_efsound_note_frequency_from_string' note {
-  note = ('_efsound_upper_trimmed' note)
-  if (or (note == '') (or (note == '-') (note == 'R'))) {return 0}
-
-  local 'name' (at 1 note)
-  local 'pos' 2
-  if ((size note) >= 2) {
-    local 'acc' (at 2 note)
-    if (or (acc == '#') (acc == 'B')) {
-      name = ('[data:join]' name acc)
-      pos = 3
-    }
-  }
-
-  local 'octave' 4
-  if ((size note) >= pos) {
-    local 'ch' ('[data:unicodeAt]' pos note)
-    if (and (48 <= ch) (ch <= 57)) {octave = (ch - 48)}
-  }
-
-  local 'semitone' ('_efsound_semitone' name)
-  if (semitone <= 0) {return 0}
-
-  local 'freqs' ('[data:makeList]' 262 277 294 311 330 349 370 392 415 440 466 494)
-  local 'freq' (at semitone freqs)
-  if (octave < 4) {
-    repeat (4 - octave) {freq = (freq / 2)}
-  } else {
-    repeat (octave - 4) {freq = (freq * 2)}
-  }
-  return freq
+to '_nezha32_board_rgb_all' color {
+  nezha32_board_rgb_all color
 }
 
-to efsound_set_tempo bpm {
-  if (bpm > 0) {_efsound_tempo = (maximum 1 bpm)}
+to '_nezha32_board_rgb_off' led {
+  nezha32_board_rgb_off led
 }
 
-to nezha32_sound_play_tone frequency ms {
-  if (ms <= 0) {
-    return ('[elfreaks_dev_sensor:startTone]' frequency)
-  }
-  ms = (minimum 60000 ms)
-  local 'ok' ('[elfreaks_dev_sensor:startTimedTone]' frequency ms)
-  if ok {waitMillis ms}
-  return ok
-}
-
-to nezha32_play_sound soundName {
-  local 'ok' ('[elfreaks_dev_sensor:playSoundByName]' ('_efsound_sound_asset_name' soundName) true)
-  if ok {
-    _efsound_play_id += 1
-    _efsound_bg_melody = ''
-  }
-}
-
-to nezha32_sound_set_volume volume {
-  volume = (maximum 0 volume)
-  volume = (minimum 100 volume)
-  '[elfreaks_dev_sensor:setSpeakerVolumePercent]' volume
-}
-
-to '_efsound_play_melody_token' token bpm playId {
-  if (and (playId > 0) (playId != _efsound_play_id)) {return 0}
-  token = ('_efsound_upper_trimmed' token)
-  if (token == '') {return 0}
-
-  local 'note_part' token
-  local 'duration_units' 4
-  local 'colon' ('[data:find]' ':' token)
-  if (colon > 0) {
-    note_part = ('[data:copyFromTo]' token 1 (colon - 1))
-    duration_units = ('[data:convertType]' ('[data:copyFromTo]' token (colon + 1)) 'number')
-    if (duration_units <= 0) {duration_units = 4}
-  }
-
-  local 'duration' (((60000 / bpm) * duration_units) / 4)
-  duration = (minimum 60000 duration)
-  local 'freq' ('_efsound_note_frequency_from_string' note_part)
-  if (freq <= 0) {
-    '[elfreaks_dev_sensor:stopTone]'
-  } else {
-    '[elfreaks_dev_sensor:startTone]' freq
-  }
-  local 'remaining' duration
-  repeatUntil (or (remaining <= 0) (and (playId > 0) (playId != _efsound_play_id))) {
-    waitMillis (minimum 20 remaining)
-    remaining = (remaining - 20)
-  }
-  if (and (playId > 0) (playId != _efsound_play_id)) {return 0}
-  if (freq > 0) {'[elfreaks_dev_sensor:stopTone]'}
-}
-
-to '_efsound_play_melody_once' melody playId {
-  local 'tokens' ('[data:split]' melody ' ')
-  for i (size tokens) {
-    if (and (playId > 0) (playId != _efsound_play_id)) {return (booleanConstant false)}
-    local 'token' (at i tokens)
-    if (token != '') {'_efsound_play_melody_token' token _efsound_bg_bpm playId}
-  }
-  return (booleanConstant true)
-}
-
-to '_efsound_background_loop' {
-  local 'my_id' 0
-  repeatUntil (or (_efsound_bg_melody == '') (my_id == _efsound_play_id)) {
-    my_id = _efsound_play_id
-    '_efsound_play_melody_once' _efsound_bg_melody my_id
-  }
-}
-
-to nezha32_play_melody melody bpm {
-  '_efsound_init'
-  if (('_efsound_upper_trimmed' melody) == '') {
-    '_nezha32_stop_melody'
-    return 0
-  }
-  if (bpm <= 0) {bpm = _efsound_tempo}
-  efsound_set_tempo bpm
-  _efsound_play_id += 1
-  _efsound_bg_melody = melody
-  _efsound_bg_bpm = bpm
-  sendBroadcast '_efsound_background_loop'
-}
-
-to '_nezha32_stop_melody' {
-  _efsound_play_id += 1
-  _efsound_bg_melody = ''
-  '[elfreaks_dev_sensor:stopTone]'
-}
-
-to nezha32_sound_stop_all_sounds {
-  '_nezha32_stop_melody'
+to '_nezha32_board_rgb_off_all' {
+  nezha32_board_rgb_off_all
 }
 
 to '_nezha32_buttonEdgeEntry' key {
-  if (_nezha32_buttonEdges == 0) {
-    _nezha32_buttonEdges = ('[data:makeList]')
-  }
+  if (_nezha32_buttonEdges == 0) {_nezha32_buttonEdges = ('[data:makeList]')}
   for edge _nezha32_buttonEdges {
-    if ((at 1 edge) == key) {
-      return edge
-    }
+    if ((at 1 edge) == key) {return edge}
   }
   local 'newEdge' ('[data:makeList]' key false false false)
   '[data:addLast]' newEdge _nezha32_buttonEdges
   return newEdge
 }
 
+to '_nezha32_buttonEnsureLoop' {
+  if _nezha32_buttonLoopStarted {if (and (_nezha32_buttonLoopHeartbeat != 0) ((millisSince _nezha32_buttonLoopHeartbeat) < 200)) {
+    return
+  }}
+  _nezha32_buttonLoopStarted = true
+  sendBroadcast '_nezha32_buttonLoop'
+}
+
+to '_nezha32_buttonEvent' button event {
+  return (nezha32_buttonEvent button event)
+}
+
+to '_nezha32_buttonLoop' {
+  forever {
+    _nezha32_buttonLoopHeartbeat = (millisOp)
+    '_nezha32_buttonPoll'
+    waitMillis 10
+  }
+}
+
 to '_nezha32_buttonMask' {
   local 'mask' 0
-  if ('[elfreaks_dev_sensor:buttonA]') {mask += 1}
-  if ('[elfreaks_dev_sensor:buttonB]') {mask += 2}
-  if ('[elfreaks_dev_sensor:buttonC]') {mask += 4}
+  if ('[elfreaks_dev_sensor:buttonA]') {
+    mask += 1
+  }
+  if ('[elfreaks_dev_sensor:buttonB]') {
+    mask += 2
+  }
+  if ('[elfreaks_dev_sensor:buttonC]') {
+    mask += 4
+  }
   return mask
 }
 
@@ -370,14 +406,6 @@ to '_nezha32_buttonName' mask {
   return ''
 }
 
-to '_nezha32_buttonQueueEvent' mask event {
-  local 'button' ('_nezha32_buttonName' mask)
-  if (button == '') {return}
-  local 'entry' ('_nezha32_buttonEdgeEntry' button)
-  if (event == 'pressed') {atPut 3 entry true}
-  if (event == 'released') {atPut 4 entry true}
-}
-
 to '_nezha32_buttonPoll' {
   local 'now' (millisOp)
   local 'raw' ('_nezha32_buttonMask')
@@ -389,10 +417,12 @@ to '_nezha32_buttonPoll' {
     _nezha32_buttonStableMask = raw
   }
   local 'mask' _nezha32_buttonStableMask
-
   if (_nezha32_buttonPhase == 0) {
     if (mask == 0) {return}
-    if (mask == 7) {_nezha32_buttonPhase = 3; return}
+    if (mask == 7) {
+      _nezha32_buttonPhase = 3
+      return
+    }
     _nezha32_buttonCandidateMask = mask
     _nezha32_buttonCandidateSince = now
     if (or (mask == 3) (or (mask == 5) (mask == 6))) {
@@ -404,7 +434,6 @@ to '_nezha32_buttonPoll' {
     }
     return
   }
-
   if (_nezha32_buttonPhase == 1) {
     if (mask == 0) {
       '_nezha32_buttonQueueEvent' _nezha32_buttonCandidateMask 'pressed'
@@ -418,7 +447,10 @@ to '_nezha32_buttonPoll' {
       _nezha32_buttonPhase = 2
       return
     }
-    if (mask == 7) {_nezha32_buttonPhase = 3; return}
+    if (mask == 7) {
+      _nezha32_buttonPhase = 3
+      return
+    }
     if (mask != _nezha32_buttonCandidateMask) {
       if (and ((mask & _nezha32_buttonCandidateMask) != 0) (or (mask == 3) (or (mask == 5) (mask == 6)))) {
         '_nezha32_buttonQueueEvent' mask 'pressed'
@@ -436,7 +468,6 @@ to '_nezha32_buttonPoll' {
     }
     return
   }
-
   if (_nezha32_buttonPhase == 2) {
     if ((mask & _nezha32_buttonActiveMask) != _nezha32_buttonActiveMask) {
       '_nezha32_buttonQueueEvent' _nezha32_buttonActiveMask 'released'
@@ -449,42 +480,127 @@ to '_nezha32_buttonPoll' {
   }
 }
 
-to '_nezha32_buttonLoop' {
-  forever {
-    _nezha32_buttonLoopHeartbeat = (millisOp)
-    '_nezha32_buttonPoll'
-    waitMillis 10
+to '_nezha32_buttonQueueEvent' mask event {
+  local 'button' ('_nezha32_buttonName' mask)
+  if (button == '') {
+    return
+  }
+  local 'entry' ('_nezha32_buttonEdgeEntry' button)
+  if (event == 'pressed') {
+    atPut 3 entry true
+  }
+  if (event == 'released') {
+    atPut 4 entry true
   }
 }
 
-to '_nezha32_buttonEnsureLoop' {
-  if _nezha32_buttonLoopStarted {
-    if (and (_nezha32_buttonLoopHeartbeat != 0) ((millisSince _nezha32_buttonLoopHeartbeat) < 200)) {return}
-  }
-  _nezha32_buttonLoopStarted = true
-  sendBroadcast '_nezha32_buttonLoop'
+to '_nezha32_clear' {
+  nezha32_clear
 }
 
-to nezha32_getGaryAngle axis {
-  local 'ax' 0
-  if (axis == 'Y') {
-    ax = 1
-  } (axis == 'Z') {
-    ax = 2
-  }
-
-  return ('[elfreaks_dev_sensor:getGaryAngle]' ax)
+to '_nezha32_getColorVal' color {
+  return (nezha32_getColorVal color)
 }
 
-to nezha32_getGaryAcc axis {
-  local 'ax' 0
-  if (axis == 'Y') {
-    ax = 1
-  } (axis == 'Z') {
-    ax = 2
-  }
+to '_nezha32_getGaryAcc' axis {
+  return ((nezha32_getGaryAcc axis) * 1000)
+}
 
-  return ('[elfreaks_dev_sensor:getGaryAcc]' ax)
+to '_nezha32_getGaryAngle' axis {
+  return (nezha32_getGaryAngle axis)
+}
+
+to '_nezha32_getIoNum' port ioNum {
+  return (nezha32_getIoNum port ioNum)
+}
+
+to '_nezha32_gyroReset' {
+  '[elfreaks_dev_sensor:gyroReset]'
+}
+
+to '_nezha32_lvgl_set_bg' color {
+  nezha32_lvgl_set_bg color
+}
+
+to '_nezha32_lvgl_title_bar' state {
+  nezha32_lvgl_title_bar state
+}
+
+to '_nezha32_play_melody' melody bpm {
+  nezha32_play_melody melody bpm
+}
+
+to '_nezha32_play_sound' soundName {
+  nezha32_play_sound soundName
+}
+
+to '_nezha32_screenDelete' id {
+  nezha32_screenDelete id
+}
+
+to '_nezha32_screenText' text x y color {
+  return (nezha32_screenText text x y color)
+}
+
+to '_nezha32_screenTextToLine' text line color {
+  nezha32_screenTextToLine text line color
+}
+
+to '_nezha32_screenUpdateText' id text color {
+  nezha32_screenUpdateText id text color
+}
+
+to '_nezha32_setPixel' x y color {
+  nezha32_setPixel x y color
+}
+
+to '_nezha32_sound_play_tone' frequency ms {
+  nezha32_sound_play_tone frequency ms
+}
+
+to '_nezha32_sound_set_volume' volume {
+  nezha32_sound_set_volume volume
+}
+
+to '_nezha32_sound_stop_all_sounds' {
+  nezha32_sound_stop_all_sounds
+}
+
+to '_nezha32_stop_melody' {
+  _efsound_play_id += 1
+  _efsound_bg_melody = ''
+  '[elfreaks_dev_sensor:stopTone]'
+}
+
+to connectSmartiot userToken topic {
+  _smartiot_spaceNezhaCompatibility = true
+  'smartiot connect' userToken topic
+}
+
+to efsound_set_tempo bpm {
+  if (bpm > 0) {_efsound_tempo = (maximum 1 bpm)}
+}
+
+to iotSwitchEventBroadcast state message {
+  _smartiot_spaceNezhaCompatibility = true
+  '_smartiot_spaceStartSwitchLoop'
+  '[elfreaks:Event_RegisterSmartIotSwitch]' state message
+}
+
+to nezha32_board_rgb led color {
+  '[elfreaks_dev_sensor:boardRgbSet]' (led - 1) ((color >> 16) & 255) ((color >> 8) & 255) (color & 255)
+}
+
+to nezha32_board_rgb_all color {
+  '[elfreaks_dev_sensor:boardRgbSetAll]' ((color >> 16) & 255) ((color >> 8) & 255) (color & 255)
+}
+
+to nezha32_board_rgb_off led {
+  '[elfreaks_dev_sensor:boardRgbSet]' (led - 1) 0 0 0
+}
+
+to nezha32_board_rgb_off_all {
+  '[elfreaks_dev_sensor:boardRgbSetAll]' 0 0 0
 }
 
 to nezha32_buttonEvent button event {
@@ -506,57 +622,37 @@ to nezha32_buttonEvent button event {
   return false
 }
 
-to nezha32_board_rgb led color {
-  '[elfreaks_dev_sensor:boardRgbSet]' (led - 1) ((color >> 16) & 255) ((color >> 8) & 255) (color & 255)
+to nezha32_clear {
+  '[elfreaks_dev_sensor:clear]'
 }
 
-to nezha32_board_rgb_all color {
-  '[elfreaks_dev_sensor:boardRgbSetAll]' ((color >> 16) & 255) ((color >> 8) & 255) (color & 255)
+to nezha32_getColorVal color {
+  return color
 }
 
-to nezha32_board_rgb_off led {
-  '[elfreaks_dev_sensor:boardRgbSet]' (led - 1) 0 0 0
-}
-
-to nezha32_board_rgb_off_all {
-  '[elfreaks_dev_sensor:boardRgbSetAll]' 0 0 0
-}
-
-to nezha32_lvgl_title_bar state {
-  if (or (state == 'hide') (or (state == '隐藏') (state == '隱藏'))) {
-    '[elfreaks_dev_sensor:screenSetTitleBarVisible]' false
-  } else {
-    '[elfreaks_dev_sensor:screenSetTitleBarVisible]' true
+to nezha32_getGaryAcc axis {
+  local 'ax' 0
+  if (axis == 'Y') {
+    ax = 1
+  } (axis == 'Z') {
+    ax = 2
   }
+  return ('[elfreaks_dev_sensor:getGaryAcc]' ax)
 }
 
-to nezha32_lvgl_set_bg color {
-  '[elfreaks_dev_sensor:screenSetBackground]' color
-}
-
-to nezha32_screenTextToLine text line color {
-  if (isType line 'number') {
-    '[elfreaks_dev_sensor:screenLineText]' line text color
-  } else {
-    '[elfreaks_dev_sensor:screenLineText]' ('[data:find]' line ('[data:makeList]' '1' '2' '3' '4' '5' '6' '7' '8' '9' '10')) text color
+to nezha32_getGaryAngle axis {
+  local 'ax' 0
+  if (axis == 'Y') {
+    ax = 1
+  } (axis == 'Z') {
+    ax = 2
   }
-}
-
-to nezha32_screenText text x y color {
-  return ('[elfreaks_dev_sensor:screenText]' text x y 0 1 color 0 true)
-}
-
-to nezha32_screenUpdateText id text color {
-  '[elfreaks_dev_sensor:screenUpdateText]' id text 0 0 0 1 color 0 true
-}
-
-to nezha32_screenDelete id {
-  '[elfreaks_dev_sensor:screenDelete]' id
+  return ('[elfreaks_dev_sensor:getGaryAngle]' ax)
 }
 
 to nezha32_getIoNum port ioNum {
   local 'portNum' 1
-  if (port == 'J2'){
+  if (port == 'J2') {
     portNum = 2
   } (port == 'J3') {
     portNum = 3
@@ -571,217 +667,196 @@ to nezha32_getIoNum port ioNum {
   return ('[elfreaks_dev_sensor:getIoNum]' portNum ioNum)
 }
 
-to 'nezhaEsp32_getColorVal' color {
-  return ('nezha32_getColorVal' color)
+to nezha32_lvgl_set_bg color {
+  '[elfreaks_dev_sensor:screenSetBackground]' color
 }
 
-to 'nezhaEsp32_clear' {
-  'nezha32_clear'
+to nezha32_lvgl_title_bar state {
+  if (or (state == 'hide') (or (state == '隐藏') (state == '隱藏'))) {
+    '[elfreaks_dev_sensor:screenSetTitleBarVisible]' false
+  } else {
+    '[elfreaks_dev_sensor:screenSetTitleBarVisible]' true
+  }
 }
 
-to 'nezhaEsp32_setPixel' x y color {
-  'nezha32_setPixel' x y color
+to nezha32_play_melody melody bpm {
+  '_efsound_init'
+  if (('_efsound_upper_trimmed' melody) == '') {
+    '_nezha32_stop_melody'
+    return 0
+  }
+  if (bpm <= 0) {
+    bpm = _efsound_tempo
+  }
+  efsound_set_tempo bpm
+  _efsound_play_id += 1
+  _efsound_bg_melody = melody
+  _efsound_bg_bpm = bpm
+  sendBroadcast '_efsound_background_loop'
 }
 
-to 'nezhaEsp32_sound_play_tone' frequency ms {
-  'nezha32_sound_play_tone' frequency ms
+to nezha32_play_sound soundName {
+  local 'ok' ('[elfreaks_dev_sensor:playSoundByName]' ('_efsound_sound_asset_name' soundName) true)
+  if ok {
+    _efsound_play_id += 1
+    _efsound_bg_melody = ''
+  }
 }
 
-to 'nezhaEsp32_play_sound' soundName {
-  'nezha32_play_sound' soundName
+to nezha32_screenDelete id {
+  '[elfreaks_dev_sensor:screenDelete]' id
 }
 
-to 'nezhaEsp32_sound_set_volume' volume {
-  'nezha32_sound_set_volume' volume
+to nezha32_screenText text x y color {
+  return ('[elfreaks_dev_sensor:screenText]' text x y 0 1 color 0 true)
 }
 
-to 'nezhaEsp32_play_melody' melody bpm {
-  'nezha32_play_melody' melody bpm
+to nezha32_screenTextToLine text line color {
+  if (isType line 'number') {
+    '[elfreaks_dev_sensor:screenLineText]' line text color
+  } else {
+    '[elfreaks_dev_sensor:screenLineText]' ('[data:find]' line ('[data:makeList]' '1' '2' '3' '4' '5' '6' '7' '8' '9' '10')) text color
+  }
 }
 
-to 'nezhaEsp32_sound_stop_all_sounds' {
-  'nezha32_sound_stop_all_sounds'
+to nezha32_screenUpdateText id text color {
+  '[elfreaks_dev_sensor:screenUpdateText]' id text 0 0 0 1 color 0 true
 }
 
-to 'nezhaEsp32_getGaryAngle' axis {
-  return ('nezha32_getGaryAngle' axis)
+to nezha32_setPixel x y color {
+  '[tft:setPixel]' x y color
+  waitMillis 10
 }
 
-to 'nezhaEsp32_getGaryAcc' axis {
-  return ('nezha32_getGaryAcc' axis)
+to nezha32_sound_play_tone frequency ms {
+  if (ms <= 0) {return ('[elfreaks_dev_sensor:startTone]' frequency)}
+  ms = (minimum 60000 ms)
+  local 'ok' ('[elfreaks_dev_sensor:startTimedTone]' frequency ms)
+  if ok {
+    waitMillis ms
+  }
+  return ok
 }
 
-to 'nezhaEsp32_buttonEvent' button event {
-  return ('nezha32_buttonEvent' button event)
+to nezha32_sound_set_volume volume {
+  volume = (maximum 0 volume)
+  volume = (minimum 100 volume)
+  '[elfreaks_dev_sensor:setSpeakerVolumePercent]' volume
 }
 
-to 'nezhaEsp32_board_rgb' led color {
-  'nezha32_board_rgb' led color
+to nezha32_sound_stop_all_sounds {
+  '_nezha32_stop_melody'
 }
 
-to 'nezhaEsp32_board_rgb_all' color {
-  'nezha32_board_rgb_all' color
+to nezhaEsp32_board_rgb led color {
+  nezha32_board_rgb led color
 }
 
-to 'nezhaEsp32_board_rgb_off' led {
-  'nezha32_board_rgb_off' led
+to nezhaEsp32_board_rgb_all color {
+  nezha32_board_rgb_all color
 }
 
-to 'nezhaEsp32_board_rgb_off_all' {
-  'nezha32_board_rgb_off_all'
+to nezhaEsp32_board_rgb_off led {
+  nezha32_board_rgb_off led
 }
 
-to 'nezhaEsp32_lvgl_title_bar' state {
-  'nezha32_lvgl_title_bar' state
+to nezhaEsp32_board_rgb_off_all {
+  nezha32_board_rgb_off_all
 }
 
-to 'nezhaEsp32_lvgl_set_bg' color {
-  'nezha32_lvgl_set_bg' color
+to nezhaEsp32_buttonEvent button event {
+  return (nezha32_buttonEvent button event)
 }
 
-to 'nezhaEsp32_screenTextToLine' text line color {
-  'nezha32_screenTextToLine' text line color
+to nezhaEsp32_clear {
+  nezha32_clear
 }
 
-to 'nezhaEsp32_screenText' text x y color {
-  return ('nezha32_screenText' text x y color)
+to nezhaEsp32_getColorVal color {
+  return (nezha32_getColorVal color)
 }
 
-to 'nezhaEsp32_screenUpdateText' id text color {
-  'nezha32_screenUpdateText' id text color
+to nezhaEsp32_getGaryAcc axis {
+  return (nezha32_getGaryAcc axis)
 }
 
-to 'nezhaEsp32_screenDelete' id {
-  'nezha32_screenDelete' id
+to nezhaEsp32_getGaryAngle axis {
+  return (nezha32_getGaryAngle axis)
 }
 
-to 'nezhaEsp32_getIoNum' port ioNum {
-  return ('nezha32_getIoNum' port ioNum)
+to nezhaEsp32_getIoNum port ioNum {
+  return (nezha32_getIoNum port ioNum)
 }
 
-to 'connectSmartiot' userToken topic {
-  _smartiot_spaceNezhaCompatibility = true
-  'smartiot connect' userToken topic
+to nezhaEsp32_lvgl_set_bg color {
+  nezha32_lvgl_set_bg color
 }
 
-to 'setSmartIotUploadData' n1 n2 n3 n4 n5 n6 n7 n8 {
-  'smartiot set data' n1 n2 n3 n4 n5 n6 n7 n8
+to nezhaEsp32_lvgl_title_bar state {
+  nezha32_lvgl_title_bar state
 }
 
-to 'uploadSmartIotData' {
-  'smartiot upload'
+to nezhaEsp32_play_melody melody bpm {
+  nezha32_play_melody melody bpm
 }
 
-to 'smartiotState' {
-  return ('smartiot connected')
+to nezhaEsp32_play_sound soundName {
+  nezha32_play_sound soundName
 }
 
-to iotSwitchEventBroadcast state message {
-  _smartiot_spaceNezhaCompatibility = true
-  '_smartiot_spaceStartSwitchLoop'
-  '[elfreaks:Event_RegisterSmartIotSwitch]' state message
+to nezhaEsp32_screenDelete id {
+  nezha32_screenDelete id
 }
 
-to 'smartIotSwitchState' state {
-  return ('smartiot switch is' state)
+to nezhaEsp32_screenText text x y color {
+  return (nezha32_screenText text x y color)
 }
 
-to 'setSmartIotAddr' host port {
+to nezhaEsp32_screenTextToLine text line color {
+  nezha32_screenTextToLine text line color
+}
+
+to nezhaEsp32_screenUpdateText id text color {
+  nezha32_screenUpdateText id text color
+}
+
+to nezhaEsp32_setPixel x y color {
+  nezha32_setPixel x y color
+}
+
+to nezhaEsp32_sound_play_tone frequency ms {
+  nezha32_sound_play_tone frequency ms
+}
+
+to nezhaEsp32_sound_set_volume volume {
+  nezha32_sound_set_volume volume
+}
+
+to nezhaEsp32_sound_stop_all_sounds {
+  nezha32_sound_stop_all_sounds
+}
+
+to setSmartIotAddr host port {
   'smartiot set server' host port
 }
 
-to 'smartIotLastResponse' {
+to setSmartIotUploadData n1 n2 n3 n4 n5 n6 n7 n8 {
+  'smartiot set data' n1 n2 n3 n4 n5 n6 n7 n8
+}
+
+to smartIotLastResponse {
   return ('smartiot last response')
 }
 
-to '_nezha32_getColorVal' color {
-  return ('nezha32_getColorVal' color)
+to smartIotSwitchState state {
+  return ('smartiot switch is' state)
 }
 
-to '_nezha32_clear' {
-  'nezha32_clear'
+to smartiotState {
+  return ('smartiot connected')
 }
 
-to '_nezha32_setPixel' x y color {
-  'nezha32_setPixel' x y color
+to uploadSmartIotData {
+  'smartiot upload'
 }
 
-to '_nezha32_sound_play_tone' frequency ms {
-  'nezha32_sound_play_tone' frequency ms
-}
-
-to '_nezha32_play_sound' soundName {
-  'nezha32_play_sound' soundName
-}
-
-to '_nezha32_sound_set_volume' volume {
-  'nezha32_sound_set_volume' volume
-}
-
-to '_nezha32_play_melody' melody bpm {
-  'nezha32_play_melody' melody bpm
-}
-
-to '_nezha32_sound_stop_all_sounds' {
-  'nezha32_sound_stop_all_sounds'
-}
-
-to '_nezha32_getGaryAngle' axis {
-  return ('nezha32_getGaryAngle' axis)
-}
-
-to '_nezha32_getGaryAcc' axis {
-  return (('nezha32_getGaryAcc' axis) * 1000)
-}
-
-to '_nezha32_buttonEvent' button event {
-  return ('nezha32_buttonEvent' button event)
-}
-
-to '_nezha32_board_rgb' led color {
-  'nezha32_board_rgb' led color
-}
-
-to '_nezha32_board_rgb_all' color {
-  'nezha32_board_rgb_all' color
-}
-
-to '_nezha32_board_rgb_off' led {
-  'nezha32_board_rgb_off' led
-}
-
-to '_nezha32_board_rgb_off_all' {
-  'nezha32_board_rgb_off_all'
-}
-
-to '_nezha32_lvgl_title_bar' state {
-  'nezha32_lvgl_title_bar' state
-}
-
-to '_nezha32_lvgl_set_bg' color {
-  'nezha32_lvgl_set_bg' color
-}
-
-to '_nezha32_screenTextToLine' text line color {
-  'nezha32_screenTextToLine' text line color
-}
-
-to '_nezha32_screenText' text x y color {
-  return ('nezha32_screenText' text x y color)
-}
-
-to '_nezha32_screenUpdateText' id text color {
-  'nezha32_screenUpdateText' id text color
-}
-
-to '_nezha32_screenDelete' id {
-  'nezha32_screenDelete' id
-}
-
-to '_nezha32_getIoNum' port ioNum {
-  return ('nezha32_getIoNum' port ioNum)
-}
-
-to '_nezha32_gyroReset' {
-  '[elfreaks_dev_sensor:gyroReset]'
-}
