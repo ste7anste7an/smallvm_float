@@ -5311,7 +5311,7 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		}
 	}
 
-	// todo when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
+	// XXX TODO when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
 
 	console.log('unhandled slot menu:', slotMenuName);
 	return null;
@@ -6568,7 +6568,6 @@ MicroBitDisplaySlotMorph.prototype.render = function (ctx) {
 	let onColor = new Color(229, 0, 0);
 	for (let row = 0; row < 5; row++) {
 		for (let col = 0; col < 5; col++) {
-			// todo: use on/off from display array
 			let x = this.insetX + (col * this.stride);
 			let y = this.insetY + (row * this.stride);
 			let isOn = this.display[(5 * row) + col];

@@ -2540,7 +2540,7 @@ function varMustBeQuoted(varName) {
 	return /\d/.test(ch) || ch === '-';
 }
 
-// Clipboard support (TODO move to own file?)
+// Clipboard support (XXX TODO maybe move to own file?)
 
 var MB = {};
 MB.clipboard = document.createElement('textarea');

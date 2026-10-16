@@ -508,13 +508,6 @@ MB_Specs.mbBlockSpecs = function () {
 			["r", "[data:asByteArray]", "as byte array _", "auto", "aByteListOrString"],
 		"-",
 			["r", "[data:freeMemory]", "free memory"],
-
-		"--- Testing ---",
-["r", "[misc:hue]", "hue _", "color"], // xxx test color input slot
-		"cat;Output",
-[" ", "[display:mbDisplay]", "display #BR# _", "microbitDisplay"], // xxx test microbitDisplay input slot
-[" ", "script", "script x _ y _ _", "num num cmd"], // template for pasted scripts
-
 		"Prims-Deprecated (not in palette)",
 			["r", "newArray", "new list length _", "num", 10],
 			[" ", "fillArray", "fill list _ with _", "str auto", "aList", 0],

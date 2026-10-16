@@ -661,6 +661,7 @@ class MB_Project {
 
 	equal(proj) {
 		// XXX Is this used?
+		// Could be useful for testing: e.g. comparing a save/read round trip
 
 		if (!this.main.equal(proj.main)) return false;
 		for (const lib of this.libraries.values()) {
@@ -1663,79 +1664,5 @@ class MB_ScriptPicture {
 		let crc = 0xFFFFFFFF;
 		for (const b of bytes) crc = MB_ScriptPicture.crcTable[(crc ^ b) & 0xFF] ^ (crc >>> 8);
 		return (crc ^ 0xFFFFFFFF) >>> 0;
-	}
-}
-
-// Testing...
-
-function testLoad() {
-	function loadFile(fileName, contents) {
-		let project = new MB_Project();
-		let startT = Date.now();
-		project.loadFromString(contents);
-		let msecs = Date.now() - startT;
-		console.log(fileName, project.stats(), msecs, 'msecs');
-		MB_editor.removeAllScripts();
-		project.main.scripts.forEach( (entry) => {
-			let x = entry[0], y = entry[1], script = entry[2];
-			MB_editor.addBlockToScriptsAt(script, x, y);
-		});
-	}
-	MB_editor.importLocalFile(loadFile);
-}
-
-function testShow() {
-	let codeString =
-		"whenButtonPressed 'A'\n" +
-		"[display:mbDisplay] 15237450\n" +
-		"waitMillis 1000\n" +
-		"[display:mbDisplayOff]\n";
-	let parseTree = MB_Parser.parse(codeString);
-	let b = MB_Parser.blockFor(parseTree);
-	MB_editor.addBlockToScripts(b);
-}
-
-function testLoad2() {
-	function loadFile(fileName, contents) {
-		let project = new MB_Project();
-		project.loadFromString(contents);
-		let s1 = project.codeString();
-		let p2 = new MB_Project().loadFromString(s1, false);
-		let s2 = p2.codeString();
-		console.log(s1);
-		console.log(s2);
-console.log("Lengths:", s1.length, s2.length, s1 == s2);
-	}
-	MB_editor.importLocalFile(loadFile);
-}
-
-async function testLoadExamples() {
-	for (const fileName of MB_Files.allFilesIn('Examples')) {
-		let data = await MB_Files.readFile(fileName);
-
-		let startT = Date.now();
-		let project = new MB_Project();
-		project.loadFromString(data);
-		let msecs = Date.now() - startT;
-//		console.log(fileName, project.stats(), msecs, 'msecs');
-		project.saveLoadTest(fileName);
-	}
-}
-
-async function testCompileExamples() {
-	for (const fileName of MB_Files.allFilesIn('Examples')) {
-		let startT = Date.now();
-		let data = await MB_Files.readFile(fileName);
-		let project = new MB_Project().loadFromString(data);
-		let mainModule = project.main;
-		let compiler = new MB_Compiler(project);
-		let scriptBytes = 0, functionBytes = 0;
-		for (const scriptRec of mainModule.scripts) {
-			scriptBytes += compiler.compiledBytesFor(scriptRec[2]).length;
-		}
-		for (const f of project.allFunctions()) {
-			functionBytes += compiler.compiledBytesFor(f.functionName).length;
-		}
-		console.log(fileName + ': ' + scriptBytes + ', ' + functionBytes + '; total: ' + (scriptBytes + functionBytes));
 	}
 }
