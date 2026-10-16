@@ -46,7 +46,7 @@ class MB_Editor {
 		this.palette = new ScrollFrameMorph();
 		this.palette.contents.acceptsDrops = true;
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
-			if (droppedMorph instanceof BlockMorph) {
+			if ((droppedMorph instanceof BlockMorph) || (droppedMorph instanceof SelectedScriptsMorph)) {
 				droppedMorph.destroy();
 				this.scriptChanged(); // its chunk is deleted at the next step
 			}
@@ -80,10 +80,12 @@ class MB_Editor {
 
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
+		// Delete, Enter and Escape also act on selected scripts unless a chrome dialog has the keys.
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
-			if (('Escape' === event.key) && !world.keyboardFocus &&
-				[document.body, world.keyboardHandler].includes(event.target)) {
-				fireIDEEvent('ide.keyPressed', 'ESC');
+			if (world.keyboardFocus || ![document.body, world.keyboardHandler].includes(event.target)) return;
+			if ('Escape' === event.key) fireIDEEvent('ide.keyPressed', 'ESC');
+			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents) && this.scripts.selectionKey(event)) {
+				event.preventDefault();
 			}
 		});
 
@@ -91,12 +93,13 @@ class MB_Editor {
 		// to where it was picked up. A duplicate with nowhere to return to is discarded, and one
 		// grabbed again mid-slide comes back here with no hand, so it is kept in view.
 		world.reactToDropOf = (morph, hand) => {
-			if (!(morph instanceof BlockMorph)) return;
+			if (!((morph instanceof BlockMorph) || (morph instanceof SelectedScriptsMorph))) return;
 			if (hand && hand.grabOrigin) morph.slideBackTo(hand.grabOrigin);
 			else if (hand) morph.destroy();
 			else {
 				this.scripts.add(morph);
 				morph.keepWithin(this.scriptsFrame);
+				if (morph instanceof SelectedScriptsMorph) morph.unpackInto(this.scripts);
 			}
 		};
 
@@ -134,6 +137,7 @@ class MB_Editor {
 	scriptsPane() { return this.scripts; }
 
 	removeAllScripts() {
+		this.scriptsPane().cancelSelection();
 		let allScripts = this.scriptsPane().children.slice();
 		allScripts.forEach((m) => { m.destroy(); });
 	}
@@ -324,7 +328,12 @@ class MB_Editor {
 	allScriptsString() {
 		// The text that copying the whole scripts pane writes.
 
-		const blocks = this.scriptsPane().children.filter((m) => m instanceof BlockMorph);
+		return this.scriptsString(this.scriptsPane().children.filter((m) => m instanceof BlockMorph));
+	}
+
+	scriptsString(blocks) {
+		// The text that copying the scripts with the given top blocks writes.
+
 		const exporter = new MB_ScriptExchange(this.project);
 		return 'GP Scripts\n' + exporter.exportScripts(this.exchangeScripter(), blocks);
 	}
@@ -398,8 +407,12 @@ class MB_Editor {
 
 	hideDefinition(funcName) {
 		// Remove the pane's definition hat for funcName; a paste that defines it brings its own.
-		for (const m of this.scriptsPane().children.slice()) {
-			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) m.destroy();
+		const pane = this.scriptsPane();
+		for (const m of pane.children.slice()) {
+			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) {
+				if (pane.selection && pane.selection.includes(m)) pane.cancelSelection();
+				m.destroy();
+			}
 		}
 	}
 
