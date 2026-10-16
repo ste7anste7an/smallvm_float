@@ -13,8 +13,8 @@
 	the libraries it uses.
 */
 
-/* global MB_editor, MB_Function, MB_Parser, MB_Specs, BlockMorph, HatBlockMorph,
-	ReporterBlockMorph */
+/* global MB_editor, MB_Files, MB_Function, MB_Parser, MB_Specs, BlockMorph, HatBlockMorph,
+	ReporterBlockMorph, localized */
 
 // --- Module-level helpers ---
 
@@ -240,12 +240,56 @@ class MB_Project {
 		return null;
 	}
 
-	checkForNewerLibraryVersions(autoConfirm = false) {
-		// Check for newer versions of libraries used in this project.
-		// If true is passed to the optional autoConfirm parameter, update old
-		// libraries without asking. Otherwise ask the user for confirmation.
+	async checkForNewerLibraryVersions(s, autoConfirm = false) {
+		// Check for newer versions of libraries used in the project text s, and answer
+		// the ones to load in their place, as loadFromString takes them. This project
+		// is not changed. If true is passed to the optional autoConfirm parameter,
+		// update old libraries without asking. Otherwise ask the user for confirmation.
 
-		// XXX TODO This requires UI interaction so skip for now.
+		let updates = new Map();
+		for (const modCmds of this.librariesIn(this.splitCmdListIntoModules(this.parseProject(s))).values()) {
+			let lib = new MB_Module();
+			lib.loadModuleNameAndCategory(modCmds);
+			lib.loadVersion(modCmds);
+			let newCmds = await lib.getNewerVersion();
+			if (!newCmds) continue;
+			// localized() has no parameter substitution, so the name is filled in here.
+			let question = localized('Found a newer version of %1.').replace('%1', lib.moduleName) + '\n' +
+				localized('Do you want me to update the one in the project?');
+			if (autoConfirm || await MB_editor.confirm(question)) updates.set(lib.moduleName, newCmds);
+		}
+		return updates;
+	}
+
+	librariesIn(cmdsByModule) {
+		// The commands of each library in a project's modules, by name. Of a library
+		// given twice, the last copy, the one loadFromString keeps.
+		let libs = new Map();
+		for (const modCmds of cmdsByModule.slice(1)) {
+			let lib = new MB_Module();
+			lib.loadModuleNameAndCategory(modCmds);
+			libs.set(lib.moduleName, modCmds);
+		}
+		return libs;
+	}
+
+	updateLibrarySpecs(libCmdLists, libraryUpdates) {
+		// Give the project the specs of each library being updated before any block is
+		// built, so scripts show the new labels and a dropped block shows as obsolete.
+		// Answer the ops each new version keeps only as obsolete, by library name.
+		let obsoleteOps = new Map();
+		for (const modCmds of libCmdLists) {
+			let oldLib = new MB_Module();
+			oldLib.loadModuleNameAndCategory(modCmds);
+			let newCmds = libraryUpdates.get(oldLib.moduleName);
+			if (!newCmds) continue;
+			let newLib = new MB_Module();
+			oldLib.loadSpecs(modCmds);
+			newLib.loadSpecs(newCmds);
+			oldLib.updatingLibrary(newLib, this); // newLib.blockList collects the obsolete ops
+			obsoleteOps.set(oldLib.moduleName, newLib.blockList);
+		}
+		return obsoleteOps;
 	}
 
 	// Scripts
@@ -490,20 +534,20 @@ class MB_Project {
 
 	// Loading
 
-	loadFromString(s, updateLibraries = true) {
+	loadFromString(s, libraryUpdates = null) {
+		// libraryUpdates, if given, maps a library's name to the commands of a newer
+		// version to load in its place, as checkForNewerLibraryVersions answers them.
 		this.main = new MB_Module('main');
 		this.libraries = new Map();
 		this.blockSpecs = new Map();
 		this.varIndices = new Map();
 		this.nextVarIndex = 0;
 
-		let cmdList = MB_Parser.parse(s);
-		if (cmdList.length > 0 && Array.isArray(cmdList[0]) && cmdList[0][0] === 'projectName') {
-			cmdList = cmdList.slice(1);
-		}
+		let cmdList = this.parseProject(s);
 		this.loadSpecs(cmdList);
 
 		let cmdsByModule = this.splitCmdListIntoModules(cmdList);
+		let obsoleteOps = libraryUpdates ? this.updateLibrarySpecs(this.librariesIn(cmdsByModule).values(), libraryUpdates) : new Map();
 		let isFirst = true;
 		for (const modCmds of cmdsByModule) {
 			if (isFirst) {
@@ -511,16 +555,31 @@ class MB_Project {
 				isFirst = false;
 			} else {
 				let lib = new MB_Module();
+				lib.loadModuleNameAndCategory(modCmds);
+				if (obsoleteOps.has(lib.moduleName)) continue; // its newer version is added below
 				lib.loadFromCmds(modCmds, this);
 				this.libraries.set(lib.moduleName, lib);
 			}
 		}
+		for (const [libName, ops] of obsoleteOps) {
+			let lib = new MB_Module(libName).loadFromCmds(libraryUpdates.get(libName), this);
+			lib.blockList.push(...ops);
+			this.addLibrary(lib);
+		}
 
-		if (updateLibraries) this.checkForNewerLibraryVersions();
 		this.updatePrimitives();
 		this.fixFunctionLocals();
 		this.buildDefinitionHats(); // last: the passes above read plain script entries
 		return this;
+	}
+
+	parseProject(s) {
+		// The commands of a project file, without its projectName line.
+		let cmdList = MB_Parser.parse(s);
+		if (cmdList.length > 0 && Array.isArray(cmdList[0]) && cmdList[0][0] === 'projectName') {
+			cmdList = cmdList.slice(1);
+		}
+		return cmdList;
 	}
 
 	addLibraryFromString(s, libName, fileName) {
@@ -642,7 +701,7 @@ class MB_Project {
 
 	saveLoadTest(fileName) {
 		let s1 = this.codeString();
-		let p2 = new MB_Project().loadFromString(s1, false);
+		let p2 = new MB_Project().loadFromString(s1);
 		let s2 = p2.codeString();
 		if (s1 != s2) {
 			console.log('saveLoadTest failed:', fileName, s1.length, s2.length);
@@ -1194,6 +1253,30 @@ class MB_Module {
 		return primMap[oldPrim] || null;
 	}
 
+	async getNewerVersion() {
+		// Return the commands of the shipped library with this module's name if its
+		// version is newer, or null.
+		if (this.moduleName === 'main') return null;
+		let cmds = await this.embeddedLibraryCmds(this.moduleName);
+		if (!cmds) return null;
+		let candidate = new MB_Module();
+		candidate.loadVersion(cmds);
+		let v1 = this.version, v2 = candidate.version;
+		if ((v2[0] > v1[0]) || ((v1[0] === v2[0]) && (v2[1] > v1[1]))) return cmds;
+		return null;
+	}
+
+	async embeddedLibraryCmds(libName) {
+		// Return the commands of the shipped library in a file named libName.ubl, in any folder, or null.
+		let libFileName = libName + '.ubl';
+		for (const filePath of MB_Files.allFilesIn('Libraries')) {
+			if (filePath.slice(filePath.lastIndexOf('/') + 1) !== libFileName) continue;
+			let data = await MB_Files.readFile(filePath);
+			return (data === undefined) ? null : MB_Parser.parse(data);
+		}
+		return null;
+	}
+
 	updatingLibrary(newerModule, owningProject) {
 		// Called when updating this module to a newer version.
 		// Retain obsolete specs with 'obsolete' prepended to their labels.
@@ -1544,7 +1627,7 @@ class MB_ScriptExchange {
 		// something: a script, a function, a block or a variable.
 		if (!text.endsWith('\n')) return false;
 		try {
-			const project = new MB_Project().loadFromString(text, false);
+			const project = new MB_Project().loadFromString(text);
 			return (project.main.scripts.length > 0) || (project.main.functions.length > 0)
 				|| (project.blockSpecs.size > 0) || (project.main.variableNames.length > 0);
 		} catch (error) {

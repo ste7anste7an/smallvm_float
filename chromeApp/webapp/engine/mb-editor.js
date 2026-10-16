@@ -1513,7 +1513,7 @@ console.log('unknown');
 		// shown and the project is rebuilt from it, rather than mutated in place.
 		this.saveNeeded = false;
 		this.project = new MB_Project();
-		if (source != null) this.project.loadFromString(source, false);
+		if (source != null) this.project.loadFromString(source);
 		this.watchProjectVariables();
 		this.removeAllScripts();
 		for (const [x, y, script] of this.project.main.scripts) {
@@ -1933,13 +1933,16 @@ console.log('unknown');
 
 	async openProjectFromString(contents, name, clearFirst = true) {
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
+		// Asked before anything is cleared, so the open project and the board stay as
+		// they are until every question is answered.
+		const libraryUpdates = await new MB_Project().checkForNewerLibraryVersions(contents);
 		// clearFirst decides whether the empty project becomes an undo state before
 		// the new one loads, because clearProject stores one. Clearing therefore
 		// adds a step for undo to stop at. A dropped file passes false and skips it.
 		const cleared = clearFirst ? MB_editor.clearProject() : null;
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project.onVariableChange = null;
-		MB_editor.project.loadFromString(contents);
+		MB_editor.project.loadFromString(contents, libraryUpdates);
 		MB_editor.watchProjectVariables();
 		MB_editor.project.main.scripts.forEach( (entry) => {
 			let x = entry[0], y = entry[1], script = entry[2];

@@ -32,7 +32,7 @@ MB_Compare.sweep = async function (statusFn) {
 		const text = await MB_Files.readFile(fileName);
 		if (!text) { errors.push(fileName + ': unreadable'); continue; }
 		try {
-			const project = new MB_Project().loadFromString(text, false);
+			const project = new MB_Project().loadFromString(text);
 			const compiler = new MB_Compiler(project);
 			const record = (key, obj) => {
 				try {
