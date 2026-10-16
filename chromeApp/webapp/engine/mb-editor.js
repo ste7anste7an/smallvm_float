@@ -1808,9 +1808,9 @@ console.log('unknown');
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension: a project, a library or a picture. Any
-		// other file is written to the board, unless it is one the IDE should open.
-		// data is the file's text for a project or a library, and its bytes otherwise.
+		// Act on a file by its extension: a project, a library, graph data or a
+		// picture. Any other file is written to the board, unless it is one the IDE
+		// should open. data is the file's text for the first three, and its bytes otherwise.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
@@ -1819,21 +1819,31 @@ console.log('unknown');
 				await this.codeManager.saveAllChunksAfterLoad();
 			}
 		}
+		else if (name.endsWith('.csv')) this.importLoggedData(data);
 		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
 		else if (!MB_Editor.isUnsupportedIDEFile(name)) await this.writeFileToBoard(fileName, data);
 	}
 
+	importLoggedData(text) {
+		// Replace the graph's data with the file's: one sample a line, its values
+		// separated by a comma and a space.
+		const lines = text.replaceAll(',', '').split(/\r\n|\r|\n/);
+		if (lines[lines.length - 1] === '') lines.pop(); // the final newline
+		this.clearLoggedData();
+		for (const line of lines) this.addLoggedData(line);
+	}
+
 	static isTextFile(fileName) {
-		// A project or a library. Every other file is read as bytes.
+		// A project, a library or graph data. Every other file is read as bytes.
 		const name = fileName.toLowerCase();
-		return name.endsWith('.ubp') || name.endsWith('.ubp.txt') || name.endsWith('.ubl');
+		return ['.ubp', '.ubp.txt', '.ubl', '.csv'].some((ext) => name.endsWith(ext));
 	}
 
 	static isUnsupportedIDEFile(fileName) {
-		// Logged data, firmware, a translation or a .gp file: the IDE's to open, not
-		// the board's, though it does not open them yet.
+		// Firmware, a translation or a .gp file: the IDE's to open, not the
+		// board's, though it does not open them yet.
 		const name = fileName.toLowerCase();
-		return ['.csv', '.bin', '.po', '.gp'].some((ext) => name.endsWith(ext));
+		return ['.bin', '.po', '.gp'].some((ext) => name.endsWith(ext));
 	}
 
 	static isScriptPicture(fileName) {
