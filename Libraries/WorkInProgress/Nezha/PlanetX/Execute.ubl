@@ -1,14 +1,16 @@
 module Execute Control
 author 'Elecfreaks Team'
-version 1 2
+version 1 2 
+choices ioAdcPort J1 J2 J3 J4 
+choices planetXMP3Action play stop 'next track' 'previous track' pause 
 description 'laser
-fan
-LED
-MP3'
 
-choices ioAdcPort 'J1' 'J2' 'J3' 'J4'
-choices planetXMP3Action 'play' 'stop' 'next track' 'previous track' 'pause'
-variables _gpio_mp3Pin
+fan
+
+LED
+
+MP3'
+variables _gpio_mp3Pin 
 
   spec ' ' 'laserSensor' 'laser module _ turn _' 'menu.ioAdcPort bool' 'J1' true
   space
@@ -23,55 +25,7 @@ variables _gpio_mp3Pin
   spec ' ' 'setLoopFolder' 'MP3 loop folder _' 'num' 1
   spec ' ' 'MP3execute' 'MP3 execute _' 'menu.planetXMP3Action' 'play'
 
-to 'planetX_motorFan' port on optionalSpeed {
-  local 'speed' (argOrDefault 3 100)
-  speed = (maximum 0 (minimum speed 100))
-  local 'pin' 4
-  if (port == 'J2') {
-    pin = 6
-  } (port == 'J3') {
-    pin = 15
-  } (port == 'J4') {
-    pin = 17
-  }
-  if (and on (speed > 0)) {
-    analogWriteOp pin ((1023 * speed) / 100)
-  } else {
-    analogWriteOp pin 0
-    digitalWriteOp pin false
-  }
-}
-
-// Product-facing switch selector; old projects retain their speed argument.
-to 'planetX_motorFanSwitch' port on {
-  'planetX_motorFan' port on 100
-}
-
-to ledBrightness port on optionalBrightness {
-  local 'brightness' (argOrDefault 3 100)
-  brightness = (maximum 0 (minimum brightness 100))
-  local 'pin' 4
-  if (port == 'J2') {
-    pin = 6
-  } (port == 'J3') {
-    pin = 15
-  } (port == 'J4') {
-    pin = 17
-  }
-  if (and on (brightness > 0)) {
-    analogWriteOp pin ((1023 * brightness) / 100)
-  } else {
-    analogWriteOp pin 0
-    digitalWriteOp pin false
-  }
-}
-
-// Product-facing switch selector; old projects retain their brightness argument.
-to ledSwitch port on {
-  ledBrightness port on 100
-}
-
-to laserSensor port on {
+to MP3SetPort port {
   local 'pin' 5
   if (port == 'J2') {
     pin = 7
@@ -80,7 +34,24 @@ to laserSensor port on {
   } (port == 'J4') {
     pin = 18
   }
-  digitalWriteOp pin on
+  _gpio_mp3Pin = pin
+  '[elfreaks_dev_sensor:wifiUartInit]' port 9600
+  waitMillis 50
+  setVolume 25
+}
+
+to MP3execute action {
+  local 'cmd' (hexToInt '0D')
+  if (or (action == 'stop') (action == '停止')) {
+    cmd = (hexToInt '16')
+  } (or (or (action == 'next track') (action == '切换音乐')) (action == '下一首')) {
+    cmd = (hexToInt '01')
+  } (or (action == 'previous track') (action == '上一首')) {
+    cmd = (hexToInt '02')
+  } (or (action == 'pause') (action == '暂停')) {
+    cmd = (hexToInt '0E')
+  }
+  '_gpio_mp3Send' cmd 0 0
 }
 
 to '_gpio_mp3Ensure' {
@@ -107,7 +78,16 @@ to '_gpio_mp3Send' cmd arg1 arg2 {
   waitMillis 100
 }
 
-to MP3SetPort port {
+to folderPlay folderNum fileNum repeat {
+  folderNum = (maximum 1 (minimum folderNum 99))
+  fileNum = (maximum 1 (minimum fileNum 255))
+  '_gpio_mp3Send' (hexToInt '0F') folderNum fileNum
+  if repeat {
+    '_gpio_mp3Send' (hexToInt '19') 0 0
+  }
+}
+
+to laserSensor port on {
   local 'pin' 5
   if (port == 'J2') {
     pin = 7
@@ -116,24 +96,58 @@ to MP3SetPort port {
   } (port == 'J4') {
     pin = 18
   }
-  _gpio_mp3Pin = pin
-  '[elfreaks_dev_sensor:wifiUartInit]' port 9600
-  waitMillis 50
-  setVolume 25
+  digitalWriteOp pin on
 }
 
-to setVolume volume {
-  volume = (maximum 0 (minimum volume 25))
-  '_gpio_mp3Send' (hexToInt '06') 0 volume
-}
-
-to folderPlay folderNum fileNum repeat {
-  folderNum = (maximum 1 (minimum folderNum 99))
-  fileNum = (maximum 1 (minimum fileNum 255))
-  '_gpio_mp3Send' (hexToInt '0F') folderNum fileNum
-  if repeat {
-    '_gpio_mp3Send' (hexToInt '19') 0 0
+to ledBrightness port on optionalBrightness {
+  local 'brightness' (argOrDefault 3 100)
+  brightness = (maximum 0 (minimum brightness 100))
+  local 'pin' 4
+  if (port == 'J2') {
+    pin = 6
+  } (port == 'J3') {
+    pin = 15
+  } (port == 'J4') {
+    pin = 17
   }
+  if (and on (brightness > 0)) {
+    analogWriteOp pin ((1023 * brightness) / 100)
+  } else {
+    analogWriteOp pin 0
+    digitalWriteOp pin false
+  }
+}
+
+to ledSwitch port on {
+  ledBrightness port on 100
+}
+
+to planetX_motorFan port on optionalSpeed {
+  local 'speed' (argOrDefault 3 100)
+  speed = (maximum 0 (minimum speed 100))
+  local 'pin' 4
+  if (port == 'J2') {
+    pin = 6
+  } (port == 'J3') {
+    pin = 15
+  } (port == 'J4') {
+    pin = 17
+  }
+  if (and on (speed > 0)) {
+    analogWriteOp pin ((1023 * speed) / 100)
+  } else {
+    analogWriteOp pin 0
+    digitalWriteOp pin false
+  }
+}
+
+to planetX_motorFanSwitch port on {
+  planetX_motorFan port on 100
+}
+
+to setLoopFolder folderNum {
+  folderNum = (maximum 1 (minimum folderNum 99))
+  '_gpio_mp3Send' (hexToInt '17') 0 folderNum
 }
 
 to setTracking tracking repeat {
@@ -145,21 +159,8 @@ to setTracking tracking repeat {
   }
 }
 
-to setLoopFolder folderNum {
-  folderNum = (maximum 1 (minimum folderNum 99))
-  '_gpio_mp3Send' (hexToInt '17') 0 folderNum
+to setVolume volume {
+  volume = (maximum 0 (minimum volume 25))
+  '_gpio_mp3Send' (hexToInt '06') 0 volume
 }
 
-to MP3execute action {
-  local 'cmd' (hexToInt '0D')
-  if (or (action == 'stop') (action == '停止')) {
-    cmd = (hexToInt '16')
-  } (or (or (action == 'next track') (action == '切换音乐')) (action == '下一首')) {
-    cmd = (hexToInt '01')
-  } (or (action == 'previous track') (action == '上一首')) {
-    cmd = (hexToInt '02')
-  } (or (action == 'pause') (action == '暂停')) {
-    cmd = (hexToInt '0E')
-  }
-  '_gpio_mp3Send' cmd 0 0
-}

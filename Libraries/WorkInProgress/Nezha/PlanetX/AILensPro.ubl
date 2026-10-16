@@ -1,21 +1,25 @@
 module AILensPro Output
 author 'Elecfreaks Team'
-version 1 0
-choices aicamModeMenu 'main menu' 'face recognition' 'self learning' 'gesture recognition' 'remote file manager' 'photo album' 'take photo' 'settings' 'sound touch'
-choices aicamColorMenu 'off' 'red' 'green' 'blue' 'yellow' 'cyan' 'purple' 'white'
-choices aicamFaceCoordMenu 'center x' 'center y' 'top-left x' 'top-left y' 'bottom-right x' 'bottom-right y'
+version 1 0 
+choices aicamModeMenu 'main menu' 'face recognition' 'self learning' 'gesture recognition' 'remote file manager' 'photo album' 'take photo' settings 'sound touch' 
+choices aicamFaceCoordMenu 'center x' 'center y' 'top-left x' 'top-left y' 'bottom-right x' 'bottom-right y' 
+choices aicamColorMenu off red green blue yellow cyan purple white 
 description 'AI camera
+
 I2C communication
+
 App switching and RGB control
+
 Face recognition
+
 Self-learning
+
 Gesture recognition
+
 Sound-touch recording and upload'
-variables _aicam_addr _aicam_chunk _aicam_gap _aicam_init_done _aicam_online _aicam_current_mode _aicam_face_status _aicam_face_id _aicam_face_similarity _aicam_face_blink _aicam_face_mouth_open _aicam_face_coord_valid _aicam_face_left_x _aicam_face_left_y _aicam_face_right_x _aicam_face_right_y _aicam_face_label _aicam_self_status _aicam_self_id _aicam_self_similarity _aicam_self_label _aicam_hand_status _aicam_hand_id _aicam_hand_similarity _aicam_hand_pose_similarity _aicam_hand_label _aicam_sound_status _aicam_sound_bpm _aicam_sound_beat_count _aicam_sound_duration _aicam_sound_message
+variables _aicam_addr _aicam_chunk _aicam_gap _aicam_init_done _aicam_online _aicam_current_mode _aicam_face_status _aicam_face_id _aicam_face_similarity _aicam_face_blink _aicam_face_mouth_open _aicam_face_coord_valid _aicam_face_left_x _aicam_face_left_y _aicam_face_right_x _aicam_face_right_y _aicam_face_label _aicam_self_status _aicam_self_id _aicam_self_similarity _aicam_self_label _aicam_hand_status _aicam_hand_id _aicam_hand_similarity _aicam_hand_pose_similarity _aicam_hand_label _aicam_sound_status _aicam_sound_bpm _aicam_sound_beat_count _aicam_sound_duration _aicam_sound_message _planetX_i2cRequestBusy _planetX_i2cQueue 
 
-  variables _planetX_i2cRequestBusy _planetX_i2cQueue
-
-spec ' ' 'aicam_init' 'initialize AI camera over I2C'
+  spec ' ' 'aicam_init' 'initialize AI camera over I2C'
   spec ' ' 'aicam_switch_to' 'switch function to _' 'menu.aicamModeMenu' 'face recognition'
   spec ' ' 'aicam_set_rgb' 'set RGB _' 'menu.aicamColorMenu' 'green'
   spec ' ' 'aicam_refresh_result' 'refresh recognition result'
@@ -64,239 +68,36 @@ spec ' ' 'aicam_init' 'initialize AI camera over I2C'
   spec 'r' '_aicam_read_reg' '_aicam read register _ length _' 'num num' 100 8
   spec ' ' '_aicam_write_reg' '_aicam write register _ data _' 'num auto' 100 '1,2,3'
 
-to aicam_init {
-  '_aicam_defaults'
-  _aicam_addr = 96
-  _aicam_online = (booleanConstant false)
-  _aicam_init_done = (booleanConstant true)
-  return ('_aicam_probe_init')
+to '_aicam_color_id' color {
+  if (or (color == 'red') (color == '红色')) {return 1}
+  if (or (color == 'green') (color == '绿色')) {return 2}
+  if (or (color == 'blue') (color == '蓝色')) {return 3}
+  if (or (color == 'yellow') (color == '黄色')) {return 4}
+  if (or (color == 'cyan') (color == '青色')) {return 5}
+  if (or (color == 'purple') (color == '紫色')) {return 6}
+  if (or (color == 'white') (color == '白色')) {return 7}
+  return 0
 }
 
-to aicam_switch_to mode {
-  if (not ('_aicam_ready')) {return 0}
-  '_aicam_switch_mode' ('_aicam_mode_id' mode) 3 6000
-}
-
-to aicam_set_rgb color {
-  if (not ('_aicam_ready')) {return 0}
-  '_aicam_send_uart_command' (hexToInt '30') ('[data:makeList]' ('_aicam_color_id' color))
-}
-
-to aicam_refresh_result {
-  if (not ('_aicam_ready')) {return 0}
-  local 'mode' ('_aicam_detect_mode_id')
-  if (mode == (hexToInt '10')) {
-    'aicam_refresh_face_result'
-  } (mode == (hexToInt '11')) {
-    'aicam_refresh_self_result'
-  } (mode == (hexToInt '12')) {
-    'aicam_refresh_hand_result'
-  } (mode == (hexToInt '1B')) {
-    'aicam_refresh_sound_result'
+to '_aicam_crc8' data length {
+  local 'crc' 0
+  local 'n' (minimum length (size data))
+  for i n {
+    crc = ((crc ^ (at i data)) & 255)
+    for b 8 {
+      if ((crc & 128) != 0) {
+        crc = (((crc << 1) ^ 7) & 255)
+      } else {
+        crc = ((crc << 1) & 255)
+      }
+    }
   }
+  return (crc & 255)
 }
 
-to aicam_current_mode {
-  '_aicam_defaults'
-  return ('_aicam_mode_name_from_id' _aicam_current_mode)
-}
-
-to aicam_face_status {
-  return _aicam_face_status
-}
-
-to aicam_face_id {
-  return _aicam_face_id
-}
-
-to aicam_face_label {
-  return _aicam_face_label
-}
-
-to aicam_face_similarity {
-  return _aicam_face_similarity
-}
-
-to aicam_face_blink {
-  return _aicam_face_blink
-}
-
-to aicam_face_mouth_open {
-  return _aicam_face_mouth_open
-}
-
-to aicam_detected_face {
-  return (_aicam_face_coord_valid != 0)
-}
-
-to aicam_detected_recognized_face {
-  return (_aicam_face_status == 1)
-}
-
-to aicam_face_coordinate coord {
-  if (or (coord == 'center x') (coord == '中心 x')) {
-    if (not ('_aicam_valid_face_center')) {return 160}
-    local 'x' ((_aicam_face_left_x + _aicam_face_right_x) >> 1)
-    x = (maximum 0 (minimum x 320))
-    if (or (x == 0) (x == 320)) {return 160}
-    return x
-  } (or (coord == 'center y') (coord == '中心 y')) {
-    if (not ('_aicam_valid_face_center')) {return 120}
-    local 'y' ('_aicam_screen_face_y' ((_aicam_face_left_y + _aicam_face_right_y) >> 1))
-    if (or (y == 0) (y == 240)) {return 120}
-    return y
-  } (or (or (coord == 'top-left x') (coord == '左上 x')) (coord == 'left top x')) {
-    return _aicam_face_left_x
-  } (or (or (coord == 'top-left y') (coord == '左上 y')) (coord == 'left top y')) {
-    return ('_aicam_screen_face_y' _aicam_face_left_y)
-  } (or (or (coord == 'bottom-right x') (coord == '右下 x')) (coord == 'right bottom x')) {
-    return _aicam_face_right_x
-  }
-  return ('_aicam_screen_face_y' _aicam_face_right_y)
-}
-
-to '_aicam_screen_face_y' y {
-  y = (maximum 0 (minimum y 240))
-  return y
-}
-
-to aicam_self_status {
-  return _aicam_self_status
-}
-
-to aicam_self_id {
-  return _aicam_self_id
-}
-
-to aicam_self_label {
-  return _aicam_self_label
-}
-
-to aicam_self_similarity {
-  return _aicam_self_similarity
-}
-
-to aicam_detected_learned_object {
-  return (_aicam_self_status == 1)
-}
-
-to aicam_hand_status {
-  return _aicam_hand_status
-}
-
-to aicam_hand_id {
-  return _aicam_hand_id
-}
-
-to aicam_hand_label {
-  return _aicam_hand_label
-}
-
-to aicam_hand_similarity {
-  return _aicam_hand_similarity
-}
-
-to aicam_hand_pose_similarity {
-  return _aicam_hand_pose_similarity
-}
-
-to aicam_detected_learned_gesture {
-  return (_aicam_hand_status == 1)
-}
-
-to aicam_sound_record enable {
-  if (not ('_aicam_ready')) {return 0}
-  '_aicam_send_uart_command' (hexToInt '38') ('[data:makeList]' (ifExpression enable 1 2))
-}
-
-to aicam_sound_upload {
-  if (not ('_aicam_ready')) {return 0}
-  '_aicam_send_uart_command' (hexToInt '3A') ('[data:makeList]' 1)
-}
-
-to aicam_sound_status {
-  return _aicam_sound_status
-}
-
-to aicam_sound_bpm {
-  return _aicam_sound_bpm
-}
-
-to aicam_sound_beat_count {
-  return _aicam_sound_beat_count
-}
-
-to aicam_sound_duration {
-  return _aicam_sound_duration
-}
-
-to aicam_sound_message {
-  return _aicam_sound_message
-}
-
-to aicam_set_i2c_address addr {
-  '_aicam_defaults'
-  _aicam_addr = (maximum 1 (minimum addr 127))
-  _aicam_init_done = (booleanConstant false)
-  _aicam_online = (booleanConstant false)
-}
-
-to aicam_set_io_tuning chunk gap {
-  '_aicam_defaults'
-  _aicam_chunk = (maximum 1 (minimum chunk 32))
-  _aicam_gap = (maximum 0 gap)
-}
-
-to aicam_back_to_launcher {
-  if (not ('_aicam_ready')) {return 0}
-  '_aicam_switch_mode' 1 2 5000
-}
-
-to aicam_refresh_face_result {
-  if (not ('_aicam_ready')) {return 0}
-  local 'head' ('_aicam_read_reg_retry' 100 15 2)
-  if (or ((size head) < 15) (head == 0)) {return (booleanConstant false)}
-  local 'labelLen' (at 15 head)
-  local 'raw' ('_aicam_read_reg_bytes' 100 (15 + labelLen) _aicam_chunk 3)
-  return ('_aicam_parse_face' raw)
-}
-
-to aicam_refresh_self_result {
-  if (not ('_aicam_ready')) {return 0}
-  local 'head' ('_aicam_read_reg_retry' 100 4 2)
-  if (or ((size head) < 4) (head == 0)) {return (booleanConstant false)}
-  local 'labelLen' (at 4 head)
-  local 'raw' ('_aicam_read_reg_bytes' 100 (4 + labelLen) _aicam_chunk 3)
-  return ('_aicam_parse_self' raw)
-}
-
-to aicam_refresh_hand_result {
-  if (not ('_aicam_ready')) {return 0}
-  local 'head' ('_aicam_read_reg_retry' 100 5 2)
-  if (or ((size head) < 5) (head == 0)) {return (booleanConstant false)}
-  local 'labelLen' (at 5 head)
-  local 'raw' ('_aicam_read_reg_bytes' 100 (5 + labelLen) _aicam_chunk 3)
-  return ('_aicam_parse_hand' raw)
-}
-
-to aicam_refresh_sound_result {
-  if (not ('_aicam_ready')) {return 0}
-  return ('_aicam_parse_sound' ('_aicam_read_reg_retry' 100 7 2))
-}
-
-to aicam_mode_name mode {
-  return ('_aicam_mode_name_from_id' ('_aicam_mode_id' mode))
-}
-
-to aicam_raw_read_register addr len {
-  if (not ('_aicam_ready')) {return ('[data:newByteArray]' 0)}
-  len = (minimum (maximum 1 len) 64)
-  return ('_aicam_read_reg_bytes' addr len _aicam_chunk 2)
-}
-
-to aicam_raw_write_register addr data {
-  if (not ('_aicam_ready')) {return (booleanConstant false)}
-  return ('_aicam_write_reg_bytes' addr data _aicam_chunk _aicam_gap)
+to '_aicam_decode_string' data start len {
+  if (or (len <= 0) ((start + len) > ((size data) + 1))) {return ''}
+  return ('[data:convertType]' ('[data:copyFromTo]' data start ((start + len) - 1)) 'string')
 }
 
 to '_aicam_defaults' {
@@ -312,13 +113,58 @@ to '_aicam_defaults' {
   }
 }
 
-to '_aicam_ready' {
-  '_aicam_defaults'
-  return (and _aicam_init_done _aicam_online)
+to '_aicam_detect_mode_id' {
+  if (not ('_aicam_ready')) {return _aicam_current_mode}
+  local 'cur' ('_aicam_read_reg_retry' 0 1 2)
+  if ((size cur) >= 1) {
+    local 'id' ((at 1 cur) & 255)
+    if ('_aicam_update_mode' id) {
+      _aicam_online = (booleanConstant true)
+      return id
+    }
+  }
+  '_aicam_offline'
+  return _aicam_current_mode
 }
 
-to '_aicam_offline' {
-  _aicam_online = (booleanConstant false)
+to '_aicam_device_read' command params readLen {
+  if (or (readLen <= 0) (readLen > 31)) {return ('[data:newByteArray]' 0)}
+  local 'packet' ('_aicam_packet' command params)
+  if (not ('_planetX_i2cAcquire')) {
+    return ('[data:newByteArray]' 0)
+  }
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'raw' ('[data:newByteArray]' (readLen + 1) 0)
+  local 'read' false
+  if ('[sensors:i2cExists]' _aicam_addr) {
+    '[sensors:i2cWrite]' _aicam_addr packet
+    if (_aicam_gap > 0) {
+      waitMillis _aicam_gap
+    }
+    read = (('[sensors:i2cRead]' _aicam_addr raw) == (readLen + 1))
+  }
+  '_planetX_i2cRelease'
+  if (not read) {
+    return ('[data:newByteArray]' 0)
+  }
+  if (('_aicam_crc8' raw readLen) != (at (readLen + 1) raw)) {
+    return ('[data:newByteArray]' 0)
+  }
+  return ('[data:copyFromTo]' raw 1 readLen)
+}
+
+to '_aicam_device_write' command params {
+  local 'packet' ('_aicam_packet' command params)
+  if (not ('_planetX_i2cAcquire')) {
+    return false
+  }
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'present' ('[sensors:i2cExists]' _aicam_addr)
+  if present {
+    '[sensors:i2cWrite]' _aicam_addr packet
+  }
+  '_planetX_i2cRelease'
+  return present
 }
 
 to '_aicam_mode_id' mode {
@@ -345,6 +191,261 @@ to '_aicam_mode_name_from_id' id {
   if (id == (hexToInt '16')) {return 'settings'}
   if (id == (hexToInt '1B')) {return 'sound touch'}
   return 'unknown'
+}
+
+to '_aicam_offline' {
+  _aicam_online = (booleanConstant false)
+}
+
+to '_aicam_packet' command params {
+  if (params == 0) {params = ('[data:newByteArray]' 0)}
+  params = ('[data:asByteArray]' params)
+  local 'plen' (size params)
+  local 'packet' ('[data:newByteArray]' (plen + 4) 0)
+  atPut 1 packet (hexToInt 'AA')
+  atPut 2 packet (command & 255)
+  atPut 3 packet (plen & 255)
+  for i plen {
+    atPut (i + 3) packet (at i params)
+  }
+  atPut (plen + 4) packet ('_aicam_crc8' packet (plen + 3))
+  return packet
+}
+
+to '_aicam_parse_face' raw {
+  if (or (raw == 0) ((size raw) < 15)) {return (booleanConstant false)}
+  _aicam_face_status = ((at 1 raw) & 255)
+  _aicam_face_id = ((at 2 raw) & 255)
+  _aicam_face_similarity = (minimum (((at 3 raw) & 255) / 100) 1)
+  _aicam_face_blink = ((at 4 raw) & 255)
+  _aicam_face_mouth_open = ((at 5 raw) & 255)
+  local 'coordValid' ((at 6 raw) & 255)
+  local 'leftX' ('_aicam_u16le' raw 7)
+  local 'leftY' ('_aicam_u16le' raw 9)
+  local 'rightX' ('_aicam_u16le' raw 11)
+  local 'rightY' ('_aicam_u16le' raw 13)
+  if (and (leftX == rightX) (leftY == rightY)) {
+    _aicam_face_coord_valid = 0
+  } else {
+    if (coordValid != 0) {
+      _aicam_face_left_x = leftX
+      _aicam_face_left_y = leftY
+      _aicam_face_right_x = rightX
+      _aicam_face_right_y = rightY
+      _aicam_face_coord_valid = 1
+    } else {
+      _aicam_face_coord_valid = 0
+    }
+  }
+  local 'labelLen' ((at 15 raw) & 255)
+  _aicam_face_label = ('_aicam_decode_string' raw 16 labelLen)
+  return (booleanConstant true)
+}
+
+to '_aicam_parse_hand' raw {
+  if (or (raw == 0) ((size raw) < 5)) {return (booleanConstant false)}
+  _aicam_hand_status = ((at 1 raw) & 255)
+  _aicam_hand_id = ((at 2 raw) & 255)
+  _aicam_hand_similarity = (minimum (((at 3 raw) & 255) / 100) 1)
+  _aicam_hand_pose_similarity = (minimum (((at 4 raw) & 255) / 100) 1)
+  _aicam_hand_label = ('_aicam_decode_string' raw 6 ((at 5 raw) & 255))
+  return (booleanConstant true)
+}
+
+to '_aicam_parse_self' raw {
+  if (or (raw == 0) ((size raw) < 4)) {return (booleanConstant false)}
+  _aicam_self_status = ((at 1 raw) & 255)
+  _aicam_self_id = ((at 2 raw) & 255)
+  _aicam_self_similarity = (minimum (((at 3 raw) & 255) / 100) 1)
+  _aicam_self_label = ('_aicam_decode_string' raw 5 ((at 4 raw) & 255))
+  return (booleanConstant true)
+}
+
+to '_aicam_parse_sound' raw {
+  if (or (raw == 0) ((size raw) < 7)) {return (booleanConstant false)}
+  _aicam_sound_status = ((at 1 raw) & 255)
+  _aicam_sound_bpm = (((at 3 raw) << 8) | (at 2 raw))
+  _aicam_sound_beat_count = (((at 5 raw) << 8) | (at 4 raw))
+  _aicam_sound_duration = ((((at 7 raw) << 8) | (at 6 raw)) / 10)
+  if (_aicam_sound_status == 1) {
+    _aicam_sound_message = 'done'
+  } (_aicam_sound_status == 2) {
+    _aicam_sound_message = 'recording'
+  } (_aicam_sound_status == 3) {
+    _aicam_sound_message = 'processing'
+  } (_aicam_sound_status == 4) {
+    _aicam_sound_message = 'state4'
+  } else {
+    _aicam_sound_message = 'idle'
+  }
+  return (booleanConstant true)
+}
+
+to '_aicam_probe' retry {
+  local 'cur' ('_aicam_read_reg_retry' 0 1 retry)
+  if ((size cur) >= 1) {
+    local 'id' ((at 1 cur) & 255)
+    if ('_aicam_update_mode' id) {
+      _aicam_online = (booleanConstant true)
+      return (booleanConstant true)
+    }
+  }
+  '_aicam_offline'
+  return (booleanConstant false)
+}
+
+to '_aicam_probe_init' {
+  for i 3 {
+    if ('_aicam_probe_timeout' 300) {return (booleanConstant true)}
+  }
+  '_aicam_offline'
+  return (booleanConstant false)
+}
+
+to '_aicam_probe_timeout' timeoutMSecs {
+  local 'start' (millisOp)
+  repeatUntil (((millisOp) - start) >= (maximum 1 timeoutMSecs)) {
+    if ('_aicam_probe' 1) {return (booleanConstant true)}
+    waitMillis 20
+  }
+  return (booleanConstant false)
+}
+
+to '_aicam_read_reg' addr len {
+  local 'req' ('[data:makeList]' ((addr >> 8) & 255) (addr & 255) 0 (len & 255))
+  return ('_aicam_device_read' (hexToInt '21') req len)
+}
+
+to '_aicam_read_reg_bytes' addr totalLen chunk retry {
+  if (totalLen <= 0) {return ('[data:newByteArray]' 0)}
+  local 'out' ('[data:newByteArray]' totalLen 0)
+  local 'offset' 0
+  local 'failed' (booleanConstant false)
+  repeatUntil (or failed (offset >= totalLen)) {
+    local 'n' (minimum (maximum 1 (minimum chunk 31)) (totalLen - offset))
+    local 'part' ('_aicam_read_reg_retry' (addr + offset) n retry)
+    if ((size part) < n) {
+      failed = (booleanConstant true)
+    } else {
+      for i n {
+        atPut (offset + i) out (at i part)
+      }
+      offset += n
+      if (and (offset < totalLen) (_aicam_gap > 0)) {
+        waitMillis _aicam_gap
+      }
+    }
+  }
+  if (offset >= totalLen) {
+    return out
+  }
+  if (offset <= 0) {
+    return ('[data:newByteArray]' 0)
+  }
+  return ('[data:copyFromTo]' out 1 offset)
+}
+
+to '_aicam_read_reg_retry' addr len retry {
+  local 'last' ('[data:newByteArray]' 0)
+  for i (maximum 1 retry) {
+    local 'ret' ('_aicam_read_reg' addr len)
+    last = ret
+    if ((size ret) >= len) {
+      return ret
+    }
+    waitMillis 2
+  }
+  return last
+}
+
+to '_aicam_ready' {
+  '_aicam_defaults'
+  return (and _aicam_init_done _aicam_online)
+}
+
+to '_aicam_screen_face_y' y {
+  y = (maximum 0 (minimum y 240))
+  return y
+}
+
+to '_aicam_send_uart_command' command params {
+  return ('_aicam_write_uart_frame' ('_aicam_uart_frame' command params))
+}
+
+to '_aicam_switch_mode' target retryAfterFirst timeoutMSecs {
+  if (not ('_aicam_ready')) {return (booleanConstant false)}
+  local 'currentId' ('_aicam_try_read_mode' 2)
+  if (currentId == (target & 255)) {
+    _aicam_current_mode = target
+    return (booleanConstant true)
+  }
+  if (and (currentId < 0) ((_aicam_current_mode & 255) == (target & 255))) {
+    return (booleanConstant true)
+  }
+  local 'attempts' (1 + (maximum 0 retryAfterFirst))
+  for attempt attempts {
+    if (not ('_aicam_send_uart_command' target ('[data:makeList]' 0))) {
+      '_aicam_offline'
+      return (booleanConstant false)
+    }
+    local 'start' (millisOp)
+    local 'missCount' 0
+    repeatUntil (((millisOp) - start) >= timeoutMSecs) {
+      waitMillis 20
+      local 'id' ('_aicam_try_read_mode' 1)
+      if (id == (target & 255)) {
+        _aicam_current_mode = target
+        return (booleanConstant true)
+      }
+      if (id < 0) {
+        missCount += 1
+        if (missCount >= 3) {
+          '_aicam_offline'
+          return (booleanConstant false)
+        }
+      } else {
+        missCount = 0
+      }
+    }
+    if (attempt < attempts) {
+      waitMillis 120
+    }
+  }
+  return (booleanConstant false)
+}
+
+to '_aicam_try_read_mode' retry {
+  if (not ('_aicam_ready')) {return -1}
+  local 'cur' ('_aicam_read_reg_retry' 0 1 retry)
+  if ((size cur) >= 1) {
+    local 'id' ((at 1 cur) & 255)
+    if ('_aicam_update_mode' id) {
+      _aicam_online = (booleanConstant true)
+      return id
+    }
+  }
+  '_aicam_offline'
+  return -1
+}
+
+to '_aicam_u16le' data offset {
+  if (or (data == 0) ((offset + 1) > (size data))) {return 0}
+  return (((at (offset + 1) data) << 8) | (at offset data))
+}
+
+to '_aicam_uart_frame' command payload {
+  if (payload == 0) {payload = ('[data:newByteArray]' 0)}
+  payload = ('[data:asByteArray]' payload)
+  local 'len' (size payload)
+  local 'frame' ('[data:newByteArray]' (4 + len) 0)
+  atPut 1 frame (hexToInt 'FF')
+  atPut 2 frame (hexToInt 'F9')
+  atPut 3 frame (command & 255)
+  atPut 4 frame (len & 255)
+  for i len {
+    atPut (i + 4) frame (at i payload)
+  }
+  return frame
 }
 
 to '_aicam_update_mode' appId {
@@ -388,113 +489,9 @@ to '_aicam_update_mode' appId {
   return (booleanConstant false)
 }
 
-to '_aicam_color_id' color {
-  if (or (color == 'red') (color == '红色')) {return 1}
-  if (or (color == 'green') (color == '绿色')) {return 2}
-  if (or (color == 'blue') (color == '蓝色')) {return 3}
-  if (or (color == 'yellow') (color == '黄色')) {return 4}
-  if (or (color == 'cyan') (color == '青色')) {return 5}
-  if (or (color == 'purple') (color == '紫色')) {return 6}
-  if (or (color == 'white') (color == '白色')) {return 7}
-  return 0
-}
-
-to '_aicam_crc8' data length {
-  local 'crc' 0
-  local 'n' (minimum length (size data))
-  for i n {
-    crc = ((crc ^ (at i data)) & 255)
-    for b 8 {
-      if ((crc & 128) != 0) {
-        crc = (((crc << 1) ^ 7) & 255)
-      } else {
-        crc = ((crc << 1) & 255)
-      }
-    }
-  }
-  return (crc & 255)
-}
-
-to '_aicam_packet' command params {
-  if (params == 0) {params = ('[data:newByteArray]' 0)}
-  params = ('[data:asByteArray]' params)
-  local 'plen' (size params)
-  local 'packet' ('[data:newByteArray]' (plen + 4) 0)
-  atPut 1 packet (hexToInt 'AA')
-  atPut 2 packet (command & 255)
-  atPut 3 packet (plen & 255)
-  for i plen {
-    atPut (i + 3) packet (at i params)
-  }
-  atPut (plen + 4) packet ('_aicam_crc8' packet (plen + 3))
-  return packet
-}
-
-to '_aicam_device_write' command params {
-  local 'packet' ('_aicam_packet' command params)
-  if (not ('_planetX_i2cAcquire')) {return false}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'present' ('[sensors:i2cExists]' _aicam_addr)
-  if present {'[sensors:i2cWrite]' _aicam_addr packet}
-  '_planetX_i2cRelease'
-  return present
-}
-
-to '_aicam_device_read' command params readLen {
-  if (or (readLen <= 0) (readLen > 31)) {return ('[data:newByteArray]' 0)}
-  local 'packet' ('_aicam_packet' command params)
-  if (not ('_planetX_i2cAcquire')) {return ('[data:newByteArray]' 0)}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'raw' ('[data:newByteArray]' (readLen + 1) 0)
-  local 'read' false
-  if ('[sensors:i2cExists]' _aicam_addr) {
-    '[sensors:i2cWrite]' _aicam_addr packet
-    if (_aicam_gap > 0) {waitMillis _aicam_gap}
-    read = (('[sensors:i2cRead]' _aicam_addr raw) == (readLen + 1))
-  }
-  '_planetX_i2cRelease'
-  if (not read) {return ('[data:newByteArray]' 0)}
-  if (('_aicam_crc8' raw readLen) != (at (readLen + 1) raw)) {return ('[data:newByteArray]' 0)}
-  return ('[data:copyFromTo]' raw 1 readLen)
-}
-
-to '_aicam_read_reg' addr len {
-  local 'req' ('[data:makeList]' ((addr >> 8) & 255) (addr & 255) 0 (len & 255))
-  return ('_aicam_device_read' (hexToInt '21') req len)
-}
-
-to '_aicam_read_reg_retry' addr len retry {
-  local 'last' ('[data:newByteArray]' 0)
-  for i (maximum 1 retry) {
-    local 'ret' ('_aicam_read_reg' addr len)
-    last = ret
-    if ((size ret) >= len) {return ret}
-    waitMillis 2
-  }
-  return last
-}
-
-to '_aicam_read_reg_bytes' addr totalLen chunk retry {
-  if (totalLen <= 0) {return ('[data:newByteArray]' 0)}
-  local 'out' ('[data:newByteArray]' totalLen 0)
-  local 'offset' 0
-  local 'failed' (booleanConstant false)
-  repeatUntil (or failed (offset >= totalLen)) {
-    local 'n' (minimum (maximum 1 (minimum chunk 31)) (totalLen - offset))
-    local 'part' ('_aicam_read_reg_retry' (addr + offset) n retry)
-    if ((size part) < n) {
-      failed = (booleanConstant true)
-    } else {
-      for i n {
-        atPut (offset + i) out (at i part)
-      }
-      offset += n
-      if (and (offset < totalLen) (_aicam_gap > 0)) {waitMillis _aicam_gap}
-    }
-  }
-  if (offset >= totalLen) {return out}
-  if (offset <= 0) {return ('[data:newByteArray]' 0)}
-  return ('[data:copyFromTo]' out 1 offset)
+to '_aicam_valid_face_center' {
+  if (_aicam_face_coord_valid == 0) {return (booleanConstant false)}
+  return (not (and (_aicam_face_left_x == _aicam_face_right_x) (_aicam_face_left_y == _aicam_face_right_y)))
 }
 
 to '_aicam_write_reg' addr data {
@@ -504,7 +501,9 @@ to '_aicam_write_reg' addr data {
 to '_aicam_write_reg_bytes' addr data chunk gap {
   if (data == 0) {return (booleanConstant false)}
   data = ('[data:asByteArray]' data)
-  if ((size data) <= 0) {return (booleanConstant false)}
+  if ((size data) <= 0) {
+    return (booleanConstant false)
+  }
   chunk = (maximum 1 (minimum chunk 32))
   gap = (maximum 0 gap)
   local 'offset' 0
@@ -520,30 +519,19 @@ to '_aicam_write_reg_bytes' addr data chunk gap {
     }
     '_aicam_device_write' (hexToInt '20') payload
     offset += n
-    if (and (offset < (size data)) (gap > 0)) {waitMillis gap}
+    if (and (offset < (size data)) (gap > 0)) {
+      waitMillis gap
+    }
   }
   return (booleanConstant true)
-}
-
-to '_aicam_uart_frame' command payload {
-  if (payload == 0) {payload = ('[data:newByteArray]' 0)}
-  payload = ('[data:asByteArray]' payload)
-  local 'len' (size payload)
-  local 'frame' ('[data:newByteArray]' (4 + len) 0)
-  atPut 1 frame (hexToInt 'FF')
-  atPut 2 frame (hexToInt 'F9')
-  atPut 3 frame (command & 255)
-  atPut 4 frame (len & 255)
-  for i len {
-    atPut (i + 4) frame (at i payload)
-  }
-  return frame
 }
 
 to '_aicam_write_uart_frame' frame {
   if (or (frame == 0) ((size frame) <= 0)) {return (booleanConstant false)}
   frame = ('[data:asByteArray]' frame)
-  if ((size frame) > 253) {return (booleanConstant false)}
+  if ((size frame) > 253) {
+    return (booleanConstant false)
+  }
   local 'params' ('[data:newByteArray]' ((size frame) + 2) 0)
   atPut 1 params 0
   atPut 2 params ((size frame) & 255)
@@ -553,211 +541,243 @@ to '_aicam_write_uart_frame' frame {
   return ('_aicam_device_write' (hexToInt '30') params)
 }
 
-to '_aicam_send_uart_command' command params {
-  return ('_aicam_write_uart_frame' ('_aicam_uart_frame' command params))
+to aicam_back_to_launcher {
+  if (not ('_aicam_ready')) {return 0}
+  '_aicam_switch_mode' 1 2 5000
 }
 
-to '_aicam_probe' retry {
-  local 'cur' ('_aicam_read_reg_retry' 0 1 retry)
-  if ((size cur) >= 1) {
-    local 'id' ((at 1 cur) & 255)
-    if ('_aicam_update_mode' id) {
-      _aicam_online = (booleanConstant true)
-      return (booleanConstant true)
+to aicam_current_mode {
+  '_aicam_defaults'
+  return ('_aicam_mode_name_from_id' _aicam_current_mode)
+}
+
+to aicam_detected_face {
+  return (_aicam_face_coord_valid != 0)
+}
+
+to aicam_detected_learned_gesture {
+  return (_aicam_hand_status == 1)
+}
+
+to aicam_detected_learned_object {
+  return (_aicam_self_status == 1)
+}
+
+to aicam_detected_recognized_face {
+  return (_aicam_face_status == 1)
+}
+
+to aicam_face_blink {
+  return _aicam_face_blink
+}
+
+to aicam_face_coordinate coord {
+  if (or (coord == 'center x') (coord == '中心 x')) {
+    if (not ('_aicam_valid_face_center')) {return 160}
+    local 'x' ((_aicam_face_left_x + _aicam_face_right_x) >> 1)
+    x = (maximum 0 (minimum x 320))
+    if (or (x == 0) (x == 320)) {
+      return 160
     }
-  }
-  '_aicam_offline'
-  return (booleanConstant false)
-}
-
-to '_aicam_probe_timeout' timeoutMSecs {
-  local 'start' (millisOp)
-  repeatUntil (((millisOp) - start) >= (maximum 1 timeoutMSecs)) {
-    if ('_aicam_probe' 1) {return (booleanConstant true)}
-    waitMillis 20
-  }
-  return (booleanConstant false)
-}
-
-to '_aicam_probe_init' {
-  for i 3 {
-    if ('_aicam_probe_timeout' 300) {return (booleanConstant true)}
-  }
-  '_aicam_offline'
-  return (booleanConstant false)
-}
-
-to '_aicam_detect_mode_id' {
-  if (not ('_aicam_ready')) {return _aicam_current_mode}
-  local 'cur' ('_aicam_read_reg_retry' 0 1 2)
-  if ((size cur) >= 1) {
-    local 'id' ((at 1 cur) & 255)
-    if ('_aicam_update_mode' id) {
-      _aicam_online = (booleanConstant true)
-      return id
+    return x
+  } (or (coord == 'center y') (coord == '中心 y')) {
+    if (not ('_aicam_valid_face_center')) {return 120}
+    local 'y' ('_aicam_screen_face_y' ((_aicam_face_left_y + _aicam_face_right_y) >> 1))
+    if (or (y == 0) (y == 240)) {
+      return 120
     }
+    return y
+  } (or (or (coord == 'top-left x') (coord == '左上 x')) (coord == 'left top x')) {
+    return _aicam_face_left_x
+  } (or (or (coord == 'top-left y') (coord == '左上 y')) (coord == 'left top y')) {
+    return ('_aicam_screen_face_y' _aicam_face_left_y)
+  } (or (or (coord == 'bottom-right x') (coord == '右下 x')) (coord == 'right bottom x')) {
+    return _aicam_face_right_x
   }
-  '_aicam_offline'
-  return _aicam_current_mode
+  return ('_aicam_screen_face_y' _aicam_face_right_y)
 }
 
-to '_aicam_try_read_mode' retry {
-  if (not ('_aicam_ready')) {return -1}
-  local 'cur' ('_aicam_read_reg_retry' 0 1 retry)
-  if ((size cur) >= 1) {
-    local 'id' ((at 1 cur) & 255)
-    if ('_aicam_update_mode' id) {
-      _aicam_online = (booleanConstant true)
-      return id
-    }
-  }
-  '_aicam_offline'
-  return -1
+to aicam_face_id {
+  return _aicam_face_id
 }
 
-to '_aicam_switch_mode' target retryAfterFirst timeoutMSecs {
+to aicam_face_label {
+  return _aicam_face_label
+}
+
+to aicam_face_mouth_open {
+  return _aicam_face_mouth_open
+}
+
+to aicam_face_similarity {
+  return _aicam_face_similarity
+}
+
+to aicam_face_status {
+  return _aicam_face_status
+}
+
+to aicam_hand_id {
+  return _aicam_hand_id
+}
+
+to aicam_hand_label {
+  return _aicam_hand_label
+}
+
+to aicam_hand_pose_similarity {
+  return _aicam_hand_pose_similarity
+}
+
+to aicam_hand_similarity {
+  return _aicam_hand_similarity
+}
+
+to aicam_hand_status {
+  return _aicam_hand_status
+}
+
+to aicam_init {
+  '_aicam_defaults'
+  _aicam_addr = 96
+  _aicam_online = (booleanConstant false)
+  _aicam_init_done = (booleanConstant true)
+  return ('_aicam_probe_init')
+}
+
+to aicam_mode_name mode {
+  return ('_aicam_mode_name_from_id' ('_aicam_mode_id' mode))
+}
+
+to aicam_raw_read_register addr len {
+  if (not ('_aicam_ready')) {return ('[data:newByteArray]' 0)}
+  len = (minimum (maximum 1 len) 64)
+  return ('_aicam_read_reg_bytes' addr len _aicam_chunk 2)
+}
+
+to aicam_raw_write_register addr data {
   if (not ('_aicam_ready')) {return (booleanConstant false)}
-  local 'currentId' ('_aicam_try_read_mode' 2)
-  if (currentId == (target & 255)) {
-    _aicam_current_mode = target
-    return (booleanConstant true)
+  return ('_aicam_write_reg_bytes' addr data _aicam_chunk _aicam_gap)
+}
+
+to aicam_refresh_face_result {
+  if (not ('_aicam_ready')) {return 0}
+  local 'head' ('_aicam_read_reg_retry' 100 15 2)
+  if (or ((size head) < 15) (head == 0)) {
+    return (booleanConstant false)
   }
-  if (and (currentId < 0) ((_aicam_current_mode & 255) == (target & 255))) {return (booleanConstant true)}
-  local 'attempts' (1 + (maximum 0 retryAfterFirst))
-  for attempt attempts {
-    if (not ('_aicam_send_uart_command' target ('[data:makeList]' 0))) {
-      '_aicam_offline'
-      return (booleanConstant false)
-    }
-    local 'start' (millisOp)
-    local 'missCount' 0
-    repeatUntil (((millisOp) - start) >= timeoutMSecs) {
-      waitMillis 20
-      local 'id' ('_aicam_try_read_mode' 1)
-      if (id == (target & 255)) {
-        _aicam_current_mode = target
-        return (booleanConstant true)
-      }
-      if (id < 0) {
-        missCount += 1
-        if (missCount >= 3) {
-          '_aicam_offline'
-          return (booleanConstant false)
-        }
-      } else {
-        missCount = 0
-      }
-    }
-    if (attempt < attempts) {waitMillis 120}
+  local 'labelLen' (at 15 head)
+  local 'raw' ('_aicam_read_reg_bytes' 100 (15 + labelLen) _aicam_chunk 3)
+  return ('_aicam_parse_face' raw)
+}
+
+to aicam_refresh_hand_result {
+  if (not ('_aicam_ready')) {return 0}
+  local 'head' ('_aicam_read_reg_retry' 100 5 2)
+  if (or ((size head) < 5) (head == 0)) {
+    return (booleanConstant false)
   }
-  return (booleanConstant false)
+  local 'labelLen' (at 5 head)
+  local 'raw' ('_aicam_read_reg_bytes' 100 (5 + labelLen) _aicam_chunk 3)
+  return ('_aicam_parse_hand' raw)
 }
 
-to '_aicam_u16le' data offset {
-  if (or (data == 0) ((offset + 1) > (size data))) {return 0}
-  return (((at (offset + 1) data) << 8) | (at offset data))
-}
-
-to '_aicam_decode_string' data start len {
-  if (or (len <= 0) ((start + len) > ((size data) + 1))) {return ''}
-  return ('[data:convertType]' ('[data:copyFromTo]' data start ((start + len) - 1)) 'string')
-}
-
-to '_aicam_parse_face' raw {
-  if (or (raw == 0) ((size raw) < 15)) {return (booleanConstant false)}
-  _aicam_face_status = ((at 1 raw) & 255)
-  _aicam_face_id = ((at 2 raw) & 255)
-  _aicam_face_similarity = (minimum (((at 3 raw) & 255) / 100) 1)
-  _aicam_face_blink = ((at 4 raw) & 255)
-  _aicam_face_mouth_open = ((at 5 raw) & 255)
-  local 'coordValid' ((at 6 raw) & 255)
-  local 'leftX' ('_aicam_u16le' raw 7)
-  local 'leftY' ('_aicam_u16le' raw 9)
-  local 'rightX' ('_aicam_u16le' raw 11)
-  local 'rightY' ('_aicam_u16le' raw 13)
-  if (and (leftX == rightX) (leftY == rightY)) {
-    _aicam_face_coord_valid = 0
-  } else {
-    if (coordValid != 0) {
-      _aicam_face_left_x = leftX
-      _aicam_face_left_y = leftY
-      _aicam_face_right_x = rightX
-      _aicam_face_right_y = rightY
-      _aicam_face_coord_valid = 1
-    } else {
-      _aicam_face_coord_valid = 0
-    }
+to aicam_refresh_result {
+  if (not ('_aicam_ready')) {return 0}
+  local 'mode' ('_aicam_detect_mode_id')
+  if (mode == (hexToInt '10')) {
+    aicam_refresh_face_result
+  } (mode == (hexToInt '11')) {
+    aicam_refresh_self_result
+  } (mode == (hexToInt '12')) {
+    aicam_refresh_hand_result
+  } (mode == (hexToInt '1B')) {
+    aicam_refresh_sound_result
   }
-  local 'labelLen' ((at 15 raw) & 255)
-  _aicam_face_label = ('_aicam_decode_string' raw 16 labelLen)
-  return (booleanConstant true)
 }
 
-to '_aicam_parse_self' raw {
-  if (or (raw == 0) ((size raw) < 4)) {return (booleanConstant false)}
-  _aicam_self_status = ((at 1 raw) & 255)
-  _aicam_self_id = ((at 2 raw) & 255)
-  _aicam_self_similarity = (minimum (((at 3 raw) & 255) / 100) 1)
-  _aicam_self_label = ('_aicam_decode_string' raw 5 ((at 4 raw) & 255))
-  return (booleanConstant true)
-}
-
-to '_aicam_parse_hand' raw {
-  if (or (raw == 0) ((size raw) < 5)) {return (booleanConstant false)}
-  _aicam_hand_status = ((at 1 raw) & 255)
-  _aicam_hand_id = ((at 2 raw) & 255)
-  _aicam_hand_similarity = (minimum (((at 3 raw) & 255) / 100) 1)
-  _aicam_hand_pose_similarity = (minimum (((at 4 raw) & 255) / 100) 1)
-  _aicam_hand_label = ('_aicam_decode_string' raw 6 ((at 5 raw) & 255))
-  return (booleanConstant true)
-}
-
-to '_aicam_parse_sound' raw {
-  if (or (raw == 0) ((size raw) < 7)) {return (booleanConstant false)}
-  _aicam_sound_status = ((at 1 raw) & 255)
-  _aicam_sound_bpm = (((at 3 raw) << 8) | (at 2 raw))
-  _aicam_sound_beat_count = (((at 5 raw) << 8) | (at 4 raw))
-  _aicam_sound_duration = ((((at 7 raw) << 8) | (at 6 raw)) / 10)
-  if (_aicam_sound_status == 1) {
-    _aicam_sound_message = 'done'
-  } (_aicam_sound_status == 2) {
-    _aicam_sound_message = 'recording'
-  } (_aicam_sound_status == 3) {
-    _aicam_sound_message = 'processing'
-  } (_aicam_sound_status == 4) {
-    _aicam_sound_message = 'state4'
-  } else {
-    _aicam_sound_message = 'idle'
+to aicam_refresh_self_result {
+  if (not ('_aicam_ready')) {return 0}
+  local 'head' ('_aicam_read_reg_retry' 100 4 2)
+  if (or ((size head) < 4) (head == 0)) {
+    return (booleanConstant false)
   }
-  return (booleanConstant true)
+  local 'labelLen' (at 4 head)
+  local 'raw' ('_aicam_read_reg_bytes' 100 (4 + labelLen) _aicam_chunk 3)
+  return ('_aicam_parse_self' raw)
 }
 
-to '_aicam_valid_face_center' {
-  if (_aicam_face_coord_valid == 0) {return (booleanConstant false)}
-  return (not (and (_aicam_face_left_x == _aicam_face_right_x) (_aicam_face_left_y == _aicam_face_right_y)))
+to aicam_refresh_sound_result {
+  if (not ('_aicam_ready')) {return 0}
+  return ('_aicam_parse_sound' ('_aicam_read_reg_retry' 100 7 2))
 }
 
-to '_planetX_i2cAcquire' {
-  if (_planetX_i2cQueue == 0) {_planetX_i2cQueue = ('[data:makeList]')}
-  // Distinct objects identify requests without a wrapping ticket counter.
-  local 'request' ('[data:newByteArray]' 1 0)
-  '[data:addLast]' request _planetX_i2cQueue
-  if (('[data:find]' request _planetX_i2cQueue) < 1) {return false}
-  local 'start' (millisOp)
-  repeatUntil (and (not _planetX_i2cRequestBusy) ((at 1 _planetX_i2cQueue) == request)) {
-    if ((millisSince start) >= 500) {
-      local 'index' ('[data:find]' request _planetX_i2cQueue)
-      if (index > 0) {'[data:delete]' index _planetX_i2cQueue}
-      return false
-    }
-    waitMillis 1
-  }
-  _planetX_i2cRequestBusy = true
-  return true
+to aicam_self_id {
+  return _aicam_self_id
 }
 
-to '_planetX_i2cRelease' {
-  if (not _planetX_i2cRequestBusy) {return}
-  '[data:delete]' 1 _planetX_i2cQueue
-  _planetX_i2cRequestBusy = false
+to aicam_self_label {
+  return _aicam_self_label
 }
+
+to aicam_self_similarity {
+  return _aicam_self_similarity
+}
+
+to aicam_self_status {
+  return _aicam_self_status
+}
+
+to aicam_set_i2c_address addr {
+  '_aicam_defaults'
+  _aicam_addr = (maximum 1 (minimum addr 127))
+  _aicam_init_done = (booleanConstant false)
+  _aicam_online = (booleanConstant false)
+}
+
+to aicam_set_io_tuning chunk gap {
+  '_aicam_defaults'
+  _aicam_chunk = (maximum 1 (minimum chunk 32))
+  _aicam_gap = (maximum 0 gap)
+}
+
+to aicam_set_rgb color {
+  if (not ('_aicam_ready')) {return 0}
+  '_aicam_send_uart_command' (hexToInt '30') ('[data:makeList]' ('_aicam_color_id' color))
+}
+
+to aicam_sound_beat_count {
+  return _aicam_sound_beat_count
+}
+
+to aicam_sound_bpm {
+  return _aicam_sound_bpm
+}
+
+to aicam_sound_duration {
+  return _aicam_sound_duration
+}
+
+to aicam_sound_message {
+  return _aicam_sound_message
+}
+
+to aicam_sound_record enable {
+  if (not ('_aicam_ready')) {return 0}
+  '_aicam_send_uart_command' (hexToInt '38') ('[data:makeList]' (ifExpression enable 1 2))
+}
+
+to aicam_sound_status {
+  return _aicam_sound_status
+}
+
+to aicam_sound_upload {
+  if (not ('_aicam_ready')) {return 0}
+  '_aicam_send_uart_command' (hexToInt '3A') ('[data:makeList]' 1)
+}
+
+to aicam_switch_to mode {
+  if (not ('_aicam_ready')) {return 0}
+  '_aicam_switch_mode' ('_aicam_mode_id' mode) 3 6000
+}
+
