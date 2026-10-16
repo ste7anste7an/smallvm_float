@@ -2009,6 +2009,8 @@ console.log('unknown');
 		// the new one loads, because clearProject stores one. Clearing therefore
 		// adds a step for undo to stop at. A dropped file passes false and skips it.
 		const cleared = clearFirst ? MB_editor.clearProject() : null;
+		// Without clearProject the old scripts stay on screen, and the next save keeps them.
+		if (!clearFirst) MB_editor.removeAllScripts();
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
 		MB_editor.project.onVariableChange = null;
 		MB_editor.project.loadFromString(contents);
