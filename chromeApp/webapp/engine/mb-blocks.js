@@ -1665,7 +1665,7 @@ BlockMorph.prototype.userMenu = function () {
 		'delete this morph'
 	);
 	menu.addLine();
-	menu.addItem('scripts pic...', 'exportScriptsPicture', 'save a picture\nof all scripts');
+	menu.addItem('save picture of all scripts', () => { MB_editor.saveScriptsImage() });
 
 	menu.addLine();
 	menu.addItem(
@@ -2878,22 +2878,15 @@ WorldMorph.prototype.droppedText = function (text, fileName) {
 
 HandMorph.prototype.processDropWithoutPictures = HandMorph.prototype.processDrop;
 HandMorph.prototype.processDrop = function (event) {
-	// A picture keeps its scripts in a chunk of the file, and the image reader
-	// hands on a canvas, which cannot carry one. Take pictures here, by file
-	// name, and leave every other drop to the reader that suits it.
+	// morphic picks a reader by MIME type and reads every file at once, and would
+	// hand a picture on as a canvas, which cannot carry its scripts. Read dropped
+	// files here instead, by name and one at a time; a drop with none goes to morphic.
 	// Read the files the way morphic does: a drop's target is the element under
 	// the pointer and has none of its own, while a chooser's change event does.
 	var files = [...((event instanceof FileList) ? event
 		: event.target.files || event.dataTransfer.files || [])];
-	var rest = files.filter((file) => !MB_Editor.isScriptPicture(file.name));
-	for (const file of files) {
-		if (MB_Editor.isScriptPicture(file.name)) MB_editor.openDroppedFile(file);
-	}
-	if (rest.length === files.length) return this.processDropWithoutPictures(event);
-	// The reader takes the files from the target or the transfer, so hand it the
-	// rest the second way, whichever shape the drop arrived in.
-	if (rest.length > 0) return this.processDropWithoutPictures({ target: {},
-		dataTransfer: { files: rest, getData: () => '' } });
+	if (files.length === 0) return this.processDropWithoutPictures(event);
+	MB_editor.openDroppedFiles(files);
 };
 
 BlockMorph.prototype.destroy = function (justThis) {
@@ -4193,7 +4186,7 @@ ScriptsMorph.prototype.userMenu = function () {
 	menu.addLine();
 
 	menu.addItem('clean up', 'cleanUp', 'arrange scripts\nvertically');
-	menu.addItem('scripts pic...', 'exportScriptsPicture', 'save a picture\nof all scripts');
+	menu.addItem('save picture of all scripts', () => { MB_editor.saveScriptsImage() });
 
 	menu.addLine();
 	menu.addItem('compile function test',
@@ -4229,29 +4222,6 @@ ScriptsMorph.prototype.cleanUp = function () {
 		target.setPosition(target.parent.topLeft());
 	}
 	target.adjustBounds();
-};
-
-ScriptsMorph.prototype.exportScriptsPicture = function () {
-	var pic = this.scriptsPicture(),
-		ide = this.world().children[0],
-		xml = this.scriptsXML();
-
-	if (pic) {
-		if (xml) {
-			ide.saveFileAs(
-				embedMetadataPNG(pic, xml),
-				'image/png',
-				(ide.getProjectName() || localized('untitled')) + ' ' +
-					localized('script pic')
-			);
-		} else {
-			ide.saveCanvasAs(
-				pic,
-				(ide.getProjectName() || localized('untitled')) + ' ' +
-					localized('script pic')
-			);
-		}
-	}
 };
 
 ScriptsMorph.prototype.scriptsPicture = function () {
