@@ -959,6 +959,13 @@ class MB_Connection {
 	async getFileListFromBoard() {
 		// Return an object mapping the board's file names to their sizes,
 		// or null if the board did not finish answering.
+		if (this.portName === 'boardie') { // Boardie has no file transfer; list its cached files
+			const result = {};
+			for (const name of Object.keys(GP.boardie.files)) {
+				if ('user-prefs' !== name) result[name] = 0; // Boardie does not report sizes
+			}
+			return result;
+		}
 		if (this.busy()) return null;
 		// A stopped list's entries go on arriving, and its terminator would end this one.
 		// A terminator carries no transfer ID, so let the board finish sending them first.
@@ -984,6 +991,13 @@ class MB_Connection {
 	async readFileFromBoard(remoteFileName, remoteFileSize) {
 		// Return the file's contents, or null if the board did not send all of it.
 		// The collector marks the transfer running, so a throw before it leaves busy() false.
+		if (this.portName === 'boardie') {
+			const file = ('user-prefs' === remoteFileName) ? null : GP.boardie.files[remoteFileName];
+			if (file == null) return null;
+			const result = new Uint8Array(file.length);
+			for (let i = 0; i < file.length; i++) result[i] = file.charCodeAt(i);
+			return result;
+		}
 		if (this.busy()) return null;
 		const id = this.newTransferID();
 		const msg = [];
@@ -1013,6 +1027,15 @@ class MB_Connection {
 	async sendFileData(fileName, fileData) {
 		// Send the file as 950-byte chunks and then an empty one. Return true if
 		// every chunk was sent, false if the user or the board aborted the write.
+		if (this.portName === 'boardie') {
+			// The IDE's own preferences share Boardie's storage under that name.
+			if ('user-prefs' === fileName) return false;
+			let text = '';
+			for (let i = 0; i < fileData.length; i++) text += String.fromCharCode(fileData[i]);
+			GP.boardie.files[fileName] = text;
+			GP.boardie.iframe.contentWindow.postMessage([ 'putFile', fileName, text ], '*');
+			return true;
+		}
 		if (this.busy()) return false;
 		this.fileTransferProgress = 0;
 		try {
