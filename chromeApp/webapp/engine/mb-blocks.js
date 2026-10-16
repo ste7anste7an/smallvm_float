@@ -1739,11 +1739,29 @@ BlockMorph.prototype.chromeMenu = function () {
 			() => this.exportAsImageWithResult(),
 			'save a picture of these blocks and their result as a PNG file'])
 	}
-	if (this.isTemplate && MB_editor.project.functionNamed(this.selector)) {
-		items.push('-');
-		items.push(['delete block definition...',
-			() => MB_editor.deleteFunctionWithConfirm(this.selector),
-			'delete the definition of this block']);
+	items.push('-');
+	if (['v', '=', '+='].includes(this.selector)) {
+		items.push(['find variable accessors',
+			() => MB_editor.findUsers(this, 'accessors'),
+			'find scripts or block definitions where this variable is being read']);
+		items.push(['find variable modifiers',
+			() => MB_editor.findUsers(this, 'modifiers'),
+			'find scripts or block definitions where this variable is being set or changed']);
+	} else {
+		items.push(['find uses of this block',
+			() => MB_editor.findUsers(this, 'users'),
+			'find scripts or block definitions using this block']);
+	}
+	if (MB_editor.project.functionNamed(this.selector)) {
+		items.push(['show block definition...',
+			() => MB_editor.showAndScrollToDefinition(this.selector),
+			'show the definition of this block']);
+		if (this.isTemplate) {
+			items.push('-');
+			items.push(['delete block definition...',
+				() => MB_editor.deleteFunctionWithConfirm(this.selector),
+				'delete the definition of this block']);
+		}
 	}
 	return chromeMenuFor(world, items);
 };
