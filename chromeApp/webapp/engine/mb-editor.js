@@ -21,13 +21,14 @@ class MB_Editor {
 		this.lastLibraryFolder = 'Libraries'; // and where it opens for a library
 		this.runningChunks = new Map(); // used for block highlighting
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
+		this.blockForResultImage = null; // the script to save a picture of when its result arrives
 		this.chunkErrorListeners = []; // called with each decoded board error
 		// Turns the board's four location bytes into a site, called with the bytes
 		// and then the message's own chunk id; the chunk the fault is in is the
 		// low byte of the location. Null sends every error to the task's chunk.
 		this.errorDecoder = (location, chunkID) => this.decodeErrorLocation(location, chunkID);
 		this.saveNeeded = false; // the scripts changed since the last step
-		this.exportedScriptScale = 1; // set by the chrome; the picture uses the on-screen scale
+		this.exportedScriptScale = 0.65; // block scale of a script picture, set by the chrome
 		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
 		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
 		this.unsavedEdits = false; // the project changed since it was last opened or saved
@@ -1560,11 +1561,12 @@ console.log('unknown');
 	scriptScale() { return this.blockSize / 125; }
 	blockSizePercent() { return this.blockSize; }
 
-	resizeBlock(block, fontFactor) {
+	resizeBlock(block, fontFactor, scale = SyntaxElementMorph.prototype.scale) {
 		// TextMorph includes multi-line input text, which is separate from StringMorph.
 		const parts = block.allChildren();
 		for (const part of parts) {
-			if (part instanceof SyntaxElementMorph) part.setScale(SyntaxElementMorph.prototype.scale);
+			if (part instanceof SyntaxElementMorph) part.setScale(scale);
+			if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
 			if (part instanceof StringMorph || part instanceof TextMorph) {
 				part.setFontSize(part.fontSize * fontFactor);
 				part.fixLayout();
@@ -1736,6 +1738,10 @@ console.log('unknown');
 
 		const canvas = this.scriptsPane().scriptsPicture();
 		if (!canvas) return null; // no scripts
+		return this.canvasPNG(canvas);
+	}
+
+	canvasPNG(canvas) {
 		const url = canvas.toDataURL('image/png');
 		const base64 = url.slice(url.indexOf(',') + 1);
 		if (!base64) return null;
@@ -1755,6 +1761,93 @@ console.log('unknown');
 		if (pngBytes == null) return;
 		const withText = MB_ScriptPicture.addScriptText(pngBytes, this.allScriptsString());
 		this.saveDataAsFile(new Uint8Array(withText), 'allScripts' + Date.now() + '.png', 'image/png');
+	}
+
+	exportScriptImage(topBlock, result = null, isError = false) {
+		// Save a PNG picture of the given script at the export scale, carrying the script's text.
+		// If result is not null, include a speech bubble showing the result.
+
+		const start = Date.now();
+		const scale = this.exportedScriptScale;
+		const px = 2 * scale; // image pixels per block unit, doubled for high resolution
+		const script = this.scaledScriptCopy(topBlock, px);
+		const fb = script.fullBounds();
+		let scriptW = fb.width();
+		let scriptH = fb.height();
+		if (this.isReporterScript(topBlock)) {
+			scriptH += 2 * px; // padding to align reporter and command block bottoms in the Wiki
+		}
+
+		let bubble = null, bubbleW = 0, bubbleH = 0, bubbleInsetX = 0, bubbleInsetY = 0;
+		if (result != null) {
+			bubble = new SpeechBubbleMorph(this.exportBubbleText(String(result), px),
+				isError ? new Color(255, 190, 190) : null, 6 * px, px);
+			bubbleW = bubble.fullBounds().width();
+			bubbleH = bubble.fullBounds().height();
+			bubbleInsetX = 5 * scale;
+			bubbleInsetY = 5 * scale;
+			if (topBlock instanceof HatBlockMorph) bubbleInsetY = (script.height() / 2) + (3 * scale);
+		}
+
+		// add an extra pixel all around to allow for anti-aliasing
+		scriptW += 2;
+		scriptH += 2;
+
+		let pic = newCanvas(new Point(scriptW + bubbleW - bubbleInsetX, scriptH + bubbleH - bubbleInsetY), true);
+		const ctx = pic.getContext('2d');
+		ctx.drawImage(script.fullImage(), 1, (bubbleH - bubbleInsetY) + 1);
+		if (bubble) {
+			const adjustment = Math.round(6 * scale); // the bubble's bounds are slightly too large
+			const x = (script.width() - bubbleInsetX) + adjustment;
+			ctx.drawImage(bubble.fullImage(), x, -adjustment);
+			if (topBlock instanceof HatBlockMorph) pic = cropTransparent(pic); // remove extra space
+		}
+
+		const pngBytes = this.canvasPNG(pic);
+		if (pngBytes == null) return;
+		const withText = MB_ScriptPicture.addScriptText(pngBytes, this.scriptStringFor(topBlock));
+		if ((Date.now() - start) > 4500) {
+			// after ~4.5 seconds the browser wants a click before it will save a file
+			this.inform(localized('PNG preparation complete.'));
+		}
+		this.saveDataAsFile(new Uint8Array(withText), 'scriptImage' + Math.round(performance.now()) + '.png', 'image/png');
+	}
+
+	scaledScriptCopy(topBlock, px) {
+		// A copy of the script laid out at px pixels per block unit, so it draws sharp at that size.
+		const copy = topBlock.fullCopy();
+		this.resizeBlock(copy, px, px);
+		return copy;
+	}
+
+	isReporterScript(topBlock) {
+		// A definition counts as the block it defines.
+		if (!topBlock.isFunctionDefinition()) return topBlock instanceof ReporterBlockMorph;
+		const spec = this.project.blockSpecs.get(topBlock.definedFunctionName());
+		return (spec != null) && ('r' === spec.blockType);
+	}
+
+	exportBubbleText(aString, px) {
+		// The text of a result bubble in a script picture, wrapped at 200 image pixels.
+		const text = new TextMorph(aString, 18 * px, 'sans-serif', false, false, 'center', null, 'Arial');
+		if (text.width() <= 200) return text;
+		return new TextMorph(aString, 18 * px, 'sans-serif', false, false, 'center', 200, 'Arial');
+	}
+
+	exportScriptImageWithResult(aBlock) {
+		// Run the script and save its picture when the result arrives (see exportResultImage).
+
+		const topBlock = aBlock.topBlock();
+		if (topBlock.isFunctionDefinition()) return;
+		this.blockForResultImage = topBlock;
+		if (!this.codeManager.isRunning(topBlock)) this.codeManager.evalOnBoard(topBlock);
+	}
+
+	exportResultImage(aBlock, value, isError) {
+		if ((aBlock == null) || (aBlock !== this.blockForResultImage)) return;
+		this.blockForResultImage = null;
+		// show the result bubble briefly before saving
+		setTimeout(() => this.exportScriptImage(aBlock, value, isError), 500);
 	}
 
 	browserReadBytes(handler) {
@@ -2126,6 +2219,7 @@ console.log('unknown');
 			return;
 		}
 		this.showResultOn(block, value, isError);
+		this.exportResultImage(block, value, isError);
 	}
 
 	showResultOn(block, value, isError) {
@@ -2176,6 +2270,7 @@ console.log('unknown');
 			location: raw, decoded: site });
 		if ((block instanceof BlockMorph) && block.world()) {
 			this.showResultOn(block, errorString, true);
+			if (this.codeManager) this.exportResultImage(this.codeManager.blockForChunkID(chunkID), errorString, true);
 			return;
 		}
 		this.showResult(chunkID, errorString, true);
@@ -2367,6 +2462,24 @@ function localized(s) {
 
 function isMobile() {
 	return false;
+}
+
+function cropTransparent(canvas) {
+	// The smallest part of a non-retina canvas that holds all of its non-transparent pixels.
+	const w = canvas.width, h = canvas.height;
+	const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+	let left = w, top = h, right = -1, bottom = -1;
+	for (let y = 0; y < h; y++) {
+		for (let x = 0; x < w; x++) {
+			if (data[(((y * w) + x) * 4) + 3] === 0) continue;
+			left = Math.min(left, x); right = Math.max(right, x);
+			top = Math.min(top, y); bottom = Math.max(bottom, y);
+		}
+	}
+	if (right < 0) return canvas; // nothing drawn
+	const result = newCanvas(new Point((right - left) + 1, (bottom - top) + 1), true);
+	result.getContext('2d').drawImage(canvas, -left, -top);
+	return result;
 }
 
 function blockScale() {

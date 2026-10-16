@@ -1734,10 +1734,12 @@ BlockMorph.prototype.chromeMenu = function () {
 	items.push(['save picture of script',
 		() => this.exportAsImage(),
 		'save a picture of these blocks as a PNG file'])
-	if (!this.isTemplate) {
-		items.push(['save picture of script with result',
-			() => this.exportAsImageWithResult(),
-			'save a picture of these blocks and their result as a PNG file'])
+	if (!this.topBlock().isFunctionDefinition()) {
+		if ((this.topBlock() instanceof ReporterBlockMorph) || MB_editor.devMode()) {
+			items.push(['save picture of script with result',
+				() => this.exportAsImageWithResult(),
+				'save a picture of these blocks and their result as a PNG file'])
+		}
 	}
 	items.push('-');
 	if (['v', '=', '+='].includes(this.selector)) {
@@ -1781,11 +1783,11 @@ BlockMorph.prototype.copyToClipboardAsURL = function () {
 }
 
 BlockMorph.prototype.exportAsImage = function () {
-	// ToDo...
+	MB_editor.exportScriptImage(this.topBlock());
 }
 
 BlockMorph.prototype.exportAsImageWithResult = function () {
-	// ToDo...
+	MB_editor.exportScriptImageWithResult(this);
 }
 
 BlockMorph.prototype.hasHelpLink = function () {
@@ -3520,6 +3522,9 @@ HatBlockMorph.prototype.definitionMenu = function () {
 		'copy these blocks to the clipboard']);
 	items.push(['copy to clipboard as URL', () => this.copyToClipboardAsURL(),
 		'copy these blocks to the clipboard as a URL']);
+	items.push('-');
+	items.push(['save picture of script', () => MB_editor.exportScriptImage(this),
+		'save a picture of this block definition as a PNG file']);
 	items.push('-');
 	items.push(['delete block definition...',
 		() => MB_editor.deleteFunctionWithConfirm(name),
