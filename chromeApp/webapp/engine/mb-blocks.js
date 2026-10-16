@@ -1660,7 +1660,7 @@ BlockMorph.prototype.userMenu = function () {
 		'delete this morph'
 	);
 	menu.addLine();
-	menu.addItem('scripts pic...', 'exportScriptsPicture', 'save a picture\nof all scripts');
+	menu.addItem('save picture of all scripts', () => { MB_editor.saveScriptsImage() });
 
 	menu.addLine();
 	menu.addItem(
@@ -4167,7 +4167,7 @@ ScriptsMorph.prototype.userMenu = function () {
 	menu.addLine();
 
 	menu.addItem('clean up', 'cleanUp', 'arrange scripts\nvertically');
-	menu.addItem('scripts pic...', 'exportScriptsPicture', 'save a picture\nof all scripts');
+	menu.addItem('save picture of all scripts', () => { MB_editor.saveScriptsImage() });
 
 	menu.addLine();
 	menu.addItem('compile function test',
@@ -4203,29 +4203,6 @@ ScriptsMorph.prototype.cleanUp = function () {
 		target.setPosition(target.parent.topLeft());
 	}
 	target.adjustBounds();
-};
-
-ScriptsMorph.prototype.exportScriptsPicture = function () {
-	var pic = this.scriptsPicture(),
-		ide = this.world().children[0],
-		xml = this.scriptsXML();
-
-	if (pic) {
-		if (xml) {
-			ide.saveFileAs(
-				embedMetadataPNG(pic, xml),
-				'image/png',
-				(ide.getProjectName() || localized('untitled')) + ' ' +
-					localized('script pic')
-			);
-		} else {
-			ide.saveCanvasAs(
-				pic,
-				(ide.getProjectName() || localized('untitled')) + ' ' +
-					localized('script pic')
-			);
-		}
-	}
 };
 
 ScriptsMorph.prototype.scriptsPicture = function () {
