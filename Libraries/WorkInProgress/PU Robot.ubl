@@ -861,7 +861,7 @@ to puInit {
   _pu_body_roll_filtered = 0
   _pu_body_pitch_filtered = 0
   comment 'Eye state: left brightness, right brightness, left on, right on.'
-  _pu_eyes = ('[data:makeList]' 1023 1023 false false)
+  _pu_eyes = ('[data:makeList]' 1023 1023 (booleanConstant false) (booleanConstant false))
   _pu_explore_distances = ('[data:makeList]' 400 400 400 400)
   '_pu_cancelMotion'
   neoPixelAttach 4 16
