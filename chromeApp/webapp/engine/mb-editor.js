@@ -1149,6 +1149,123 @@ console.log('unknown');
 		return count;
 	}
 
+	findUsers(aBlock, purpose) {
+		// Show a menu of the functions, then the scripts in the pane, that use aBlock:
+		// 'users' call it, 'accessors' read the variable it names, 'modifiers' set it.
+		const isUse = this.useTest(aBlock, purpose);
+		const functions = this.project.allFunctions().filter((f) => {
+			if ('users' === purpose) return f.allCalls().includes(aBlock.selector);
+			let found = false;
+			f.forAllBlocks((b) => { found = found || isUse(b); });
+			return found;
+		});
+		const scripts = [];
+		for (const script of this.scriptsPane().children) {
+			if (!(script instanceof BlockMorph)) continue;
+			const user = script.allChildren().find((m) => (m instanceof BlockMorph) && isUse(m));
+			if (user) scripts.push([script, user]);
+		}
+		if (functions.length + scripts.length === 0) {
+			this.inform(localized({
+				users: 'This block is not being used in this project',
+				accessors: 'This variable is not being read anywhere in this project',
+				modifiers: 'This variable is not being modified anywhere in this project',
+			}[purpose]));
+			return;
+		}
+		const items = [];
+		let id = 1;
+		for (const f of functions) {
+			items.push([String(id++), () => this.jumpToUserIn(f.functionName, isUse), null,
+				this.pictureOf(this.blockForFunction(f)), '--block']);
+		}
+		if (functions.length > 0) items.push('-');
+		for (const [script, user] of scripts) {
+			items.push([String(id++), () => this.jumpToBlock(user), null,
+				this.pictureOf(script, 600, 200), '--script']);
+		}
+		chromeMenuFor(world, items);
+	}
+
+	useTest(aBlock, purpose) {
+		// Answer a test of one block morph: does it call aBlock, read the variable
+		// aBlock names, or set or change that variable.
+		const varNameOf = (b) => ('v' === b.selector) ? b.blockSpec : b.inputs()[0].evaluate();
+		if ('users' === purpose) return (b) => b.selector === aBlock.selector;
+		const varName = varNameOf(aBlock);
+		if ('accessors' === purpose) return (b) => ('v' === b.selector) && (b.blockSpec === varName);
+		return (b) => ['=', '+='].includes(b.selector) && (varNameOf(b) === varName);
+	}
+
+	blockForFunction(func) {
+		// A block that calls func, coloured as the palette colours it.
+		const lib = [...this.project.libraries.values()].find((m) => m.functions.includes(func));
+		return MB_Specs.blockForSpec(this.paletteSpecForFunction(func), lib ? lib.moduleCategory : 'My Blocks');
+	}
+
+	pictureOf(aMorph, maxWidth = 2000, maxHeight = 4000) {
+		// A PNG data URL of aMorph and everything on it, cut off at maxWidth by maxHeight
+		// image pixels. Morphic draws at the ceiling of the device pixel ratio.
+		const ratio = Math.ceil(window.devicePixelRatio || 1);
+		const pic = newCanvas(aMorph.fullBounds().extent().min(new Point(maxWidth / ratio, maxHeight / ratio)));
+		pic.getContext('2d').drawImage(aMorph.fullImage(), 0, 0);
+		return pic.toDataURL('image/png');
+	}
+
+	jumpToUserIn(funcName, isUse) {
+		// Show the definition of funcName and point out the first block in it that isUse accepts.
+		this.showAndScrollToDefinition(funcName);
+		const hat = this.definitionHatFor(funcName);
+		const user = hat && hat.allChildren().find((m) => (m instanceof BlockMorph) && isUse(m));
+		if (user) this.jumpToBlock(user);
+	}
+
+	jumpToBlock(aBlock) {
+		// Scroll aBlock into view and flash it yellow six times so the eye finds it.
+		this.scrollScriptsToShow(aBlock.fullBounds());
+		(async () => {
+			for (let i = 0; i < 6; i++) {
+				aBlock.flash(new Color(255, 255, 0));
+				await waitMSecs(50);
+				aBlock.unflash();
+				await waitMSecs(80);
+			}
+		})();
+	}
+
+	definitionHatFor(funcName) {
+		return this.scriptsPane().children.find((m) =>
+			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+	}
+
+	showAndScrollToDefinition(funcName) {
+		// Show the definition of funcName, adding its hat below the scripts if the
+		// pane has none, and scroll the pane to it.
+		this.showDefinition(this.project.functionNamed(funcName));
+		const hat = this.definitionHatFor(funcName);
+		if (hat) this.scrollScriptsToShow(hat.fullBounds());
+	}
+
+	scrollScriptsToShow(aRect) {
+		// Scroll the scripts pane the least distance that brings aRect into view, or
+		// its top-left part when aRect is larger than the visible pane. The vertical
+		// scroll bar's width is always kept clear.
+		const frame = this.scriptsFrame, pane = this.scriptsPane();
+		const right = frame.right() - frame.scrollBarSize;
+		const bottom = frame.bottom() - (frame.hBar.isVisible ? frame.scrollBarSize : 0);
+		const width = Math.min(aRect.width(), right - frame.left());
+		const height = Math.min(aRect.height(), bottom - frame.top());
+		let dx = 0, dy = 0;
+		if (aRect.left() + width > right) dx = right - (aRect.left() + width);
+		else if (aRect.left() < frame.left()) dx = frame.left() - aRect.left();
+		if (aRect.top() + height > bottom) dy = bottom - (aRect.top() + height);
+		else if (aRect.top() < frame.top()) dy = frame.top() - aRect.top();
+		if ((dx === 0) && (dy === 0)) return;
+		pane.moveBy(new Point(dx, dy));
+		pane.adjustBounds();
+		frame.adjustScrollBars();
+	}
+
 	async deleteFunctionWithConfirm(name) {
 		// Ask before removing a block definition, saying how much of the project
 		// still calls the block.
@@ -2117,9 +2234,15 @@ function checkChromeAnswers() {
 }
 
 function chromeMenuFor(aWorld, items) {
-	// Show items, each '-' or [label, action, tip], as GP's menuFor does.
+	// Show items, each '-' or [label, action, tip, image, class], in the chrome's menu.
+	// An item with an image, a PNG data URL, shows the picture in place of its label.
 	const p = chromePoint(aWorld);
-	const descriptors = items.map((item) => ('-' === item) ? { label: '-' } : { label: item[0], tip: item[2] });
+	const descriptors = items.map((item) => {
+		if ('-' === item) return { label: '-' };
+		const d = { label: item[0], tip: item[2] };
+		if (item[3]) Object.assign(d, { image: item[3], class: item[4] });
+		return d;
+	});
 	askChrome('menu', { x: p.x, y: p.y, class: null, items: descriptors }, (label) => {
 		const chosen = items.find((item) => item[0] === label);
 		if (chosen) chosen[1]();
