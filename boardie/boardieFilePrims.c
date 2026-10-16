@@ -329,7 +329,7 @@ static OBJ primAppendBytes(int argCount, OBJ *args) {
 				[
 					'boardieGetFile',
 					fileName,
-					window[origin + 'Storage']
+					window[origin + 'Storage'][fileName]
 				],
 				'*'
 			);
