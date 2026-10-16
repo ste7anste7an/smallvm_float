@@ -19,12 +19,23 @@ FloatingWindow.graph = function () {
 		},
 		onClose: () => {
 			IDE.controlsButtons.querySelector('.--graph').classList.remove('--is-active');
+			// remember where the graph was, so it reopens there
+			Graph.position = {
+				x: parseInt(win.style.left),
+				y: parseInt(win.style.top)
+			};
 		},
 		target: Graph
 	});
 
 	Graph.window = win;
 	win.popUp();
+	if (Graph.position) {
+		let maxX = Math.max(0, window.innerWidth - win.offsetWidth),
+			maxY = Math.max(0, window.innerHeight - win.offsetHeight);
+		win.style.left = Math.min(Math.max(0, Graph.position.x), maxX) + 'px';
+		win.style.top = Math.min(Math.max(0, Graph.position.y), maxY) + 'px';
+	}
 	return win;
 };
 
@@ -37,7 +48,10 @@ const Graph = {
 	offset: { 'center': 16, 'bottom': 40 },
 	width: 400,
 	height: 250,
+	position: null, // where the window was when last closed
 	dataTracks: [[],[],[],[],[],[]],
+	loggedData: [], // the most recent samples as received, one string per sample
+	maxLoggedData: 10000,
 	trackColors: [
 		'rgb(200,0,0)',
 		'rgb(0,110,0)',
@@ -98,6 +112,7 @@ Graph.resize = function (newWidth, newHeight) {
 };
 
 Graph.redraw = function () {
+	if (!this.ctx) { return; } // not built until the graph is first opened
 	this.drawGrid();
 	this.drawData();
 };
@@ -161,6 +176,13 @@ Graph.drawData = function () {
 };
 
 Graph.addDataPoints = function (values) {
+	this.recordSample(values);
+	this.redraw();
+};
+
+Graph.recordSample = function (values) {
+	this.loggedData.push(values.join(' '));
+	if (this.loggedData.length > this.maxLoggedData) { this.loggedData.shift(); }
 	for (let i = 0; i < this.dataTracks.length; i++) {
 		if (values[i] == 'true') {
 			this.dataTracks[i].push(100); // map true to 100 (useful for graphing digital pins)
@@ -173,7 +195,6 @@ Graph.addDataPoints = function (values) {
 			this.dataTracks[i].push(NaN);
 		}
 	}
-	this.redraw();
 };
 
 Graph.scaleValue = function (value) {
@@ -191,6 +212,7 @@ Graph.scaleValue = function (value) {
 
 Graph.clear = function () {
 	this.dataTracks = [[],[],[],[],[],[]];
+	this.loggedData = [];
 	this.redraw();
 };
 
@@ -223,12 +245,44 @@ Graph.setOrigin = function(which) {
 
 // Data import / export
 
+Graph.csvData = function () {
+	// One line per sample, with every value the sample had, not only the
+	// tracks that are drawn. true and false are written as 100 and 0, as they
+	// are graphed, an integer is written as its value (an empty value or a lone
+	// '-' as 0) and anything else is written as received.
+	return this.loggedData.map(sample =>
+		sample.split(' ').map(value => {
+			if (value == 'false') { return '0'; }
+			if (value == 'true') { return '100'; }
+			if (/^-?\d*$/.test(value)) { return String(parseInt(value) || 0); }
+			return value;
+		}).join(', ') + '\n'
+	).join('');
+};
+
 Graph.exportData = function () {
-	GP_writeFile(
-		this.dataTracks.map(t => t.map(p => isNaN(p) ? 0 : p).join(',')).join('\n'),
-		'data.csv',
-		'graph'
-	);
+	if (typeof GP_writeFile == 'function') {
+		GP_writeFile(this.csvData(), 'data.csv', 'graph');
+	} else {
+		MB_editor.saveTextAsFile(this.csvData(), 'data.csv');
+	}
+};
+
+Graph.importCSV = function (text) {
+	// Each line is one sample. Values are separated by commas, as exported
+	// above, or by spaces.
+	this.clear();
+	text.split(/\r?\n/).forEach(line => {
+		line = line.trim();
+		if (line != '') {
+			this.recordSample(line.split(line.includes(',') ? /\s*,\s*/ : /\s+/));
+		}
+	});
+	this.redraw();
+};
+
+Graph.copyDataToClipboard = function () {
+	setGPClipboard(this.csvData());
 };
 
 Graph.importData = function () {
@@ -238,10 +292,7 @@ Graph.importData = function () {
 		let reader = new FileReader();
 		reader.addEventListener('load', () => {
 			try {
-				this.dataTracks = reader.result.split('\n').map(
-					line =>line.split(',').map(point=>parseInt(point))
-				);
-				this.redraw();
+				this.importCSV(reader.result);
 			} catch(err) {
 				error(err);
 			}
