@@ -1037,9 +1037,11 @@ class MB_Compiler {
 				? aBlockOrFunction.functionName : (aBlockOrFunction.mbScriptId ?? ''));
 	}
 
-	showInstructions(aBlock) {
-		// Return a formatted string showing the instructions for the given block's stack.
-		const code = this.instructionsFor(aBlock.topBlock());
+	showInstructions(aBlockOrFunction) {
+		// Return a formatted string showing the instructions for the given function,
+		// or for the given block's stack.
+		const code = this.instructionsFor((aBlockOrFunction instanceof MB_Function)
+			? aBlockOrFunction : aBlockOrFunction.topBlock());
 		const result = [];
 		let firstString = true;
 
@@ -1092,7 +1094,7 @@ class MB_Compiler {
 				for (const s of displayItem) {
 					if (s !== undefined) instr += s + ' ';
 				}
-				this.addWithLineNum(result, instr.trimEnd(), item);
+				this.addWithLineNum(result, instr, item);
 			}
 		}
 		return result.join('\n');
@@ -1111,6 +1113,70 @@ class MB_Compiler {
 			targetLine = ` (line ${currentLine + 1 + offset})`;
 		}
 		aList.push(`${currentLine} ${instruction}${targetLine}`);
+	}
+
+	showCompiledBytes(aBlockOrFunction) {
+		// Return the compiled bytes of the given function, or of the given block's stack,
+		// as text with two decimal bytes a line.
+		const bytes = this.compiledBytesFor((aBlockOrFunction instanceof MB_Function)
+			? aBlockOrFunction : aBlockOrFunction.topBlock());
+		const result = [`[${bytes.length} bytes]\n`];
+		if (bytes.length > 1000) {
+			result.push('*** Script too large; over 1000 bytes! ***\n\n');
+		}
+		bytes.forEach((b, i) => {
+			result.push(String(b));
+			result.push((i % 2 === 1) ? '\n' : ' ');
+		});
+		if (result[result.length - 1] === '\n') result.pop();
+		return result.join('');
+	}
+
+	showCallTree(aBlockOrFunction) {
+		// Return the tree of user functions called by the given function or by the
+		// function a palette block calls, or null if it names no user function.
+		const funcName = (aBlockOrFunction instanceof MB_Function)
+			? aBlockOrFunction.functionName : aBlockOrFunction.selector;
+		const allFunctions = new Map(this.project.allFunctions().map(f => [f.functionName, f]));
+		if (!allFunctions.has(funcName)) return null;
+		const result = [];
+		this.appendCallsForFunction(
+			funcName, result, '', this.project.allVariableNames(), allFunctions, [funcName]);
+		return result.join('\n');
+	}
+
+	appendCallsForFunction(funcName, result, indent, globalVars, allFunctions, callers) {
+		// Add a line for the given function, then its callees indented under it. A callee
+		// is listed once per caller. Stack words are 3 plus its arguments and locals.
+		const func = allFunctions.get(funcName);
+		const argCount = func.argNames.length;
+		const localCount = func.allVars().filter(v =>
+			!func.argNames.includes(v) && !globalVars.includes(v)).length;
+		let info = '';
+		if ((argCount > 0) || (localCount > 0)) {
+			const counts = [];
+			if (argCount > 0) counts.push(`${argCount} arg${(argCount > 1) ? 's' : ''}`);
+			if (localCount > 0) counts.push(`${localCount} local${(localCount > 1) ? 's' : ''}`);
+			info = ` (${counts.join(', ')})`;
+		}
+		result.push(`${indent}${funcName}${info} ${3 + argCount + localCount}`);
+		indent = '   ' + indent;
+
+		if (!func.cmdList) return;
+		const processed = new Set();
+		const calls = [];
+		func.cmdList.forAllBlocks(b => { calls.push(b.selector); });
+		for (const op of calls) {
+			if (allFunctions.has(op) && !processed.has(op)) {
+				if (callers.includes(op)) {
+					result.push(`${indent}   ${funcName} [recursive]`);
+				} else {
+					this.appendCallsForFunction(
+						op, result, indent, globalVars, allFunctions, [...callers, op]);
+				}
+				processed.add(op);
+			}
+		}
 	}
 
 	addBytesForStringLiteral(s, bytes) {
