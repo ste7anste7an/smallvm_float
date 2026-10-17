@@ -123,36 +123,47 @@ static OBJ primStartWiFi(int argCount, OBJ *args) {
 
 	char *networkName = obj2str(args[0]);
 	char *password = obj2str(args[1]);
+	int createHotSpot = (argCount > 2) && (trueObj == args[2]);
 
 	wifiActive = true;
 	serverStarted = false;
 
-	if ((argCount > 5) &&
+	// A fixed address needs all three of IP, gateway and subnet as non-empty strings.
+	// A hotspot call with a channel argument takes them as its own address; otherwise they configure the station.
+	int hasAddress = (argCount > 5) &&
 		(obj2str(args[3])[0] != 0) &&
 		(obj2str(args[4])[0] != 0) &&
-		(obj2str(args[5])[0] != 0)) { // use static IP (all parameters must be non-empty strings)
-			IPAddress ip;
-			IPAddress gateway;
-			IPAddress subnet;
-
-			ip.fromString(obj2str(args[3]));
-			gateway.fromString(obj2str(args[4]));
-			subnet.fromString(obj2str(args[5]));
-			WiFi.config(ip, gateway, subnet);
+		(obj2str(args[5])[0] != 0);
+	int hotspotAddress = createHotSpot && (argCount > 6);
+	IPAddress ip(192, 168, 4, 1);
+	IPAddress gateway(192, 168, 4, 1);
+	IPAddress subnet(255, 255, 255, 0);
+	if (hasAddress) {
+		ip.fromString(obj2str(args[3]));
+		gateway.fromString(obj2str(args[4]));
+		subnet.fromString(obj2str(args[5]));
+		if (!hotspotAddress) WiFi.config(ip, gateway, subnet);
 	}
 
 	#ifdef USE_WIFI101
 		WiFi.begin(networkName, password);
 	#else
-		int createHotSpot = (argCount > 2) && (trueObj == args[2]);
+		int channel = 1;
+		if ((argCount > 6) && isInt(args[6])) {
+			channel = obj2int(args[6]);
+			if ((channel < 1) || (channel > 13)) channel = 1;
+		}
 
 		#if !defined(PICO_WIFI)
 			WiFi.persistent(false); // don't save network info to Flash
 		#endif
 		WiFi.mode(WIFI_OFF); // Kill the current connection, if any
 		if (createHotSpot) {
-			WiFi.mode(WIFI_AP); // access point & station mode
-			WiFi.softAP(networkName, password);
+			WiFi.mode(WIFI_AP);
+			// Set on every call because the access point keeps its last address until reset.
+			// softAPConfig before softAP: the Pico core applies it when the access point starts.
+			if (hotspotAddress) WiFi.softAPConfig(ip, gateway, subnet);
+			WiFi.softAP(networkName, password, channel);
 		} else {
 			WiFi.mode(WIFI_STA);
 			if (strlen(password) > 0) {

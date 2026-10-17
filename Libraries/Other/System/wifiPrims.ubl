@@ -10,7 +10,7 @@ description 'Low level network primitives. You are probably looking for either t
 	// to other WiFi capable boards in the future.
 
 	spec 'r' '[net:hasWiFi]'				'has WiFi support'
-	spec ' ' '[net:startWiFi]'				'start WiFi _ password _ : be hotspot _ : IP _ gateway _ subnet _' 'auto auto bool auto auto auto' 'SSID' 'MyPassword' true '192.168.1.42' '192.168.1.1' '255.255.255.0'
+	spec ' ' '[net:startWiFi]'				'start WiFi _ password _ : be hotspot _ : IP _ gateway _ subnet _ : channel _' 'auto auto bool auto auto auto num' 'SSID' 'MyPassword' true '' '' '' 1
 	spec ' ' '[net:stopWiFi]'				'stop WiFi'
 	spec 'r' '[net:wifiStatus]'				'WiFi status'
 	spec 'r' '[net:startSSIDscan]'				'scan SSID list'
