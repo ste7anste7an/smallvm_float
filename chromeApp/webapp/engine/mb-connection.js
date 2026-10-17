@@ -169,10 +169,6 @@ class MB_Connection {
 	}
 
 	disconnect() {
-// XXX TODO These actions should be done by the editor before calling disconnect()
-// 		MB_editor.stopAndSyncScripts();
-// 		MB_editor.startAll();
-
 		// GP's closePort pushes this before it closes anything (MicroBlocksRuntime.gp:896).
 		this.pushToIDE('board.connected', false);
 		this.pushToIDE('board.canDoBLE', false);

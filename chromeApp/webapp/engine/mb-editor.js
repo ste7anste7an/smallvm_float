@@ -814,6 +814,19 @@ class MB_Editor {
 		}
 	}
 
+	async stopSyncAndStartAll() {
+		// Stop the board, bring it into line with the project, and start it.
+		try {
+			this.updateProject();
+			await this.codeManager.stopAndSyncScripts();
+			// Not codeManager.syncAndStartAll: that would sync a second time and can alert "not connected".
+			MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
+			await MB_connection.sendQueue; // written before the caller closes the port
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
 	reportError(e) {
 		// Report an error the way GP's error dialog would; inform is the hook the new UI fills in.
 		console.error(e);
