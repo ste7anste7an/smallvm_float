@@ -1,7 +1,7 @@
 module WiFi Comm
 author MicroBlocks
-version 1 12 
-tags communication network 
+version 1 13
+tags communication network
 description 'Connect to a WiFi network. Used in conjunction with other network libraries, such as HTTP client, HTTP server or Web Thing.
 
 Leave the IP, gateway and subnet inputs of the connect block empty to get an address from the network. To use a fixed address fill in all three, for example 192.168.1.42, 192.168.1.1 and 255.255.255.0. A hotspot with an empty password is open; otherwise the password needs at least 8 characters. A hotspot uses channel 1 and the address 192.168.4.1 unless you fill in the channel (1 to 13) or IP inputs, for example 6 and 10.0.0.1. Some devices, for example ones sold in the US or Canada, do not show channels 12 and 13.
@@ -55,6 +55,8 @@ to wifiConnect ssid password fixedIP gatewayIP subnetIP {
 }
 
 to wifiCreateHotspot ssid password channel ip {
+  local 'channel' (argOrDefault 3 1)
+  local 'ip' (argOrDefault 4 '')
   if (not ('[net:hasWiFi]')) {return}
   comment 'An empty password makes an open hotspot; WPA2 needs at least 8 characters.'
   if (and ((size password) > 0) ((size password) < 8)) {
