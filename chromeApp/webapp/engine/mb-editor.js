@@ -158,8 +158,7 @@ class MB_Editor {
 		// x and y are relative to the pane, which is what updateProject records.
 
 		let scriptsPane = this.scriptsPane();
-		const scale = this.scriptScale();
-		b.setPosition(scriptsPane.position().add(new Point(x * scale, y * scale)));
+		b.setPosition(scriptsPane.position().add(new Point(x, y)));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
 		scriptsPane.changed();
@@ -179,7 +178,7 @@ class MB_Editor {
 			project: () => this.project,
 			scriptEditor: () => this.scriptsPane(),
 			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
-			blockScale: () => this.scriptScale(), // exchange positions are in file units
+			blockScale: () => 1, // the block size magnifies the whole world, so pane and file units are equal
 		};
 	}
 
@@ -644,7 +643,7 @@ class MB_Editor {
 	}
 
 	addPaletteLabel(text) {
-		let label = new StringMorph(text, 14 * this.scriptScale());
+		let label = new StringMorph(text, 14);
 		label.setColor(this.paneColors().label); // labels are rebuilt, not recoloured
 		label.toggleWeight();
 		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
@@ -908,8 +907,8 @@ console.log('unknown');
 			if (aBlockMorph instanceof BlockMorph) {
 				// An edit to a definition in the pane goes back to its function.
 				if (aBlockMorph.isFunctionDefinition()) aBlockMorph.updateDefinedFunction();
-				let x = Math.round((aBlockMorph.left() - this.scripts.left()) / this.scriptScale());
-				let y = Math.round((aBlockMorph.top() - this.scripts.top()) / this.scriptScale());
+				let x = Math.round(aBlockMorph.left() - this.scripts.left());
+				let y = Math.round(aBlockMorph.top() - this.scripts.top());
 				newScripts.push([x, y, aBlockMorph]);
 			}
 		}
@@ -1638,7 +1637,6 @@ console.log('unknown');
 		await this.restoreUndoState(this.project.codeString());
 	}
 
-	scriptScale() { return this.blockSize / 125; }
 	blockSizePercent() { return this.blockSize; }
 
 	resizeBlock(block, fontFactor, scale = SyntaxElementMorph.prototype.scale) {
