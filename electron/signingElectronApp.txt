@@ -15,6 +15,13 @@ xcrun altool --store-password-in-keychain-item "App Signing" -u "jmaloney@media.
 
 *** Code Signing Process for MicroBlocks app ***
 
+0. Build and pack
+
+In smallvm:  ./build.sh --gp
+In smallvm/electron: ./pack.sh macos <version>
+
+Packed result will be in the out folder.
+
 1. Unzip the app, run the codesign command, create archive, and submit for notarization:
 
   rm -rf Microblocks.app
@@ -23,11 +30,7 @@ xcrun altool --store-password-in-keychain-item "App Signing" -u "jmaloney@media.
   ./signScript.sh
 #  codesign --force --deep --options=runtime --entitlements entitlements.plist -s "Developer ID Application: John H Maloney" MicroBlocks.app
 
-2. Local check
-
-  spctl --assess --verbose=4 --type execute MicroBlocks.app
-
-3. Ditto and submit
+2. Ditto and submit
 
 ditto -c -k --keepParent MicroBlocks.app MicroBlocks.app.zip
 
@@ -37,12 +40,16 @@ xcrun notarytool submit \
   --keychain-profile "NotaryTool" \
   MicroBlocks.app.zip
 
-4. Check notarization status:
+3. Check notarization status:
 
 xcrun notarytool history \
   --apple-id "jmaloney@media.mit.edu" \
   --team-id YU23V8C72W \
   --keychain-profile "NotaryTool" | head
+
+4. Local check (not useful until after processing by able)
+
+  spctl --assess --verbose=4 --type execute MicroBlocks.app
 
 5. Staple the notarization and re-zip:
 
