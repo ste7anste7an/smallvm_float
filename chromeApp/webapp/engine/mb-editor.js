@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -82,12 +82,22 @@ class MB_Editor {
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
 		// Delete, Enter and Escape also act on selected scripts unless a chrome dialog has the keys.
+		// A key aimed at text no longer in the world frees the keys and goes no further,
+		// not even to morphic. A removed morph keeps its parent, so the text is gone when
+		// any ancestor has let it go.
+		const gone = (m) => (m.parent !== null) && (!m.parent.children.includes(m) || gone(m.parent));
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
+			if (!world.cursor || !gone(world.cursor.target)) return;
+			world.stopEditing();
+			event.stopPropagation();
+			event.preventDefault();
+		}, true);
+		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
+			if (MB_BlockSearchBox.tookKey()) return;
 			if (world.keyboardFocus || ![document.body, world.keyboardHandler].includes(event.target)) return;
 			if ('Escape' === event.key) fireIDEEvent('ide.keyPressed', 'ESC');
-			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents) && this.scripts.selectionKey(event)) {
-				event.preventDefault();
-			}
+			if ((typeof GP === 'object') && GP.delegateKeyboardEvents) return;
+			if (this.searchKey(event) || this.scripts.selectionKey(event)) event.preventDefault();
 		});
 
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
@@ -773,6 +783,14 @@ class MB_Editor {
 		this.paletteY += 15;
 		this.addPaletteLabel('Advanced:');
 		this.addBlocksForSpecs(specs, cat.substring(4));
+	}
+
+	searchKey(event) {
+		// Ctrl-Space opens the block search box, as does Cmd-Space where the system
+		// leaves it to the page. Not while an input method is composing.
+		if ((' ' !== event.key) || !(event.ctrlKey || event.metaKey) || event.isComposing) return false;
+		MB_BlockSearchBox.open();
+		return true;
 	}
 
 	// Run/stop
