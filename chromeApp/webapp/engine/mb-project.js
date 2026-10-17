@@ -532,6 +532,7 @@ class MB_Project {
 		for (const modCmds of cmdsByModule) {
 			let lib = new MB_Module();
 			lib.loadFromCmds(modCmds, this);
+			if ('main' === lib.moduleName) continue; // a project file's own scripts are not a library
 			if (!lib.moduleName) lib.moduleName = libName;
 
 			// set path based on fileName

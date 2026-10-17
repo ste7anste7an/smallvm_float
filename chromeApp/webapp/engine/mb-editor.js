@@ -306,7 +306,21 @@ class MB_Editor {
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
-		for (const dependency of lib.dependencies) await this.importEmbeddedLibrary(dependency);
+		for (const dependency of lib.dependencies) {
+			if (dependency.startsWith('http')) {
+				await this.importLibraryDependencyFromUrl(dependency);
+			} else {
+				await this.importEmbeddedLibrary(dependency);
+			}
+		}
+	}
+
+	async importLibraryDependencyFromUrl(dependency) {
+		// Fetch a dependency named by its web address. A version requirement after a '#'
+		// is not checked.
+
+		const hash = dependency.lastIndexOf('#');
+		await this.importLibraryFromUrl((hash < 0) ? dependency : dependency.slice(0, hash));
 	}
 
 	scriptStringFor(aBlock) {
@@ -947,7 +961,62 @@ console.log('unknown');
 
 		const open = MB_FilePicker.findOpen(world);
 		if (open) open.removeFromOwner();
-		new MB_LibraryImportDialog((path) => this.openLibraryFile(path), this.lastLibraryFolder).open(world);
+		const dialog = new MB_LibraryImportDialog((path) => this.openLibraryFile(path), this.lastLibraryFolder);
+		dialog.filePicker.onSelectCloud(() => this.promptLibraryURL(dialog.filePicker));
+		dialog.open(world);
+	}
+
+	async promptLibraryURL(picker) {
+		// Ask for the web address of a library and import it, closing the picker if it arrives.
+
+		const url = await this.prompt(localized('Library URL?'), 'https://');
+		if (!url) return;
+		if (!(url.endsWith('.ubl') || url.endsWith('.ubp')) || (url.lastIndexOf('/') < 10)) {
+			this.inform(localized('Invalid URL'));
+			return;
+		}
+		if (!(await this.importLibraryFromUrl(url))) return;
+		picker.removeFromOwner();
+		await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+	}
+
+	async importLibraryFromUrl(fullUrl) {
+		// Fetch a library from the web and import it. Answers true if it arrived.
+
+		const failed = (msg) => {
+			this.informAndWait(localized(msg), 'Could not fetch library');
+			return false;
+		};
+		let response = null, text = null;
+		try {
+			response = await fetch(MB_Editor.codebergFileURL(fullUrl) || fullUrl);
+			if (response.ok) text = await response.text();
+		} catch (e) {
+			// A host that is down and one whose answer the browser will not let a page
+			// read (no Access-Control-Allow-Origin) both arrive here, and look the same.
+			return failed('The host may be down, or may not allow web pages to read it.');
+		}
+		if (404 === response.status) return failed('File not found in server.');
+		if (!text || !text.startsWith('module ')) {
+			return failed('That URL does not return a MicroBlocks library.');
+		}
+		return null !== (await this.importLibraryFromString(text, fullUrl));
+	}
+
+	static codebergFileURL(fullUrl) {
+		// The API address of a Codeberg file link, or null if it is not one:
+		// OWNER/REPO/{src|raw}/{branch|commit|tag}/REF/PATH becomes api/v1/repos/OWNER/REPO/raw/PATH?ref=REF
+
+		const prefix = ['https://codeberg.org/', 'http://codeberg.org/'].find((p) => fullUrl.startsWith(p));
+		if (!prefix) return null;
+		const parts = fullUrl.slice(prefix.length).split('?')[0].split('/');
+		if (parts.length < 6) return null;
+		const [owner, repo, route, refKind, ref] = parts;
+		if (!['src', 'raw'].includes(route)) return null;
+		if (!['branch', 'commit', 'tag'].includes(refKind)) return null;
+		const filePath = parts.slice(5).join('/');
+		if (!filePath) return null;
+		return `https://codeberg.org/api/v1/repos/${owner}/${repo}/raw/${filePath}?ref=${ref}`;
 	}
 
 	async openLibraryFile(filePath) {
@@ -967,10 +1036,13 @@ console.log('unknown');
 	async importLibraryFromString(data, filePath, asImplementation) {
 		// Add a library to the project with the libraries it depends on, and show
 		// it, replacing one of the same name. A filePath under Libraries leaves
-		// the library a path the reload verb can read it back from; a bare file
-		// name from the user's computer does not. Answers the module name, or null.
+		// the library a path the reload verb can read it back from, and a web
+		// address is passed on as its source; a bare file name from the user's
+		// computer leaves neither. Answers the module name, or null.
 
-		const fileName = filePath.slice(filePath.lastIndexOf('/') + 1);
+		const isURL = /^https?:\/\//.test(filePath);
+		const namePath = isURL ? filePath.split('?')[0] : filePath;
+		const fileName = namePath.slice(namePath.lastIndexOf('/') + 1);
 		const libName = this.project.withoutExtension(fileName);
 		if (!this.definesALibrary(data)) {
 			this.inform(localized('No library found in: ') + fileName);
@@ -980,7 +1052,7 @@ console.log('unknown');
 		// be named: a hat left behind defines a block the project has stopped having.
 		const replacing = this.project.libraryNamed(libName);
 		this.hideLibraryDefinitions(libName);
-		const moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
+		const moduleName = this.project.addLibraryFromString(data, libName, isURL ? filePath : '//' + filePath);
 		if (asImplementation && (!replacing || replacing.isImplementationLib())) {
 			this.project.libraryNamed(moduleName).beImplementation();
 		}
