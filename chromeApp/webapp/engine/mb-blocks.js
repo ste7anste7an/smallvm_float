@@ -1482,7 +1482,8 @@ BlockMorph.prototype.setSpec = function (spec, definition) {
 
 	if (!spec) {return; }
 
-	spec = this.localizedBlockSpec(spec);
+	// a variable reporter's label is the variable's name, kept exactly as written
+	if (this.selector !== 'v') spec = this.localizedBlockSpec(spec);
 	this.parts().forEach(part =>
 		part.destroy()
 	);
