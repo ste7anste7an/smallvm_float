@@ -881,7 +881,7 @@ class MB_Decompiler {
 		}
 		if (isImplementation) lib.beImplementation();
 		for (const dependency of lib.dependencies) {
-			if (!project.libraryNamed(dependency)) {
+			if (!project.libraryNamed(dependency) && !project.replacementFor(dependency)) {
 				await this.addEmbeddedLibrary(dependency, project);
 			}
 		}

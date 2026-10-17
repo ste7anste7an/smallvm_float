@@ -307,6 +307,8 @@ class MB_Editor {
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
 		for (const dependency of lib.dependencies) {
+			// a loaded library already implements this dependency
+			if (this.project.replacementFor(lib.dependencyName(dependency))) continue;
 			if (dependency.startsWith('http')) {
 				await this.importLibraryDependencyFromUrl(dependency);
 			} else {
@@ -948,11 +950,7 @@ console.log('unknown');
 		if (!filePath) return;
 		const data = await MB_Files.readFile(filePath);
 		if (!data) return;
-		let moduleName = this.project.addLibraryFromString(data, libName, '//' + filePath);
-		this.codeManager.recompileNeeded(); // its functions were loaded anew
-		this.librariesChanged();
-		this.updateLibraryList();
-		this.selectLibrary(moduleName);
+		await this.importLibraryFromString(data, filePath);
 	}
 
 	importLibrary() {
@@ -1035,10 +1033,11 @@ console.log('unknown');
 
 	async importLibraryFromString(data, filePath, asImplementation) {
 		// Add a library to the project with the libraries it depends on, and show
-		// it, replacing one of the same name. A filePath under Libraries leaves
-		// the library a path the reload verb can read it back from, and a web
-		// address is passed on as its source; a bare file name from the user's
-		// computer leaves neither. Answers the module name, or null.
+		// it, replacing one of the same name and any implementing the same library.
+		// A filePath under Libraries leaves the library a path the reload verb can
+		// read it back from, and a web address is passed on as its source; a bare
+		// file name from the user's computer leaves neither. Answers the module
+		// name, or null.
 
 		const isURL = /^https?:\/\//.test(filePath);
 		const namePath = isURL ? filePath.split('?')[0] : filePath;
@@ -1048,11 +1047,15 @@ console.log('unknown');
 			this.inform(localized('No library found in: ') + fileName);
 			return null;
 		}
-		// Before the new module goes in, while the old one's functions can still
-		// be named: a hat left behind defines a block the project has stopped having.
+		// A shown hat of a library being replaced would otherwise stay on the
+		// pane, defining a block the project no longer has.
 		const replacing = this.project.libraryNamed(libName);
-		this.hideLibraryDefinitions(libName);
+		this.hideLibraryDefinitions(replacing);
+		const oldLibs = Array.from(this.project.libraries.values());
 		const moduleName = this.project.addLibraryFromString(data, libName, isURL ? filePath : '//' + filePath);
+		for (const old of oldLibs) {
+			if (!this.project.libraryNamed(old.moduleName)) this.hideLibraryDefinitions(old); // one it replaced
+		}
 		if (asImplementation && (!replacing || replacing.isImplementationLib())) {
 			this.project.libraryNamed(moduleName).beImplementation();
 		}
@@ -1063,7 +1066,21 @@ console.log('unknown');
 		this.librariesChanged();
 		this.updateLibraryList();
 		this.selectLibrary(moduleName); // last, so a dependency's own select does not win
+		this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
 		return moduleName;
+	}
+
+	reportReplacedLibraries(lib, oldLibs) {
+		// Tell the user which of oldLibs, no longer in the project, lib replaced.
+
+		if (!lib) return;
+		const msg = [];
+		for (const old of oldLibs) {
+			if ((old.moduleName !== lib.moduleName) && !this.project.libraryNamed(old.moduleName) && lib.replaces(old)) {
+				msg.push(localized('%1 replaces %2').replace('%1', lib.moduleName).replace('%2', old.moduleName) + '.');
+			}
+		}
+		if (msg.length > 0) this.inform(msg.join('\n'));
 	}
 
 	definesALibrary(data) {
@@ -1085,11 +1102,9 @@ console.log('unknown');
 		return false;
 	}
 
-	hideLibraryDefinitions(libName) {
-		// Take the definition hats of a library the project already holds off the
-		// scripting pane. A project without that library has none to take.
+	hideLibraryDefinitions(lib) {
+		// Take the definition hats of a library's functions off the scripting pane.
 
-		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
 		for (const func of lib.functions) this.hideDefinition(func.functionName);
 	}

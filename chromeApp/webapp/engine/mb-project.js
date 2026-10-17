@@ -207,6 +207,10 @@ class MB_Project {
 		let oldLib = this.libraries.get(libName);
 		if (oldLib) oldLib.updatingLibrary(module, this);
 		this.libraries.delete(libName);
+		// only one library that implements a given library can be in the project
+		for (const lib of Array.from(this.libraries.values())) {
+			if (module.replaces(lib)) this.removeLibraryNamed(lib.moduleName);
+		}
 		this.libraries.set(libName, module);
 
 		// new library functions supersede earlier versions
@@ -230,6 +234,15 @@ class MB_Project {
 		for (const f of lib.functions) {
 			this.blockSpecs.delete(f.functionName);
 		}
+	}
+
+	replacementFor(libName) {
+		// Return a library other than libName that implements libName, or null if there is none.
+		if (libName.startsWith('_')) libName = libName.slice(1);
+		for (const lib of this.libraries.values()) {
+			if ((libName !== lib.moduleName) && lib.implementsLib(libName)) return lib;
+		}
+		return null;
 	}
 
 	categoryForOp(op) {
@@ -727,6 +740,17 @@ class MB_Module {
 	setDependencies(deps) { this.dependencies = Array.from(deps); }
 	setScripts(newScripts) { this.scripts = Array.from(newScripts); }
 	hasSpecFor(selector) { return this.blockSpecs.has(selector); }
+
+	implementsLib(libName) {
+		// Return true if this library can stand in for the library with the given name.
+		return (libName === this.moduleName) || this.implementedLibs.includes(libName);
+	}
+
+	replaces(otherLib) {
+		// Return true if this library and otherLib implement the same library.
+		if (otherLib.implementsLib(this.moduleName)) return true;
+		return this.implementedLibs.some((libName) => otherLib.implementsLib(libName));
+	}
 
 	mintScriptId(x, y, bodyText, taken) {
 		// A name for one top-level script, from its rounded position and body text
