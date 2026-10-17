@@ -20,6 +20,7 @@ class MB_Editor {
 		this.lastProjectFolder = 'Examples'; // where the file picker opens
 		this.lastLibraryFolder = 'Libraries'; // and where it opens for a library
 		this.runningChunks = new Map(); // used for block highlighting
+		this.stoppingHighlights = new Map(); // block -> timer that unhighlights it
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
 		this.blockForResultImage = null; // the script to save a picture of when its result arrives
 		this.chunkErrorListeners = []; // called with each decoded board error
@@ -896,12 +897,19 @@ console.log('unknown');
 			return; // unknown chunk
 		}
 
+		// A script that stops keeps its highlight for half a second, so one that
+		// runs again at once does not flicker.
+		clearTimeout(this.stoppingHighlights.get(runningBlock));
+		this.stoppingHighlights.delete(runningBlock);
 		if (isRunning) {
-			runningBlock.addHighlight();
+			if (!runningBlock.getHighlight()) runningBlock.addHighlight();
 			this.runningChunks.set(runningBlock, chunkID);
 		} else {
-			runningBlock.removeHighlight();
 			this.runningChunks.delete(runningBlock);
+			this.stoppingHighlights.set(runningBlock, setTimeout(() => {
+				this.stoppingHighlights.delete(runningBlock);
+				runningBlock.removeHighlight();
+			}, 500));
 		}
 	}
 
@@ -2507,6 +2515,11 @@ console.log('unknown');
 		// Called on disconnect. Everything the board put on the screen goes with
 		// it, bubbles included -- GP clears them together too (:2717).
 		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		for (const [block, timer] of this.stoppingHighlights) {
+			clearTimeout(timer);
+			block.removeHighlight();
+		}
+		this.stoppingHighlights = new Map();
 		for (const block of this.runningChunks.keys()) block.removeHighlight();
 		this.runningChunks = new Map();
 	}
