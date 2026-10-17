@@ -313,6 +313,7 @@ class MB_Parser {
 		if (fromSource) {
 			for (let i = args.length; i < inputs.length; i++) inputs[i].markUnsupplied();
 		}
+		b.fixElseSection();
 		return b;
 	}
 
