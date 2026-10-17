@@ -81,7 +81,8 @@ class MB_Editor {
 
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
-		// Delete, Enter and Escape also act on selected scripts unless a chrome dialog has the keys.
+		// The IDE's keys act unless a chrome dialog has them. Morphic handles a key before
+		// this listener, ending an edit or closing a menu, so who had the keys is read first.
 		// A key aimed at text no longer in the world frees the keys and goes no further,
 		// not even to morphic. A removed morph keeps its parent, so the text is gone when
 		// any ancestor has let it go.
@@ -92,12 +93,16 @@ class MB_Editor {
 			event.stopPropagation();
 			event.preventDefault();
 		}, true);
+		let morphicHadKeys = false;
+		document.addEventListener('keydown', () => { morphicHadKeys = !!(world.keyboardFocus || world.activeMenu); }, true);
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
-			if (MB_BlockSearchBox.tookKey()) return;
-			if (world.keyboardFocus || ![document.body, world.keyboardHandler].includes(event.target)) return;
+			if (MB_BlockSearchBox.tookKey()) return; // first, so the mark never outlives its key
+			if (morphicHadKeys || ![document.body, world.keyboardHandler].includes(event.target)) return;
+			if (event.isComposing || (229 === event.keyCode)) return; // an input method is composing
+			const spinnerWasUp = this.spinnerShowing; // Escape below cancels it
 			if ('Escape' === event.key) fireIDEEvent('ide.keyPressed', 'ESC');
 			if ((typeof GP === 'object') && GP.delegateKeyboardEvents) return;
-			if (this.searchKey(event) || this.scripts.selectionKey(event)) event.preventDefault();
+			if (this.shortcutKey(event, spinnerWasUp) || this.searchKey(event) || this.scripts.selectionKey(event)) event.preventDefault();
 		});
 
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
@@ -803,6 +808,38 @@ class MB_Editor {
 		} catch (e) {
 			this.reportError(e);
 		}
+	}
+
+	shortcutKey(event, spinnerWasUp) {
+		// Answer whether a key pressed with no text being edited acted. An open chrome menu
+		// takes Escape and blocks the rest, an open file picker takes Enter and Escape, and
+		// Escape stops every script only when there is no spinner to cancel and no selection.
+		const menu = (typeof Menus !== 'undefined') && Menus.current();
+		const picker = world.children.find((m) => m.picker instanceof MB_FilePicker);
+		const letter = (event.ctrlKey || event.metaKey) ? event.key.toLowerCase() : null;
+		if (event.repeat || menu) { // a held key acts once
+			if (menu && !event.repeat && ('Escape' === event.key)) Menus.close();
+			return ['Escape', 'Enter', 'Delete'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
+		}
+		if (picker && ('Escape' === event.key)) {
+			picker.picker.removeFromOwner();
+		} else if (picker && ('Enter' === event.key)) {
+			picker.picker.okay();
+			return false; // a selection still runs
+		} else if ('Escape' === event.key) {
+			if (spinnerWasUp) return true;
+			if (this.scripts.hasSelection()) return false;
+			this.stopAll();
+		} else if (('z' === letter) && (world.hand.children.length === 0)) {
+			if (event.shiftKey) this.redo(); else this.undo();
+		} else if (('s' === letter) && !event.shiftKey) {
+			this.saveProject();
+		} else if (('o' === letter) && !event.shiftKey) {
+			this.openProjectMenu();
+		} else {
+			return false;
+		}
+		return true;
 	}
 
 	async stopAll(forceRecompile) {
