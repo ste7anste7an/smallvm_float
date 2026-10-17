@@ -164,6 +164,7 @@ var HatBlockMorph;
 var BlockExpanderMorph;
 var BlockHighlightMorph;
 var MicroBitDisplaySlotMorph;
+var WorkspaceMorph;
 var TemplateSlotMorph;
 var TextSlotMorph;
 var SelectionBandMorph;
@@ -1383,7 +1384,9 @@ BlockMorph.prototype.allBlocks = function () {
 }
 
 BlockMorph.prototype.forAllBlocks = function (func) {
-	// Call the given function on all command and reporter blocks in this script.
+	// Call the given function on all command and reporter blocks in this script,
+	// in GP's allBlocks order: each block, then its inputs left to right, then
+	// the next block. The inputs are pushed last to first so they pop in order.
 
 	let todo = [this];
 	while (todo.length > 0) {
@@ -1392,7 +1395,7 @@ BlockMorph.prototype.forAllBlocks = function (func) {
 		if (b instanceof CommandBlockMorph) {
 			if (b.nextBlock()) todo.push(b.nextBlock());
 		}
-		for (const arg of b.inputs()) {
+		for (const arg of b.inputs().slice().reverse()) {
 			if (arg instanceof BlockMorph) {
 				todo.push(arg);
 			} else if (arg instanceof CommandSlotMorph && arg.nestedBlock()) {
@@ -1677,6 +1680,23 @@ BlockMorph.prototype.userMenu = function () {
 	return menu;
 };
 
+BlockMorph.prototype.showDevView = function (view) {
+	// Open a window showing this block's instructions, compiled bytes or call tree.
+	// Inside a definition, that is the function's.
+	var top = this.topBlock(),
+		compiler = new MB_Compiler(MB_editor.project, MB_editor.codeManager),
+		text = compiler[view](top.isFunctionDefinition() ? top.functionDefinition : this),
+		win = {
+			showInstructions: {title: 'Instructions', width: 400},
+			showCompiledBytes: {title: 'Instruction Bytes', width: 220},
+			showCallTree: {title: 'Call Tree', width: 400},
+		}[view];
+
+	if (text === null) return;
+	new WorkspaceMorph(win.title, text).openAtHand(
+		this.world(), new Point(win.width, 400));
+};
+
 BlockMorph.prototype.chromeMenu = function () {
 	// The items of GP's block menu (Block.gp contextMenu) that the port can act on.
 	var world = this.world(),
@@ -1739,6 +1759,14 @@ BlockMorph.prototype.chromeMenu = function () {
 			items.push(['save picture of script with result',
 				() => this.exportAsImageWithResult(),
 				'save a picture of these blocks and their result as a PNG file'])
+		}
+	}
+	if (MB_editor.devMode()) {
+		items.push('-');
+		items.push(['show instructions', () => this.showDevView('showInstructions')]);
+		items.push(['show compiled bytes', () => this.showDevView('showCompiledBytes')]);
+		if (this.isTemplate && MB_editor.project.functionNamed(this.selector)) {
+			items.push(['show call tree', () => this.showDevView('showCallTree')]);
 		}
 	}
 	items.push('-');
@@ -3525,6 +3553,12 @@ HatBlockMorph.prototype.definitionMenu = function () {
 	items.push('-');
 	items.push(['save picture of script', () => MB_editor.exportScriptImage(this),
 		'save a picture of this block definition as a PNG file']);
+	if (MB_editor.devMode()) {
+		items.push('-');
+		items.push(['show instructions', () => this.showDevView('showInstructions')]);
+		items.push(['show compiled bytes', () => this.showDevView('showCompiledBytes')]);
+		items.push(['show call tree', () => this.showDevView('showCallTree')]);
+	}
 	items.push('-');
 	items.push(['delete block definition...',
 		() => MB_editor.deleteFunctionWithConfirm(name),
@@ -6548,4 +6582,85 @@ MicroBitDisplaySlotMorph.prototype.pixelIndex = function (pos) {
 	let row = Math.trunc(y / this.stride);
 	if ((col > 4) || (row > 4)) return -1;
 	return (row * 5) + col;
+};
+
+// WorkspaceMorph //////////////////////////////////////////////////////
+
+// A window holding text the user can scroll, select, edit and copy. It is
+// dragged by its title bar, resized from its corner and closed by its X.
+
+// WorkspaceMorph inherits from BoxMorph:
+
+WorkspaceMorph.prototype = new BoxMorph();
+WorkspaceMorph.prototype.constructor = WorkspaceMorph;
+WorkspaceMorph.uber = BoxMorph.prototype;
+
+WorkspaceMorph.prototype.inset = 5;
+WorkspaceMorph.prototype.frameColor = new Color(38, 41, 56);
+WorkspaceMorph.prototype.clientColor = new Color(236, 237, 241);
+
+// WorkspaceMorph instance creation:
+
+function WorkspaceMorph(title, contents) {
+	this.init(title, contents);
+}
+
+WorkspaceMorph.prototype.init = function (title, contents) {
+	WorkspaceMorph.uber.init.call(this, 0, 0);
+	this.color = this.frameColor;
+	this.isDraggable = true;
+
+	this.label = new StringMorph(
+		title, 12, null, true, false, false, null, null, this.clientColor, 'Arial');
+	this.add(this.label);
+	this.closeButton = new TriggerMorph(this, 'destroy', 'X', 11, 'sans-serif',
+		null, null, null, true);
+	this.add(this.closeButton);
+
+	this.text = new TextMorph(contents, 16, null, false, false, 'left', null, 'Arial');
+	this.text.isEditable = true;
+	this.text.enableSelecting();
+	this.textFrame = new ScrollFrameMorph();
+	this.textFrame.color = this.clientColor;
+	this.textFrame.acceptsDrops = false;
+	this.textFrame.contents.acceptsDrops = false;
+	this.textFrame.addContents(this.text);
+	this.add(this.textFrame);
+
+	this.resizer = new HandleMorph(this, 140, 50, this.inset, this.inset);
+	this.setExtent(new Point(200, 120));
+};
+
+WorkspaceMorph.prototype.openAtHand = function (world, extent) {
+	this.setPosition(world.hand.position());
+	this.setExtent(extent);
+	world.add(this);
+	this.keepWithin(world);
+	this.fullChanged();
+};
+
+WorkspaceMorph.prototype.justDropped = function () {
+	// A window stays on the world, whatever pane it is dropped over.
+	var world = this.world();
+	if (world && (this.parent !== world)) world.add(this);
+};
+
+// WorkspaceMorph layout:
+
+WorkspaceMorph.prototype.fixLayout = function () {
+	var border = this.inset, top;
+
+	if (!this.textFrame) return; // still being built
+	this.label.setPosition(this.position().add(new Point(10, border)));
+	this.closeButton.setExtent(new Point(20, 15));
+	this.closeButton.setTop(this.top() + border);
+	this.closeButton.setRight(this.right() - border);
+	top = this.label.bottom() + border;
+	this.textFrame.setPosition(new Point(this.left() + border, top));
+	this.textFrame.setExtent(new Point(this.width() - (2 * border), this.bottom() - border - top));
+	this.textFrame.adjustScrollBars();
+	if (this.resizer) {
+		this.resizer.fixLayout();
+		this.add(this.resizer); // keep it in front
+	}
 };
