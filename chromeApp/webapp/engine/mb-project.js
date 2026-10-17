@@ -586,6 +586,17 @@ class MB_Project {
 		return this;
 	}
 
+	static isProjectText(s) {
+		// The parser read the whole text and found at least one of the commands a
+		// project file is made of. Anything else would load as an empty project,
+		// or as the part before the damage.
+		const problems = [];
+		const cmdList = MB_Parser.parse(s, '<string>', problems);
+		const projectCmds = ['module', 'script', 'to', 'spec', 'variables'];
+		return (problems.length === 0)
+			&& cmdList.some((cmd) => Array.isArray(cmd) && projectCmds.includes(cmd[0]));
+	}
+
 	parseProject(s) {
 		// The commands of a project file, without its projectName line.
 		let cmdList = MB_Parser.parse(s);
