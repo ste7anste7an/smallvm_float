@@ -237,10 +237,13 @@ GP.apiCall = function (endPoint, params, callback) {
 			MB_editor.showLibraryInfo(params[0]);
 			break;
 		case 'locale.loadCustomFile':
-			callback();
+			callback(0);
+			MB_editor.readCustomTranslationFile();
 			break;
 		case 'locale.setLanguage':
-			callback();
+			callback(0);
+			// The chrome sends false at startup when no language has been saved.
+			if (typeof params[0] === 'string') MB_editor.saveToUserPreferences('locale', params[0]);
 			MB_editor.updateAfterLanguageChange();
 			break;
 		case 'project.new':

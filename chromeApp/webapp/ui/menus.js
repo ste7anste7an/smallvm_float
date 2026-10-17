@@ -35,10 +35,14 @@ Menus.language.init = function () {
 					window.open('https://wiki.microblocks.fun/en/translating', '_blank');
 				}
 			});
-			this.items.push({ label: '-' });
+			this.items.push({
+				label: '-',
+				hidden: () => { return !IDE.userPreference('devMode'); }
+			});
 			this.items.push({
 				label: 'Custom...',
-				action: () => { GP.apiCall('locale.loadCustomFile'); }
+				action: () => { GP.apiCall('locale.loadCustomFile'); },
+				hidden: () => { return !IDE.userPreference('devMode'); }
 			});
 		});
 };
