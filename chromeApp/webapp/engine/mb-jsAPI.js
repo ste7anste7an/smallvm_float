@@ -153,7 +153,7 @@ GP.apiCall = function (endPoint, params, callback) {
 				cnv.style.height = slot.height + 'px';
 				cnv.width = slot.width;
 				cnv.height = slot.height;
-				world.setExtent(new Point(slot.width, slot.height));
+				world.setExtent(new Point(slot.width, slot.height).divideBy(ZOOM)); // the world is drawn ZOOM times its size
 				if (typeof mbEditor === 'object') { mbEditor.fixLayout(); }
 			}
 			callback();
