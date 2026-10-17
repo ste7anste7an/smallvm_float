@@ -697,6 +697,7 @@ class MB_Module {
 		this.moduleName = name || null;
 		this.moduleCategory = 'Library';
 		this.dependencies = [];
+		this.implementedLibs = []; // libraries this one can stand in for
 		this.version = [1, 0];
 		this.author = 'unknown';
 		this.description = '';
@@ -894,6 +895,10 @@ class MB_Module {
 			result.push(this.arrayToDeclaration(this.dependencies, 'depends'));
 		}
 
+		if (this.implementedLibs.length > 0) {
+			result.push(this.arrayToDeclaration(this.implementedLibs, 'implements'));
+		}
+
 		if (this.tags.length > 0) {
 			result.push(this.arrayToDeclaration(this.tags, 'tags'));
 		}
@@ -994,6 +999,7 @@ class MB_Module {
 		this.loadVersion(cmdList);
 		this.loadAuthor(cmdList);
 		this.loadDependencies(cmdList);
+		this.loadImplements(cmdList);
 		this.loadTags(cmdList);
 		this.loadDescription(cmdList);
 		this.loadChoices(cmdList);
@@ -1044,6 +1050,17 @@ class MB_Module {
 			}
 		}
 		this.dependencies = deps;
+	}
+
+	loadImplements(cmdList) {
+		let libNames = [];
+		for (const cmd of cmdList) {
+			if (!Array.isArray(cmd) || cmd[0] !== 'implements') continue;
+			for (let i = 1; i < cmd.length; i++) {
+				libNames.push(String(stringArg(cmd[i])));
+			}
+		}
+		this.implementedLibs = libNames;
 	}
 
 	loadTags(cmdList) {
