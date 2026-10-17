@@ -169,7 +169,11 @@ method addEmbeddedLibrary MicroBlocksDecompiler libName project {
 	if (notNil lib) { // add dependencies
 		if isImplementation { beImplementation lib }
 		for dependency (dependencies lib) {
-			if (isNil (libraryNamed project dependency)) { // dependent lib not yet loaded
+			if (and
+				(isNil (libraryNamed project dependency))
+				(isNil (replacementFor project dependency))
+			) {
+				// dependent lib not yet loaded, nor implemented by a loaded lib
 				addEmbeddedLibrary this dependency project
 			}
 		}
