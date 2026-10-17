@@ -61,6 +61,9 @@ method dispatchCall MicroBlocksAPI callObject {
 		respondAPIRequest this id 0 // respond first so the request is deleted
 		spinner = (partThatIs (morph (global 'page')) 'MicroBlocksSpinner')
 		if (notNil spinner) { destroy spinner }
+	} (endPoint == 'ide.openVMFolder') {
+		respondAPIRequest this id 0 // respond first so the request is deleted
+		openVMFolder editor
 
 	// Project
 	} (endPoint == 'project.save') {
@@ -108,6 +111,9 @@ method dispatchCall MicroBlocksAPI callObject {
 	} (endPoint == 'board.downloadFile') {
 		respondAPIRequest this id 0 // respond first so the request is deleted
 		getFileFromBoard runtime
+	} (endPoint == 'board.snapshotCode') {
+		respondAPIRequest this id 0 // respond first so the request is deleted
+		snapshotCode runtime (withoutExtension (filePart (fileName editor)))
 	} (endPoint == 'board.retrieveProject') {
 		respondAPIRequest this id 0 // respond first so the request is deleted
 		openFromBoard editor

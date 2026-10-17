@@ -93,6 +93,12 @@ Menus.settings = {
 		},
 		{ label: '-', hidden: () => { return !IDE.userPreference('devMode'); } },
 		{
+			label: 'open vm folder on microblocks.fun',
+			action: () => { GP.apiCall('ide.openVMFolder'); },
+			hidden: () => { return !IDE.userPreference('devMode'); }
+		},
+		{ label: '-', hidden: () => { return !IDE.userPreference('devMode'); } },
+		{
 			label: 'install ESP firmware from URL',
 			action: () => { GP.apiCall('board.installVMfromURL'); },
 			hidden: () => { return !IDE.userPreference('devMode'); },
@@ -174,6 +180,13 @@ Menus.project = {
 		{
 			label: 'get file from board',
 			action: () => { GP.apiCall('board.downloadFile'); },
+			hidden: () => { return !IDE.userPreference('devMode'); },
+			disabled: () => { return !IDE.board.hasFS }
+		},
+		{ label: '-', hidden: () => { return !IDE.userPreference('devMode'); } },
+		{
+			label: 'snapshot code on board',
+			action: () => { GP.apiCall('board.snapshotCode'); },
 			hidden: () => { return !IDE.userPreference('devMode'); },
 			disabled: () => { return !IDE.board.hasFS }
 		}

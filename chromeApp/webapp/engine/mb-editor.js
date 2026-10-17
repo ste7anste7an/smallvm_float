@@ -1982,6 +1982,18 @@ console.log('unknown');
 		this.saveDataAsFile(bytes, fileName);
 	}
 
+	async snapshotCode() {
+		// Ask the board to save its code in a file, named by the user.
+		const title = (this.projectName || '').replace(/\.[^.]*$/, '');
+		MB_connection.snapshotCode(await this.prompt(localized('Code file name?'), title));
+	}
+
+	openVMFolder() {
+		// The server's folder of VM builds, the pilot one when the IDE is a pilot.
+		const pilot = ['run-pilot', ':8000'].some((s) => location.href.includes(s));
+		window.open('https://microblocks.fun/downloads/' + (pilot ? 'pilot' : 'latest') + '/vm/', '_blank');
+	}
+
 	async toggleBLE() {
 		// Not a toggle, despite the endpoint's name: it asks and sends the answer
 		// either way, so declining sends 0.

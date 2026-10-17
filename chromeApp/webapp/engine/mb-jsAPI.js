@@ -128,6 +128,14 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.uploadFileToBoard();
 			break;
+		case 'board.snapshotCode':
+			callback(0);
+			MB_editor.snapshotCode();
+			break;
+		case 'ide.openVMFolder':
+			callback(0);
+			MB_editor.openVMFolder();
+			break;
 		case 'ide.applyUserPreferences':
 			// Answer, then repaint: the chrome sends this on every tick of a
 			// settings menu item and does not wait for the canvas to catch up.
@@ -288,7 +296,8 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		default:
-			callback();
+			console.log('unknown API endpoint', endPoint);
+			callback('Unknown API endpoint');
 	}
 };
 
