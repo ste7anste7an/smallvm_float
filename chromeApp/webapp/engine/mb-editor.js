@@ -1652,6 +1652,32 @@ console.log('unknown');
 		await this.restoreUndoState(this.project.codeString());
 	}
 
+	readCustomTranslationFile() {
+		// Let the user choose a .po file and use it as a language named after the
+		// file. It is not saved as the locale: the server has no such file to load.
+		const inp = document.createElement('input');
+		inp.type = 'file';
+		inp.style.display = 'none';
+		inp.accept = '.po';
+		inp.addEventListener('cancel', () => inp.remove());
+		inp.addEventListener('change', async () => {
+			inp.remove();
+			const file = inp.files[0];
+			if (file) await this.installTranslation(await file.text(), file.name.replace(/\.[^.]*$/, ''));
+		});
+		document.body.appendChild(inp);
+		inp.click();
+	}
+
+	async installTranslation(text, langName) {
+		// Use the text of a .po file as the strings of the named language.
+		GetText.locales[langName] = {};
+		GetText.parseLocale(text, langName);
+		GetText.currentLocale = langName;
+		GetText.localizable.forEach((e) => e.localize());
+		await this.updateAfterLanguageChange();
+	}
+
 	blockSizePercent() { return this.blockSize; }
 
 	resizeBlock(block, fontFactor, scale = SyntaxElementMorph.prototype.scale) {
@@ -1712,6 +1738,12 @@ console.log('unknown');
 		} catch (e) {
 			return {};
 		}
+	}
+
+	saveToUserPreferences(key, value) {
+		const prefs = this.readUserPreferences();
+		prefs[key] = value;
+		localStorage['user-prefs'] = JSON.stringify(prefs);
 	}
 
 	// File operations
@@ -2162,6 +2194,7 @@ console.log('unknown');
 		}
 		else if (name.endsWith('.csv')) this.importLoggedData(data);
 		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
+		else if (name.endsWith('.po')) await this.installTranslation(data, MB_Editor.droppedTranslationName(fileName));
 		else if (!MB_Editor.isUnsupportedIDEFile(name)) await this.writeFileToBoard(fileName, data);
 	}
 
@@ -2174,17 +2207,24 @@ console.log('unknown');
 		for (const line of lines) this.addLoggedData(line);
 	}
 
+	static droppedTranslationName(fileName) {
+		// A dropped .po replaces the current language's strings. English is what
+		// every other language falls back to, so it keeps its own and the file
+		// becomes a language named after it.
+		const current = GetText.currentLocale;
+		return (!current || current === 'en') ? fileName.replace(/\.[^.]*$/, '') : current;
+	}
+
 	static isTextFile(fileName) {
-		// A project, a library or graph data. Every other file is read as bytes.
+		// A project, a library, graph data or a translation. Every other file is read as bytes.
 		const name = fileName.toLowerCase();
-		return ['.ubp', '.ubp.txt', '.ubl', '.csv'].some((ext) => name.endsWith(ext));
+		return ['.ubp', '.ubp.txt', '.ubl', '.csv', '.po'].some((ext) => name.endsWith(ext));
 	}
 
 	static isUnsupportedIDEFile(fileName) {
-		// Firmware or a translation: the IDE's to open, not the board's, though
-		// it does not open them yet.
-		const name = fileName.toLowerCase();
-		return ['.bin', '.po'].some((ext) => name.endsWith(ext));
+		// Firmware: the IDE's to install, not the board's, though it does not
+		// install it yet.
+		return fileName.toLowerCase().endsWith('.bin');
 	}
 
 	static isScriptPicture(fileName) {
