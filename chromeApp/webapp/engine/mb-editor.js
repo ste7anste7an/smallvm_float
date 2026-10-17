@@ -812,8 +812,9 @@ class MB_Editor {
 
 	shortcutKey(event, spinnerWasUp) {
 		// Answer whether a key pressed with no text being edited acted. An open chrome menu
-		// takes Escape and blocks the rest, an open file picker takes Enter and Escape, and
-		// Escape stops every script only when there is no spinner to cancel and no selection.
+		// takes Escape and blocks the rest. Otherwise Escape stops a read from the board first,
+		// an open file picker takes Enter and Escape, and Escape stops every script only when
+		// there is no spinner to cancel and no selection.
 		const menu = (typeof Menus !== 'undefined') && Menus.current();
 		const picker = world.children.find((m) => m.picker instanceof MB_FilePicker);
 		const letter = (event.ctrlKey || event.metaKey) ? event.key.toLowerCase() : null;
@@ -821,7 +822,9 @@ class MB_Editor {
 			if (menu && !event.repeat && ('Escape' === event.key)) Menus.close();
 			return ['Escape', 'Enter', 'Delete'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
 		}
-		if (picker && ('Escape' === event.key)) {
+		if (('Escape' === event.key) && (this.readFromBoard || (MB_connection.decompiler != null))) {
+			MB_connection.stopDecompilation(); // a read from the board, armed or running, goes first
+		} else if (picker && ('Escape' === event.key)) {
 			picker.picker.removeFromOwner();
 		} else if (picker && ('Enter' === event.key)) {
 			picker.picker.okay();
