@@ -92,7 +92,12 @@ MB_Specs.projectSpecArrayForSelector = function (selector) {
 
 MB_Specs.categoryForSelector = function (selector) {
 	this.initialize();
-	let result = this.selectorToCategory.get(selector);
+	// try to get category from libraries in the project first
+	let result = MB_editor.project.categoryForSelector(selector);
+	if (result == 'other') {
+		// if selector not found in a library, look in built-in specs
+		result = this.selectorToCategory.get(selector);
+	}
 	return (result === undefined) ? 'other' : result;
 }
 
@@ -508,11 +513,9 @@ MB_Specs.mbBlockSpecs = function () {
 			["r", "[data:asByteArray]", "as byte array _", "auto", "aByteListOrString"],
 		"-",
 			["r", "[data:freeMemory]", "free memory"],
-		"Prims-Deprecated (not in palette)",
-			["r", "newArray", "new list length _", "num", 10],
-			[" ", "fillArray", "fill list _ with _", "str auto", "aList", 0],
-			[" ", "fillList", "fill list _ with _", "str auto", "aList", 0],
-		"Prims-Display (not in palette)",
+		// the following blocks are not in the built-in palette but we want them to
+		// have the correct spec and color even when their library is not loaded
+		"Output", // not in built-in palette
 			[" ", "[display:mbDisplay]", "display #BR# _", "microbitDisplay"],
 			[" ", "[display:mbDisplayOff]", "clear display"],
 			[" ", "[display:mbPlot]", "plot x _ y _", "num num", 3, 3],
@@ -524,7 +527,7 @@ MB_Specs.mbBlockSpecs = function () {
 			[" ", "[display:neoPixelSend]", "send NeoPixel rgb _", "num", 5],
 			[" ", "[display:neoPixelSetMaxBrightness]", "set NeoPixel max brightness _ (10-255)", "num", 40],
 			[" ", "[display:neoPixelSetRGB]", "NeoPixel is RGB _", "bool", false],
-		"Prims-Sensing (not in palette)",
+		"Sensing", // not in built-in palette
 			["r", "[sensors:acceleration]", "acceleration"],
 			[" ", "[sensors:setAccelerometerRange]", "set accelerometer range _", "num", 1],
 			["r", "[display:lightLevel]", "light level"],
@@ -536,10 +539,14 @@ MB_Specs.mbBlockSpecs = function () {
 			["r", "[sensors:microphone]", "microphone"],
 			[" ", "[sensors:i2cSetClockSpeed]", "set i2c clock speed _", "num", 400000],
 			[" ", "[sensors:i2cSetPins]", "set i2c pins SDA _ SCL _", "num num", 4, 5],
-		"Prims-Variables (not in palette)",
+		"Variables", // not in built-in palette
 			["r", "[vars:varExists]", "variable named _ exists?", "str", "var"],
 			["r", "[vars:varNamed]", "value of variable named _", "str", "var"],
 			[" ", "[vars:setVarNamed]", "set variable named _ to _", "str auto", "var", 0],
+		"Data" // deprecated; not in built-in palette
+			["r", "newArray", "new list length _", "num", 10],
+			[" ", "fillArray", "fill list _ with _", "str auto", "aList", 0],
+			[" ", "fillList", "fill list _ with _", "str auto", "aList", 0],
 		"Prims-JSON (not in palette)",
 			["r", "[misc:jsonGet]", "json _ . _", "str str", "{ \"x\": 1, \"y\": [41, 42, 43] }", "y.2"],
 			["r", "[misc:jsonCount]", "json count _ . _", "str str", "[1, [4, 5, 6, 7], 3]", ""],

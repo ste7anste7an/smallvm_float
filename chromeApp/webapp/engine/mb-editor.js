@@ -165,6 +165,8 @@ class MB_Editor {
 
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(scriptsPane.position().add(new Point(x, y)));
+		b.category = MB_Specs.categoryForSelector(b.selector);
+		b.setColor(b.colorFor(b.category));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
 		scriptsPane.changed();

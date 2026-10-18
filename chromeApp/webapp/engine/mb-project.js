@@ -562,18 +562,19 @@ class MB_Project {
 		let cmdsByModule = this.splitCmdListIntoModules(cmdList);
 		let obsoleteOps = libraryUpdates ? this.updateLibrarySpecs(this.librariesIn(cmdsByModule).values(), libraryUpdates) : new Map();
 		let isFirst = true;
-		for (const modCmds of cmdsByModule) {
-			if (isFirst) {
-				this.main.loadFromCmds(modCmds, this);
-				isFirst = false;
-			} else {
-				let lib = new MB_Module();
-				lib.loadModuleNameAndCategory(modCmds);
-				if (obsoleteOps.has(lib.moduleName)) continue; // its newer version is added below
-				lib.loadFromCmds(modCmds, this);
-				this.libraries.set(lib.moduleName, lib);
-			}
+		// Add libraries first so we can set block category andcolors for main module scripts
+		for (const modCmds of cmdsByModule.slice(1)) {
+			let lib = new MB_Module();
+			lib.loadModuleNameAndCategory(modCmds);
+			if (obsoleteOps.has(lib.moduleName)) continue; // its newer version is added below
+			lib.loadFromCmds(modCmds, this);
+			this.libraries.set(lib.moduleName, lib);
 		}
+		if (cmdsByModule.length > 0) {
+			// Load the main program, if any
+			this.main.loadFromCmds(cmdsByModule[0], this);
+		}
+
 		for (const [libName, ops] of obsoleteOps) {
 			let lib = new MB_Module(libName).loadFromCmds(libraryUpdates.get(libName), this);
 			lib.blockList.push(...ops);
