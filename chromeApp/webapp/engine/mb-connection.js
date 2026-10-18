@@ -6,13 +6,54 @@
 
 // mb-connection.js - Implements MicroBlocks communication protocol.
 
-/* globals MB_CommPort, MB_Files, waitMSecs, isMobile, localized, storeIDEProperty */
+/* globals MB_CommPort, MB_Files, MB_Firmware, waitMSecs, isMobile, localized, storeIDEProperty */
 
 class MB_Connection {
 	// The 16-bit words a chunk's persistent record spends on its header before
 	// the first instruction: PERSISTENT_HEADER_WORDS is 2 (vm/persist.h:23) and
 	// an OBJ is int* (vm/mem.h:101), so the VM's word 4 is the compiler's 0.
 	static CHUNK_HEADER_WORDS = 4;
+
+	// The libraries an empty project gets when each type of board connects.
+	// A board type starting with 'MakerPort' gets ['MakerPort'].
+	static BOARD_LIBRARIES = {
+		'Boardie': ['LED Display', 'Tone', 'TFT'],
+		'Citilab ED1': ['ED1 Buttons', 'Tone', 'Basic Sensors', 'LED Display'],
+		'micro:bit': ['Basic Sensors', 'LED Display'],
+		'micro:bit v2': ['Basic Sensors', 'LED Display'],
+		'Mbits': ['Basic Sensors', 'LED Display'],
+		'Calliope': ['Basic Sensors', 'LED Display', 'Calliope NeoPixel', 'Tone'],
+		'Calliope v3': ['Basic Sensors', 'LED Display', 'Calliope NeoPixel', 'Tone'],
+		'CircuitPlayground': ['Circuit Playground', 'Basic Sensors', 'NeoPixel', 'Tone'],
+		'CircuitPlayground Bluefruit': ['Basic Sensors', 'NeoPixel', 'Tone'],
+		'CoCube': ['CoCube', 'LED Display'],
+		'M5Stack-Core': ['LED Display', 'Tone', 'TFT', 'HTTP client'],
+		'ESP8266': ['HTTP client'],
+		'IOT-BUS': ['LED Display', 'TFT', 'Touch Screen'],
+		'ESP32': ['HTTP client'],
+		'TTGO RP2040': ['LED Display'],
+		'Pico:ed': ['LED Display'],
+		'Wukong2040': ['WuKong2040'],
+		'Databot': ['databot'],
+		'Databot v3': ['DatabotV3'],
+		'RP2040 Gizmo': ['Gizmo'],
+		'micro:STEAMakers': ['Basic Sensors', 'LED Display', 'HTTP client', 'SDCard', 'microSTEAMakers'],
+		'CodingBox': ['Coding Box', 'LED Display', 'NeoPixel', 'Tone', 'TFT'],
+		'Foxbit': ['Foxbit', 'Basic Sensors', 'LED Display', 'HTTP client', 'SDCard'],
+		'KidsIOT': ['KidsIOT', 'LED Display', 'NeoPixel', 'Tone', 'TFT'],
+		'DueSTEM': ['DUELink Edu', 'Tiny OLED', 'Tone', 'Servo'],
+		'PixoBit': ['DUELink Edu', 'Tiny OLED', 'Tone'],
+		'CincoBit': ['DUELink Edu', 'LED Display', 'Tone'],
+		'Clipit': ['DUELink Edu', 'LED Display', 'Tone'],
+		'Ghizzy': ['DUELink Edu', 'Tone'],
+		'Holiday Tree': ['DUELink Edu', 'Tone'],
+		'Springbot Green': ['LED Display', 'Springbot', 'Tone', 'SDCard'],
+		'Springbot Gold': ['Springbot Display', 'LED Display', 'Springbot', 'Tone', 'SDCard'],
+		'DUELink': ['DUELink Edu'],
+		'PiBody': ['PiBody'],
+		'ESP32 STEAMakers': ['HTTP client', 'SDCard'],
+		'STEAMakers AI': ['HTTP client', 'SDCard'],
+	};
 
 	constructor() {
 		this.msgDict = null;
@@ -308,7 +349,46 @@ class MB_Connection {
 		this.setSerialDelay('reset to default');
 		this.processMessages(); // process incoming version message
 		await this.waitForVersion();
+		if (this.vmVersion != null) {
+			// Nothing is written to the board until the user answers. A yes starts
+			// the firmware install, which closes the port, so nothing is downloaded.
+			const updating = await this.checkVmVersion();
+			await this.installBoardSpecificBlocks();
+			if (updating) return;
+		}
 		await MB_editor.justConnected();
+	}
+
+	async checkVmVersion() {
+		// Offer to update a board whose firmware is older than this IDE's.
+		// Answers true if the user chose to update it.
+		if (MB_editor.readFromBoard || (this.decompiler != null)) return false;
+		await this.readVersionFile();
+		if (!(this.latestVmVersion > this.vmVersion)) return false;
+		const msg = localized('The MicroBlocks in your board is not current') +
+			' (v' + this.vmVersion + ' vs. v' + this.latestVmVersion + ').';
+		if (!isMobile() && MB_Firmware.isUpdatableBoard(this.boardType)) {
+			if (await MB_editor.confirm(msg + '\n' + localized('Try to update MicroBlocks on the board?'))) {
+				MB_Firmware.installVM(false); // not awaited: its dialogs outlast the connect
+				return true;
+			}
+		} else {
+			// Updating these boards needs the board put into boot mode, so only say so.
+			MB_editor.inform(msg);
+		}
+		return false;
+	}
+
+	async installBoardSpecificBlocks() {
+		// Give an empty project the libraries for the board just connected,
+		// unless the user turned that off in Settings.
+		if (MB_editor.readFromBoard || (this.decompiler != null)) return;
+		if (MB_editor.project.hasUserCode()) return;
+		if (MB_editor.userPreference('boardLibAutoLoadDisabled')) return;
+		if (this.boardType == null) return;
+		let libs = MB_Connection.BOARD_LIBRARIES[this.boardType];
+		if (!libs && this.boardType.startsWith('MakerPort')) libs = ['MakerPort'];
+		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName);
 	}
 
 	async waitForVersion() {

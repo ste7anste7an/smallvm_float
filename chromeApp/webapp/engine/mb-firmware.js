@@ -113,6 +113,14 @@ MB_Firmware.hasSaveDialog = function () {
 
 // Installing
 
+MB_Firmware.isUpdatableBoard = function (boardType) {
+	// Whether the IDE may offer to update this board's firmware. The installer
+	// cannot update a DFU board yet, so those are told rather than offered.
+	if (this.dfuBoards.includes(boardType)) return false;
+	if (['micro:bit v2', 'Calliope v3', 'RP2040'].includes(boardType)) return true; // variants
+	return this.boardMenu.includes(boardType) || this.espBoards.includes(boardType);
+}
+
 MB_Firmware.installVM = async function (eraseFlashFlag) {
 	// Install the firmware for the connected board, or ask which board it is.
 	const boardType = MB_connection.boardType;
