@@ -1023,159 +1023,6 @@ SyntaxElementMorph.prototype.isEmptySlot = function () {
 	return false;
 };
 
-// SyntaxElementMorph speech bubble feedback:
-
-SyntaxElementMorph.prototype.showBubble = function (value, exportPic, target) {
-	alert('not implemented yet');
-	return;
-	var bubble,
-		txt,
-		img,
-		morphToShow,
-		isClickable = true,
-		ide = this.parentThatIsA(IDE_Morph) || target.parentThatIsA(IDE_Morph),
-		anchor = this,
-		pos = this.rightCenter().add(new Point(2, 0)),
-		sf = this.parentThatIsA(ScrollFrameMorph),
-		wrrld = this.world() || target.world(),
-		maxHeight,
-		scroller;
-
-	async function writeClipboardText(text, ide) {
-		try {
-			await navigator.clipboard.writeText(text);
-			ide.showMessage('copied to clipboard', 1, true);
-		} catch (error) {
-			ide.showMessage(error.message, 2, true);
-		}
-	}
-
-	if ((value === undefined) || !wrrld) {
-		return null;
-	}
-	if (typeof value === 'boolean') {
-		morphToShow = SpriteMorph.prototype.booleanMorph.call(
-			null,
-			value
-		);
-	} else if (value instanceof Color) {
-		morphToShow = SpriteMorph.prototype.colorSwatch(
-			value,
-			this.fontSize * 1.4
-		);
-	} else if (isString(value)) {
-		// shorten the string, commented out because we now scroll it
-		// txt	= value.length > 500 ? value.slice(0, 500) + '...' : value;
-		txt	 = value;
-		maxHeight = ide.height() / 2;
-		morphToShow = new TextMorph(
-			txt,
-			this.fontSize
-		);
-
-		if (morphToShow.height() > maxHeight) { // scroll
-			scroller = new ScrollFrameMorph();
-			scroller.acceptsDrops = false;
-			scroller.contents.acceptsDrops = false;
-			scroller.bounds.setWidth(morphToShow.width());
-			scroller.bounds.setHeight(maxHeight);
-			scroller.addContents(morphToShow);
-			scroller.color = new Color(0, 0, 0, 0);
-			morphToShow = scroller;
-		}
-
-		// support exporting text / numbers directly from result bubbles:
-		morphToShow.userMenu = function () {
-			var menu = new MenuMorph(this);
-			menu.addItem(
-				'export',
-				() => ide.saveFileAs(
-					value,
-					'text/plain;charset=utf-8',
-					localized('data')
-				)
-			);
-			menu.addItem(
-				'copy',
-				() => writeClipboardText(value, ide)
-			);
-			return menu;
-		};
-	} else {
-		return this.showBubble(
-			display(value),
-			exportPic,
-			target
-		);
-	}
-	if (ide && (ide.currentSprite !== target)) {
-		if (target instanceof StageMorph) {
-			anchor = ide.corral.stageIcon;
-		} else if (target) {
-			if (target.isTemporary) {
-				target = detect(
-					target.allExemplars(),
-					each => !each.isTemporary
-				);
-			}
-			anchor = detect(
-				ide.corral.frame.contents.children,
-				icon => icon.object === target
-			);
-		} else {
-			target = ide;
-		}
-		pos = anchor.center();
-	}
-	bubble = new SpeechBubbleMorph(
-		morphToShow,
-		null,
-		Math.max(this.rounding - 2, 6),
-		0
-	);
-	bubble.popUp(
-		wrrld,
-		pos,
-		isClickable
-	);
-	if (exportPic) {
-		this.exportPictureWithResult(bubble);
-	}
-	if (anchor instanceof SpriteIconMorph) {
-		bubble.keepWithin(ide.corral);
-	} else if (sf) {
-		bubble.keepWithin(sf);
-	}
-};
-
-SyntaxElementMorph.prototype.exportPictureWithResult = function (aBubble) {
-	alert('not implemented yet');
-	return;
-	if (this.removeHighlight) {this.removeHighlight(); }
-	var ide = this.parentThatIsA(IDE_Morph) ||
-		this.parentThatIsA(BlockEditorMorph).target.parentThatIsA(
-			IDE_Morph
-		),
-		scr = this.fullImage(),
-		bub = aBubble.fullImage(),
-		taller = Math.max(0, bub.height - scr.height),
-		pic = newCanvas(new Point(
-			scr.width + bub.width + 2,
-			scr.height + taller
-		)),
-		ctx = pic.getContext('2d');
-	ctx.drawImage(scr, 0, pic.height - scr.height);
-	ctx.drawImage(bub, scr.width + 2, 0);
-	// request to open pic in new window.
-
-	ide.saveFileAs(
-		embedMetadataPNG(pic, this.toXMLString()),
-		'image/png',
-		(ide.getProjectName() || localized('untitled')) + ' ' +
-		localized('script pic')
-	);
-};
-
 // BlockLabelMorph ///////////////////////////////////////////////
 
 /*
@@ -1335,15 +1182,6 @@ BlockMorph.prototype.zebraContrast = 20; // alternating color brightness
 // BlockMorph sound feedback:
 
 BlockMorph.prototype.snapSound = null;
-
-BlockMorph.prototype.toggleSnapSound = function () {
-	if (this.snapSound !== null) {
-		this.snapSound = null;
-	} else {
-		BlockMorph.prototype.snapSound = document.createElement('audio');
-		BlockMorph.prototype.snapSound.src = 'src/click.wav';
-	}
-};
 
 // BlockMorph instance creation:
 
@@ -1840,44 +1678,6 @@ BlockMorph.prototype.nextBlock = function (block) {
 	return null;
 }
 
-BlockMorph.prototype.deleteBlock = function () {
-	// delete just this one block, keep inputs and next block around
-	var scripts = this.parentThatIsA(ScriptsMorph),
-		nb = this.nextBlock ? this.nextBlock() : null,
-		tobefixed,
-		isindef;
-	if (scripts) {
-		if (nb) {
-			scripts.add(nb);
-		}
-		this.inputs().forEach(inp => {
-			if (inp instanceof BlockMorph) {
-				scripts.add(inp);
-			}
-		});
-	}
-	if (this instanceof ReporterBlockMorph && (this.parent instanceof BlockMorph)) {
-		this.parent.revertToDefaultInput(this);
-	} else { // CommandBlockMorph
-		if (this.parent && this.parent.fixLayout) {
-			tobefixed = this.parentThatIsA(ArgMorph);
-		} else { // must be in a custom block definition
-			isindef = true;
-		}
-	}
-	this.destroy();
-	if (isindef) {
-		/*
-						since the definition's body still points to this block
-						even after it has been destroyed, mark it to be deleted
-						later.
-		*/
-	}
-	if (tobefixed) {
-		tobefixed.fixLayout();
-	}
-};
-
 BlockMorph.prototype.relabel = function (alternativeSelectors) {
 	alert('not yet implemented');
 	return;
@@ -2132,15 +1932,6 @@ BlockMorph.prototype.addExpander = function () {
 	this.addChild(this.expander);
 }
 
-// BlockMorph exporting picture with result bubble
-
-BlockMorph.prototype.exportResultPic = function () {
-	alert('not implemented yet');
-	return;
-	var top = this.topBlock();
-	if (top !== this) {return; }
-};
-
 // BlockMorph thumbnail and script pic
 
 BlockMorph.prototype.thumbnail = function (scale, clipWidth) {
@@ -2181,17 +1972,6 @@ BlockMorph.prototype.thumbnail = function (scale, clipWidth) {
 	}
 	if (nb) {nb.isVisible = true; }
 	return trgt;
-};
-
-BlockMorph.prototype.scriptPic = function () {
-	// answer a canvas image
-	var scr = this.fullImage(),
-		fb = this.stackFullBounds(),
-		pic = newCanvas(fb.extent()),
-		ctx = pic.getContext('2d');
-
-	ctx.drawImage(scr, 0, 0);
-	return pic;
 };
 
 BlockMorph.prototype.fullImage = function () {
@@ -2528,23 +2308,6 @@ BlockMorph.prototype.addHighlight = function (oldHighlight) {
 	return highlight;
 };
 
-BlockMorph.prototype.addErrorHighlight = function () {
-	var isHidden = !this.isVisible,
-		highlight;
-
-	if (isHidden) {this.show(); }
-	this.removeHighlight();
-	highlight = this.highlight(
-		this.errorHighlight,
-		this.activeBlur,
-		this.activeBorder
-	);
-	this.addBack(highlight);
-	this.fullChanged();
-	if (isHidden) {this.hide(); }
-	return highlight;
-};
-
 BlockMorph.prototype.removeHighlight = function () {
 	var highlight = this.getHighlight();
 	if (highlight !== null) {
@@ -2553,14 +2316,6 @@ BlockMorph.prototype.removeHighlight = function () {
 		this.afterglow = 0;
 	}
 	return highlight;
-};
-
-BlockMorph.prototype.toggleHighlight = function () {
-	if (this.getHighlight()) {
-		this.removeHighlight();
-	} else {
-		this.addHighlight();
-	}
 };
 
 BlockMorph.prototype.highlight = function (color, blur, border) {
@@ -2605,23 +2360,6 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	return out;
 };
 
-BlockMorph.prototype.highlightImageBlurred = function (color, blur) {
-	var fb, img, hi, ctx;
-	fb = this.fullBounds().extent();
-	this.doWithAlpha(1, () => img = this.fullImage());
-
-	hi = newCanvas(fb.add(blur * 2));
-	ctx = hi.getContext('2d');
-	ctx.shadowBlur = blur;
-	ctx.shadowColor = color.toString();
-	ctx.drawImage(img, blur, blur);
-
-	ctx.shadowBlur = 0;
-	ctx.globalCompositeOperation = 'destination-out';
-	ctx.drawImage(img, blur, blur);
-	return hi;
-};
-
 BlockMorph.prototype.getHighlight = function () {
 	var highlights;
 	highlights = this.children.slice(0).reverse().filter(child =>
@@ -2631,12 +2369,6 @@ BlockMorph.prototype.getHighlight = function () {
 		return highlights[0];
 	}
 	return null;
-};
-
-BlockMorph.prototype.flashOutline = function (color, border) {
-	this.removeHighlight();
-	this.addBack(this.outline(color, border));
-	this.fullChanged();
 };
 
 BlockMorph.prototype.outline = function (color, border) {
@@ -2809,24 +2541,6 @@ BlockMorph.prototype.mouseClickLeft = function () {
 	}
 	scripts.cancelSelection();
 	MB_editor.toggleRunning(this.topBlock());
-	return;
-
-	var top = this.topBlock(),
-		receiver = top.scriptTarget(),
-		shiftClicked = this.world().currentKey === 16,
-		stage;
-	if (shiftClicked && !this.isTemplate) {
-		return this.selectForEdit().focus(); // enable copy-on-edit
-	}
-	if (top instanceof PrototypeHatBlockMorph) {
-		return; // top.mouseClickLeft();
-	}
-	if (receiver) {
-		stage = receiver.parentThatIsA(StageMorph);
-		if (stage) {
-			stage.threads.toggleProcess(top, receiver);
-		}
-	}
 };
 
 // BlockMorph dragging and dropping
@@ -2956,10 +2670,6 @@ BlockMorph.prototype.destroy = function (justThis) {
 BlockMorph.prototype.stackHeight = function () {
 	var fb = this.fullBounds();
 	return fb.bottom() - fb.top();
-};
-
-BlockMorph.prototype.stackFullBounds = function () {
-	return this.fullBounds();
 };
 
 BlockMorph.prototype.snap = function () {
@@ -4283,15 +3993,6 @@ ScriptsMorph.prototype.doGPCall = function (apiCall, params) {
 		params,
 		function(value) { console.log("return value:", value) });
 }
-
-// ScriptsMorph sorting blocks
-
-ScriptsMorph.prototype.sortedElements = function () {
-	// return all scripts
-	var scripts = this.children.slice(); // make a copy
-	scripts.sort(this.definitionsFirst);
-	return scripts;
-};
 
 // ScriptsMorph drag & drop:
 
@@ -5998,23 +5699,6 @@ BooleanSlotMorph.prototype.drawKnob = function (ctx, progress) {
 	ctx.globalAlpha = 1;
 };
 
-BooleanSlotMorph.prototype.textLabelExtent = function () {
-	var t, f;
-	t = new StringMorph(
-		localized('true'),
-		this.fontSize,
-		null,
-		true // bold
-	);
-	f = new StringMorph(
-		localized('false'),
-		this.fontSize,
-		null,
-		true // bold
-	);
-	return new Point(Math.max(t.width(), f.width()), t.height());
-};
-
 // ArrowMorph //////////////////////////////////////////////////////////
 
 /*
@@ -6423,36 +6107,6 @@ BlockHighlightMorph.prototype.init = function () {
 
 BlockHighlightMorph.prototype.readout = function () {
 	return this.children.length ? this.children[0] : null;
-};
-
-BlockHighlightMorph.prototype.updateReadout = function () {
-	var readout = this.readout(),
-		inset = SyntaxElementMorph.prototype.activeBorder * -2;
-	if (this.threadCount < 2) {
-		if (readout) {
-			readout.destroy();
-		}
-		return;
-	}
-	if (readout) {
-		readout.changed();
-		readout.contents = this.threadCount.toString();
-		readout.fixLayout();
-		readout.rerender();
-	} else {
-		readout = new SpeechBubbleMorph(
-			this.threadCount.toString(),
-			this.color, // color,
-			null, // edge,
-			null, // border,
-			this.color.darker(), // borderColor,
-			null, // padding,
-			1, // isThought - don't draw a hook
-			true // no shadow - faster
-		);
-		this.add(readout);
-	}
-	readout.setPosition(this.position().add(inset));
 };
 
 // MicroBitDisplaySlotMorph //////////////////////////////////////////////////////
