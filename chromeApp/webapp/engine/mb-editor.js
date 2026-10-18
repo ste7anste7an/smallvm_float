@@ -435,7 +435,7 @@ class MB_Editor {
 		// Remove the pane's definition hat for funcName; a paste that defines it brings its own.
 		const pane = this.scriptsPane();
 		for (const m of pane.children.slice()) {
-			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) {
+			if (this.isDefinitionHatFor(m, funcName)) {
 				if (pane.selection && pane.selection.includes(m)) pane.cancelSelection();
 				m.destroy();
 			}
@@ -450,8 +450,7 @@ class MB_Editor {
 	}
 
 	definitionShown(funcName) {
-		return this.scriptsPane().children.some((m) =>
-			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+		return this.definitionHatFor(funcName) != null;
 	}
 
 	showFunctions(functions) {
@@ -1418,8 +1417,11 @@ console.log('unknown');
 	}
 
 	definitionHatFor(funcName) {
-		return this.scriptsPane().children.find((m) =>
-			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+		return this.scriptsPane().children.find((m) => this.isDefinitionHatFor(m, funcName));
+	}
+
+	isDefinitionHatFor(aMorph, funcName) {
+		return aMorph instanceof BlockMorph && aMorph.selector === 'to' && aMorph.argList()[0] === funcName;
 	}
 
 	showAndScrollToDefinition(funcName) {
