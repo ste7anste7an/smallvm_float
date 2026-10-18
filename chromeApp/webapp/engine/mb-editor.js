@@ -68,6 +68,8 @@ class MB_Editor {
 
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
+		this.paletteResizer = this.newPaneResizer();
+		world.add(this.paletteResizer); // after the panes, so it is in front
 
 		// A right-click that no morph answers opens nothing.
 		world.contextMenu = () => null;
@@ -152,6 +154,39 @@ class MB_Editor {
 			new Point(world.width() - this.paletteWidth,
 			this.palette.height()
 		));
+		if (this.paletteResizer) {
+			this.paletteResizer.setPosition(this.palette.topRight());
+			this.paletteResizer.setExtent(new Point(15, this.palette.height()));
+		}
+	}
+
+	newPaneResizer() {
+		// A strip over the left edge of the scripting area. Dragging it sets the
+		// palette's width, from 90 to 600 and no closer than 25 to the world's right edge.
+		const resizer = new Morph();
+		resizer.color = new Color(180, 180, 255);
+		resizer.alpha = 0; // drawn only while the pointer is over it
+		let offset = 0;
+		const highlight = (on) => {
+			resizer.alpha = on ? 0.6 : 0;
+			world.worldCanvas.style.cursor = on ? 'ew-resize' : '';
+			resizer.changed();
+		};
+		// A block being carried passes through to the scripting area below.
+		resizer.topMorphAt = (point) => (world.hand.children.length ? null : Morph.prototype.topMorphAt.call(resizer, point));
+		resizer.mouseEnter = () => highlight(true);
+		resizer.mouseLeave = () => highlight(false);
+		resizer.mouseDownLeft = (pos) => {
+			offset = pos.x - resizer.left();
+			resizer.lockMouseFocus();
+		};
+		resizer.mouseMove = (pos, button) => {
+			if (button !== 'left') return;
+			const right = pos.x - offset - this.palette.left();
+			this.paletteWidth = Math.max(90, Math.min(right, 600, world.width() - 25));
+			this.fixLayout();
+		};
+		return resizer;
 	}
 
 	scriptsPane() { return this.scripts; }
