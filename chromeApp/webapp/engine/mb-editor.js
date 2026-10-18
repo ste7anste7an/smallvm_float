@@ -160,6 +160,7 @@ class MB_Editor {
 		this.scriptsPane().cancelSelection();
 		let allScripts = this.scriptsPane().children.slice();
 		allScripts.forEach((m) => { m.destroy(); });
+		this.removeResultBubbles(); // they sit on the world, not in the pane
 	}
 
 	addBlockToScriptsAt(b, x, y) {
@@ -1863,6 +1864,7 @@ console.log('unknown');
 	}
 
 	clearProject() {
+		this.closeAllDialogs();
 		this.project = new MB_Project();
 		this.watchProjectVariables();
 		this.codeManager = new MB_CodeManager(this.project);
@@ -1882,6 +1884,21 @@ console.log('unknown');
 		// each of those is an edit. An empty project has nothing to lose.
 		this.unsavedEdits = false;
 		return cleared;
+	}
+
+	closeAllDialogs() {
+		// Close whatever the old project left open: everything on the world but the
+		// two panes, the chrome's windows (the graph among them), the graph's samples and the spinner.
+		// A block in the hand stays, since the hand is not a child of the world.
+		for (const m of world.children.slice()) {
+			if ((m !== this.palette) && (m !== this.scriptsFrame)) m.destroy();
+		}
+		// The port also runs with no DOM, and with a partial one.
+		if ((typeof document !== 'undefined') && (typeof document.querySelectorAll === 'function')) {
+			document.querySelectorAll('win-').forEach((w) => w.remove());
+		}
+		if (this.spinnerShowing) fireIDEEvent('spinner.hide');
+		this.clearLoggedData();
 	}
 
 	updateProjectProperties() {
@@ -2452,10 +2469,32 @@ console.log('unknown');
 			String(value),
 			isError ? new Color(255, 190, 190) : null);
 		world.add(bubble);
+		bubble.step = () => this.followBlock(bubble, block);
+		this.placeResultBubble(bubble, block);
+		this.resultBubbles.set(block, bubble);
+	}
+
+	followBlock(bubble, block) {
+		// Each frame: go when the block is deleted, move when it moves or scrolls.
+		// A removed morph keeps its parent, so the block is gone when any link lets go.
+		let m = block;
+		while (m.parent && m.parent.children.includes(m)) m = m.parent;
+		if (!(m instanceof WorldMorph) && !(m instanceof HandMorph)) {
+			this.removeResultBubble(block);
+			return;
+		}
+		if (!block.bounds.eq(bubble.blockBounds)) this.placeResultBubble(bubble, block);
+	}
+
+	placeResultBubble(bubble, block) {
 		// Bottom left of the bubble at the block's right edge, where GP puts it.
 		bubble.setPosition(block.rightCenter().add(new Point(2, -bubble.height())));
-		bubble.keepWithin(world);
-		this.resultBubbles.set(block, bubble);
+		bubble.keepWithin(block.world());
+		bubble.blockBounds = block.bounds;
+	}
+
+	removeResultBubbles() {
+		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
 	}
 
 	removeResultBubble(aBlock) {
@@ -2539,7 +2578,7 @@ console.log('unknown');
 	clearRunningHighlights() {
 		// Called on disconnect. Everything the board put on the screen goes with
 		// it, bubbles included -- GP clears them together too (:2717).
-		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		this.removeResultBubbles();
 		for (const [block, timer] of this.stoppingHighlights) {
 			clearTimeout(timer);
 			block.removeHighlight();
