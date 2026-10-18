@@ -2396,7 +2396,14 @@ console.log('unknown');
 			fireIDEEvent('spinner.hide');
 		}
 		if (project == null) return;
-		this.project = project;
+		// Loaded the way a file is: a block takes its label from the editor's project,
+		// so the blocks are built once this project is the editor's.
+		this.project = new MB_Project();
+		this.project.loadFromString(project.codeString());
+		// The text does not record which libraries were loaded as implementations.
+		for (const lib of project.libraries.values()) {
+			if (lib.isImplementationLib()) this.project.libraryNamed(lib.moduleName).beImplementation();
+		}
 		this.watchProjectVariables();
 		this.removeAllScripts();
 		this.project.main.scripts.forEach(
