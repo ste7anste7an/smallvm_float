@@ -4090,6 +4090,7 @@ ScriptsMorph.prototype.step = function () {
 	if (hand.children.length === 0) {
 		return null;
 	}
+	this.autoScroll(hand);
 	if (!this.bounds.containsPoint(hand.bounds.origin)) {
 		return null;
 	}
@@ -4105,6 +4106,23 @@ ScriptsMorph.prototype.step = function () {
 	} else {
 		this.showCommandDropFeedback(block);
 	}
+};
+
+ScriptsMorph.prototype.autoScroll = function (hand) {
+	// While a block is held within 80 pixels of an edge of the pane, scroll 15 pixels
+	// that way each frame.
+	var frame = this.scrollFrame,
+		pos = hand.bounds.origin,
+		zone = 80, jump = 15, dx = 0, dy = 0;
+
+	if (!frame || !frame.bounds.containsPoint(pos) || !this.wantsDropOf(hand.children[0])) return;
+	if (pos.x - frame.left() < zone) dx = jump;
+	if (frame.right() - pos.x < zone) dx = -jump;
+	if (pos.y - frame.top() < zone) dy = jump;
+	if (frame.bottom() - pos.y < zone) dy = -jump;
+	if (dx) frame.scrollX(dx);
+	if (dy) frame.scrollY(dy);
+	if (dx || dy) frame.adjustScrollBars();
 };
 
 ScriptsMorph.prototype.showReporterDropFeedback = function (block, hand) {

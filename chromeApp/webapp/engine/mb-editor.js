@@ -61,6 +61,9 @@ class MB_Editor {
 		// What FrameMorph's constructor would have set; ScriptsMorph takes no
 		// scroll frame, and adjustBounds does nothing without one.
 		this.scripts.scrollFrame = this.scriptsFrame;
+		// The scripting pane scrolls itself while a block is dragged near its edge; the palette does not.
+		this.scriptsFrame.enableAutoScrolling = false;
+		this.palette.enableAutoScrolling = false;
 
 		// The panes exist now, so they can take their colours. This is the only
 		// place that gives them one, here and on every later change.
