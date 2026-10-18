@@ -5459,6 +5459,13 @@ InputSlotMorph.prototype.freshTextEdit = function (aStringOrTextMorph) {
 	this.onNextStep = () => aStringOrTextMorph.selectAll();
 };
 
+// InputSlotMorph replacing
+
+InputSlotMorph.prototype.isLocked = function () {
+	// A hat block's inputs take no dropped reporter.
+	return this.parentThatIsA(BlockMorph) instanceof HatBlockMorph;
+};
+
 // InputSlotMorph evaluating:
 
 InputSlotMorph.prototype.evaluate = function () {
