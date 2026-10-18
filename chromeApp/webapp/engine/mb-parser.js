@@ -18,19 +18,26 @@ class MB_Parser {
 		this.complete = false;
 		this.inString = false;
 		this.EOF = {}; // Unique value indicating that there is no more data to parse
+		this.problems = []; // each syntax error reported, in order
 	}
 
 	// Public class methods
 
-	static parse(srcString, fileName = '<string>') {
+	static parse(srcString, fileName = '<string>', problems = null) {
 		// Parse the given string containing zero or more commands.
-		// Return an array of command parse trees.
+		// Return an array of command parse trees. Parsing stops at the first
+		// command that cannot be read; a problems array, if given, collects the
+		// syntax errors that stopped it, so it stays empty when the whole string was read.
 
 		let result = [];
 		let p = new MB_Parser(srcString, fileName);
 		while (!p.atEnd()) {
+			const reported = p.problems.length;
 			let parseTree = p.nextParseTree(false);
-			if (!parseTree) break;
+			if (!parseTree) {
+				if (problems) problems.push(...p.problems.slice(reported));
+				break;
+			}
 			result.push(parseTree);
 		}
 		return result;
@@ -639,6 +646,7 @@ class MB_Parser {
 
 	parseError(problem) {
 		console.log('MicroBlocks syntax error:', (this.fileName + ':' + this.lineNumber), problem);
+		this.problems.push(problem);
 	}
 
 } // end of class MB_Parser

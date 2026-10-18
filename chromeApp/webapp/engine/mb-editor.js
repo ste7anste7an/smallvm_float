@@ -2116,6 +2116,12 @@ console.log('unknown');
 	}
 
 	async openProjectFromString(contents, name, clearFirst = true) {
+		if (!MB_Project.isProjectText(contents)) {
+			// Opening it would replace the project, and the board's code, with
+			// whatever part of it could be read.
+			alert(localized('Could not read: ') + name);
+			return;
+		}
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
 		// Asked before anything is cleared, so the open project and the board stay as
 		// they are until every question is answered.
