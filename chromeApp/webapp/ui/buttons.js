@@ -91,7 +91,7 @@ const Buttons = {
 		action: () => {
 			GP.apiCall('scripts.zoomOut', [], () => { IDE.recreateScriptControls(); });
 		},
-		disabled: () => { return IDE.userPreference('blockSizePercent') <= 50; }
+		disabled: () => { return IDE.blockSizePercent() <= 50; }
 	},
 	restoreZoom: {
 		icon: 'zoom-restore--16x16',
@@ -101,7 +101,7 @@ const Buttons = {
 		action: () => {
 			GP.apiCall('scripts.restoreZoom', [], () => { IDE.recreateScriptControls(); });
 		},
-		disabled: () => { return IDE.userPreference('blockSizePercent') == 100; }
+		disabled: () => { return IDE.blockSizePercent() == 100; }
 	},
 	zoomIn: {
 		icon: 'zoom-in--16x16',

@@ -39,7 +39,7 @@ class MB_Editor {
 		this.undoStack = [];
 		this.redoStack = [];
 		this.watchProjectVariables();
-		this.blockSize = 125;
+		this.blockSize = 100;
 	}
 
 	open(world) {

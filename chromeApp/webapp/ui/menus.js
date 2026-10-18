@@ -348,7 +348,7 @@ Menus.blockZoomLevels = {
 		return {
 			label: level + '%',
 			action: (target) => { GP.apiCall('scripts.setZoom', [level]); },
-			checked: () => { return IDE.userPreference('blockSizePercent') == level }
+			checked: () => { return IDE.blockSizePercent() == level }
 		}
 	})
 };
