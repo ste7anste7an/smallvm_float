@@ -43,7 +43,7 @@ class MB_Editor {
 	}
 
 	open(world) {
-		this.paletteWidth = 200;
+		this.paletteWidth = 208;
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.contents.acceptsDrops = true;
