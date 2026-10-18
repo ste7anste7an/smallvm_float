@@ -2038,11 +2038,13 @@ BlockMorph.prototype.expand = function () {
 	}
 	this.cachedInputs = null;
 	this.addExpander();
+	this.fixElseSection();
 	this.fixLayout();
 }
 
 BlockMorph.prototype.contract = function () {
-	// Remove my last expansion section. Blocks in its slots are kept on the scripts pane.
+	// Remove my last expansion section. Blocks in its slots are kept on the scripts pane:
+	// a command stack just to my right, a reporter just to the right of my script.
 
 	if (!this.canContract()) return;
 
@@ -2050,18 +2052,60 @@ BlockMorph.prototype.contract = function () {
 	const nb = this.nextBlock ? this.nextBlock() : null; // a child, often the last one
 	const parts = this.children.filter(m => m !== nb);
 	const scripts = this.parentThatIsA(ScriptsMorph);
+	const kept = [];
 	for (const p of parts.slice(-this.specForContract().split(/\s+/).length)) {
 		this.removeChild(p);
 		const keep = (p instanceof CSlotMorph) ? p.nestedBlock() : p;
-		if (scripts && keep instanceof BlockMorph && !keep.isTemplate) {
-			const pos = keep.topLeft();
-			scripts.add(keep);
-			keep.setPosition(pos.add(20));
-		}
+		if (scripts && keep instanceof BlockMorph && !keep.isTemplate) kept.push(keep);
 	}
 	this.cachedInputs = null;
 	this.addExpander();
+	this.fixElseSection();
 	this.fixLayout();
+
+	const blockRight = this.children.filter(m => m !== nb)
+		.reduce((right, m) => Math.max(right, m.fullBounds().right()), this.right());
+	const scriptRight = this.topBlock().fullBounds().right();
+	for (const keep of kept) {
+		const x = (keep instanceof CommandBlockMorph) ? blockRight : scriptRight;
+		scripts.addClearOfScripts(keep, new Point(x + scripts.cleanUpSpacing, keep.top()));
+	}
+}
+
+BlockMorph.prototype.fixElseSection = function () {
+	// An 'if' whose last condition is the constant true shows that section as just 'else'.
+
+	if (this.selector !== 'if') return;
+	const specSections = this.blockSpec.split(':').map(s => this.parseSpec(s.trim()));
+	if (specSections.length < 2) return;
+	const words = specSections[1].filter(w => w[0] !== '%');
+	const nb = this.nextBlock ? this.nextBlock() : null;
+	const parts = this.children.filter(m => (m !== nb) && (m !== this.expander));
+	const size = specSections[1].length;
+	let changed = false;
+	for (let i = specSections[0].length; i < parts.length; i += size) {
+		const section = parts.slice(i, i + size);
+		const cond = section.find(m => m instanceof SyntaxElementMorph && !(m instanceof CSlotMorph));
+		const isElse = (i + size === parts.length) && (cond instanceof BooleanSlotMorph) &&
+			(cond.value === true) && (cond.mbValue === undefined); // a real true, not a kept literal
+		const labels = section.filter(m => m instanceof StringMorph);
+		labels.forEach((label, j) => {
+			if (label.isVisible !== (!isElse || (j === 0))) changed = true;
+			label.isVisible = !isElse || (j === 0);
+			const text = (isElse && (j === 0)) ? localized('else') : words[j];
+			if (text && (label.text !== text)) {
+				label.text = text;
+				label.fixLayout();
+				label.rerender();
+				changed = true;
+			}
+		});
+		if (cond instanceof BooleanSlotMorph) {
+			cond.isVisible = !isElse;
+			cond.isStatic = isElse; // not replaced by a dropped reporter
+		}
+	}
+	if (changed) this.fixLayout();
 }
 
 BlockMorph.prototype.maxInputCount = function () {
@@ -4248,6 +4292,19 @@ ScriptsMorph.prototype.cleanUp = function () {
 		target.setPosition(target.parent.topLeft());
 	}
 	target.adjustBounds();
+};
+
+ScriptsMorph.prototype.addClearOfScripts = function (aBlock, position) {
+	// Add aBlock at position, moved down past any block already in the way.
+
+	const others = this.children.filter(m => m instanceof BlockMorph)
+		.flatMap(m => m.allChildren().filter(b => b instanceof BlockMorph));
+	this.add(aBlock);
+	aBlock.setPosition(position);
+	let inTheWay;
+	while ((inTheWay = others.find(b => b.bounds.intersects(aBlock.fullBounds())))) {
+		aBlock.setTop(inTheWay.bottom() + this.cleanUpSpacing);
+	}
 };
 
 ScriptsMorph.prototype.scriptsPicture = function () {
