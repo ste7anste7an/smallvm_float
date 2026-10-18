@@ -758,7 +758,7 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 			case 'variable':
 				part = new TemplateSlotMorph(info.label);
 				part = new ReporterBlockMorph();
-				part.category = 'variables';
+				part.category = 'Variables';
 				part.color = SpriteMorph.prototype.blockColor.variables;
 				part.setSpec(localized('Input name'));
 				break;
@@ -3760,9 +3760,6 @@ ReporterBlockMorph.prototype.prepareToBeGrabbed = function (handMorph) {
 		this.setPosition(oldPos);
 	}
 	ReporterBlockMorph.uber.prepareToBeGrabbed.call(this, handMorph);
-	if (handMorph) {
-		handMorph.alpha = this.alpha < 1 ? 1 : 0.85;
-	}
 	this.cachedSlotSpec = null;
 };
 
@@ -6230,13 +6227,6 @@ ColorSlotMorph.prototype.setColor = function (clr) {
 			: (clr instanceof Color ? clr : new Color(145, 26, 68))
 	);
 };
-
- // ColorSlotMorph replacing
-
-ColorSlotMorph.prototype.isLocked = function () {
- 	// I cannot be replaced by a dropped reporter.
-	return true;
-}
 
 // ColorSlotMorph color sensing:
 
