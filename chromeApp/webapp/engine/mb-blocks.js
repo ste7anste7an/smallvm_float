@@ -4195,6 +4195,7 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 				(child.fullBounds().intersects(fb))
 		),
 		blackList = reporter.allInputs(),
+		aimsAtLocked,
 		handPos,
 		target,
 		all;
@@ -4208,6 +4209,10 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 	function touchingVariadicArrowsIfAny(inp, point) {
 		return true;
 	}
+
+	// A reporter held over a slot that refuses it is not dropped into a neighbour.
+	aimsAtLocked = hand && detect(all, input => input.isLocked() &&
+		!(input instanceof CommandSlotMorph) && input.bounds.containsPoint(hand.position()));
 
 	if (this.isPreferringEmptySlots) {
 		if (hand) {
@@ -4226,7 +4231,7 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 				return target;
 			}
 		}
-		target = detect(
+		target = !aimsAtLocked && detect(
 			all,
 			input => (input instanceof InputSlotMorph ||
 					input instanceof ArgMorph ||
@@ -4255,6 +4260,9 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 		if (target) {
 			return target;
 		}
+	}
+	if (aimsAtLocked) {
+		return null;
 	}
 	return detect(
 		all,
@@ -5462,8 +5470,9 @@ InputSlotMorph.prototype.freshTextEdit = function (aStringOrTextMorph) {
 // InputSlotMorph replacing
 
 InputSlotMorph.prototype.isLocked = function () {
-	// A hat block's inputs take no dropped reporter.
-	return this.parentThatIsA(BlockMorph) instanceof HatBlockMorph;
+	// A hat block's inputs and a variable name menu take no dropped reporter.
+	return (this.parentThatIsA(BlockMorph) instanceof HatBlockMorph) ||
+		(this.choices === 'allVarsMenu');
 };
 
 // InputSlotMorph evaluating:
@@ -5740,14 +5749,8 @@ TemplateSlotMorph.prototype.fixLayout = function () {
 
 // TemplateSlotMorph drop behavior:
 
-TemplateSlotMorph.prototype.wantsDropOf = function (aMorph) {
-	return aMorph.selector === 'v';
-};
-
-TemplateSlotMorph.prototype.reactToDropOf = function (droppedMorph) {
-	if (droppedMorph.selector === 'v') {
-		droppedMorph.destroy();
-	}
+TemplateSlotMorph.prototype.isLocked = function () {
+	return true;
 };
 
 // TemplateSlotMorph drawing:
