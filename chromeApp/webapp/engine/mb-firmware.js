@@ -10,8 +10,8 @@
 const MB_Firmware = {
 	boardMenu: [
 		'micro:bit', 'Calliope', '-',
-		'Citilab ED1', 'CoCube', 'Databot', 'Databot v3', 'ESP32 STEAMakers', 'KidsBits',
-		'micro:STEAMakers', 'STEAMakers AI', 'Springbot', '-',
+		'Citilab ED1', 'CoCube', 'Databot', 'Databot v3', 'Springbot', '-',
+		'KidsBits', 'ESP32 STEAMakers', 'micro:STEAMakers', 'STEAMakers AI', '-',
 		'RP2040 (Pico or Pico W)', 'MakerPort', '-',
 		'WeAct STM32H743', 'DUELink', '-',
 		'ESP32'],
