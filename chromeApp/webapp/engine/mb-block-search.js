@@ -10,109 +10,30 @@
 // the loaded libraries and every shipped library, loaded or not. The box goes
 // away when a block is taken from it, when Escape is pressed, or when the
 // keyboard moves elsewhere with no results showing.
+//
+// MB_BlockSearch finds the blocks and hands them over; MB_BlockSearchBox is the
+// box drawn on it. A view of another kind needs only MB_BlockSearch.
 
 /* global MB_editor, MB_Files, MB_Parser, MB_Specs, localized, parsedSpecs, stringArg, blockScale,
 	BoxMorph, Color, CursorMorph, MenuItemMorph, MenuMorph, Morph, Point, StringMorph, GetText, newCanvas,
 	world */
 
-class MB_BlockSearchBox {
+class MB_BlockSearch {
+	// A search of the open project's blocks. search() and recents() answer entries,
+	// { kind: 'block', block } for a block the project has or { kind: 'lib', libName,
+	// spec, category } for one from a shipped library it lacks, and the other methods
+	// take one: pictureFor() to show it, place() or pickUp() to take it. The index is
+	// rebuilt after a take loads a library; after other project changes, call buildIndex().
+
 	static recents = []; // descriptors of the blocks most recently taken, newest first
 	static builtinIndex = null; // [language, devMode, entries]
 	static libraryIndex = null; // [language, devMode, promise of entries]
 	static maxMatches = 10;
-	static keyTaken = false; // the box acted on the key the IDE is about to see
 	static imports = new Map(); // library name -> its loading, while it loads
 
-	static open() {
-		// Show the box, or give the keys back to the one already showing.
-
-		const existing = world.children.find((m) => m.searchBox instanceof MB_BlockSearchBox);
-		if (existing) {
-			existing.searchBox.startEditing();
-			return existing.searchBox;
-		}
-		const box = new MB_BlockSearchBox();
-		world.add(box.morph);
-		box.startEditing();
-		box.showRecents();
-		// Reading every shipped library takes a while, so start while the box opens.
-		box.libraryEntries();
-		return box;
-	}
-
-	static tookKey() {
-		// Whether the box acted on the key now reaching the IDE's listener. Enter and
-		// Escape end the edit before that listener runs, so it cannot tell by the focus.
-
-		const taken = this.keyTaken;
-		this.keyTaken = false;
-		return taken;
-	}
-
 	constructor() {
-		const dark = MB_editor.darkMode();
-		const textColor = dark ? new Color(230, 230, 230) : new Color(30, 30, 30);
-		const hintColor = dark ? new Color(130, 145, 160) : new Color(150, 150, 150);
-
-		this.morph = new BoxMorph(8, 1, dark ? new Color(100, 115, 130) : new Color(150, 150, 150));
-		this.morph.color = dark ? new Color(50, 60, 70) : new Color(240, 240, 240);
-		this.morph.setExtent(new Point(Math.min(440, world.width() - 20), 40));
-		this.morph.setCenter(new Point(world.center().x, 0));
-		this.morph.setTop(world.top() + 8);
-		this.morph.searchBox = this;
-		this.morph.fps = 10;
-		this.morph.step = () => this.step();
-		this.morph.mouseClickLeft = () => this.startEditing();
-		this.morph.reactToInput = () => this.textEdited();
-		this.morph.reactToKeystroke = (event) => this.keystroke(event);
-		this.morph.nextTab = () => this.selectMatch(1);
-		this.morph.previousTab = () => this.selectMatch(-1);
-		this.morph.accept = () => { MB_BlockSearchBox.keyTaken = true; this.placeSelectedMatch(); };
-		this.morph.cancel = () => { MB_BlockSearchBox.keyTaken = true; this.dismiss(); };
-		this.morph.destroy = () => this.destroyed();
-
-		this.morph.add(this.searchIcon());
-		this.searchText = new StringMorph('', 20);
-		this.searchText.isEditable = true;
-		this.searchText.color = textColor;
-		this.searchText.setPosition(this.morph.position().add(new Point(40, 8)));
-		this.morph.add(this.searchText);
-		this.hintText = new StringMorph(localized('search blocks and variables...'), 20);
-		this.hintText.color = hintColor;
-		this.hintText.setPosition(this.searchText.position());
-		this.morph.add(this.hintText);
-
-		this.menu = null;
-		this.matches = [];
-		this.pendingSearch = null;
-		this.lastEditMSecs = 0;
+		this.libraryIndexEntries = null;
 		this.buildIndex();
-	}
-
-	searchIcon() {
-		// A magnifying glass at the left of the box.
-
-		const icon = new Morph();
-		icon.setExtent(new Point(20, 20));
-		icon.setPosition(this.morph.position().add(new Point(12, 10)));
-		icon.render = (ctx) => {
-			ctx.strokeStyle = 'rgb(150, 150, 150)';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.arc(8, 8, 6, 0, 2 * Math.PI);
-			ctx.moveTo(12.5, 12.5);
-			ctx.lineTo(18, 18);
-			ctx.stroke();
-		};
-		return icon;
-	}
-
-	startEditing() {
-		world.edit(this.searchText);
-	}
-
-	isEditing() {
-		return (world.cursor instanceof CursorMorph) && (world.cursor.target === this.searchText);
 	}
 
 	// search index
@@ -139,7 +60,7 @@ class MB_BlockSearchBox {
 		}
 		for (const [op, kind] of [['=', 'varSet'], ['+=', 'varChange']]) {
 			const spec = MB_Specs.specArrayForSelector(op);
-			if (spec) index.push({ words: MB_BlockSearchBox.searchWords(spec).concat(allVarWords), kind, spec, varNames });
+			if (spec) index.push({ words: MB_BlockSearch.searchWords(spec).concat(allVarWords), kind, spec, varNames });
 		}
 
 		for (const func of project.main.functions) {
@@ -147,10 +68,10 @@ class MB_BlockSearchBox {
 			if (seenOps.has(op) || (op.startsWith('_') && !showHidden)) continue;
 			seenOps.add(op);
 			const spec = MB_editor.paletteSpecForFunction(func);
-			index.push({ words: MB_BlockSearchBox.searchWords(spec), kind: 'spec', spec, category: 'My Blocks' });
+			index.push({ words: MB_BlockSearch.searchWords(spec), kind: 'spec', spec, category: 'My Blocks' });
 		}
 
-		for (const entry of MB_BlockSearchBox.builtinEntries()) {
+		for (const entry of MB_BlockSearch.builtinEntries()) {
 			if (seenOps.has(entry.spec[1])) continue;
 			seenOps.add(entry.spec[1]);
 			index.push(entry);
@@ -169,7 +90,7 @@ class MB_BlockSearchBox {
 				const spec = MB_Specs.specArrayForProjectSpec(project.blockSpecs.get(op))
 					|| MB_Specs.specArrayForSelector(op);
 				if (spec) {
-					index.push({ words: MB_BlockSearchBox.searchWords(spec, libWords), kind: 'spec', spec,
+					index.push({ words: MB_BlockSearch.searchWords(spec, libWords), kind: 'spec', spec,
 						category: lib.moduleCategory });
 				}
 			}
@@ -193,8 +114,8 @@ class MB_BlockSearchBox {
 	}
 
 	static builtinEntries() {
-		// The palette's own blocks, other than the variable blocks, which the box
-		// offers per variable. Kept until the language or developer mode changes.
+		// The palette's own blocks, other than the variable blocks, which are
+		// offered per variable. Kept until the language or developer mode changes.
 
 		const lang = GetText.currentLocale, dev = MB_editor.devMode();
 		const cached = this.builtinIndex;
@@ -219,19 +140,19 @@ class MB_BlockSearchBox {
 		return entries;
 	}
 
-	libraryEntries() {
-		// Every shipped library's blocks, loaded or not, as { words, libName, spec,
-		// category, isKit }, once they have been read. Read on first use and again
-		// when the language or developer mode changes.
+	readLibraries() {
+		// Read every shipped library's blocks, loaded or not. Answers a promise of
+		// whether the reading finished; search() includes what was read from then on.
+		// They are read on first use and again when the language or developer mode changes.
 
 		const lang = GetText.currentLocale, dev = MB_editor.devMode();
-		let cached = MB_BlockSearchBox.libraryIndex;
+		let cached = MB_BlockSearch.libraryIndex;
 		if (!cached || (cached[0] !== lang) || (cached[1] !== dev)) {
 			// An index built before the file list arrives, or short a file that could
-			// not be read, serves this box but is not kept, so the next box reads again.
+			// not be read, serves this search but is not kept, so the next one reads again.
 			const paths = MB_Files.allFilesIn('Libraries').filter((p) => p.endsWith('.ubl') && !p.includes('Other/System'));
 			const index = [lang, dev, null];
-			const forget = () => { if (MB_BlockSearchBox.libraryIndex === index) MB_BlockSearchBox.libraryIndex = null; };
+			const forget = () => { if (MB_BlockSearch.libraryIndex === index) MB_BlockSearch.libraryIndex = null; };
 			index[2] = Promise.all(paths.map((p) => MB_Files.readFile(p))).then((texts) => {
 				const entries = [];
 				texts.forEach((data, i) => { if (data !== undefined) this.addLibraryEntries(entries, data, paths[i], dev); });
@@ -239,12 +160,13 @@ class MB_BlockSearchBox {
 				return entries;
 			});
 			index[2].catch(forget);
-			cached = MB_BlockSearchBox.libraryIndex = index;
+			cached = MB_BlockSearch.libraryIndex = index;
 		}
-		cached[2].then((entries) => {
+		return cached[2].then((entries) => {
+			// Entries are { words, libName, spec, category, isKit }.
 			this.libraryIndexEntries = entries;
-			this.libraryIndexReady();
-		}, () => null);
+			return true;
+		}, () => false);
 	}
 
 	addLibraryEntries(entries, data, filePath, dev) {
@@ -272,52 +194,18 @@ class MB_BlockSearchBox {
 			const spec = MB_Specs.specArrayForProjectSpec(specs.get(op));
 			if (!spec || op.startsWith('_') || seenOps.has(op)) continue;
 			seenOps.add(op);
-			entries.push({ words: MB_BlockSearchBox.searchWords(spec, extraWords), libName, spec, category, isKit });
+			entries.push({ words: MB_BlockSearch.searchWords(spec, extraWords), libName, spec, category, isKit });
 		}
 	}
 
-	libraryIndexReady() {
-		// Show the shipped libraries' matches for a query typed before they were read.
+	// searching
 
-		if (!this.morph.parent || this.pendingSearch) return;
-		const s = this.searchText.text;
-		if ('' !== s) {
-			this.matches = this.findMatches(s);
-			this.showMatchesMenu(true);
-		}
-	}
+	search(searchString) {
+		// The entries matching the query, best first, ten at most. A prefix of a
+		// word ranks above a part of one, and the shipped libraries' blocks fill
+		// what rows are left once readLibraries() has read them.
 
-	// incremental search
-
-	textEdited() {
-		const s = this.searchText.text;
-		if ('' === s) {
-			this.hintText.show();
-			this.pendingSearch = null;
-			this.showRecents();
-			return;
-		}
-		this.hintText.hide();
-		// Searching on every keystroke lags on a slow machine, so the search
-		// runs from step once typing pauses.
-		this.pendingSearch = s;
-		this.lastEditMSecs = Date.now();
-	}
-
-	runPendingSearch() {
-		if (null === this.pendingSearch) return;
-		const s = this.pendingSearch;
-		this.pendingSearch = null;
-		this.matches = this.findMatches(s);
-		this.showMatchesMenu(true);
-	}
-
-	findMatches(searchString) {
-		// Matches are { kind: 'block', block } for a block the project has, or
-		// { kind: 'lib', libName, spec, category } for one from a shipped library
-		// that is not loaded yet. A prefix of a word ranks above a part of one.
-
-		const max = MB_BlockSearchBox.maxMatches;
+		const max = MB_BlockSearch.maxMatches;
 		const sought = this.wordsOf(searchString.toUpperCase());
 		if (sought.length === 0) return [];
 		const prefixEntries = [], substringEntries = [];
@@ -391,6 +279,267 @@ class MB_BlockSearchBox {
 		return sought.every((s) => words.some((w) => w.includes(s)));
 	}
 
+	pictureFor(entry) {
+		// A canvas of the entry's block, redrawn smaller when it is taller than two
+		// rows, so that a few tall blocks cannot crowd out the rest of a list.
+
+		const aBlock = ('lib' === entry.kind) ? MB_Specs.blockForSpec(entry.spec, entry.category) : entry.block;
+		aBlock.fixLayout();
+		const image = aBlock.fullImage();
+		const maxHeight = 62 * blockScale();
+		if (image.height <= maxHeight) return image;
+		const factor = maxHeight / image.height;
+		const smaller = aBlock.fullCopy();
+		MB_editor.resizeBlock(smaller, factor, blockScale() * factor);
+		const smallImage = smaller.fullImage();
+		if (smallImage.height <= maxHeight) return smallImage;
+		// Block layout does not scale quite linearly, so trim what is left over.
+		const w = Math.floor((smallImage.width * maxHeight) / smallImage.height);
+		const result = newCanvas(new Point(w, maxHeight));
+		result.getContext('2d').drawImage(smallImage, 0, 0, w, maxHeight);
+		return result;
+	}
+
+	// recently taken blocks
+
+	recents() {
+		// Entries for the blocks last taken, newest first, without any the project no longer has.
+
+		const result = [];
+		const vars = MB_editor.visibleVars();
+		for (const desc of MB_BlockSearch.recents) {
+			const arg = desc.slice(4);
+			if (desc.startsWith('var ')) {
+				if (vars.includes(arg)) result.push(this.variableBlock('v', arg));
+			} else if (desc.startsWith('set ')) {
+				result.push(this.variableBlock('=', vars.includes(arg) ? arg : ''));
+			} else if (desc.startsWith('chg ')) {
+				result.push(this.variableBlock('+=', vars.includes(arg) ? arg : ''));
+			} else if (desc.startsWith('op ')) {
+				const entry = this.searchIndex.find((e) => ('spec' === e.kind) && (e.spec[1] === desc.slice(3)));
+				if (entry) result.push(MB_Specs.blockForSpec(entry.spec, entry.category));
+			}
+		}
+		return result.map((block) => ({ kind: 'block', block }));
+	}
+
+	static recordRecent(desc) {
+		// The set and change blocks are one row each whatever variable they
+		// show, so only the newest of each is kept.
+
+		let recents = this.recents.filter((d) => d !== desc);
+		for (const prefix of ['set ', 'chg ']) {
+			if (desc.startsWith(prefix)) recents = recents.filter((d) => !d.startsWith(prefix));
+		}
+		recents.unshift(desc);
+		this.recents = recents.slice(0, 6);
+	}
+
+	recentDescriptorFor(aBlock) {
+		const op = aBlock.selector;
+		if ('v' === op) return 'var ' + aBlock.blockSpec;
+		if ('=' === op) return 'set ' + aBlock.inputs()[0].evaluate();
+		if ('+=' === op) return 'chg ' + aBlock.inputs()[0].evaluate();
+		return 'op ' + op;
+	}
+
+	// taking a block
+
+	pickUp(entry) {
+		// Put the entry's block in an empty hand, to be dropped as one dragged from the
+		// palette is, and answer whether it went. A block the project has is in the hand
+		// when this returns; one from a library comes once it has loaded, so this answers
+		// a promise of it, and the block follows the pointer until the next click.
+
+		if ('lib' === entry.kind) {
+			return this.importedLibraryBlock(entry.libName, entry.spec).then((block) => this.grabNewBlock(block));
+		}
+		return this.grabNewBlock(entry.block);
+	}
+
+	async place(entry) {
+		// Add the entry's block below the scripts and scroll to it, for the keyboard,
+		// as the pointer may be anywhere while it is in use.
+
+		let block;
+		if ('lib' === entry.kind) {
+			MB_BlockSearch.recordRecent('op ' + entry.spec[1]);
+			block = await this.importedLibraryBlock(entry.libName, entry.spec);
+		} else {
+			block = entry.block;
+			MB_BlockSearch.recordRecent(this.recentDescriptorFor(block));
+		}
+		block.isTemplate = false;
+		block.isDraggable = true;
+		MB_editor.addToBottom(block);
+		MB_editor.scriptChanged(); // as a dropped block is
+		MB_editor.scrollScriptsToShow(block.fullBounds());
+	}
+
+	async importedLibraryBlock(libName, spec) {
+		// Load the library, with the libraries it depends on, and answer a block
+		// for the spec, as the loaded library defines it.
+
+		// Two quick takes from one library load it once.
+		let loading = MB_BlockSearch.imports.get(libName);
+		if (!loading) {
+			loading = MB_editor.installLibraryNamed(libName).finally(() => MB_BlockSearch.imports.delete(libName));
+			MB_BlockSearch.imports.set(libName, loading);
+		}
+		await loading;
+		this.buildIndex();
+		const project = MB_editor.project;
+		const lib = project.libraryNamed(libName);
+		const loaded = MB_Specs.specArrayForProjectSpec(project.blockSpecs.get(spec[1]));
+		return MB_Specs.blockForSpec(loaded || spec, lib ? lib.moduleCategory : 'Library');
+	}
+
+	grabNewBlock(aBlock) {
+		// Put the block in the hand if it is empty, and count it as taken. It is a copy
+		// of nothing, so it is not a template.
+
+		if (world.hand.children.length > 0) return false;
+		MB_BlockSearch.recordRecent(this.recentDescriptorFor(aBlock));
+		aBlock.isTemplate = false;
+		aBlock.isDraggable = true;
+		aBlock.fixLayout();
+		aBlock.setPosition(world.hand.position().subtract(10));
+		world.hand.grab(aBlock);
+		return true;
+	}
+}
+
+class MB_BlockSearchBox {
+	static keyTaken = false; // the box acted on the key the IDE is about to see
+
+	static open() {
+		// Show the box, or give the keys back to the one already showing.
+
+		const existing = world.children.find((m) => m.searchBox instanceof MB_BlockSearchBox);
+		if (existing) {
+			existing.searchBox.startEditing();
+			return existing.searchBox;
+		}
+		const box = new MB_BlockSearchBox();
+		world.add(box.morph);
+		box.startEditing();
+		box.showRecents();
+		// Reading every shipped library takes a while, so start while the box opens.
+		box.blockSearch.readLibraries().then((read) => { if (read) box.libraryIndexReady(); });
+		return box;
+	}
+
+	static tookKey() {
+		// Whether the box acted on the key now reaching the IDE's listener. Enter and
+		// Escape end the edit before that listener runs, so it cannot tell by the focus.
+
+		const taken = this.keyTaken;
+		this.keyTaken = false;
+		return taken;
+	}
+
+	constructor() {
+		const dark = MB_editor.darkMode();
+		const textColor = dark ? new Color(230, 230, 230) : new Color(30, 30, 30);
+		const hintColor = dark ? new Color(130, 145, 160) : new Color(150, 150, 150);
+
+		this.morph = new BoxMorph(8, 1, dark ? new Color(100, 115, 130) : new Color(150, 150, 150));
+		this.morph.color = dark ? new Color(50, 60, 70) : new Color(240, 240, 240);
+		this.morph.setExtent(new Point(Math.min(440, world.width() - 20), 40));
+		this.morph.setCenter(new Point(world.center().x, 0));
+		this.morph.setTop(world.top() + 8);
+		this.morph.searchBox = this;
+		this.morph.fps = 10;
+		this.morph.step = () => this.step();
+		this.morph.mouseClickLeft = () => this.startEditing();
+		this.morph.reactToInput = () => this.textEdited();
+		this.morph.reactToKeystroke = (event) => this.keystroke(event);
+		this.morph.nextTab = () => this.selectMatch(1);
+		this.morph.previousTab = () => this.selectMatch(-1);
+		this.morph.accept = () => { MB_BlockSearchBox.keyTaken = true; this.placeSelectedMatch(); };
+		this.morph.cancel = () => { MB_BlockSearchBox.keyTaken = true; this.dismiss(); };
+		this.morph.destroy = () => this.destroyed();
+
+		this.morph.add(this.searchIcon());
+		this.searchText = new StringMorph('', 20);
+		this.searchText.isEditable = true;
+		this.searchText.color = textColor;
+		this.searchText.setPosition(this.morph.position().add(new Point(40, 8)));
+		this.morph.add(this.searchText);
+		this.hintText = new StringMorph(localized('search blocks and variables...'), 20);
+		this.hintText.color = hintColor;
+		this.hintText.setPosition(this.searchText.position());
+		this.morph.add(this.hintText);
+
+		this.menu = null;
+		this.matches = [];
+		this.pendingSearch = null;
+		this.lastEditMSecs = 0;
+		this.blockSearch = new MB_BlockSearch();
+	}
+
+	searchIcon() {
+		// A magnifying glass at the left of the box.
+
+		const icon = new Morph();
+		icon.setExtent(new Point(20, 20));
+		icon.setPosition(this.morph.position().add(new Point(12, 10)));
+		icon.render = (ctx) => {
+			ctx.strokeStyle = 'rgb(150, 150, 150)';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.arc(8, 8, 6, 0, 2 * Math.PI);
+			ctx.moveTo(12.5, 12.5);
+			ctx.lineTo(18, 18);
+			ctx.stroke();
+		};
+		return icon;
+	}
+
+	startEditing() {
+		world.edit(this.searchText);
+	}
+
+	isEditing() {
+		return (world.cursor instanceof CursorMorph) && (world.cursor.target === this.searchText);
+	}
+
+	libraryIndexReady() {
+		// Show the shipped libraries' matches for a query typed before they were read.
+
+		if (!this.morph.parent || this.pendingSearch) return;
+		const s = this.searchText.text;
+		if ('' !== s) {
+			this.matches = this.blockSearch.search(s);
+			this.showMatchesMenu(true);
+		}
+	}
+
+	// incremental search
+
+	textEdited() {
+		const s = this.searchText.text;
+		if ('' === s) {
+			this.hintText.show();
+			this.pendingSearch = null;
+			this.showRecents();
+			return;
+		}
+		this.hintText.hide();
+		// Searching on every keystroke lags on a slow machine, so the search
+		// runs from step once typing pauses.
+		this.pendingSearch = s;
+		this.lastEditMSecs = Date.now();
+	}
+
+	runPendingSearch() {
+		if (null === this.pendingSearch) return;
+		const s = this.pendingSearch;
+		this.pendingSearch = null;
+		this.matches = this.blockSearch.search(s);
+		this.showMatchesMenu(true);
+	}
+
 	// results menu
 
 	showMatchesMenu(showNoMatch) {
@@ -408,12 +557,8 @@ class MB_BlockSearchBox {
 
 		// Every row is drawn first so they can share one width, with any library
 		// name against its right edge, and the names line up in a column.
-		const rows = this.matches.map((m) => {
-			if ('block' === m.kind) return [m.kind, this.resultImage(m.block), null, () => this.grabBlock(m.block)];
-			const b = MB_Specs.blockForSpec(m.spec, m.category);
-			return [m.kind, this.resultImage(b), this.libraryLabel(m.libName),
-				() => this.grabLibraryBlock(m.libName, m.spec)];
-		});
+		const rows = this.matches.map((m) => [m.kind, this.blockSearch.pictureFor(m),
+			('lib' === m.kind) ? this.libraryLabel(m.libName) : null, () => this.grab(m)]);
 		let rowW = this.morph.width() - 12;
 		for (const row of rows) rowW = Math.max(rowW, row[1].width + (row[2] ? row[2].width + 16 : 0));
 		let lastKind = null;
@@ -456,26 +601,6 @@ class MB_BlockSearchBox {
 		menu.fullChanged();
 	}
 
-	resultImage(aBlock) {
-		// A block's picture, redrawn smaller when it is taller than two rows, so
-		// that a few tall blocks cannot crowd out the rest of the list.
-
-		aBlock.fixLayout();
-		const image = aBlock.fullImage();
-		const maxHeight = 62 * blockScale();
-		if (image.height <= maxHeight) return image;
-		const factor = maxHeight / image.height;
-		const smaller = aBlock.fullCopy();
-		MB_editor.resizeBlock(smaller, factor, blockScale() * factor);
-		const smallImage = smaller.fullImage();
-		if (smallImage.height <= maxHeight) return smallImage;
-		// Block layout does not scale quite linearly, so trim what is left over.
-		const w = Math.floor((smallImage.width * maxHeight) / smallImage.height);
-		const result = newCanvas(new Point(w, maxHeight));
-		result.getContext('2d').drawImage(smallImage, 0, 0, w, maxHeight);
-		return result;
-	}
-
 	libraryLabel(libName) {
 		// The gray name shown on a block from a library the project does not have yet.
 		const label = new StringMorph(libName, 11, null, false, false, false, null, null, new Color(120, 120, 120));
@@ -514,99 +639,22 @@ class MB_BlockSearchBox {
 		return this.matches[Math.min(i, this.matches.length - 1)];
 	}
 
-	// recently taken blocks, shown while the query is empty
-
 	showRecents() {
-		this.matches = this.recentBlocks().map((block) => ({ kind: 'block', block }));
+		// While the query is empty, the blocks last taken.
+
+		this.matches = this.blockSearch.recents();
 		this.showMatchesMenu(false);
-	}
-
-	recentBlocks() {
-		// Blocks for the recent list, without any the project no longer has.
-
-		const result = [];
-		const vars = MB_editor.visibleVars();
-		for (const desc of MB_BlockSearchBox.recents) {
-			const arg = desc.slice(4);
-			if (desc.startsWith('var ')) {
-				if (vars.includes(arg)) result.push(this.variableBlock('v', arg));
-			} else if (desc.startsWith('set ')) {
-				result.push(this.variableBlock('=', vars.includes(arg) ? arg : ''));
-			} else if (desc.startsWith('chg ')) {
-				result.push(this.variableBlock('+=', vars.includes(arg) ? arg : ''));
-			} else if (desc.startsWith('op ')) {
-				const entry = this.searchIndex.find((e) => ('spec' === e.kind) && (e.spec[1] === desc.slice(3)));
-				if (entry) result.push(MB_Specs.blockForSpec(entry.spec, entry.category));
-			}
-		}
-		return result;
-	}
-
-	static recordRecent(desc) {
-		// The set and change blocks are one row each whatever variable they
-		// show, so only the newest of each is kept.
-
-		let recents = this.recents.filter((d) => d !== desc);
-		for (const prefix of ['set ', 'chg ']) {
-			if (desc.startsWith(prefix)) recents = recents.filter((d) => !d.startsWith(prefix));
-		}
-		recents.unshift(desc);
-		this.recents = recents.slice(0, 6);
-	}
-
-	recentDescriptorFor(aBlock) {
-		const op = aBlock.selector;
-		if ('v' === op) return 'var ' + aBlock.blockSpec;
-		if ('=' === op) return 'set ' + aBlock.inputs()[0].evaluate();
-		if ('+=' === op) return 'chg ' + aBlock.inputs()[0].evaluate();
-		return 'op ' + op;
 	}
 
 	// taking a block
 
-	grabBlock(aBlock) {
-		MB_BlockSearchBox.recordRecent(this.recentDescriptorFor(aBlock));
+	grab(match) {
 		this.dismiss();
-		this.grabNewBlock(aBlock);
+		this.blockSearch.pickUp(match);
 	}
 
-	async importedLibraryBlock(libName, spec) {
-		// Load the library, with the libraries it depends on, and answer a block
-		// for the spec, as the loaded library defines it.
-
-		MB_BlockSearchBox.recordRecent('op ' + spec[1]);
-		this.dismiss();
-		// Two quick takes from one library load it once.
-		let loading = MB_BlockSearchBox.imports.get(libName);
-		if (!loading) {
-			loading = MB_editor.installLibraryNamed(libName).finally(() => MB_BlockSearchBox.imports.delete(libName));
-			MB_BlockSearchBox.imports.set(libName, loading);
-		}
-		await loading;
-		const project = MB_editor.project;
-		const lib = project.libraryNamed(libName);
-		const loaded = MB_Specs.specArrayForProjectSpec(project.blockSpecs.get(spec[1]));
-		return MB_Specs.blockForSpec(loaded || spec, lib ? lib.moduleCategory : 'Library');
-	}
-
-	async grabLibraryBlock(libName, spec) {
-		this.grabNewBlock(await this.importedLibraryBlock(libName, spec));
-	}
-
-	grabNewBlock(aBlock) {
-		// Put the block in the hand. It is a copy of nothing, so it is not a template.
-
-		aBlock.isTemplate = false;
-		aBlock.isDraggable = true;
-		aBlock.fixLayout();
-		aBlock.setPosition(world.hand.position().subtract(10));
-		world.hand.grab(aBlock);
-	}
-
-	async placeSelectedMatch() {
-		// Enter: add the highlighted match below the scripts and scroll to it, as the
-		// pointer may be anywhere while the keyboard is in use. With nothing to add,
-		// keep typing.
+	placeSelectedMatch() {
+		// Enter: place the highlighted match. With nothing to place, keep typing.
 
 		this.runPendingSearch();
 		if (!this.menuIsOpen() || (this.matches.length === 0)) {
@@ -614,19 +662,8 @@ class MB_BlockSearchBox {
 			return;
 		}
 		const m = this.selectedMatch();
-		let block;
-		if ('lib' === m.kind) {
-			block = await this.importedLibraryBlock(m.libName, m.spec);
-		} else {
-			block = m.block;
-			MB_BlockSearchBox.recordRecent(this.recentDescriptorFor(block));
-			this.dismiss();
-		}
-		block.isTemplate = false;
-		block.isDraggable = true;
-		MB_editor.addToBottom(block);
-		MB_editor.scriptChanged(); // as a dropped block is
-		MB_editor.scrollScriptsToShow(block.fullBounds());
+		this.dismiss();
+		this.blockSearch.place(m);
 	}
 
 	// lifecycle
@@ -642,9 +679,9 @@ class MB_BlockSearchBox {
 		if (editing && (null === this.pendingSearch) && !this.menuIsOpen()) {
 			const s = this.searchText.text;
 			if ('' !== s) {
-				this.matches = this.findMatches(s);
+				this.matches = this.blockSearch.search(s);
 				this.showMatchesMenu(true);
-			} else if (MB_BlockSearchBox.recents.length > 0) {
+			} else if (MB_BlockSearch.recents.length > 0) {
 				this.showRecents();
 			}
 		}
