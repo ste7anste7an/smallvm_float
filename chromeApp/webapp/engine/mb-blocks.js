@@ -2982,8 +2982,38 @@ HandMorph.prototype.drop = function () {
 HandMorph.prototype.processMouseDownWithoutShift = HandMorph.prototype.processMouseDown;
 HandMorph.prototype.processMouseDown = function (event) {
 	this.shiftKey = !!(event && event.shiftKey);
+	this.ctrlPress = !!(event && event.ctrlKey && (event.button === 0));
 	MB_editor.removeResultBubbles(); // a click anywhere takes the board's values away
 	this.processMouseDownWithoutShift(event);
+};
+
+// morphic makes a press with Ctrl held a right click, whose menu opens on release.
+// If the pointer moves past the drag threshold first, a block pressed that way is
+// dragged instead: a copy of it and the blocks below, or with Shift of it alone.
+// A block morphic would not grab (not draggable, not a template) stays a right click.
+HandMorph.prototype.processMouseMoveWithoutCopying = HandMorph.prototype.processMouseMove;
+HandMorph.prototype.processMouseMove = function (event) {
+	var block = this.morphToGrab, dup, pos;
+	this.processMouseMoveWithoutCopying(event);
+	if (!this.ctrlPress || (this.mouseButton !== 'right') || this.children.length ||
+			!(block instanceof BlockMorph) || (!block.isDraggable && !block.isTemplate) ||
+			(this.grabPosition.distanceTo(this.bounds.origin) <= MorphicPreferences.grabThreshold)) {
+		return;
+	}
+	this.mouseButton = 'left';
+	if (block.isTemplate || block.isFunctionDefinition()) { // a palette block, or a definition: drag it as usual
+		this.processMouseMoveWithoutCopying(event);
+		return;
+	}
+	dup = block.fullCopy();
+	if ((event.shiftKey || this.shiftKey) && (dup instanceof CommandBlockMorph) && dup.nextBlock()) {
+		dup.nextBlock().destroy();
+	}
+	pos = this.position();
+	this.setPosition(this.grabPosition);
+	dup.setPosition(block.position());
+	this.grab(dup);
+	this.setPosition(pos);
 };
 
 // Files dropped on the window. morphic picks a reader by MIME type and climbs
