@@ -108,6 +108,9 @@ Graph.resize = function (newWidth, newHeight) {
 	this.height = newHeight - 24; // same here
 	this.canvas.width = this.width;
 	this.canvas.height = this.height;
+	// the backing store can be larger than this on a high-resolution screen
+	this.canvas.style.width = this.width + 'px';
+	this.canvas.style.height = this.height + 'px';
 	this.redraw();
 };
 
