@@ -20,6 +20,7 @@ class MB_Editor {
 		this.lastProjectFolder = 'Examples'; // where the file picker opens
 		this.lastLibraryFolder = 'Libraries'; // and where it opens for a library
 		this.runningChunks = new Map(); // used for block highlighting
+		this.stoppingHighlights = new Map(); // block -> timer that unhighlights it
 		this.resultBubbles = new Map(); // block -> the bubble showing its value
 		this.blockForResultImage = null; // the script to save a picture of when its result arrives
 		this.chunkErrorListeners = []; // called with each decoded board error
@@ -851,6 +852,19 @@ class MB_Editor {
 		}
 	}
 
+	async stopSyncAndStartAll() {
+		// Stop the board, bring it into line with the project, and start it.
+		try {
+			this.updateProject();
+			await this.codeManager.stopAndSyncScripts();
+			// Not codeManager.syncAndStartAll: that would sync a second time and can alert "not connected".
+			MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
+			await MB_connection.sendQueue; // written before the caller closes the port
+		} catch (e) {
+			this.reportError(e);
+		}
+	}
+
 	reportError(e) {
 		// Report an error the way GP's error dialog would; inform is the hook the new UI fills in.
 		console.error(e);
@@ -896,12 +910,19 @@ console.log('unknown');
 			return; // unknown chunk
 		}
 
+		// A script that stops keeps its highlight for half a second, so one that
+		// runs again at once does not flicker.
+		clearTimeout(this.stoppingHighlights.get(runningBlock));
+		this.stoppingHighlights.delete(runningBlock);
 		if (isRunning) {
-			runningBlock.addHighlight();
+			if (!runningBlock.getHighlight()) runningBlock.addHighlight();
 			this.runningChunks.set(runningBlock, chunkID);
 		} else {
-			runningBlock.removeHighlight();
 			this.runningChunks.delete(runningBlock);
+			this.stoppingHighlights.set(runningBlock, setTimeout(() => {
+				this.stoppingHighlights.delete(runningBlock);
+				runningBlock.removeHighlight();
+			}, 500));
 		}
 	}
 
@@ -2116,6 +2137,12 @@ console.log('unknown');
 	}
 
 	async openProjectFromString(contents, name, clearFirst = true) {
+		if (!MB_Project.isProjectText(contents)) {
+			// Opening it would replace the project, and the board's code, with
+			// whatever part of it could be read.
+			alert(localized('Could not read: ') + name);
+			return;
+		}
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
 		// Asked before anything is cleared, so the open project and the board stay as
 		// they are until every question is answered.
@@ -2507,6 +2534,11 @@ console.log('unknown');
 		// Called on disconnect. Everything the board put on the screen goes with
 		// it, bubbles included -- GP clears them together too (:2717).
 		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		for (const [block, timer] of this.stoppingHighlights) {
+			clearTimeout(timer);
+			block.removeHighlight();
+		}
+		this.stoppingHighlights = new Map();
 		for (const block of this.runningChunks.keys()) block.removeHighlight();
 		this.runningChunks = new Map();
 	}

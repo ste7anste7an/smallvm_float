@@ -1242,8 +1242,8 @@
 
         zoom(factor)
 
-    method. The zoom level can only be used for magnification, i.e. it only
-    supports levels greater than or equals 1.
+    method. The zoom level can be used for magnification and, down to 0.25,
+    for shrinking.
 
 
     (10) animations
@@ -12277,7 +12277,7 @@ WorldMorph.prototype.initRetina = function () {
 };
 
 WorldMorph.prototype.zoom = function (factor = 1) {
-    ZOOM = Math.max(factor, 1);
+    ZOOM = Math.max(factor, 0.25);
     this.fillPage();
 };
 
@@ -12659,7 +12659,7 @@ WorldMorph.prototype.contextMenu = function () {
                     this,
                     Math.round(ZOOM * 100).toString(),
                     null,
-                    100,
+                    25,
                     500,
                     true
                 );
