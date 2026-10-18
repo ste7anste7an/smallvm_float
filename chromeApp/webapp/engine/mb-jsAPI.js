@@ -4,16 +4,14 @@
 //
 // Copyright 2025 John Maloney, Bernat Romagosa, and Jens Mönig
 //
-// mb-gpAPI.js - Support for Javascript calls to GP functions
+// mb-jsAPI.js - Support for Javascript calls to GP functions
 //
-// John Maloney and Bernat Romagosa, 2026
+// John Maloney, Bernat Romagosa, and Sam McHardy 2026
 
-// This is an alternative to the API mechanism that calls GP for use in the all-Javascript
-// version -- at least during the transition period. Instead of queueing a call to be
-// handled by GP, it dispatches the call directly with the given parameters, then calls
-// the callback function.
-//
-// NOTE: Either this file or mb-gpAPI.js should be loaded, not both.
+// This API mechanism is used to make calls from the DOM part of the UI into the "engine".
+// It behaves the same as the API mechanism used to interfact the DOM-based UI to GP.
+// However, instead of queueing a call to be handled by GP, it dispatches the call directly
+// with the given parameters, then invokes the callback function with the result, if any.
 
 GP = { apiResponses: {} } // windows.js stores a dialog's answer in apiResponses
 GP.apiCall = function (endPoint, params, callback) {
