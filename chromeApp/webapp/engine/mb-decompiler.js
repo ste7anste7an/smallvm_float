@@ -79,6 +79,7 @@ class MB_Decompiler {
 			}
 		}
 		project.main.scripts = scripts;
+		project.fixFunctionLocals();
 		// A read-back is a different document: the positions above are invented
 		// per read, so these names are new ones and not the file's.
 		project.main.assignScriptIds();

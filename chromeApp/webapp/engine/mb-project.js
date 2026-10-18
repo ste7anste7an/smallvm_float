@@ -689,8 +689,11 @@ class MB_Project {
 	// Post-load processing
 
 	fixFunctionLocals() {
-		// XXX TODO: would remove project variables that appear as function locals in GP.
-		// In the JS port, MB_Function.collectLocalVars() handles this separately.
+		// Remove project variables from the functions' local variables.
+		const projectVars = new Set(this.allVariableNames());
+		for (const f of this.allFunctions()) {
+			f.localVars = f.localVars.filter((name) => !projectVars.has(name));
+		}
 	}
 
 	buildDefinitionHats() {

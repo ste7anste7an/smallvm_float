@@ -142,20 +142,53 @@ class MB_Connection {
 		// than for a fixed count: receivedVarName and receivedChunk push
 		// lastRcvMSecs forward as each reply arrives, and the board sends one
 		// frame per variable and per chunk with no reply saying how many.
+		// Answers null if stopDecompilation stopped the read.
 		this.decompiler = new MB_Decompiler();
+		const stopped = () => (this.decompiler == null);
+		await this.waitForPing(stopped);
+		if (stopped()) return null;
 
 		this.sendMsg('getVarNamesMsg');
-		await this.readUntilQuiet(100, 10, false);
+		await this.readUntilQuiet(100, 10, false, stopped);
+		if (stopped()) return null;
 
 		this.sendMsg('getAllCodeMsg', 1);
 		// Longer, and pinging: a board doing a Flash read can take seconds
 		// between chunks, and the ping keeps updateConnection from timing the
 		// connection out while it does.
-		await this.readUntilQuiet(2000, 50, true);
+		await this.readUntilQuiet(2000, 50, true, stopped);
+		if (stopped()) return null;
 
 		const decompiler = this.decompiler;
 		this.decompiler = null;
 		return decompiler.decompileProject();
+	}
+
+	async stopDecompilation() {
+		// Stop a read from the board, whether it is waiting for a board or running.
+		// A running read is replacing the project, so the board is cleared and
+		// synced with what the IDE now holds.
+		MB_editor.readFromBoard = false;
+		if (this.decompiler == null) return;
+		this.decompiler = null;
+		await this.clearBoardIfConnected();
+		if (this.codeManager) await this.codeManager.stopAndSyncScripts();
+	}
+
+	async waitForPing(isDone = null) {
+		// Wait up to a second for the board to answer a ping, so that a read
+		// starts with a board that is responding; stop early if isDone answers true.
+		const startMSecs = Date.now();
+		for (let iter = 0; !(this.lastPingRecvMSecs > startMSecs); iter++) { // a reply from before the wait does not count
+			if ((Date.now() - startMSecs) > 1000) return; // no response within the timeout
+			if (isDone && isDone()) return;
+			if ((iter % 20) === 0) { // a ping every 100 msecs
+				this.sendMsg('pingMsg');
+				this.pingSentMSecs = Date.now();
+			}
+			this.processMessages();
+			await waitMSecs(5);
+		}
 	}
 
 	async readUntilQuiet(quietMSecs, stepMSecs, sendPings, isDone = null) {
