@@ -96,14 +96,7 @@ MB_Firmware.saveFile = async function (data, fileName) {
 		await writable.close().catch(() => {});
 		return true;
 	}
-	const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
-	const link = document.createElement('a');
-	link.href = url;
-	link.download = fileName;
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
+	MB_editor.saveDataAsFile(data, fileName);
 	return true;
 }
 
