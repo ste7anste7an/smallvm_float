@@ -140,7 +140,7 @@ method initialize MicroBlocksHelp {
 		(array '[data:join]' 'data#join' 'Join (concatenate) the given lists, strings, or byte arrays and report the result.')
 		(array '[data:makeList]' 'data#list' 'Create and report a short list containing the given items. Length limited by available stack space.')
 		(array '[data:addLast]' 'data#add-to-list' 'Add an item to the end of a list.')
-		(array 'atPut' 'data#repllace-item' 'Replace the Nth item (or all items) of a list or byte array with the given value.')
+		(array 'atPut' 'data#replace-item' 'Replace the Nth item (or all items) of a list or byte array with the given value.')
 		(array '[data:delete]' 'data#delete-item' 'Delete the Nth item (or all items) of a list.')
 		(array '[data:find]' 'data#find' 'Find and report the index of an item in a list or a substring within a string. Report -1 if not found.')
 		(array '[data:copyFromTo]' 'data#copy' 'Report a copy from the given index through the end (or optional stop index) of the given list, string, or byte array.')
