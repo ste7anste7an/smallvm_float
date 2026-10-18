@@ -2918,6 +2918,7 @@ HandMorph.prototype.drop = function () {
 HandMorph.prototype.processMouseDownWithoutShift = HandMorph.prototype.processMouseDown;
 HandMorph.prototype.processMouseDown = function (event) {
 	this.shiftKey = !!(event && event.shiftKey);
+	MB_editor.removeResultBubbles(); // a click anywhere takes the board's values away
 	this.processMouseDownWithoutShift(event);
 };
 

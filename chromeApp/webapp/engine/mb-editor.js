@@ -2447,10 +2447,28 @@ console.log('unknown');
 			String(value),
 			isError ? new Color(255, 190, 190) : null);
 		world.add(bubble);
+		bubble.step = () => this.followBlock(bubble, block);
+		this.placeResultBubble(bubble, block);
+		this.resultBubbles.set(block, bubble);
+	}
+
+	followBlock(bubble, block) {
+		// Each frame: go when the block is deleted, move when it moves or scrolls.
+		// A removed morph keeps its parent, so the block is gone when any link lets go.
+		let m = block;
+		while (m.parent && m.parent.children.includes(m)) m = m.parent;
+		if (!(m instanceof WorldMorph) && !(m instanceof HandMorph)) {
+			this.removeResultBubble(block);
+			return;
+		}
+		if (!block.bounds.eq(bubble.blockBounds)) this.placeResultBubble(bubble, block);
+	}
+
+	placeResultBubble(bubble, block) {
 		// Bottom left of the bubble at the block's right edge, where GP puts it.
 		bubble.setPosition(block.rightCenter().add(new Point(2, -bubble.height())));
-		bubble.keepWithin(world);
-		this.resultBubbles.set(block, bubble);
+		bubble.keepWithin(block.world());
+		bubble.blockBounds = block.bounds;
 	}
 
 	removeResultBubbles() {
