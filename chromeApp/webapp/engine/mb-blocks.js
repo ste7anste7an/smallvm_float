@@ -4243,7 +4243,7 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 // ScriptsMorph user menu
 
 ScriptsMorph.prototype.contextMenu = function () {
-	// The chrome draws this menu, as it does for GP. Shift-right-click keeps the Morphic one.
+	// The chrome draws this menu, as it does for GP. Shift-right-click opens none.
 	var world = this.world();
 	if ((typeof Menus === 'undefined') || (world.currentKey === 16)) {
 		return ScriptsMorph.uber.contextMenu.call(this);

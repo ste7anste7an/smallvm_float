@@ -69,6 +69,9 @@ class MB_Editor {
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
 
+		// A right-click that no morph answers opens nothing.
+		world.contextMenu = () => null;
+
 		// morphic asks each of the world's own morphs whether the page is holding
 		// work, and warns before the browser unloads it if any says yes
 		// (WorldMorph.hasUnsavedEdits, morphic.js).
