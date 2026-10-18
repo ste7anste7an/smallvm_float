@@ -1125,8 +1125,10 @@ console.log('unknown');
 		const namePath = isURL ? filePath.split('?')[0] : filePath;
 		const fileName = namePath.slice(namePath.lastIndexOf('/') + 1);
 		const libName = this.project.withoutExtension(fileName);
-		if (!this.definesALibrary(data)) {
-			this.inform(localized('No library found in: ') + fileName);
+		const problems = [];
+		if (!this.definesALibrary(data, problems)) {
+			const msg = (problems.length > 0) ? 'Could not read: ' : 'No library found in: ';
+			this.inform(localized(msg) + fileName);
 			return null;
 		}
 		// A shown hat of a library being replaced would otherwise stay on the
@@ -1165,7 +1167,7 @@ console.log('unknown');
 		if (msg.length > 0) this.inform(msg.join('\n'));
 	}
 
-	definesALibrary(data) {
+	definesALibrary(data, problems = []) {
 		// Whether a file's text would give the project a library with anything in
 		// it. A library's block specs are its 'spec' commands and its functions
 		// its 'to' commands, so one of either is the whole question. A file with
@@ -1174,10 +1176,11 @@ console.log('unknown');
 
 		let cmdList = null;
 		try {
-			cmdList = MB_Parser.parse(data);
+			cmdList = MB_Parser.parse(data, '<string>', problems);
 		} catch (e) {
 			return false;
 		}
+		if (problems.length > 0) return false; // only the part before the damage would load
 		for (const cmd of cmdList || []) {
 			if (Array.isArray(cmd) && (('spec' === cmd[0]) || ('to' === cmd[0]))) return true;
 		}
