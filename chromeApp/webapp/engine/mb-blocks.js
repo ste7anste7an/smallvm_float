@@ -4195,7 +4195,6 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 				(child.fullBounds().intersects(fb))
 		),
 		blackList = reporter.allInputs(),
-		aimsAtLocked,
 		handPos,
 		target,
 		all;
@@ -4210,13 +4209,10 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 		return true;
 	}
 
-	// A reporter held over a slot that refuses it is not dropped into a neighbour.
-	aimsAtLocked = hand && detect(all, input => input.isLocked() &&
-		!(input instanceof CommandSlotMorph) && input.bounds.containsPoint(hand.position()));
-
-	if (this.isPreferringEmptySlots) {
-		if (hand) {
-			handPos = hand.position();
+	// What the hand is over comes first; a block it only overlaps is a fallback.
+	if (hand) {
+		handPos = hand.position();
+		if (this.isPreferringEmptySlots) {
 			target = detect(
 				all,
 				input => (input instanceof InputSlotMorph ||
@@ -4231,7 +4227,26 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 				return target;
 			}
 		}
-		target = !aimsAtLocked && detect(
+		target = detect(
+			all,
+			input => (input !== reporter) &&
+				!input.isLocked() &&
+					input.bounds.containsPoint(handPos) &&
+							!contains(blackList, input) &&
+								touchingVariadicArrowsIfAny(input, handPos)
+		);
+		if (target) {
+			return target;
+		}
+		// A reporter held over a slot that refuses it is not dropped into a neighbour.
+		if (detect(all, input => input.isLocked() &&
+				!(input instanceof CommandSlotMorph) && input.bounds.containsPoint(handPos))) {
+			return null;
+		}
+	}
+
+	if (this.isPreferringEmptySlots) {
+		target = detect(
 			all,
 			input => (input instanceof InputSlotMorph ||
 					input instanceof ArgMorph ||
@@ -4245,24 +4260,6 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 		if (target) {
 			return target;
 		}
-	}
-
-	if (hand) {
-		handPos = hand.position();
-		target = detect(
-			all,
-			input => (input !== reporter) &&
-				!input.isLocked() &&
-					input.bounds.containsPoint(handPos) &&
-							!contains(blackList, input) &&
-								touchingVariadicArrowsIfAny(input, handPos)
-		);
-		if (target) {
-			return target;
-		}
-	}
-	if (aimsAtLocked) {
-		return null;
 	}
 	return detect(
 		all,
