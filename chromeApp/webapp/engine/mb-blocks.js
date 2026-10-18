@@ -5824,6 +5824,13 @@ BooleanSlotMorph.prototype.isEmptySlot = function () {
 	return this.value === null;
 };
 
+BooleanSlotMorph.prototype.isLocked = function () {
+	// An if's closing else and a boolean constant's own slot take no dropped reporter.
+	// fixElseSection marks the else static.
+	var block = this.parentThatIsA(BlockMorph);
+	return this.isStatic || (!!block && (block.selector === 'booleanConstant'));
+};
+
 BooleanSlotMorph.prototype.isBinary = function () {
 	return !this.isTernary && !isNil(this.parentThatIsA(ScriptsMorph));
 };
