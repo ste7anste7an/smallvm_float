@@ -482,7 +482,7 @@ SyntaxElementMorph.prototype.revertToEmptyInput = function (arg) {
 
 	if (idx !== -1) {
 		if (this instanceof BlockMorph) {
-			deflt = this.labelPart(this.parseSpec(this.blockSpec)[idx]);
+			deflt = this.labelPart(this.slotSpecForInput(inp) || '%auto');
 			if (this.isCustomBlock) {
 				if (this.isGlobal) {
 					def = this.definition;
@@ -2125,6 +2125,22 @@ BlockMorph.prototype.specForContract = function () {
 		}
 	}
 	return specSections.at(-1);
+}
+
+BlockMorph.prototype.slotSpecForInput = function (inputIndex) {
+	// Return the slot spec of the given input, counting the slots of every expansion.
+	// The spec's words do not line up with the parts once the block has expanded.
+
+	const { sections, repeatLast } = specSections({ specString: this.blockSpec });
+	let slots = [];
+	for (let i = 0; slots.length <= inputIndex; i++) {
+		if ((i >= sections.length) && !repeatLast) return null;
+		let section = sections[Math.min(i, sections.length - 1)];
+		let sectionSlots = section.split(/\s+/).filter(p => MB_Specs.isSlotSpec(p));
+		if ((i >= sections.length) && (0 == sectionSlots.length)) return null;
+		slots.push(...sectionSlots);
+	}
+	return slots[inputIndex];
 }
 
 BlockMorph.prototype.addExpander = function () {
