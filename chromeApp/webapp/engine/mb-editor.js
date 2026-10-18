@@ -1858,6 +1858,7 @@ console.log('unknown');
 	}
 
 	clearProject() {
+		this.closeAllDialogs();
 		this.project = new MB_Project();
 		this.watchProjectVariables();
 		this.codeManager = new MB_CodeManager(this.project);
@@ -1877,6 +1878,21 @@ console.log('unknown');
 		// each of those is an edit. An empty project has nothing to lose.
 		this.unsavedEdits = false;
 		return cleared;
+	}
+
+	closeAllDialogs() {
+		// Close whatever the old project left open: everything on the world but the
+		// two panes, the chrome's windows (the graph among them), the graph's samples and the spinner.
+		// A block in the hand stays, since the hand is not a child of the world.
+		for (const m of world.children.slice()) {
+			if ((m !== this.palette) && (m !== this.scriptsFrame)) m.destroy();
+		}
+		// The port also runs with no DOM, and with a partial one.
+		if ((typeof document !== 'undefined') && (typeof document.querySelectorAll === 'function')) {
+			document.querySelectorAll('win-').forEach((w) => w.remove());
+		}
+		if (this.spinnerShowing) fireIDEEvent('spinner.hide');
+		this.clearLoggedData();
 	}
 
 	updateProjectProperties() {
