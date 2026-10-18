@@ -157,6 +157,7 @@ class MB_Editor {
 		this.scriptsPane().cancelSelection();
 		let allScripts = this.scriptsPane().children.slice();
 		allScripts.forEach((m) => { m.destroy(); });
+		this.removeResultBubbles(); // they sit on the world, not in the pane
 	}
 
 	addBlockToScriptsAt(b, x, y) {
@@ -2452,6 +2453,10 @@ console.log('unknown');
 		this.resultBubbles.set(block, bubble);
 	}
 
+	removeResultBubbles() {
+		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+	}
+
 	removeResultBubble(aBlock) {
 		const bubble = this.resultBubbles.get(aBlock);
 		if (bubble == null) return;
@@ -2533,7 +2538,7 @@ console.log('unknown');
 	clearRunningHighlights() {
 		// Called on disconnect. Everything the board put on the screen goes with
 		// it, bubbles included -- GP clears them together too (:2717).
-		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		this.removeResultBubbles();
 		for (const [block, timer] of this.stoppingHighlights) {
 			clearTimeout(timer);
 			block.removeHighlight();
