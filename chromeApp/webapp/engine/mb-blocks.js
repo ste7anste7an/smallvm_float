@@ -517,8 +517,8 @@ SyntaxElementMorph.prototype.revertToEmptyInput = function (arg) {
 };
 
 SyntaxElementMorph.prototype.isLocked = function () {
-	// answer true if I can be exchanged by a dropped reporter
-	return this.isStatic;
+	// answer true if I cannot be exchanged by a dropped reporter
+	return false;
 };
 
 // SyntaxElementMorph enumerating:
@@ -3776,8 +3776,8 @@ ReporterBlockMorph.prototype.blockSequence = function () {
 // ReporterBlockMorph evaluating
 
 ReporterBlockMorph.prototype.isLocked = function () {
-	// answer true if I can be exchanged by a dropped reporter
-	return this.isStatic || (this.getSlotSpec() === '%var');
+	// answer true if I cannot be exchanged by a dropped reporter
+	return (this.getSlotSpec() === '%var');
 };
 
 ReporterBlockMorph.prototype.getSlotSpec = function () {
@@ -6231,6 +6231,13 @@ ColorSlotMorph.prototype.setColor = function (clr) {
 	);
 };
 
+ // ColorSlotMorph replacing
+
+ColorSlotMorph.prototype.isLocked = function () {
+ 	// I cannot be replaced by a dropped reporter.
+	return true;
+}
+
 // ColorSlotMorph color sensing:
 
 ColorSlotMorph.prototype.getUserColor = function () {
@@ -6524,6 +6531,22 @@ MicroBitDisplaySlotMorph.prototype.setContents = function (bits) {
 	this.mbUnsupplied = false;
 	this.rerender();
 };
+
+// MicroBitDisplaySlotMorph copying
+
+MicroBitDisplaySlotMorph.prototype.copyRecordingReferences = function (map) {
+	// Override this to make copy of my display array so it isn't shared.
+    var c = this.copy();
+	c.display = this.display.slice();
+    return c;
+}
+
+ // MicroBitDisplaySlotMorph replacing
+
+MicroBitDisplaySlotMorph.prototype.isLocked = function () {
+ 	// I cannot be replaced by a dropped reporter.
+	return true;
+ };
 
 // MicroBitDisplaySlotMorph drawing:
 
