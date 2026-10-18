@@ -28,6 +28,10 @@ class MB_CodeManager {
 	// --- run/stop ---
 
 	async evalOnBoard(aBlock, showBytes) {
+		if ('not connected' == MB_connection.updateConnection()) {
+			MB_editor.showError(aBlock, localized('Board not connected'));
+			return;
+		}
 		if (this.codeStoreFull) {
 			MB_editor.showError(aBlock, 'Program is too large to store on board.');
 			return;
