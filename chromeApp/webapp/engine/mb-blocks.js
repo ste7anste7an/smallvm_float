@@ -5286,7 +5286,12 @@ InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
 };
 
 InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
-	let menu = new MenuMorph((choice) => { this.setContents(choice); this.scriptChanged(); });
+	let menu = new MenuMorph((choice) => {
+		// an item whose action answers nothing has done its own work
+		if (undefined === choice) return;
+		this.setContents(choice);
+		this.scriptChanged();
+	});
 	menu.fontSize = this.fontSize;
 
 	if (slotMenuName && slotMenuName.startsWith('range:')) {
@@ -5342,11 +5347,81 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		}
 	}
 
-	// XXX TODO when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
+	if (typeof MB_editor !== 'undefined') {
+		if ('allVarsMenu' == slotMenuName) return this.varsMenu(menu);
+		if ('broadcastMenu' == slotMenuName) return this.broadcastMenu(menu);
+		if ('functionNameMenu' == slotMenuName) {
+			MB_editor.project.main.functions.forEach((f) => { menu.addItem(f.functionName, f.functionName, null, null, false, false, null, null, true); });
+			return menu;
+		}
+	}
 
 	console.log('unhandled slot menu:', slotMenuName);
 	return null;
 }
+
+InputSlotMorph.prototype.varsMenu = function (menu) {
+	// The globals, then the other names my script uses with the arguments of the
+	// function it defines, then an item that adds a global and puts it in me.
+	const project = MB_editor.project;
+
+	const visible = MB_editor.visibleVars();
+	for (const name of visible) menu.addItem(name, name, null, null, false, false, null, null, true);
+	if (visible.length > 0) menu.addLine();
+	const globals = project.allVariableNames();
+
+	const locals = new Set();
+	const block = this.parentThatIsA(BlockMorph);
+	const top = block ? block.topBlock() : null;
+	if (top) {
+		top.forAllBlocks((b) => {
+			if (!['v', '=', '+=', 'local', 'for'].includes(b.selector)) return;
+			let name = b.blockSpec;
+			if ('v' != b.selector) {
+				const slot = b.inputs()[0];
+				name = (slot && !(slot instanceof BlockMorph)) ? slot.evaluate() : null;
+			}
+			if ((typeof name === 'string') && (name != 'this')) locals.add(name);
+		});
+		const func = top.isFunctionDefinition() ? project.functionNamed(top.definedFunctionName()) : null;
+		if (func) func.argNames.forEach((arg) => locals.add(arg));
+	}
+	locals.delete('');
+	globals.forEach((name) => locals.delete(name));
+	if (locals.size > 0) {
+		for (const name of Array.from(locals).sort()) {
+			menu.addItem(name, name, null, null, false, false, null, null, true);
+		}
+		menu.addLine();
+	}
+
+	menu.addItem('Add a variable', () => {
+		MB_editor.promptForVariable().then((name) => {
+			if (name) { this.setContents(name); this.scriptChanged(); }
+		});
+	});
+	return menu;
+};
+
+InputSlotMorph.prototype.broadcastMenu = function (menu) {
+	// go!, then the project's other messages; in a receiving hat, also the empty
+	// message, which every broadcast matches.
+	const go = localized('go!');
+
+	MB_editor.updateProject();
+	const messages = MB_editor.project.allBroadcasts().filter((s) => (s != go) && (s != ''));
+	menu.addItem(go, go, null, null, false, false, null, null, true);
+	if (messages.length > 0) menu.addLine();
+	for (const s of messages) {
+		menu.addItem(s, s, null, null, false, false, null, null, true);
+	}
+	const block = this.parentThatIsA(BlockMorph);
+	if (block && ('whenBroadcastReceived' == block.selector)) {
+		menu.addLine();
+		menu.addItem('all', () => '');
+	}
+	return menu;
+};
 
 // InputSlotMorph layout:
 
