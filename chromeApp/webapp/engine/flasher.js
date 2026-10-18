@@ -43,7 +43,8 @@ DFUpload.flashBoard = function (boardName) {
 	window.dfu = window.dfu ?? new usbDfuDevice();
 
 	fetch(`precompiled/${board.vmFileName}`)
-		.then(res => res.arrayBuffer())
+		.then(res => res.ok ? res.arrayBuffer() : null)
+		.catch(() => null)
 		.then(buffer => {
 			if (buffer) {
 				FloatingWindow.inform(
@@ -74,6 +75,12 @@ DFUpload.flashBoard = function (boardName) {
 								)
 							);
 					}
+				);
+			} else {
+				IDE.spinner.hide();
+				FloatingWindow.inform(
+					'Install Firmware',
+					GetText.localize('Could not find the firmware file %1.', `precompiled/${board.vmFileName}`)
 				);
 			}
 		});

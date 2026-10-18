@@ -128,7 +128,7 @@ MB_Firmware.installVM = async function (eraseFlashFlag) {
 	if ('hexOrUF2' == install.method) {
 		await this.installHexOrUF2File(install.board, false);
 	} else if ('dfu' == install.method) {
-		this.notSupportedYet(boardType);
+		this.installDFUFirmware(boardType);
 	} else if (('esp' == install.method) &&
 			(await MB_editor.confirm(localized('Use board type ') + boardType + '?'))) {
 		await this.flashVM(boardType, eraseFlashFlag);
@@ -153,6 +153,8 @@ MB_Firmware.installBoardFromMenu = function (boardName, eraseFlashFlag) {
 		this.flashVM('Springbot', eraseFlashFlag);
 	} else if (this.espBoards.includes(boardName)) {
 		this.flashVM(boardName, eraseFlashFlag);
+	} else if (this.dfuBoards.includes(boardName)) {
+		this.installDFUFirmware(boardName);
 	} else if (this.hexOrUF2File(boardName)) {
 		this.installHexOrUF2File(boardName, true);
 	} else {
@@ -215,6 +217,14 @@ MB_Firmware.installHexOrUF2File = async function (boardName, fromMenu) {
 		await MB_editor.informAndWait(localized('Reconnect to the board by clicking the "Connect" button.'),
 			localized('Firmware Installed'));
 	}
+}
+
+// DFU boards
+
+MB_Firmware.installDFUFirmware = function (boardName) {
+	// DFUpload asks the user to put the board in DFU mode and flashes it over WebUSB.
+	MB_connection.disconnect();
+	DFUpload.flashBoard(boardName);
 }
 
 // ESP boards
