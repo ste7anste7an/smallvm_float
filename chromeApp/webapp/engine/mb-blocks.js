@@ -2906,7 +2906,7 @@ BlockMorph.prototype.situation = function () {
 	// NOTE: We can also add more key-value pairs to the situation
 	// dictionary to support non-standard modes of user-interaction,
 	// such as extracting single commands from within a stack
-	// see recordDrop() and userExtractJustThis()
+	// see userExtractJustThis()
 	if (!(this.parent instanceof TemplateSlotMorph)) {
 		var scripts = this.parentThatIsA(ScriptsMorph);
 		if (scripts) {
@@ -3394,17 +3394,7 @@ CommandBlockMorph.prototype.userDestroy = function () {
 
 CommandBlockMorph.prototype.userDestroyJustThis = function () {
 	// delete just this one block, reattach next block to the previous one,
-	var scripts = this.parentThatIsA(ScriptsMorph),
-		nb = this.nextBlock();
-
-	// for undrop / redrop
-	if (scripts) {
-		scripts.clearDropInfo();
-		scripts.lastDroppedBlock = this;
-		scripts.recordDrop(this.situation());
-		scripts.dropRecord.lastNextBlock = nb;
-		scripts.dropRecord.action = 'delete';
-	}
+	var scripts = this.parentThatIsA(ScriptsMorph);
 
 	this.extract();
 	if (scripts) MB_editor.scriptChanged();
@@ -3889,14 +3879,7 @@ ReporterBlockMorph.prototype.userDestroy = function () {
 		this.parent.reactToGrabOf(this); // fix highlight and variadic case
 	}
 
-	// for undrop / redrop
 	var scripts = this.parentThatIsA(ScriptsMorph);
-	if (scripts) {
-		scripts.clearDropInfo();
-		scripts.lastDroppedBlock = this;
-		scripts.recordDrop(this.situation());
-		scripts.dropRecord.action = 'delete';
-	}
 
 	this.topBlock().fullChanged();
 	this.prepareToBeGrabbed(this.world().hand);
