@@ -48,6 +48,10 @@ GP.apiCall = function (endPoint, params, callback) {
 			// As GP's closePort (MicroBlocksRuntime.gp).
 			if (GP.boardie.isOpen) {
 				GP_closeBoardie(); // also disconnects
+			} else if (MB_connection.isConnected()) {
+				// A disconnect the user asked for leaves the board running the
+				// IDE's program, as it will after its next power-up.
+				MB_editor.stopSyncAndStartAll().finally(() => MB_connection.disconnect());
 			} else {
 				MB_connection.disconnect();
 			}
