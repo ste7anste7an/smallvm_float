@@ -3760,9 +3760,6 @@ ReporterBlockMorph.prototype.prepareToBeGrabbed = function (handMorph) {
 		this.setPosition(oldPos);
 	}
 	ReporterBlockMorph.uber.prepareToBeGrabbed.call(this, handMorph);
-	if (handMorph) {
-		handMorph.alpha = this.alpha < 1 ? 1 : 0.85;
-	}
 	this.cachedSlotSpec = null;
 };
 
