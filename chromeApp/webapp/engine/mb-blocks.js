@@ -1710,6 +1710,10 @@ BlockMorph.prototype.chromeMenu = function () {
 		};
 
 	if (this.isFunctionDefinition()) return this.definitionMenu();
+	if (this.parent instanceof TemplateSlotMorph) {
+		items.push(['rename...', () => this.userRenameVariable()]);
+		items.push('-');
+	}
 
 	items.push(['duplicate', () => {
 		var dup = copy();
@@ -3826,12 +3830,20 @@ ReporterBlockMorph.prototype.determineSlotSpec = function () {
 
 ReporterBlockMorph.prototype.mouseClickLeft = function (pos) {
 	if (this.parent instanceof TemplateSlotMorph) {
-		MB_editor.prompt('Variable Name?', this.blockSpec, 'line').then((newName) => {
-			if (newName) this.userSetSpec(newName); // an empty name is ignored, as in GP
-		});
+		this.userRenameVariable();
 	} else {
 		ReporterBlockMorph.uber.mouseClickLeft.call(this, pos);
 	}
+};
+
+ReporterBlockMorph.prototype.userRenameVariable = function () {
+	// Rename the variable a block such as 'for' or 'local' declares. Its uses keep
+	// the old name, and the board gets the changed script at the next step.
+	MB_editor.prompt('Variable Name?', this.blockSpec, 'line').then((newName) => {
+		if (!newName) return; // an empty or cancelled answer changes nothing
+		this.userSetSpec(newName);
+		this.scriptChanged();
+	});
 };
 
 // ReporterBlockMorph deleting
