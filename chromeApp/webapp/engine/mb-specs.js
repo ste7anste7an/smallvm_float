@@ -573,7 +573,7 @@ MB_Specs.mbBlockSpecs = function () {
 			["r", "[io:hasServo]", "has servo support"],
 			[" ", "[io:setServo]", "set servo pin _ to _ usecs", "num num", 0, 1500],
 			["r", "[net:hasWiFi]", "has WiFi support"],
-			[" ", "[net:startWiFi]", "start WiFi _ password _ : be hotspot _ : IP _ gateway _ subnet _", "auto auto bool auto auto auto", "SSID", "MyPassword", true, "192.168.1.42", "192.168.1.1", "255.255.255.0"],
+			[" ", "[net:startWiFi]", "start WiFi _ password _ : be hotspot _ : IP _ gateway _ subnet _ : channel _", "auto auto bool auto auto auto num", "SSID", "MyPassword", true, "", "", "", 1],
 			[" ", "[net:stopWiFi]", "stop WiFi"],
 			["r", "[net:wifiStatus]", "WiFi status"],
 			["r", "[net:myIPAddress]", "my IP address"],
