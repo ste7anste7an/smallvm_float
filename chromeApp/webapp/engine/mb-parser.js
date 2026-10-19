@@ -6,7 +6,7 @@
 
 // mb-parser.js - Parser for the MicroBlocks language textual representation.
 
-/* global MB_editor, MB_Parser, MB_Specs, CommandBlockMorph, CommandSlotMorph, ReporterBlockMorph, HatBlockMorph */
+/* global MB_editor, MB_Parser, MB_Specs, CommandBlockMorph, CommandSlotMorph, ReporterBlockMorph, HatBlockMorph, ColorSlotMorph, Color */
 
 class MB_Parser {
 	constructor(srcString, fileName = '<string>') {
@@ -238,6 +238,10 @@ class MB_Parser {
 			if ((typeof arg) == 'string') {
 				return this.argOrVarRef(selector, arg, (i == 0));
 			} else if (Array.isArray(arg)) {
+				if (this.isColorLiteral(arg)) {
+					let alpha = (arg.length > 4) ? arg[4] : 255;
+					return new Color(arg[1], arg[2], arg[3], alpha / 255);
+				}
 				return Array.isArray(arg[0]) ? this.makeBlockList(arg) : this.makeBlock(arg, true);
 			}
 			return arg;
@@ -326,11 +330,26 @@ class MB_Parser {
 			if (arg instanceof CommandBlockMorph) {
 				inputs[i].nestedBlock(arg);
 			}
+		} else if (arg instanceof Color) {
+			// A colour fills a colour slot; anywhere else it stays a colorSwatch block.
+			if (inputs[i] instanceof ColorSlotMorph) {
+				inputs[i].setContents(arg);
+			} else {
+				b.replaceInput(inputs[i], this.makeBlock(['colorSwatch', arg.r, arg.g, arg.b, Math.round(arg.a * 255)], true));
+			}
 		} else if (arg instanceof ReporterBlockMorph) {
 			b.replaceInput(inputs[i], arg);
 		} else {
 			inputs[i].setContents(arg);
 		}
+	}
+
+	isColorLiteral(node) {
+		// A colorSwatch whose red, green, blue and optional alpha are all numbers.
+
+		let channels = node.slice(1);
+		return ('colorSwatch' == node[0]) && [3, 4].includes(channels.length)
+			&& channels.every((n) => (typeof n) == 'number');
 	}
 
 	makeBlockChain(node) {

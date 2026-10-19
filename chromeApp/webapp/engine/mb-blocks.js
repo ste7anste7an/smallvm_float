@@ -2363,7 +2363,8 @@ BlockMorph.prototype.addCodeStringForArg = function (arg, indent, result) {
 	} else if (arg instanceof ColorSlotMorph) {
 		let c = arg.evaluate();
 		if (c instanceof Color) {
-			result.push((c.r << 16) | (c.g << 8) | c.b);
+			let rgba = [c.r, c.g, c.b, c.a * 255].map(Math.round);
+			result.push('(colorSwatch ' + rgba.join(' ') + ')');
 		} else {
 			this.addCodeStringForValue(c, result);
 		}
