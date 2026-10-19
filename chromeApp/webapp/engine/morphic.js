@@ -5768,7 +5768,7 @@ CursorMorph.prototype.processKeyDown = function (event) {
         - tab: goto next text field
         - esc: discard the editing
         - ctrl-s / cmd-s: accept the editing
-        - enter / shift+enter: accept the editing
+        - enter: accept the editing of a single line
     */
     var keyName = event.key,
         shift = event.shiftKey,
@@ -5810,7 +5810,7 @@ CursorMorph.prototype.processKeyDown = function (event) {
         this.target.escalateEvent('reactToEdit', this.target);
     } else if (keyName === 'Escape') {
         this.cancel();
-    } else if (keyName === "Enter" && (singleLineText || shift)) {
+    } else if (keyName === "Enter" && singleLineText) {
         this.accept();
     } else {
         // catch "up arrow" and "down arrow" keys
