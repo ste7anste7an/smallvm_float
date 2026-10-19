@@ -543,7 +543,7 @@ MB_Specs.mbBlockSpecs = function () {
 			["r", "[vars:varExists]", "variable named _ exists?", "str", "var"],
 			["r", "[vars:varNamed]", "value of variable named _", "str", "var"],
 			[" ", "[vars:setVarNamed]", "set variable named _ to _", "str auto", "var", 0],
-		"Data" // deprecated; not in built-in palette
+		"Data", // deprecated; not in built-in palette
 			["r", "newArray", "new list length _", "num", 10],
 			[" ", "fillArray", "fill list _ with _", "str auto", "aList", 0],
 			[" ", "fillList", "fill list _ with _", "str auto", "aList", 0],
