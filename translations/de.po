@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:43+0200\n"
-"PO-Revision-Date: 2026-09-14 11:51+0000\n"
-"Last-Translator: Ralf Krause <ralf.krause@moodleschule.de>\n"
+"PO-Revision-Date: 2026-10-19 08:42+0000\n"
+"Last-Translator: Ralf Krause <ralf.krause@users.noreply.hosted.weblate.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/microblocks/ide/"
 "de/>\n"
 "Language: de\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.10.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. Name of data type, as in the dropdown menu in the ( (123) is a ( number v ) ) block
 msgid "number"
@@ -8919,7 +8919,7 @@ msgstr "schreibe OLED Text _ x _ y _ groß _"
 
 #. Catalab 32 library block
 msgid "write TFT screen _ x _ y _ color _ size _"
-msgstr "schreibe TFT Text _ x _ y _ Farbe _Größe _"
+msgstr "schreibe TFT Text _ x _ y _ Farbe _ Größe _"
 
 #. Catalab 32 library block
 msgid "start TFT screen"
