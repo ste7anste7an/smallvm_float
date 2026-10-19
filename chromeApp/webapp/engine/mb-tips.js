@@ -87,9 +87,17 @@ MB_Tips.opUnderPointer = function () {
 	return block ? block.selector : null;
 }
 
+MB_Tips.overPaneDivider = function () {
+	if ((typeof world === 'undefined') || !world.hand) return false;
+	return !!MB_editor.paletteResizer && (world.hand.morphAtPointer() === MB_editor.paletteResizer);
+}
+
 MB_Tips.chromeTipFor = function (block) {
 	// [title, text] for the chrome's tip bar, as GP's MicroBlocksTipBar contentsFor.
 
+	if (this.overPaneDivider()) return [
+		localized('Pane Divider'),
+		localized('Drag to change pane width.')];
 	if (!block) return ['', ''];
 	let top = block.topBlock();
 	let next = block.nextBlock ? block.nextBlock() : null;
