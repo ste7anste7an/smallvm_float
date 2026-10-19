@@ -216,6 +216,7 @@ method deleteBlocks MicroBlocksSelection {
 		removeFromOwner (morph block)
 		destroy (morph block)
 	}
+	scriptChanged scripter
 	cancelSelection
 }
 
