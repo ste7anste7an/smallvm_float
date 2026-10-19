@@ -2335,9 +2335,9 @@ console.log('unknown');
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension: a project, a library, graph data or a
-		// picture. Any other file is written to the board, unless it is one the IDE
-		// should open. data is the file's text for the first three, and its bytes otherwise.
+		// Act on a file by its extension: a project, a library, graph data, a picture,
+		// ESP firmware or a translation. Any other file is written to the board.
+		// data is the file's text for a project, library, graph data or translation, else its bytes.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
@@ -2348,8 +2348,46 @@ console.log('unknown');
 		}
 		else if (name.endsWith('.csv')) this.importLoggedData(data);
 		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
+		else if (name.endsWith('.bin')) await MB_Firmware.installFirmwareFile(fileName, data);
 		else if (name.endsWith('.po')) await this.installTranslation(data, MB_Editor.droppedTranslationName(fileName));
-		else if (!MB_Editor.isUnsupportedIDEFile(name)) await this.writeFileToBoard(fileName, data);
+		else await this.writeFileToBoard(fileName, data);
+	}
+
+	async processDroppedText(text) {
+		// A link dragged from another page opens what it points at, if that is
+		// something the IDE opens. Any other text becomes a comment at the hand.
+		if (!text.startsWith('http')) return this.addCommentAtHand(text);
+		const url = text.split(/\r\n|\r|\n/)[0];
+		if (url.includes('scripts=') || url.includes('project=')) return this.importFromURL(url);
+		if (!['.ubp', '.ubl', '.png'].some((ext) => url.toLowerCase().endsWith(ext))) return;
+		let fileName = url.slice(url.lastIndexOf('/') + 1);
+		try { fileName = decodeURIComponent(fileName); } catch (e) { /* not encoded: keep it as it is */ }
+		let data;
+		try {
+			const response = await fetch(url);
+			if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
+			data = MB_Editor.isTextFile(fileName)
+				? await response.text() : new Uint8Array(await response.arrayBuffer());
+		} catch (error) {
+			console.error('Could not read:', url, error);
+			alert(localized('Could not read: ') + url);
+			return;
+		}
+		if (fileName.toLowerCase().endsWith('.ubl')) {
+			// Given the address, the library keeps it as the source the reload verb reads.
+			if (await this.importLibraryFromString(data, url)) await this.codeManager.saveAllChunksAfterLoad();
+			return;
+		}
+		await this.processDroppedFile(fileName, data);
+	}
+
+	addCommentAtHand(text) {
+		const comment = MB_Parser.blockForDecompiled(
+			{ selector: 'comment', args: [text], isReporter: false, next: null });
+		const pane = this.scriptsPane();
+		const hand = world.hand.position();
+		this.addBlockToScriptsAt(comment, hand.x - pane.left(), hand.y - pane.top());
+		this.scriptChanged();
 	}
 
 	importLoggedData(text) {
@@ -2373,12 +2411,6 @@ console.log('unknown');
 		// A project, a library, graph data or a translation. Every other file is read as bytes.
 		const name = fileName.toLowerCase();
 		return ['.ubp', '.ubp.txt', '.ubl', '.csv', '.po'].some((ext) => name.endsWith(ext));
-	}
-
-	static isUnsupportedIDEFile(fileName) {
-		// Firmware: the IDE's to install, not the board's, though it does not
-		// install it yet.
-		return fileName.toLowerCase().endsWith('.bin');
 	}
 
 	static isScriptPicture(fileName) {

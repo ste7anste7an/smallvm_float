@@ -3078,13 +3078,23 @@ HandMorph.prototype.processDropWithoutPictures = HandMorph.prototype.processDrop
 HandMorph.prototype.processDrop = function (event) {
 	// morphic picks a reader by MIME type and reads every file at once, and would
 	// hand a picture on as a canvas, which cannot carry its scripts. Read dropped
-	// files here instead, by name and one at a time; a drop with none goes to morphic.
+	// files here instead, by name and one at a time; a drop with none is read as a link or text.
 	// Read the files the way morphic does: a drop's target is the element under
 	// the pointer and has none of its own, while a chooser's change event does.
 	var files = [...((event instanceof FileList) ? event
 		: event.target.files || event.dataTransfer.files || [])];
-	if (files.length === 0) return this.processDropWithoutPictures(event);
-	MB_editor.openDroppedFiles(files);
+	if (files.length > 0) return MB_editor.openDroppedFiles(files);
+	// A link or a text clipping dragged from another page. A link's URL is
+	// preferred to its text.
+	var transfer = event.dataTransfer,
+		text = transfer && (transfer.getData('URL') || transfer.getData('text/plain')),
+		origin;
+	if (!text) return this.processDropWithoutPictures(event);
+	if (event.pageX !== undefined) { // the hand does not follow the pointer during a drag
+		origin = getDocumentPositionOf(this.world.worldCanvas);
+		this.setPosition(new Point(event.pageX - origin.x, event.pageY - origin.y).divideBy(ZOOM));
+	}
+	MB_editor.processDroppedText(text);
 };
 
 BlockMorph.prototype.destroy = function (justThis) {
