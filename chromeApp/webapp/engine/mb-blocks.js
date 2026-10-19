@@ -5608,6 +5608,11 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 
 InputSlotMorph.prototype.reactToEdit = function () {
 	var block = this.parentThatIsA(BlockMorph);
+	// a number slot left with no number in it holds 0, and shows it
+	let text = this.contents().text;
+	if (this.isNumeric && !this.isAlphanumeric && ((text.trim() == '') || isNaN(Number(text)))) {
+		this.setContents(0);
+	}
 	this.contents().clearSelection();
 	this.scriptChanged();
 };
