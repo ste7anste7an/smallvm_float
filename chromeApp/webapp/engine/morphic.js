@@ -5814,20 +5814,35 @@ CursorMorph.prototype.processKeyDown = function (event) {
         this.accept();
     } else {
         // catch "up arrow" and "down arrow" keys
-        if (keyName === 'ArrowDown') {
+        if (shift && !singleLineText &&
+                (keyName === 'ArrowDown' || keyName === 'ArrowUp')) {
+            this.extendSelectionLine(keyName === 'ArrowDown');
+            event.preventDefault();
+        } else if (keyName === 'ArrowDown') {
             dest = this.target.downFrom(this.slot);
             this.textarea.setSelectionRange(dest, dest);
-            // to do: allow holding shift to select
             event.preventDefault();
-        }
-        if (keyName === 'ArrowUp') {
+        } else if (keyName === 'ArrowUp') {
             dest = this.target.upFrom(this.slot);
             this.textarea.setSelectionRange(dest, dest);
-            // to do: allow holding shift to select
             event.preventDefault();
         }
         this.target.escalateEvent('reactToKeystroke', event);
     }
+};
+
+CursorMorph.prototype.extendSelectionLine = function (down) {
+    // move the moving end of the selection a line down or up, keeping the other
+    var area = this.textarea,
+        back = area.selectionDirection === 'backward',
+        anchor = back ? area.selectionEnd : area.selectionStart,
+        from = back ? area.selectionStart : area.selectionEnd,
+        dest = down ? this.target.downFrom(from) : this.target.upFrom(from);
+    area.setSelectionRange(
+        Math.min(anchor, dest),
+        Math.max(anchor, dest),
+        dest < anchor ? 'backward' : 'forward'
+    );
 };
 
 CursorMorph.prototype.processKeyUp = function (event) {
