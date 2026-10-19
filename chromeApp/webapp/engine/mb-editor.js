@@ -431,10 +431,12 @@ class MB_Editor {
 		return this.pasteScriptText(event.data);
 	}
 
-	pasteScriptText(text) {
+	pasteScriptText(text, atHand = false) {
 		// Both a browser paste event and the chrome's paste menu item arrive here.
+		// The menu item pastes at the hand, moved up and left by about a menu's offset.
 		if (!text.startsWith('GP Script')) return; // ignore non-script paste
-		return this.pasteScripts(text.slice(text.indexOf('\n') + 1));
+		const dst = atHand ? world.hand.position().subtract(new Point(40, 90)).subtract(this.scriptsPane().position()) : null;
+		return this.pasteScripts(text.slice(text.indexOf('\n') + 1), dst);
 	}
 
 	async pasteScripts(scriptString, dst) {

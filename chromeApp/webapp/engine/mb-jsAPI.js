@@ -274,7 +274,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'scripts.paste':
 			callback(0);
-			MB_editor.pasteScriptText(clipboardText());
+			MB_editor.pasteScriptText(clipboardText(), true);
 			break;
 		case 'scripts.saveImage':
 			callback(0);
