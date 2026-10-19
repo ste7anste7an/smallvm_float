@@ -4,7 +4,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:23+0200\n"
 "PO-Revision-Date: 2026-10-20 00:44+0000\n"
-"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
+"Last-Translator: Josep Ferràndiz <josep.ferrandiz@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/microblocks/ide/"
 "es/>\n"
 "Language: es\n"
@@ -8465,31 +8465,31 @@ msgstr "El reproductor de MP3 tiene una tarjeta Flash"
 
 #. MP3 Player library block
 msgid "mp3 initialize _ pin _"
-msgstr "Inicializar _ pin _ MP3"
+msgstr "mp3 inicializar _ pin _"
 
 #. MP3 Player library block
 msgid "mp3 play next track"
-msgstr "Reproducir la siguiente pista MP3"
+msgstr "mp3 reproducir la siguiente pista"
 
 #. MP3 Player library block
 msgid "mp3 pause"
-msgstr "Pausa del MP3"
+msgstr "mp3 pausa"
 
 #. MP3 Player library block
 msgid "mp3 play track _ in folder _"
-msgstr "Reproducir pista _ en la carpeta _"
+msgstr "mp3 reproducir pista _ en la carpeta _"
 
 #. MP3 Player library block
 msgid "mp3 play track _ in folder _ until done"
-msgstr "Reproducir pista _ de la carpeta _ hasta finalizar"
+msgstr "mp3 reproducir pista _ de la carpeta _ hasta finalizar"
 
 #. MP3 Player library block
 msgid "mp3 repeat all in folder _"
-msgstr "Repetir todo en la carpeta _"
+msgstr "mp3 repetir todo en la carpeta _"
 
 #. MP3 Player library block
 msgid "mp3 resume"
-msgstr "continuar mp3"
+msgstr "mp3 continuar"
 
 #. MP3 Player library block
 msgid "mp3 set volume _ (0-30)"
