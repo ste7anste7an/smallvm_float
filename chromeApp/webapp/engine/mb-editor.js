@@ -173,7 +173,6 @@ class MB_Editor {
 		let offset = 0;
 		const highlight = (on) => {
 			resizer.alpha = on ? 0.6 : 0;
-			world.worldCanvas.style.cursor = on ? 'ew-resize' : '';
 			resizer.changed();
 		};
 		// A block being carried passes through to the scripting area below.
