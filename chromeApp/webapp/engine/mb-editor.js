@@ -2792,11 +2792,11 @@ function fireIDEEvent(name, value) {
 }
 
 // The hand's position as the chrome expects GP's: menus.js adds the offset of
-// #canvas.emscripten, while the hand is in world units on the world's own canvas,
+// #canvas, while the hand is in world units on the world's own canvas,
 // which morphic draws ZOOM times larger.
 function chromePoint(aWorld) {
 	const page = aWorld.worldCanvas.getBoundingClientRect();
-	const canvas = document.querySelector('#canvas.emscripten');
+	const canvas = document.querySelector('#canvas');
 	const hand = aWorld.hand.position();
 	return {
 		x: (hand.x * ZOOM) + page.left - canvas.offsetLeft,

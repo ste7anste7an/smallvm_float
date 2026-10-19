@@ -557,7 +557,7 @@ document.addEventListener('context', (e) => {
 	let descriptor = e.detail.value;
 	if (descriptor.x) { // this comes from GP
 		// we have to offset it by the GP canvas position
-		let canvas = document.querySelector('#canvas.emscripten');
+		let canvas = document.querySelector('#canvas');
 		e.clientX = descriptor.x + canvas.offsetLeft;
 		e.clientY = descriptor.y + canvas.offsetTop;
 	}
@@ -569,7 +569,7 @@ document.addEventListener('menu', (e) => {
 	let descriptor = e.detail.value;
 	if (descriptor.x) { // this comes from GP
 		// we have to offset it by the GP canvas position
-		let canvas = document.querySelector('#canvas.emscripten');
+		let canvas = document.querySelector('#canvas');
 		e.clientX = descriptor.x + canvas.offsetLeft;
 		e.clientY = descriptor.y + canvas.offsetTop;
 	}
