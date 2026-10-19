@@ -299,6 +299,8 @@ class MB_Parser {
 		if (fromSource) {
 			while ((inputs.length < args.length) && b.canExpand()) {
 				b.expand();
+				// a translated label with no slot in its sections never grows
+				if (b.inputs().length == inputs.length) break;
 				inputs = b.inputs();
 			}
 		} else if (b.blockSpec.endsWith('...') && (0 == b.minInputCount())) {
