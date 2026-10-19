@@ -93,6 +93,15 @@ class MB_Editor {
 			if (event.metaKey) event.ignoreGlobalListener = true;
 		});
 
+		// Text copied or cut while editing is what the text menu's paste offers.
+		if (world.keyboardHandler) for (const type of ['copy', 'cut']) {
+			world.keyboardHandler.addEventListener(type, () => {
+				const area = world.keyboardHandler;
+				MB.clipboard.value = area.value.slice(area.selectionStart, area.selectionEnd);
+				GP.clipboardBytes = toUTF8Array(MB.clipboard.value);
+			});
+		}
+
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
 		// The IDE's keys act unless a chrome dialog has them. Morphic handles a key before
@@ -2750,6 +2759,44 @@ function chromeMenuFor(aWorld, items) {
 	});
 	return chromeDrawnMenu;
 }
+
+// Text being edited answers a right-click with its own menu, and editing goes on.
+for (const textClass of [StringMorph, TextMorph]) {
+	const notEditingMenu = textClass.prototype.contextMenu;
+	textClass.prototype.contextMenu = function () {
+		const cursor = this.world() && this.world().cursor;
+		return (cursor && (cursor.target === this)) ? cursor.textMenu() : notEditingMenu.call(this);
+	};
+}
+
+CursorMorph.prototype.textMenu = function () {
+	const area = this.textarea,
+		selected = () => area.value.slice(area.selectionStart, area.selectionEnd),
+		insert = (s) => {
+			area.focus(); // the chrome's menu took the keys
+			area.setRangeText(s, area.selectionStart, area.selectionEnd, 'end');
+			area.dispatchEvent(new Event('input'));
+		},
+		items = [];
+	if (selected() !== '') {
+		items.push(['cut', () => { setClipboard(selected()); insert(''); }]);
+		items.push(['copy', () => { setClipboard(selected()); area.focus(); }]);
+	}
+	if (clipboardText() !== '') items.push(['paste', () => insert(clipboardText())]);
+	if (items.length > 0) items.push('-');
+	if (area.value !== this.originalContents) {
+		items.push(['accept', () => this.accept()]);
+		items.push(['revert', () => this.cancel()]);
+	} else {
+		items.push(['stop editing', () => this.target.world().stopEditing()]);
+	}
+	items.push(['select all', () => {
+		area.focus();
+		area.select();
+		this.processKeyUp({});
+	}]);
+	return chromeMenuFor(this.target.world(), items);
+};
 
 // Global singleton instance
 const MB_editor = new MB_Editor();
