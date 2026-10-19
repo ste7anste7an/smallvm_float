@@ -845,9 +845,13 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		blockHeight,
 		l = [],
 		lines = [],
-		// these blocks start their inputs on a new line unless their spec has a #BR#
-		breakBeforeInput = ['[display:mbDisplay]', 'setNeoPixelColors10'].includes(this.selector) &&
-			!parts.some(part => part.isBlockLabelBreak),
+		// a spec with a #BR# breaks lines only there and at C-slots
+		explicitBreaks = (this.blockSpec || '').includes('#BR#'),
+		// without a #BR#, these blocks start their inputs on a new line, and no line
+		// holds more than six inputs (five for ten NeoPixel colours)
+		breakBeforeInput = ['[display:mbDisplay]', 'setNeoPixelColors10'].includes(this.selector),
+		maxInputsPerLine = ('setNeoPixelColors10' == this.selector) ? 5 : 6,
+		lineInputs = 0,
 		space = this.isPrototype ? 1 : Math.floor(fontHeight(this.fontSize) / 3);
 
 	if (this instanceof ReporterBlockMorph) {
@@ -878,16 +882,22 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 			if (part.isVisible) {
 				x += part.fullBounds().width() + space;
 			}
-			if ((x > this.labelWidth) || part.isBlockLabelBreak ||
-				(breakBeforeInput && (part instanceof SyntaxElementMorph))
+			let isInput = part instanceof SyntaxElementMorph,
+				lineIsFull = isInput && ('if' != this.selector) && (lineInputs >= maxInputsPerLine);
+			if (part.isBlockLabelBreak || (!explicitBreaks &&
+				((x > this.labelWidth) || (isInput && breakBeforeInput) || lineIsFull))
 			) {
 				if (l.length > 0) {
 					lines.push(l);
 					l = [];
 					x = part.fullBounds().width() + space;
+					lineInputs = 0;
 				}
 			}
-			if (part instanceof SyntaxElementMorph) breakBeforeInput = false;
+			if (isInput) {
+				breakBeforeInput = false;
+				lineInputs += 1;
+			}
 			l.push(part);
 			if (part.isBlockLabelBreak) {
 				x = 0;
