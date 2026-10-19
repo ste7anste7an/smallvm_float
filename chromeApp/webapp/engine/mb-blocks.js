@@ -288,7 +288,7 @@ SyntaxElementMorph.prototype.partInfo = function (partSpec) {
 			menu: specParts[2]
 		}
 		if ('menu' == specParts[1]) result.tags = 'read-only static';
-		if ('auto' == specParts[1]) result.tags = 'numstring';
+		if ('auto' == specParts[1]) result.tags = 'alphanum'; // number or text, as '%auto'
 		if ('num' == specParts[1]) result.tags = 'numeric';
 		return result;
 	} else {
