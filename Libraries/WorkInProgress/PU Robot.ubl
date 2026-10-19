@@ -11,7 +11,7 @@ choices pu_ambience_lights '1' '2' '3' '4' 'pu;all'
 choices pu_joint 'pu;left foot' 'pu;left leg' 'pu;right foot' 'pu;right leg' 'pu;head yaw' 'pu;head pitch' 
 choices pu_direction 'pu;forward' 'pu;backward' 'pu;side left' 'pu;side right' 'pu;turn left' 'pu;turn right' 
 choices pu_action 'pu;greet' 'pu;rest' 'pu;explore' 'pu;jump' 'pu;kick' 'pu;dance' 
-choices pu_controller_button 'joystick button' B1 B2 B3 B4 A B touch 
+choices pu_controller_button 'pu;joystick button' B1 B2 B3 B4 A B 'pu;touch' 
 description 'The PU Robot (Elecfreaks) is a 6-DOF educational humanoid robot.
 This library allow to control the servos, execute movements and actions, create custom poses, and control the robot, including through a remote controller (PU Controller library).
 https://wiki.elecfreaks.com/en/microbit/robot/pu-robot-kit/'
@@ -655,7 +655,7 @@ to '_pu_moveState' state legSpeed headSpeed syncHead useBalance danceThreshold {
 }
 
 to '_pu_remoteButtonCode' button {
-  local 'names' ('[data:makeList]' 'joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'touch')
+  local 'names' ('[data:makeList]' 'pu;joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'pu;touch')
   return ('[data:find]' button names)
 }
 
