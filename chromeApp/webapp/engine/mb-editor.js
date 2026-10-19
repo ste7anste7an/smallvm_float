@@ -88,6 +88,11 @@ class MB_Editor {
 			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents)) HTMLTextAreaElement.prototype.focus.call(this);
 		};
 
+		// morphic takes a Cmd-click as a right click; the click event after it must not close its menu.
+		world.worldCanvas.addEventListener('click', (event) => {
+			if (event.metaKey) event.ignoreGlobalListener = true;
+		});
+
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
 		// The IDE's keys act unless a chrome dialog has them. Morphic handles a key before

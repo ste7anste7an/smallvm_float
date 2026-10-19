@@ -11522,7 +11522,7 @@ HandMorph.prototype.processMouseDown = function (event) {
             this.morphToGrab = morph.rootForGrab();
             this.grabPosition = this.bounds.origin.copy();
         }
-        if (event.button === 2 || event.ctrlKey) {
+        if (event.button === 2 || event.ctrlKey || event.metaKey) {
             this.mouseButton = 'right';
             actualClick = 'mouseDownRight';
         } else {
