@@ -256,7 +256,10 @@ MB_Specs.snapTypeForMBType = function (mbType) {
 
 	let typeParts = mbType.split('.');
 	if (typeParts.length > 1) { // this is a menu (e.g. menu.buttonMenu)
-		return ('%menu.' + typeParts[0] + '.' + typeParts[1]);
+		// A colon would start a new section of the block spec, so an integer
+		// range such as 'range:1-8' is written 'range1-8'.
+		let menuName = typeParts[1].replace(/^range:/, 'range');
+		return ('%menu.' + typeParts[0] + '.' + menuName);
 	}
 
 	return ('%' + mbType)

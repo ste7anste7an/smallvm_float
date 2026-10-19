@@ -5389,15 +5389,13 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 	});
 	menu.fontSize = this.fontSize;
 
-	if (slotMenuName && slotMenuName.startsWith('range:')) {
-		// an integer range such as 'range:1-8', as GP's InputSlot does
-		const pair = slotMenuName.slice(6).split('-');
-		if ((pair.length == 2) && /^\d+$/.test(pair[0]) && /^\d+$/.test(pair[1])) {
-			for (let i = Number(pair[0]); i <= Number(pair[1]); i++) {
-				menu.addItem('' + i, i);
-			}
-			return menu;
+	// an integer range such as 'range:1-8'; a block spec carries it as 'range1-8'
+	const range = /^range:?(\d+)-(\d+)$/.exec(slotMenuName || '');
+	if (range) {
+		for (let i = Number(range[1]); i <= Number(range[2]); i++) {
+			menu.addItem('' + i, i);
 		}
+		return menu;
 	}
 
 	if ('buttonMenu' == slotMenuName) {
