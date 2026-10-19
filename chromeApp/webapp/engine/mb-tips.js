@@ -10,7 +10,8 @@
 // under the pointer and MB_Help, and nothing reads it. On a page with the
 // chrome, the chrome's own tip bar shows the tip instead.
 
-/* global MB_Help, world, IDE, HatBlockMorph, storeIDEProperty */
+/* global MB_Help, world, IDE, HatBlockMorph, storeIDEProperty, BooleanSlotMorph, ColorSlotMorph,
+	InputSlotMorph, BlockExpanderMorph, ArgMorph, BlockMorph, TriggerMorph, MenuItemMorph */
 
 MB_Tips = {
 	get height() {
@@ -87,18 +88,59 @@ MB_Tips.opUnderPointer = function () {
 	return block ? block.selector : null;
 }
 
-MB_Tips.overPaneDivider = function () {
-	if ((typeof world === 'undefined') || !world.hand) return false;
-	return !!MB_editor.paletteResizer && (world.hand.morphAtPointer() === MB_editor.paletteResizer);
+MB_Tips.chromeTips = {
+	BooleanSlot: ['Boolean Input', '[l] toggle value, or drop a reporter into it.'],
+	ColorSlot: ['Color Input', '[l] change the color, or drop a reporter into it.'],
+	InputSlot: ['Input', '[l] edit its value, or drop a reporter into it.'],
+	BlockDrawer: ['Block Extension', '[l] right arrow to show optional inputs, left arrow to hide.'],
+	PaneResizer: ['Pane Divider', 'Drag to change pane width.'],
+	BlocksPalette: ['Palette', 'Drag blocks from here to build scripts. Drop scripts here to delete them.'],
+	ScriptEditor: ['Scripts Pane', 'Drag blocks here to build scripts. [r] menu.'],
+};
+
+MB_Tips.chromeTipKey = function (morph) {
+	// [kind, morph] for what the pointer is over, kind null for something with
+	// no tip. Text in an input slot counts as the slot, and a scroll bar as the
+	// pane it scrolls.
+
+	if (morph === MB_editor.paletteResizer) return ['PaneResizer', morph];
+	for (let m = morph; m; m = m.parent) {
+		if (m instanceof BooleanSlotMorph) return ['BooleanSlot', m];
+		if (m instanceof ColorSlotMorph) return ['ColorSlot', m];
+		if (m instanceof InputSlotMorph) return ['InputSlot', m];
+		if (m instanceof BlockExpanderMorph) return ['BlockDrawer', m];
+		if (m instanceof ArgMorph) return [null, m]; // a C-slot or the LED display
+		if (m instanceof BlockMorph) return ['Block', m];
+		if ((m instanceof TriggerMorph) && !(m instanceof MenuItemMorph)) return ['Button', m];
+		if (m === MB_editor.palette) return ['BlocksPalette', m];
+		if (m === MB_editor.scriptsFrame) return ['ScriptEditor', m];
+	}
+	return [null, morph];
+}
+
+MB_Tips.chromeTip = function () {
+	// [title, text] for the chrome's tip bar, for the morph under the pointer.
+	// Blank while the hand is busy, except that a block carried over the
+	// palette is told it can be dropped there to delete it.
+
+	if ((typeof world === 'undefined') || !world.hand) return ['', ''];
+	const hand = world.hand;
+	const [key, target] = this.chromeTipKey(hand.morphAtPointer());
+	if (hand.children.length || hand.inputTarget || world.activeMenu) {
+		const carried = hand.children[0];
+		if (!((carried instanceof BlockMorph) && ('BlocksPalette' === key))) return ['', ''];
+	}
+	if ('Block' === key) return this.chromeTipFor(target);
+	if ('Button' === key) {
+		return [localized('Button'), ('string' === typeof target.hint) ? localized(target.hint) : ''];
+	}
+	const tip = this.chromeTips[key];
+	return tip ? [localized(tip[0]), localized(tip[1])] : ['', ''];
 }
 
 MB_Tips.chromeTipFor = function (block) {
-	// [title, text] for the chrome's tip bar, as GP's MicroBlocksTipBar contentsFor.
+	// [title, text] for a block: what kind it is, what it does, and its gestures.
 
-	if (this.overPaneDivider()) return [
-		localized('Pane Divider'),
-		localized('Drag to change pane width.')];
-	if (!block) return ['', ''];
 	let top = block.topBlock();
 	let next = block.nextBlock ? block.nextBlock() : null;
 	let tip = [
@@ -130,7 +172,7 @@ MB_Tips.update = function () {
 
 	if (typeof MB_Help === 'undefined') return;
 	if (this.usesChrome()) {
-		let tip = this.chromeTipFor(this.blockUnderPointer());
+		let tip = this.chromeTip();
 		if (JSON.stringify(tip) !== JSON.stringify(this.op)) storeIDEProperty('ide.tip', tip);
 		this.op = tip;
 		return;
