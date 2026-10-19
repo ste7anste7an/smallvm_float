@@ -3140,7 +3140,11 @@ HandMorph.prototype.grab = function (aMorph) {
 		isScripts = (aMorph instanceof BlockMorph) || (aMorph instanceof SelectedScriptsMorph);
 	// Picking up a block ends a selection, before the hand takes its picture.
 	if (wasEmpty && (aMorph instanceof BlockMorph)) MB_editor.scripts.cancelSelection();
+	// A reporter is held just inside its top-left, wherever it was pressed.
+	var inset = wasEmpty && (aMorph instanceof ReporterBlockMorph), origin = inset && aMorph.situation();
+	if (inset) aMorph.setPosition(this.position().subtract(10 * blockScale()));
 	this.grabWithoutTellingChrome(aMorph);
+	if (inset && (aMorph.parent === this)) this.grabOrigin = origin; // slide back to where it lay
 	if (wasEmpty && isScripts && (aMorph.parent === this)) {
 		fireIDEEvent('dragstart');
 	}
