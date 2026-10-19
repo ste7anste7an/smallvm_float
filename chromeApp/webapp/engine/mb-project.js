@@ -321,6 +321,21 @@ class MB_Project {
 		return result;
 	}
 
+	functionsInSeveralLibraries() {
+		// A line such as 'wifiConnect: External WiFi, WiFi' for each function that
+		// more than one library defines. Only one of those definitions is used.
+		const libsByName = new Map();
+		for (const lib of this.libraries.values()) {
+			for (const f of lib.functions) {
+				if (!libsByName.has(f.functionName)) libsByName.set(f.functionName, []);
+				libsByName.get(f.functionName).push(lib.moduleName);
+			}
+		}
+		return [...libsByName.keys()].sort()
+			.filter((name) => libsByName.get(name).length > 1)
+			.map((name) => name + ': ' + libsByName.get(name).sort().join(', '));
+	}
+
 	functionNamed(name) {
 		let f = this.main.functionNamed(name);
 		if (f) return f;

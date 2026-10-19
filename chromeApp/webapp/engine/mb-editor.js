@@ -2272,6 +2272,15 @@ console.log('unknown');
 		// Last, for the same reason as in clearProject: loading the project
 		// destroys and builds blocks, and each of those is an edit.
 		MB_editor.unsavedEdits = false;
+		MB_editor.reportFunctionsInSeveralLibraries();
+	}
+
+	reportFunctionsInSeveralLibraries() {
+		const duplicates = this.project.functionsInSeveralLibraries();
+		if (duplicates.length > 0) {
+			this.inform(localized('These functions are defined in more than one library, so only one of each is used:') +
+				' ' + duplicates.join('; ') + '.');
+		}
 	}
 
 	async importFromURL(url) {
