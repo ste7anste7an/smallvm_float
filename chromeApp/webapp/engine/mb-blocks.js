@@ -1905,13 +1905,17 @@ BlockMorph.prototype.chromeMenu = function () {
 		const alternatives = this.alternateOperators();
 		if ('v' === this.selector) {
 			const names = MB_editor.project.allVariableNames();
-			if (names.length > 1) { // a hidden name still counts here
-				for (const name of names) {
-					if (name.startsWith('_') && !MB_editor.showHiddenBlocks()) continue;
-					const pic = MB_editor.pictureOf(MB_Parser.blockForDecompiled(
-						{ selector: 'v', args: [name], isReporter: true, next: null }));
-					items.push([name, () => MB_editor.changeVar(this, name), null, pic, '--block']);
-				}
+			const locals = this.localVariableNames();
+			const addName = (name) => {
+				const pic = MB_editor.pictureOf(MB_Parser.blockForDecompiled(
+					{ selector: 'v', args: [name], isReporter: true, next: null }));
+				items.push([name, () => MB_editor.changeVar(this, name), null, pic, '--block']);
+			};
+			if (names.length + locals.length > 1) { // a hidden name still counts here
+				const shown = names.filter((name) => !name.startsWith('_') || MB_editor.showHiddenBlocks());
+				shown.forEach(addName);
+				if (shown.length > 0 && locals.length > 0) items.push('-');
+				locals.forEach(addName);
 			}
 		} else if (alternatives) {
 			items.push('-');
@@ -5524,36 +5528,39 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 	return null;
 }
 
+BlockMorph.prototype.localVariableNames = function () {
+	// The sorted names, other than globals, that my script uses, with the arguments of
+	// the function it defines.
+	const project = MB_editor.project;
+	const locals = new Set();
+	const top = this.topBlock();
+	top.forAllBlocks((b) => {
+		if (!['v', '=', '+=', 'local', 'for'].includes(b.selector)) return;
+		let name = b.blockSpec;
+		if ('v' != b.selector) {
+			const slot = b.inputs()[0];
+			name = (slot && !(slot instanceof BlockMorph)) ? slot.evaluate() : null;
+		}
+		if ((typeof name === 'string') && (name != 'this')) locals.add(name);
+	});
+	const func = top.isFunctionDefinition() ? project.functionNamed(top.definedFunctionName()) : null;
+	if (func) func.argNames.forEach((arg) => locals.add(arg));
+	locals.delete('');
+	project.allVariableNames().forEach((name) => locals.delete(name));
+	return Array.from(locals).sort();
+};
+
 InputSlotMorph.prototype.varsMenu = function (menu) {
 	// The globals, then the other names my script uses with the arguments of the
 	// function it defines, then an item that adds a global and puts it in me.
-	const project = MB_editor.project;
-
 	const visible = MB_editor.visibleVars();
 	for (const name of visible) menu.addItem(name, name, null, null, false, false, null, null, true);
 	if (visible.length > 0) menu.addLine();
-	const globals = project.allVariableNames();
 
-	const locals = new Set();
 	const block = this.parentThatIsA(BlockMorph);
-	const top = block ? block.topBlock() : null;
-	if (top) {
-		top.forAllBlocks((b) => {
-			if (!['v', '=', '+=', 'local', 'for'].includes(b.selector)) return;
-			let name = b.blockSpec;
-			if ('v' != b.selector) {
-				const slot = b.inputs()[0];
-				name = (slot && !(slot instanceof BlockMorph)) ? slot.evaluate() : null;
-			}
-			if ((typeof name === 'string') && (name != 'this')) locals.add(name);
-		});
-		const func = top.isFunctionDefinition() ? project.functionNamed(top.definedFunctionName()) : null;
-		if (func) func.argNames.forEach((arg) => locals.add(arg));
-	}
-	locals.delete('');
-	globals.forEach((name) => locals.delete(name));
-	if (locals.size > 0) {
-		for (const name of Array.from(locals).sort()) {
+	const locals = block ? block.localVariableNames() : [];
+	if (locals.length > 0) {
+		for (const name of locals) {
 			menu.addItem(name, name, null, null, false, false, null, null, true);
 		}
 		menu.addLine();
