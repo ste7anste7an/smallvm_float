@@ -4286,9 +4286,10 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 		return true;
 	}
 
-	if (this.isPreferringEmptySlots) {
-		if (hand) {
-			handPos = hand.position();
+	// What the hand is over comes first; a block it only overlaps is a fallback.
+	if (hand) {
+		handPos = hand.position();
+		if (this.isPreferringEmptySlots) {
 			target = detect(
 				all,
 				input => (input instanceof InputSlotMorph ||
@@ -4305,27 +4306,31 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 		}
 		target = detect(
 			all,
-			input => (input instanceof InputSlotMorph ||
-					input instanceof ArgMorph ||
-					input.isEmptySlot()
-				) &&
-					!input.isLocked() &&
-						input.bounds.intersects(fb) &&
+			input => (input !== reporter) &&
+				!input.isLocked() &&
+					input.bounds.containsPoint(handPos) &&
 							!contains(blackList, input) &&
 								touchingVariadicArrowsIfAny(input, handPos)
 		);
 		if (target) {
 			return target;
 		}
+		// A reporter held over a slot that refuses it is not dropped into a neighbour.
+		if (detect(all, input => input.isLocked() &&
+				!(input instanceof CommandSlotMorph) && input.bounds.containsPoint(handPos))) {
+			return null;
+		}
 	}
 
-	if (hand) {
-		handPos = hand.position();
+	if (this.isPreferringEmptySlots) {
 		target = detect(
 			all,
-			input => (input !== reporter) &&
-				!input.isLocked() &&
-					input.bounds.containsPoint(handPos) &&
+			input => (input instanceof InputSlotMorph ||
+					input instanceof ArgMorph ||
+					input.isEmptySlot()
+				) &&
+					!input.isLocked() &&
+						input.bounds.intersects(fb) &&
 							!contains(blackList, input) &&
 								touchingVariadicArrowsIfAny(input, handPos)
 		);
@@ -5611,6 +5616,14 @@ InputSlotMorph.prototype.freshTextEdit = function (aStringOrTextMorph) {
 	this.onNextStep = () => aStringOrTextMorph.selectAll();
 };
 
+// InputSlotMorph replacing
+
+InputSlotMorph.prototype.isLocked = function () {
+	// A hat block's inputs and a variable name menu take no dropped reporter.
+	return (this.parentThatIsA(BlockMorph) instanceof HatBlockMorph) ||
+		(this.choices === 'allVarsMenu');
+};
+
 // InputSlotMorph evaluating:
 
 InputSlotMorph.prototype.evaluate = function () {
@@ -5885,14 +5898,8 @@ TemplateSlotMorph.prototype.fixLayout = function () {
 
 // TemplateSlotMorph drop behavior:
 
-TemplateSlotMorph.prototype.wantsDropOf = function (aMorph) {
-	return aMorph.selector === 'v';
-};
-
-TemplateSlotMorph.prototype.reactToDropOf = function (droppedMorph) {
-	if (droppedMorph.selector === 'v') {
-		droppedMorph.destroy();
-	}
+TemplateSlotMorph.prototype.isLocked = function () {
+	return true;
 };
 
 // TemplateSlotMorph drawing:
@@ -5967,6 +5974,13 @@ BooleanSlotMorph.prototype.evaluate = function () {
 
 BooleanSlotMorph.prototype.isEmptySlot = function () {
 	return this.value === null;
+};
+
+BooleanSlotMorph.prototype.isLocked = function () {
+	// An if's closing else and a boolean constant's own slot take no dropped reporter.
+	// fixElseSection marks the else static.
+	var block = this.parentThatIsA(BlockMorph);
+	return this.isStatic || (!!block && (block.selector === 'booleanConstant'));
 };
 
 BooleanSlotMorph.prototype.isBinary = function () {
