@@ -158,7 +158,7 @@ GP.apiCall = function (endPoint, params, callback) {
 				world.setExtent(new Point(slot.width, slot.height).divideBy(ZOOM)); // the world is drawn ZOOM times its size
 				if (typeof mbEditor === 'object') { mbEditor.fixLayout(); }
 			}
-			callback();
+			callback(0);
 			break;
 		case 'ide.selectCategory':
 			// categories.js sends the label with its 'cat;' prefix, the form
