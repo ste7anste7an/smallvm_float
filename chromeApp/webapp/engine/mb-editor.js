@@ -39,7 +39,7 @@ class MB_Editor {
 		this.undoStack = [];
 		this.redoStack = [];
 		this.watchProjectVariables();
-		this.blockSize = 125;
+		this.blockSize = 100;
 	}
 
 	open(world) {
@@ -68,6 +68,9 @@ class MB_Editor {
 
 		world.add(this.palette);
 		world.add(this.scriptsFrame);
+
+		// A right-click that no morph answers opens nothing.
+		world.contextMenu = () => null;
 
 		// morphic asks each of the world's own morphs whether the page is holding
 		// work, and warns before the browser unloads it if any says yes
@@ -157,6 +160,7 @@ class MB_Editor {
 		this.scriptsPane().cancelSelection();
 		let allScripts = this.scriptsPane().children.slice();
 		allScripts.forEach((m) => { m.destroy(); });
+		this.removeResultBubbles(); // they sit on the world, not in the pane
 	}
 
 	addBlockToScriptsAt(b, x, y) {
@@ -433,7 +437,7 @@ class MB_Editor {
 		// Remove the pane's definition hat for funcName; a paste that defines it brings its own.
 		const pane = this.scriptsPane();
 		for (const m of pane.children.slice()) {
-			if (m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName) {
+			if (this.isDefinitionHatFor(m, funcName)) {
 				if (pane.selection && pane.selection.includes(m)) pane.cancelSelection();
 				m.destroy();
 			}
@@ -448,8 +452,7 @@ class MB_Editor {
 	}
 
 	definitionShown(funcName) {
-		return this.scriptsPane().children.some((m) =>
-			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+		return this.definitionHatFor(funcName) != null;
 	}
 
 	showFunctions(functions) {
@@ -815,8 +818,9 @@ class MB_Editor {
 
 	shortcutKey(event, spinnerWasUp) {
 		// Answer whether a key pressed with no text being edited acted. An open chrome menu
-		// takes Escape and blocks the rest, an open file picker takes Enter and Escape, and
-		// Escape stops every script only when there is no spinner to cancel and no selection.
+		// takes Escape and blocks the rest. Otherwise Escape stops a read from the board first,
+		// an open file picker takes Enter and Escape, and Escape stops every script only when
+		// there is no spinner to cancel and no selection.
 		const menu = (typeof Menus !== 'undefined') && Menus.current();
 		const picker = world.children.find((m) => m.picker instanceof MB_FilePicker);
 		const letter = (event.ctrlKey || event.metaKey) ? event.key.toLowerCase() : null;
@@ -824,7 +828,9 @@ class MB_Editor {
 			if (menu && !event.repeat && ('Escape' === event.key)) Menus.close();
 			return ['Escape', 'Enter', 'Delete'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
 		}
-		if (picker && ('Escape' === event.key)) {
+		if (('Escape' === event.key) && (this.readFromBoard || (MB_connection.decompiler != null))) {
+			MB_connection.stopDecompilation(); // a read from the board, armed or running, goes first
+		} else if (picker && ('Escape' === event.key)) {
 			picker.picker.removeFromOwner();
 		} else if (picker && ('Enter' === event.key)) {
 			picker.picker.okay();
@@ -1120,8 +1126,10 @@ console.log('unknown');
 		const namePath = isURL ? filePath.split('?')[0] : filePath;
 		const fileName = namePath.slice(namePath.lastIndexOf('/') + 1);
 		const libName = this.project.withoutExtension(fileName);
-		if (!this.definesALibrary(data)) {
-			this.inform(localized('No library found in: ') + fileName);
+		const problems = [];
+		if (!this.definesALibrary(data, problems)) {
+			const msg = (problems.length > 0) ? 'Could not read: ' : 'No library found in: ';
+			this.inform(localized(msg) + fileName);
 			return null;
 		}
 		// A shown hat of a library being replaced would otherwise stay on the
@@ -1160,7 +1168,7 @@ console.log('unknown');
 		if (msg.length > 0) this.inform(msg.join('\n'));
 	}
 
-	definesALibrary(data) {
+	definesALibrary(data, problems = []) {
 		// Whether a file's text would give the project a library with anything in
 		// it. A library's block specs are its 'spec' commands and its functions
 		// its 'to' commands, so one of either is the whole question. A file with
@@ -1169,10 +1177,11 @@ console.log('unknown');
 
 		let cmdList = null;
 		try {
-			cmdList = MB_Parser.parse(data);
+			cmdList = MB_Parser.parse(data, '<string>', problems);
 		} catch (e) {
 			return false;
 		}
+		if (problems.length > 0) return false; // only the part before the damage would load
 		for (const cmd of cmdList || []) {
 			if (Array.isArray(cmd) && (('spec' === cmd[0]) || ('to' === cmd[0]))) return true;
 		}
@@ -1224,11 +1233,11 @@ console.log('unknown');
 
 	async promptForVariable() {
 		// Ask for a name and make a global of it. An unanswered prompt gives null,
-		// which createVariable would take for a name.
+		// which createVariable would take for a name. Answers the name added.
 
 		const name = await this.prompt(localized('New variable name?'), '');
-		if (!name) return;
-		this.createVariable(name);
+		if (!name) return null;
+		return this.createVariable(name);
 	}
 
 	deleteVariable(name) {
@@ -1410,8 +1419,11 @@ console.log('unknown');
 	}
 
 	definitionHatFor(funcName) {
-		return this.scriptsPane().children.find((m) =>
-			m instanceof BlockMorph && m.selector === 'to' && m.argList()[0] === funcName);
+		return this.scriptsPane().children.find((m) => this.isDefinitionHatFor(m, funcName));
+	}
+
+	isDefinitionHatFor(aMorph, funcName) {
+		return aMorph instanceof BlockMorph && aMorph.selector === 'to' && aMorph.argList()[0] === funcName;
 	}
 
 	showAndScrollToDefinition(funcName) {
@@ -1859,6 +1871,7 @@ console.log('unknown');
 	}
 
 	clearProject() {
+		this.closeAllDialogs();
 		this.project = new MB_Project();
 		this.watchProjectVariables();
 		this.codeManager = new MB_CodeManager(this.project);
@@ -1878,6 +1891,21 @@ console.log('unknown');
 		// each of those is an edit. An empty project has nothing to lose.
 		this.unsavedEdits = false;
 		return cleared;
+	}
+
+	closeAllDialogs() {
+		// Close whatever the old project left open: everything on the world but the
+		// two panes, the chrome's windows (the graph among them), the graph's samples and the spinner.
+		// A block in the hand stays, since the hand is not a child of the world.
+		for (const m of world.children.slice()) {
+			if ((m !== this.palette) && (m !== this.scriptsFrame)) m.destroy();
+		}
+		// The port also runs with no DOM, and with a partial one.
+		if ((typeof document !== 'undefined') && (typeof document.querySelectorAll === 'function')) {
+			document.querySelectorAll('win-').forEach((w) => w.remove());
+		}
+		if (this.spinnerShowing) fireIDEEvent('spinner.hide');
+		this.clearLoggedData();
 	}
 
 	updateProjectProperties() {
@@ -2398,7 +2426,14 @@ console.log('unknown');
 			fireIDEEvent('spinner.hide');
 		}
 		if (project == null) return;
-		this.project = project;
+		// Loaded the way a file is: a block takes its label from the editor's project,
+		// so the blocks are built once this project is the editor's.
+		this.project = new MB_Project();
+		this.project.loadFromString(project.codeString());
+		// The text does not record which libraries were loaded as implementations.
+		for (const lib of project.libraries.values()) {
+			if (lib.isImplementationLib()) this.project.libraryNamed(lib.moduleName).beImplementation();
+		}
 		this.watchProjectVariables();
 		this.removeAllScripts();
 		this.project.main.scripts.forEach(
@@ -2448,10 +2483,32 @@ console.log('unknown');
 			String(value),
 			isError ? new Color(255, 190, 190) : null);
 		world.add(bubble);
+		bubble.step = () => this.followBlock(bubble, block);
+		this.placeResultBubble(bubble, block);
+		this.resultBubbles.set(block, bubble);
+	}
+
+	followBlock(bubble, block) {
+		// Each frame: go when the block is deleted, move when it moves or scrolls.
+		// A removed morph keeps its parent, so the block is gone when any link lets go.
+		let m = block;
+		while (m.parent && m.parent.children.includes(m)) m = m.parent;
+		if (!(m instanceof WorldMorph) && !(m instanceof HandMorph)) {
+			this.removeResultBubble(block);
+			return;
+		}
+		if (!block.bounds.eq(bubble.blockBounds)) this.placeResultBubble(bubble, block);
+	}
+
+	placeResultBubble(bubble, block) {
 		// Bottom left of the bubble at the block's right edge, where GP puts it.
 		bubble.setPosition(block.rightCenter().add(new Point(2, -bubble.height())));
-		bubble.keepWithin(world);
-		this.resultBubbles.set(block, bubble);
+		bubble.keepWithin(block.world());
+		bubble.blockBounds = block.bounds;
+	}
+
+	removeResultBubbles() {
+		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
 	}
 
 	removeResultBubble(aBlock) {
@@ -2535,7 +2592,7 @@ console.log('unknown');
 	clearRunningHighlights() {
 		// Called on disconnect. Everything the board put on the screen goes with
 		// it, bubbles included -- GP clears them together too (:2717).
-		for (const block of [...this.resultBubbles.keys()]) this.removeResultBubble(block);
+		this.removeResultBubbles();
 		for (const [block, timer] of this.stoppingHighlights) {
 			clearTimeout(timer);
 			block.removeHighlight();

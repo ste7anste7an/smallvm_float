@@ -482,7 +482,7 @@ SyntaxElementMorph.prototype.revertToEmptyInput = function (arg) {
 
 	if (idx !== -1) {
 		if (this instanceof BlockMorph) {
-			deflt = this.labelPart(this.parseSpec(this.blockSpec)[idx]);
+			deflt = this.labelPart(this.slotSpecForInput(inp) || '%auto');
 			if (this.isCustomBlock) {
 				if (this.isGlobal) {
 					def = this.definition;
@@ -1710,6 +1710,10 @@ BlockMorph.prototype.chromeMenu = function () {
 		};
 
 	if (this.isFunctionDefinition()) return this.definitionMenu();
+	if (this.parent instanceof TemplateSlotMorph) {
+		items.push(['rename...', () => this.userRenameVariable()]);
+		items.push('-');
+	}
 
 	items.push(['duplicate', () => {
 		var dup = copy();
@@ -2038,11 +2042,13 @@ BlockMorph.prototype.expand = function () {
 	}
 	this.cachedInputs = null;
 	this.addExpander();
+	this.fixElseSection();
 	this.fixLayout();
 }
 
 BlockMorph.prototype.contract = function () {
-	// Remove my last expansion section. Blocks in its slots are kept on the scripts pane.
+	// Remove my last expansion section. Blocks in its slots are kept on the scripts pane:
+	// a command stack just to my right, a reporter just to the right of my script.
 
 	if (!this.canContract()) return;
 
@@ -2050,18 +2056,60 @@ BlockMorph.prototype.contract = function () {
 	const nb = this.nextBlock ? this.nextBlock() : null; // a child, often the last one
 	const parts = this.children.filter(m => m !== nb);
 	const scripts = this.parentThatIsA(ScriptsMorph);
+	const kept = [];
 	for (const p of parts.slice(-this.specForContract().split(/\s+/).length)) {
 		this.removeChild(p);
 		const keep = (p instanceof CSlotMorph) ? p.nestedBlock() : p;
-		if (scripts && keep instanceof BlockMorph && !keep.isTemplate) {
-			const pos = keep.topLeft();
-			scripts.add(keep);
-			keep.setPosition(pos.add(20));
-		}
+		if (scripts && keep instanceof BlockMorph && !keep.isTemplate) kept.push(keep);
 	}
 	this.cachedInputs = null;
 	this.addExpander();
+	this.fixElseSection();
 	this.fixLayout();
+
+	const blockRight = this.children.filter(m => m !== nb)
+		.reduce((right, m) => Math.max(right, m.fullBounds().right()), this.right());
+	const scriptRight = this.topBlock().fullBounds().right();
+	for (const keep of kept) {
+		const x = (keep instanceof CommandBlockMorph) ? blockRight : scriptRight;
+		scripts.addClearOfScripts(keep, new Point(x + scripts.cleanUpSpacing, keep.top()));
+	}
+}
+
+BlockMorph.prototype.fixElseSection = function () {
+	// An 'if' whose last condition is the constant true shows that section as just 'else'.
+
+	if (this.selector !== 'if') return;
+	const specSections = this.blockSpec.split(':').map(s => this.parseSpec(s.trim()));
+	if (specSections.length < 2) return;
+	const words = specSections[1].filter(w => w[0] !== '%');
+	const nb = this.nextBlock ? this.nextBlock() : null;
+	const parts = this.children.filter(m => (m !== nb) && (m !== this.expander));
+	const size = specSections[1].length;
+	let changed = false;
+	for (let i = specSections[0].length; i < parts.length; i += size) {
+		const section = parts.slice(i, i + size);
+		const cond = section.find(m => m instanceof SyntaxElementMorph && !(m instanceof CSlotMorph));
+		const isElse = (i + size === parts.length) && (cond instanceof BooleanSlotMorph) &&
+			(cond.value === true) && (cond.mbValue === undefined); // a real true, not a kept literal
+		const labels = section.filter(m => m instanceof StringMorph);
+		labels.forEach((label, j) => {
+			if (label.isVisible !== (!isElse || (j === 0))) changed = true;
+			label.isVisible = !isElse || (j === 0);
+			const text = (isElse && (j === 0)) ? localized('else') : words[j];
+			if (text && (label.text !== text)) {
+				label.text = text;
+				label.fixLayout();
+				label.rerender();
+				changed = true;
+			}
+		});
+		if (cond instanceof BooleanSlotMorph) {
+			cond.isVisible = !isElse;
+			cond.isStatic = isElse; // not replaced by a dropped reporter
+		}
+	}
+	if (changed) this.fixLayout();
 }
 
 BlockMorph.prototype.maxInputCount = function () {
@@ -2125,6 +2173,22 @@ BlockMorph.prototype.specForContract = function () {
 		}
 	}
 	return specSections.at(-1);
+}
+
+BlockMorph.prototype.slotSpecForInput = function (inputIndex) {
+	// Return the slot spec of the given input, counting the slots of every expansion.
+	// The spec's words do not line up with the parts once the block has expanded.
+
+	const { sections, repeatLast } = specSections({ specString: this.blockSpec });
+	let slots = [];
+	for (let i = 0; slots.length <= inputIndex; i++) {
+		if ((i >= sections.length) && !repeatLast) return null;
+		let section = sections[Math.min(i, sections.length - 1)];
+		let sectionSlots = section.split(/\s+/).filter(p => MB_Specs.isSlotSpec(p));
+		if ((i >= sections.length) && (0 == sectionSlots.length)) return null;
+		slots.push(...sectionSlots);
+	}
+	return slots[inputIndex];
 }
 
 BlockMorph.prototype.addExpander = function () {
@@ -2862,7 +2926,7 @@ BlockMorph.prototype.situation = function () {
 	// NOTE: We can also add more key-value pairs to the situation
 	// dictionary to support non-standard modes of user-interaction,
 	// such as extracting single commands from within a stack
-	// see recordDrop() and userExtractJustThis()
+	// see userExtractJustThis()
 	if (!(this.parent instanceof TemplateSlotMorph)) {
 		var scripts = this.parentThatIsA(ScriptsMorph);
 		if (scripts) {
@@ -2918,6 +2982,7 @@ HandMorph.prototype.drop = function () {
 HandMorph.prototype.processMouseDownWithoutShift = HandMorph.prototype.processMouseDown;
 HandMorph.prototype.processMouseDown = function (event) {
 	this.shiftKey = !!(event && event.shiftKey);
+	MB_editor.removeResultBubbles(); // a click anywhere takes the board's values away
 	this.processMouseDownWithoutShift(event);
 };
 
@@ -3350,17 +3415,7 @@ CommandBlockMorph.prototype.userDestroy = function () {
 
 CommandBlockMorph.prototype.userDestroyJustThis = function () {
 	// delete just this one block, reattach next block to the previous one,
-	var scripts = this.parentThatIsA(ScriptsMorph),
-		nb = this.nextBlock();
-
-	// for undrop / redrop
-	if (scripts) {
-		scripts.clearDropInfo();
-		scripts.lastDroppedBlock = this;
-		scripts.recordDrop(this.situation());
-		scripts.dropRecord.lastNextBlock = nb;
-		scripts.dropRecord.action = 'delete';
-	}
+	var scripts = this.parentThatIsA(ScriptsMorph);
 
 	this.extract();
 	if (scripts) MB_editor.scriptChanged();
@@ -3823,12 +3878,20 @@ ReporterBlockMorph.prototype.determineSlotSpec = function () {
 
 ReporterBlockMorph.prototype.mouseClickLeft = function (pos) {
 	if (this.parent instanceof TemplateSlotMorph) {
-		MB_editor.prompt('Variable Name?', this.blockSpec, 'line').then((newName) => {
-			if (newName) this.userSetSpec(newName); // an empty name is ignored, as in GP
-		});
+		this.userRenameVariable();
 	} else {
 		ReporterBlockMorph.uber.mouseClickLeft.call(this, pos);
 	}
+};
+
+ReporterBlockMorph.prototype.userRenameVariable = function () {
+	// Rename the variable a block such as 'for' or 'local' declares. Its uses keep
+	// the old name, and the board gets the changed script at the next step.
+	MB_editor.prompt('Variable Name?', this.blockSpec, 'line').then((newName) => {
+		if (!newName) return; // an empty or cancelled answer changes nothing
+		this.userSetSpec(newName);
+		this.scriptChanged();
+	});
 };
 
 // ReporterBlockMorph deleting
@@ -3842,14 +3905,7 @@ ReporterBlockMorph.prototype.userDestroy = function () {
 		this.parent.reactToGrabOf(this); // fix highlight and variadic case
 	}
 
-	// for undrop / redrop
 	var scripts = this.parentThatIsA(ScriptsMorph);
-	if (scripts) {
-		scripts.clearDropInfo();
-		scripts.lastDroppedBlock = this;
-		scripts.recordDrop(this.situation());
-		scripts.dropRecord.action = 'delete';
-	}
 
 	this.topBlock().fullChanged();
 	this.prepareToBeGrabbed(this.world().hand);
@@ -4213,7 +4269,7 @@ ScriptsMorph.prototype.closestInput = function (reporter, hand) {
 // ScriptsMorph user menu
 
 ScriptsMorph.prototype.contextMenu = function () {
-	// The chrome draws this menu, as it does for GP. Shift-right-click keeps the Morphic one.
+	// The chrome draws this menu, as it does for GP. Shift-right-click opens none.
 	var world = this.world();
 	if ((typeof Menus === 'undefined') || (world.currentKey === 16)) {
 		return ScriptsMorph.uber.contextMenu.call(this);
@@ -4245,6 +4301,19 @@ ScriptsMorph.prototype.cleanUp = function () {
 		target.setPosition(target.parent.topLeft());
 	}
 	target.adjustBounds();
+};
+
+ScriptsMorph.prototype.addClearOfScripts = function (aBlock, position) {
+	// Add aBlock at position, moved down past any block already in the way.
+
+	const others = this.children.filter(m => m instanceof BlockMorph)
+		.flatMap(m => m.allChildren().filter(b => b instanceof BlockMorph));
+	this.add(aBlock);
+	aBlock.setPosition(position);
+	let inTheWay;
+	while ((inTheWay = others.find(b => b.bounds.intersects(aBlock.fullBounds())))) {
+		aBlock.setTop(inTheWay.bottom() + this.cleanUpSpacing);
+	}
 };
 
 ScriptsMorph.prototype.scriptsPicture = function () {
@@ -5230,7 +5299,12 @@ InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
 };
 
 InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
-	let menu = new MenuMorph((choice) => { this.setContents(choice); this.scriptChanged(); });
+	let menu = new MenuMorph((choice) => {
+		// an item whose action answers nothing has done its own work
+		if (undefined === choice) return;
+		this.setContents(choice);
+		this.scriptChanged();
+	});
 	menu.fontSize = this.fontSize;
 
 	if (slotMenuName && slotMenuName.startsWith('range:')) {
@@ -5286,11 +5360,81 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		}
 	}
 
-	// XXX TODO when we have a runtime: allVarsMenu, broadcastMenu, functionNameMenu
+	if (typeof MB_editor !== 'undefined') {
+		if ('allVarsMenu' == slotMenuName) return this.varsMenu(menu);
+		if ('broadcastMenu' == slotMenuName) return this.broadcastMenu(menu);
+		if ('functionNameMenu' == slotMenuName) {
+			MB_editor.project.main.functions.forEach((f) => { menu.addItem(f.functionName, f.functionName, null, null, false, false, null, null, true); });
+			return menu;
+		}
+	}
 
 	console.log('unhandled slot menu:', slotMenuName);
 	return null;
 }
+
+InputSlotMorph.prototype.varsMenu = function (menu) {
+	// The globals, then the other names my script uses with the arguments of the
+	// function it defines, then an item that adds a global and puts it in me.
+	const project = MB_editor.project;
+
+	const visible = MB_editor.visibleVars();
+	for (const name of visible) menu.addItem(name, name, null, null, false, false, null, null, true);
+	if (visible.length > 0) menu.addLine();
+	const globals = project.allVariableNames();
+
+	const locals = new Set();
+	const block = this.parentThatIsA(BlockMorph);
+	const top = block ? block.topBlock() : null;
+	if (top) {
+		top.forAllBlocks((b) => {
+			if (!['v', '=', '+=', 'local', 'for'].includes(b.selector)) return;
+			let name = b.blockSpec;
+			if ('v' != b.selector) {
+				const slot = b.inputs()[0];
+				name = (slot && !(slot instanceof BlockMorph)) ? slot.evaluate() : null;
+			}
+			if ((typeof name === 'string') && (name != 'this')) locals.add(name);
+		});
+		const func = top.isFunctionDefinition() ? project.functionNamed(top.definedFunctionName()) : null;
+		if (func) func.argNames.forEach((arg) => locals.add(arg));
+	}
+	locals.delete('');
+	globals.forEach((name) => locals.delete(name));
+	if (locals.size > 0) {
+		for (const name of Array.from(locals).sort()) {
+			menu.addItem(name, name, null, null, false, false, null, null, true);
+		}
+		menu.addLine();
+	}
+
+	menu.addItem('Add a variable', () => {
+		MB_editor.promptForVariable().then((name) => {
+			if (name) { this.setContents(name); this.scriptChanged(); }
+		});
+	});
+	return menu;
+};
+
+InputSlotMorph.prototype.broadcastMenu = function (menu) {
+	// go!, then the project's other messages; in a receiving hat, also the empty
+	// message, which every broadcast matches.
+	const go = localized('go!');
+
+	MB_editor.updateProject();
+	const messages = MB_editor.project.allBroadcasts().filter((s) => (s != go) && (s != ''));
+	menu.addItem(go, go, null, null, false, false, null, null, true);
+	if (messages.length > 0) menu.addLine();
+	for (const s of messages) {
+		menu.addItem(s, s, null, null, false, false, null, null, true);
+	}
+	const block = this.parentThatIsA(BlockMorph);
+	if (block && ('whenBroadcastReceived' == block.selector)) {
+		menu.addLine();
+		menu.addItem('all', () => '');
+	}
+	return menu;
+};
 
 // InputSlotMorph layout:
 
