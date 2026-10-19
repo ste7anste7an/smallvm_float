@@ -1905,6 +1905,7 @@ BlockMorph.prototype.operatorGroups = [
 	['<', '<=', '==', '!=', '>=', '>'],
 	['maximum', 'minimum'],
 	['millisOp', 'microsOp'],
+	['=', '+='],
 	['&', '|', '^', '<<', '>>'],
 ];
 
