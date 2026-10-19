@@ -4,7 +4,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2025-01-18 05:53+0200\n"
 "PO-Revision-Date: 2026-10-20 00:44+0000\n"
-"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
+"Last-Translator: John Maloney <jhmaloney@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Tamil <https://hosted.weblate.org/projects/microblocks/ide/"
 "ta/>\n"
 "Language: ta\n"
@@ -8035,7 +8035,7 @@ msgstr "#SVG#square11#ffffff ரோட்டரி குறியாக்க�
 
 #. KidsIOT library block
 msgid "#SVG#square11#0070ff set NeoPixels _ _ _ _ port _"
-msgstr "#SVG#square11#0070ff கணம் NeoPixels ______port_"
+msgstr "#SVG#square11#0070ff கணம் NeoPixels _ _ _ _ _ _ port _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#0070ff set _ _ port _"
