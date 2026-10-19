@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2025-01-18 05:53+0200\n"
-"PO-Revision-Date: 2026-09-10 12:51+0000\n"
-"Last-Translator: 梁帅 <jiangren1209@gmail.com>\n"
+"PO-Revision-Date: 2026-10-20 00:44+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Tamil <https://hosted.weblate.org/projects/microblocks/ide/"
 "ta/>\n"
 "Language: ta\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9.1\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -1236,7 +1236,7 @@ msgstr "இரண்டும்"
 
 #. Keyboard and Mouse library block
 msgid "move mouse pointer by _ , _"
-msgstr "சுட்டி சுட்டிக்காட்டி _, _ ஆல் நகர்த்தவும்"
+msgstr "சுட்டி சுட்டிக்காட்டி _ , _ ஆல் நகர்த்தவும்"
 
 #. Keyboard and Mouse library block
 msgid "scroll mouse by _"
@@ -1701,7 +1701,7 @@ msgstr "ஃச் _ ஒய் _ ஆரம் _ வண்ணத்தில் tf
 #. TFT Display library block
 msgid "draw triangle on TFT at x _ y _ , x _ y _ , x _ y _ color _"
 msgstr ""
-"ஃச் _ ஒய் _, ஃச் _ ஒய் _, ஃச் _ ஒய் _ வண்ணம் _ இல் tft இல் முக்கோணத்தை வரையவும்"
+"ஃச் _ ஒய் _ , ஃச் _ ஒய் _ , ஃச் _ ஒய் _ வண்ணம் _ இல் tft இல் முக்கோணத்தை வரையவும்"
 
 #. TFT Display library block
 msgid "filled _"
@@ -3417,7 +3417,7 @@ msgstr "எம்.எச் ஈரப்பதம் %"
 
 #. micro:STEAMakers library block
 msgid "ms inclination towards _ º"
-msgstr "_. ஐ நோக்கி எம்.எச் சாய்வு"
+msgstr "_ . ஐ நோக்கி எம்.எச் சாய்வு"
 
 #. micro:STEAMakers library block
 msgid "ms energy _"
@@ -3657,7 +3657,7 @@ msgstr "3DBOT செட் விரைவு _ %"
 
 #. InnovaDidàctic 3DBot library block
 msgid "3dBot obstacle < _ cm?"
-msgstr "3 போட் தடையாக <_ செ.மீ?"
+msgstr "3 போட் தடையாக < _ செ.மீ?"
 
 #. InnovaDidàctic 3DBot library block
 msgid "3dBot line on _ ?"
@@ -7083,7 +7083,7 @@ msgstr "பிட்மேப்பை _ இல் _ , _ ஒன்றிணை"
 
 #. 8 Bit Graphics Library block
 msgid "merge tile _ from _ , _ to _ , _"
-msgstr "ஓடு _ இலிருந்து _, _ க்கு _, _ ஐ ஒன்றிணை"
+msgstr "ஓடு _ இலிருந்து _ , _ க்கு _ , _ ஐ ஒன்றிணை"
 
 #. 8 Bit Graphics Library block
 msgid "merge tile _ at tile position _ , _"
@@ -7743,7 +7743,7 @@ msgstr "Callibot2 பேட்டரி (mV)"
 
 #. Calliope Callibot library block
 msgid "Callibot2 bumper _ _"
-msgstr "காலிபோட்2 பம்பர்__"
+msgstr "காலிபோட்2 பம்பர் _ _"
 
 #. Calliope Callibot library block
 msgid "Callibot clear NeoPixels"
@@ -7767,7 +7767,7 @@ msgstr "காலிபோட் செட் மின்னோடி _ _ வ�
 
 #. Calliope Callibot library block
 msgid "Callibot set neopixel _ to _ intensity _"
-msgstr "காலிபோட் நியோபிக்சல் _ முதல் _ தீவிரம்_"
+msgstr "காலிபோட் நியோபிக்சல் _ முதல் _ தீவிரம் _"
 
 #. Calliope Callibot library block
 msgid "Callibot set servo _ to _ ° (0~180)"
@@ -8003,11 +8003,11 @@ msgstr "#SVG#square11#ffffff RGB வண்ணம் _ துறைமுகம�
 
 #. KidsIOT library block
 msgid "#SVG#square11#ff0000 analog _ port _"
-msgstr "#SVG#square11#ff0000 அனலாக் _ போர்ட்_"
+msgstr "#SVG#square11#ff0000 அனலாக் _ போர்ட் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#0070ff digital _ port _"
-msgstr "#SVG#square11#0070ff டிசிட்டல்_போர்ட்_"
+msgstr "#SVG#square11#0070ff டிசிட்டல் _ போர்ட் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#fff000 distance (cm) port _"
@@ -8015,7 +8015,7 @@ msgstr "#SVG#சதுரம்11#fff000 தூரம் (செமீ) து�
 
 #. KidsIOT library block
 msgid "#SVG#square11#fff000 line sensor _ port _"
-msgstr "#SVG#square11#fff000 லைன் சென்சார் _ போர்ட்_"
+msgstr "#SVG#square11#fff000 லைன் சென்சார் _ போர்ட் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#00c612 get _"
@@ -8031,7 +8031,7 @@ msgstr "#SVG#square11#0070ff ப்ளே நோட் _ ஆக்டேவ் _
 
 #. KidsIOT library block
 msgid "#SVG#square11#ffffff rotary encoder _ port _"
-msgstr "#SVG#square11#ffffff ரோட்டரி குறியாக்கி _ போர்ட்_"
+msgstr "#SVG#square11#ffffff ரோட்டரி குறியாக்கி _ போர்ட் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#0070ff set NeoPixels _ _ _ _ port _"
@@ -8039,23 +8039,23 @@ msgstr "#SVG#square11#0070ff கணம் NeoPixels ______port_"
 
 #. KidsIOT library block
 msgid "#SVG#square11#0070ff set _ _ port _"
-msgstr "#SVG#square11#0070ff set__port_"
+msgstr "#SVG#square11#0070ff set _ _ port _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#fff000 set motor _ port _"
-msgstr "#SVG#square11#fff000 செட் மின்னோடி _ போர்ட்_"
+msgstr "#SVG#square11#fff000 செட் மின்னோடி _ போர்ட் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#00c612 set year _ month _ day _"
-msgstr "#SVG#square11#00c612 அமைக்கப்பட்ட ஆண்டு_மாதம்_நாள்_"
+msgstr "#SVG#square11#00c612 அமைக்கப்பட்ட ஆண்டு _ மாதம் _ நாள் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#00c612 set hours _ minutes _ seconds _"
-msgstr "#SVG#square11#00c612 அமை மணி _ நிமிடங்கள்_ வினாடிகள்_"
+msgstr "#SVG#square11#00c612 அமை மணி _ நிமிடங்கள் _ வினாடிகள் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#0070ff temperature (DS18B20) _ port _"
-msgstr "#SVG#square11#0070ff வெப்பநிலை (DS18B20) _ போர்ட்_"
+msgstr "#SVG#square11#0070ff வெப்பநிலை (DS18B20) _ போர்ட் _"
 
 #. KidsIOT library block
 msgid "#SVG#square11#ffffff traffic light red _ yellow _ green _ port _"
@@ -8112,7 +8112,7 @@ msgstr "கடிகாரம் _"
 
 #. Real Time Clock library block
 msgid "set year _ month _ day _"
-msgstr "ஆண்டு _ மாதம் _ நாள்_ அமை"
+msgstr "ஆண்டு _ மாதம் _ நாள் _ அமை"
 
 #. Real Time Clock library block
 msgid "set hours _ minutes _ seconds _"
