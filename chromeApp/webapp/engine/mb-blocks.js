@@ -5344,6 +5344,10 @@ InputSlotMorph.prototype.setContents = function (data) {
 	} else if (dta.toString) {
 		cnts.text = dta.toString();
 	}
+	// A menu choice such as 'nt;c' is shown translated; the slot's value stays the choice.
+	if (this.choices && ((typeof dta) == 'string') && !this.isVarOrBroadcastSlot()) {
+		cnts.text = localized(dta);
+	}
 
 	// Keep the value, not only its text. GP's InputSlot.gp setContents does the
 	// same (contents = data); keeping only the text is what turned the literal
@@ -5671,6 +5675,12 @@ InputSlotMorph.prototype.acceptedText = function () {
 
 InputSlotMorph.prototype.isEmptySlot = function () {
 	return this.contents().text === '' && !this.selectedBlock && !this.symbol;
+};
+
+InputSlotMorph.prototype.isVarOrBroadcastSlot = function () {
+	// A variable or message name is shown as the user wrote it, never translated.
+	const block = this.parentThatIsA(BlockMorph);
+	return !!block && ['=', '+=', 'whenBroadcastReceived', 'sendBroadcast'].includes(block.selector);
 };
 
 // InputSlotMorph drawing:
