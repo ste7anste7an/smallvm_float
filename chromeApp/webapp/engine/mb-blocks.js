@@ -5652,7 +5652,6 @@ InputSlotMorph.prototype.fixLayout = function () {
 		arrow = this.arrow(),
 		tp = this.topBlock();
 
-	contents.isNumeric = this.isNumeric && !this.isAlphanumeric;
 	contents.isEditable = (!this.isReadOnly);
 	if (this.isReadOnly) {
 		contents.disableSelecting();
@@ -5673,7 +5672,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 	// determine slot dimensions
 	if (this.selectedBlock) { // a "wish" in the OF-block's left slot
 		height = this.selectedBlock.height() + this.edge * 2;
-		 width = this.selectedBlock.width()
+		width = this.selectedBlock.width()
 			+ arrowWidth
 			+ this.edge * 2
 			+ this.typeInPadding * 2;
@@ -5687,17 +5686,38 @@ InputSlotMorph.prototype.fixLayout = function () {
 			+ this.typeInPadding * 2;
 	} else {
 		height = contents.height() + this.edge * 2; // + this.typeInPadding * 2
-		width = contents.width()
-			+ Math.floor(arrowWidth * 0.5)
-			+ height
-			+ this.typeInPadding * 2;
+		if (this.isComment) {
+			width = Math.max(
+				contents.width()
+				+ arrowWidth
+				+ this.edge * 2
+				+ this.typeInPadding * 2,
+				contents.rawHeight ? // single vs. multi-line contents
+				contents.rawHeight() + arrowWidth
+				: fontHeight(contents.fontSize) / 1.3
+				+ arrowWidth
+			);
+		} else {
+			width = contents.width()
+				+ Math.floor(arrowWidth * 0.5)
+				+ height
+				+ this.typeInPadding * 2;
+		}
 	}
+
 	this.bounds.setExtent(new Point(width, height));
 
-	contents.setPosition(new Point(
-		Math.floor(height / 2),
-		this.edge
-	).add(new Point(this.typeInPadding, 0)).add(this.position()));
+	if (this.isComment) {
+		contents.setPosition(new Point(
+			this.edge,
+			this.edge
+		).add(new Point(this.typeInPadding, 0)).add(this.position()));
+	} else {
+		contents.setPosition(new Point(
+			Math.floor(height / 2),
+			this.edge
+		).add(new Point(this.typeInPadding, 0)).add(this.position()));
+	}
 
 	if (arrow.isVisible) {
 		arrow.setPosition(new Point(
