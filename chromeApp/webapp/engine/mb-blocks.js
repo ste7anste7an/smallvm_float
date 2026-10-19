@@ -5606,6 +5606,11 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 	}
 };
 
+InputSlotMorph.prototype.userMenu = function () {
+	// A right-click on a slot opens nothing, and the hand looks no further up for a menu.
+	return chromeDrawnMenu;
+};
+
 InputSlotMorph.prototype.reactToEdit = function () {
 	var block = this.parentThatIsA(BlockMorph);
 	this.contents().clearSelection();
