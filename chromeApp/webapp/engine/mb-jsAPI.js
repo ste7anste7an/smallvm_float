@@ -149,10 +149,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			if (typeof world === 'object') {
 				const slot = document.getElementById('canvas').getBoundingClientRect();
 				const cnv = world.worldCanvas;
-				cnv.style.left = slot.left + 'px';
-				cnv.style.top = slot.top + 'px';
-				cnv.style.width = slot.width + 'px';
-				cnv.style.height = slot.height + 'px';
+				cnv.style.position = 'unset';
 				cnv.width = slot.width;
 				cnv.height = slot.height;
 				world.setExtent(new Point(slot.width, slot.height).divideBy(ZOOM)); // the world is drawn ZOOM times its size

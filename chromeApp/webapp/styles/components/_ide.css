@@ -26,6 +26,8 @@
 
 
 .workspace {
+	background-color: var(--color-blue-grey-850);
+
 	flex-grow: 1;
 
 	display: flex;
@@ -126,12 +128,14 @@
 /* Canvas */
 
 .workspace__canvas-wrapper {
+	position: relative;
+
 	flex-grow: 1;
 
 	line-height: 0;
 
 	canvas {
-		width: 100% !important; /* TODO: Remove, testing mode */
+		border-bottom-left-radius: 8px;
 	}
 }
 

@@ -652,10 +652,10 @@ class MB_Editor {
 				label: new Color(144, 149, 174),
 			}
 			: {
-				palette: new Color(180, 180, 180),
-				scripts: new Color(150, 150, 150),
-				slider: new Color(200, 200, 200),
-				label: new Color(0, 0, 0),
+				palette: new Color(235, 237, 241),
+				scripts: new Color(244, 244, 247),
+				slider: new Color(176, 179, 197),
+				label: new Color(84, 90, 122),
 			};
 	}
 

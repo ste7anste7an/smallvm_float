@@ -120,8 +120,9 @@
 					</button>
 				</div>
 
-				<div class="emscripten workspace__canvas-wrapper">
-					<canvas id="canvas" class="emscripten" width="100px" height="100px"></canvas>
+				<div class="workspace__canvas-wrapper">
+					<!-- Canvas for Morphic world -->
+					<canvas id="canvas"></canvas>
 					<div class="scripts-pane-controls --can-drag-through" data-ide="scripts-pane-controls"></div>
 				</div>
 
@@ -144,8 +145,6 @@
 
 		</div>
 
-		<!-- Canvas for Morphic world -->
-		<canvas id="world-canvas" style="position: absolute"></canvas>
 
 		<!-- Snap Blocks -->
 		<script type="text/javascript" src="engine/morphic.js"></script>
@@ -208,7 +207,7 @@
 				setTimeout(async () => {
 					// Hack: Wait a bit before starting to let everything finish loading...
 					MorphicPreferences.isFlat = true;
-					world = new WorldMorph(document.getElementById('world-canvas'), false);
+					world = new WorldMorph(document.getElementById('canvas'), false);
 					IDE.init();
 					mbEditor = MB_editor.open(world);
 					IDE.resize(); // place the world canvas over the workspace slot
