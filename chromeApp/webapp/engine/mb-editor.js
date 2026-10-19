@@ -97,8 +97,7 @@ class MB_Editor {
 		if (world.keyboardHandler) for (const type of ['copy', 'cut']) {
 			world.keyboardHandler.addEventListener(type, () => {
 				const area = world.keyboardHandler;
-				MB.clipboard.value = area.value.slice(area.selectionStart, area.selectionEnd);
-				GP.clipboardBytes = toUTF8Array(MB.clipboard.value);
+				setClipboardBuffer(area.value.slice(area.selectionStart, area.selectionEnd));
 			});
 		}
 
@@ -2950,8 +2949,7 @@ document.body.appendChild(MB.clipboard);
 function setGPClipboard(s) {
 	// Called by GP's setClipboard primitive
 
-	GP.clipboardBytes = toUTF8Array(s);
-	MB.clipboard.value = s;
+	setClipboardBuffer(s);
 
 	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.writeText)) {
 		navigator.clipboard.writeText(s).catch(() => {});
@@ -2964,6 +2962,12 @@ function setGPClipboard(s) {
 			console.error('setGPClipboard failed', err);
 		}
 	}
+}
+
+function setClipboardBuffer(s) {
+	// The IDE's own copy of the clipboard text, which clipboardText() reads.
+	GP.clipboardBytes = toUTF8Array(s);
+	MB.clipboard.value = s;
 }
 
 async function readGPClipboard(s) {
