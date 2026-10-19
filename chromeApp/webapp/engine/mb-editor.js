@@ -554,20 +554,34 @@ class MB_Editor {
 	applyUserPreferences() {
 		// Resize, recolour and refill for a preference that changes the canvas,
 		// and leave the user on the library or category they were showing. Only
-		// a selection that is no longer there falls back.
+		// a selection that is no longer offered falls back.
 
-		const percent = this.readUserPreferences().blockSizePercent;
+		const prefs = this.readUserPreferences();
+		if (typeof prefs.locale !== 'string') {
+			// The chrome starts in the saved language, read after this runs.
+			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh_chs' : 'en');
+		}
+		const percent = prefs.blockSizePercent;
 		if (typeof percent === 'number' && Number.isFinite(percent)) {
 			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
 		}
 		this.applyDarkMode();
-		this.tellIDE('libraryList', this.libraryList());
-		const showing = this.library ? this.project.libraryNamed(this.library) : this.category;
-		if (showing) {
+		const libs = this.libraryList();
+		this.tellIDE('libraryList', libs);
+		const offered = this.library
+			? libs.some((lib) => lib.label === this.library)
+			: this.category && (this.devMode() || ('cat;Comm' !== this.category));
+		if (offered) {
 			this.updatePalette();
 		} else {
 			this.selectCategory('cat;Control');
 		}
+	}
+
+	isChineseWebapp() {
+		// A Chinese mirror of the IDE, or a browser that asks for Chinese.
+		return ['microblocksfun.cn', 'blocks.aimaker.space'].some((host) => location.href.includes(host))
+			|| Array.from(navigator.languages || []).some((lang) => lang.includes('zh'));
 	}
 
 	libraryList() {
