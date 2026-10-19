@@ -3306,10 +3306,8 @@ CommandBlockMorph.prototype.snap = function (hand) {
 	if (target.loc === 'bottom') {
 		if (target.type === 'slot') {
 			this.removeHighlight();
-			scripts.lastNextBlock = target.element.nestedBlock();
 			target.element.nestedBlock(this);
 		} else {
-			scripts.lastNextBlock = target.element.nextBlock();
 			target.element.nextBlock(this);
 		}
 		if (this.isStop()) {
@@ -3336,7 +3334,6 @@ CommandBlockMorph.prototype.snap = function (hand) {
 		);
 		// assume the cslot is (still) empty, was checked determining the target
 		before = (target.element.parent);
-		scripts.lastWrapParent = before;
 
 		// adjust position of wrapping block
 		this.moveBy(target.point.subtract(cslot.slotAttachPoint()));
@@ -3785,17 +3782,13 @@ ReporterBlockMorph.prototype.snap = function (hand) {
 
 	target = scripts.closestInput(this, hand);
 	if (target !== null) {
-		scripts.lastReplacedInput = target;
-		scripts.lastDropTarget = target.parent;
 		if (target instanceof CommandSlotMorph) {
-			scripts.lastReplacedInput = target;
 			nb = target.nestedBlock();
 			if (nb) {
 				nb = nb.fullCopy();
 				scripts.add(nb);
 				nb.moveBy(nb.extent());
 				nb.fixBlockColor();
-				scripts.lastPreservedBlocks = [nb];
 			}
 		}
 		target.parent.replaceInput(target, this);
@@ -4011,14 +4004,6 @@ function ScriptsMorph() {
 ScriptsMorph.prototype.init = function () {
 	this.feedbackMorph = new BoxMorph();
 	this.rejectsHats = false;
-
-	// "undrop" attributes:
-	this.lastDroppedBlock = null;
-	this.lastReplacedInput = null;
-	this.lastDropTarget = null;
-	this.lastPreservedBlocks = null;
-	this.lastNextBlock = null;
-	this.lastWrapParent = null;
 
 	// keyboard editing support:
 	this.focus = null;
