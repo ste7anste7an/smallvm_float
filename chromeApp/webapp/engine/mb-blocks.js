@@ -786,7 +786,6 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 					switch (tag) {
 						case 'numeric':
 							part.isNumeric = true;
-							part.setContents(0);
 							break;
 						case 'alphanum':
 							part.isNumeric = true;
@@ -2225,13 +2224,16 @@ BlockMorph.prototype.slotDefaultForInput = function (inputIndex) {
 
 BlockMorph.prototype.fillSlotDefault = function (slot, inputIndex) {
 	// Show my spec's default for the given input in a slot made after I was built.
-	// A number slot with no default is empty, not 0; a boolean one stays true.
+	// With no default, an input slot is empty and any other keeps what it was made
+	// with: true for a boolean, green for a colour, no LEDs lit.
 
 	const value = this.slotDefaultForInput(inputIndex);
 	if (slot instanceof BooleanSlotMorph) {
 		if (value !== null) slot.setContents((value === true) || (value === 'true'));
 	} else if (slot instanceof InputSlotMorph) {
 		slot.setContents((value === null) ? '' : value);
+	} else if ((slot instanceof ColorSlotMorph) || (slot instanceof MicroBitDisplaySlotMorph)) {
+		if (value !== null) slot.setContents(value);
 	}
 }
 
