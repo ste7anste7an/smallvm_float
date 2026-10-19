@@ -4483,7 +4483,7 @@ ScriptsMorph.prototype.selectForEdit = function () {
 
 ScriptsMorph.prototype.mouseDownLeft = function (pos) {
 	// A drag from a selected script carries the whole selection. One from the
-	// empty pane draws a band rather than panning, except on a touch screen.
+	// empty pane draws a band, but pans on a touch screen or with the middle button.
 	var hand = this.world().hand,
 		target = hand.morphAtPointer(),
 		block = target.parentThatIsA(BlockMorph);
@@ -4494,7 +4494,7 @@ ScriptsMorph.prototype.mouseDownLeft = function (pos) {
 			return this.dragSelection();
 		}
 	}
-	if (MorphicPreferences.isTouchDevice) return this.scrollFrame.mouseDownLeft(pos);
+	if (MorphicPreferences.isTouchDevice || hand.middleButton) return this.scrollFrame.mouseDownLeft(pos);
 	if (target === this) this.startSelecting(pos);
 };
 

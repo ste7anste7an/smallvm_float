@@ -11274,6 +11274,7 @@ HandMorph.prototype.init = function (aWorld) {
     this.touchHoldTimeout = null;
     this.contextMenuEnabled = false;
     this.touchStartPosition = null;
+    this.middleButton = false;
 
     // properties for caching dragged objects:
     this.cachedFullImage = null;
@@ -11479,6 +11480,7 @@ HandMorph.prototype.processMouseDown = function (event) {
         this.inputTarget = null;
         this.clickTarget = null;
     } else {
+        this.middleButton = (event.button === 1); // still dispatched as a left press
         morph = this.morphAtPointer();
         this.clickTarget = morph;
         if (this.world.activeMenu) {
@@ -11521,6 +11523,12 @@ HandMorph.prototype.processMouseDown = function (event) {
     }
 };
 
+HandMorph.prototype.touchPoint = function (touch) {
+    // With a menu up, aim 12 units above the finger so it does not hide the item.
+    var offset = this.world.activeMenu ? 12 * ZOOM : 0;
+    return {pageX: touch.pageX, pageY: touch.pageY - offset};
+};
+
 HandMorph.prototype.processTouchStart = function (event) {
     MorphicPreferences.isTouchDevice = true;
     clearInterval(this.touchHoldTimeout);
@@ -11536,9 +11544,9 @@ HandMorph.prototype.processTouchStart = function (event) {
                 event.preventDefault();
                 clearInterval(this.touchHoldTimeout);
             },
-            400
+            350
         );
-        this.processMouseMove(event.touches[0]); // update my position
+        this.processMouseMove(this.touchPoint(event.touches[0])); // update my position
         this.processMouseDown({button: 0});
         event.preventDefault();
     }
@@ -11556,7 +11564,7 @@ HandMorph.prototype.processTouchMove = function (event) {
     }
     if (event.touches.length === 1) {
         var touch = event.touches[0];
-        this.processMouseMove(touch);
+        this.processMouseMove(this.touchPoint(touch));
         clearInterval(this.touchHoldTimeout);
     }
 };
