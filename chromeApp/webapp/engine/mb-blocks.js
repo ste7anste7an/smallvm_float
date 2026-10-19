@@ -455,6 +455,7 @@ SyntaxElementMorph.prototype.revertToDefaultInput = function (arg, noValues) {
 		return deflt;
 	}
 	if (this instanceof BlockMorph) {
+		this.fillSlotDefault(deflt, inp);
 		if (this.isCustomBlock) {
 			def = this.isGlobal ? this.definition
 				: this.scriptTarget().getMethod(this.blockSpec);
@@ -2037,10 +2038,12 @@ BlockMorph.prototype.expand = function () {
 	if (!this.canExpand()) return;
 
 	if (this.expander) this.expander.destroy(); // remove the expander before appending parts
+	const first = this.inputs().length;
 	for (const p of this.specForExpand().split(/\s+/)) {
 		this.addChild(this.labelPart(p));
 	}
 	this.cachedInputs = null;
+	this.inputs().slice(first).forEach((slot, i) => this.fillSlotDefault(slot, first + i));
 	this.addExpander();
 	this.fixElseSection();
 	this.fixLayout();
@@ -2189,6 +2192,47 @@ BlockMorph.prototype.slotSpecForInput = function (inputIndex) {
 		slots.push(...sectionSlots);
 	}
 	return slots[inputIndex];
+}
+
+BlockMorph.prototype.specArray = function () {
+	// Return the spec array I was built from, the project's before the table's, or null.
+
+	MB_Specs.initialize();
+	const candidates = [MB_Specs.projectSpecArrayForSelector(this.selector),
+		MB_Specs.selectorToSpec.get(this.selector)].filter(s => s);
+	return candidates.find(s => MB_Specs.snapSpecForSpecArray(s) === this.blockSpec) || candidates[0] || null;
+}
+
+BlockMorph.prototype.slotDefaultForInput = function (inputIndex) {
+	// Return the default my spec gives the given input, or null if it gives none.
+	// An input past the declared slots takes the default of the repeated section.
+
+	const specArray = this.specArray();
+	if (!specArray) return null;
+	const spec = { specString: specArray[2], slotTypes: specArray[3], defaults: specArray.slice(4) };
+	const info = specSlotInfo(spec);
+	let i = inputIndex;
+	if (i >= info.length) {
+		const { sections, repeatLast } = specSections(spec);
+		if (!repeatLast) return null;
+		const repeated = sections[sections.length - 1].split(/\s+/).filter(w => w === '_').length;
+		const firstRepeated = info.length - repeated;
+		if ((0 == repeated) || (firstRepeated < 0)) return null;
+		i = firstRepeated + ((i - firstRepeated) % repeated);
+	}
+	return info[i][1];
+}
+
+BlockMorph.prototype.fillSlotDefault = function (slot, inputIndex) {
+	// Show my spec's default for the given input in a slot made after I was built.
+	// A number slot with no default is empty, not 0; a boolean one stays true.
+
+	const value = this.slotDefaultForInput(inputIndex);
+	if (slot instanceof BooleanSlotMorph) {
+		if (value !== null) slot.setContents((value === true) || (value === 'true'));
+	} else if (slot instanceof InputSlotMorph) {
+		slot.setContents((value === null) ? '' : value);
+	}
 }
 
 BlockMorph.prototype.addExpander = function () {
