@@ -45,6 +45,7 @@
 		ArrowMorph
 		BlockExpanderMorph
 		BlockHighlightMorph
+		ColorSlotPickerMorph
 		ScriptsMorph
 		SyntaxElementMorph
 			ArgMorph
@@ -88,6 +89,7 @@
 	ArrowMorph
 	TextSlotMorph
 	ColorSlotMorph
+	ColorSlotPickerMorph
 	TemplateSlotMorph
 	BlockExpanderMorph
 	BlockHighlightMorph
@@ -128,7 +130,7 @@
 */
 
 /*global Array, BoxMorph,
-Color, ColorPaletteMorph, FrameMorph, Function, HandleMorph, Math, MenuMorph,
+Color, FrameMorph, Function, HandleMorph, Math, MenuMorph,
 Morph, MorphicPreferences, Object, ScrollFrameMorph, ShadowMorph, ZERO, Sound,
 String, StringMorph, TextMorph, contains, degrees, detect, PianoMenuMorph, nop,
 document, getDocumentPositionOf, isNaN, isString, newCanvas, parseFloat, isNil,
@@ -139,7 +141,7 @@ Costume, IDE_Morph, BlockDialogMorph, BlockEditorMorph, localized, CLEAR, Point,
 isSnapObject, PushButtonMorph, SpriteIconMorph, Process, AlignmentMorph, List,
 ToggleButtonMorph, DialMorph, SnapExtensions, CostumeIconMorph, SoundIconMorph,
 SVG_Costume, embedMetadataPNG, ThreadManager, snapEquals, InputList, BLACK,
-CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Function, MB_Specs, world */
+CustomHatBlockMorph, MB_Compiler, MB_editor, MB_Function, MB_Specs, world, Path2D, ZOOM */
 
 // Global stuff ////////////////////////////////////////////////////////
 
@@ -160,6 +162,7 @@ var InputSlotTextMorph;
 var BooleanSlotMorph;
 var ArrowMorph;
 var ColorSlotMorph;
+var ColorSlotPickerMorph;
 var HatBlockMorph;
 var BlockExpanderMorph;
 var BlockHighlightMorph;
@@ -6532,11 +6535,8 @@ TextSlotMorph.prototype.layoutChanged = function () {
 // ColorSlotMorph //////////////////////////////////////////////////////
 
 /*
-	I am an editable input slot for a color. Users can edit my color by
-	clicking on me, in which case a display a color gradient palette
-	and let the user select another color. Note that the user isn't
-	restricted to selecting a color from the palette, any color from
-	anywhere within the World can be chosen.
+	I am an editable input slot for a color. Clicking me opens a
+	ColorSlotPickerMorph that sets my color.
 
 	my block spec is %color
 
@@ -6591,57 +6591,19 @@ ColorSlotMorph.prototype.setColor = function (clr) {
 	);
 };
 
-// ColorSlotMorph color sensing:
-
-ColorSlotMorph.prototype.getUserColor = function () {
-	var myself = this,
-		world = this.world(),
-		hand = world.hand,
-		posInDocument = getDocumentPositionOf(world.worldCanvas),
-		mouseMoveBak = hand.processMouseMove,
-		mouseDownBak = hand.processMouseDown,
-		mouseUpBak = hand.processMouseUp,
-		pal = new ColorPaletteMorph(null, new Point(
-			this.fontSize * 16,
-			this.fontSize * 10
-		)),
-		ctx;
-	world.add(pal);
-	pal.setPosition(this.bottomLeft().add(new Point(0, this.edge)));
-
-	// cache the world surface property (its full image)
-	// to prevent memory issues from constantly generating
-	// huge canvasses and and reading back pixel data only once
-	// note: this optimization makes it hard / impossible for the
-	// user to "catch" and sample the color of moving sprites
-	// but without it Chrome crashes as of Fall 2023
-	ctx = Morph.prototype.fullImage.call(world).getContext('2d');
-
-	hand.processMouseMove = function (event) {
-		var pos = hand.position(),
-			dta = ctx.getImageData(pos.x, pos.y, 1, 1).data;
-		hand.setPosition(new Point(
-			event.pageX - posInDocument.x,
-			event.pageY - posInDocument.y
-		));
-		myself.setContents(new Color(dta[0], dta[1], dta[2]));
-	};
-
-	hand.processMouseDown = nop;
-
-	hand.processMouseUp = function () {
-		myself.scriptChanged();
-		pal.destroy();
-		hand.processMouseMove = mouseMoveBak;
-		hand.processMouseDown = mouseDownBak;
-		hand.processMouseUp = mouseUpBak;
-	};
-};
-
 // ColorSlotMorph events:
 
 ColorSlotMorph.prototype.mouseClickLeft = function () {
-	this.getUserColor();
+	// Open the picker below me, moving it here if it is open for another slot.
+	var world = this.world(),
+		picker = detect(world.children, (m) => m instanceof ColorSlotPickerMorph) || new ColorSlotPickerMorph();
+	picker.setAction((clr) => {
+		this.setContents(clr);
+		this.scriptChanged();
+	}, this.color);
+	world.add(picker);
+	picker.setPosition(this.bottomLeft().add(new Point(0, 2)));
+	picker.keepWithin(world);
 };
 
 // ColorSlotMorph evaluating:
@@ -6670,6 +6632,292 @@ ColorSlotMorph.prototype.render = function (ctx) {
 	ctx.lineWidth = 1;
 	ctx.strokeStyle = "black";
 	ctx.stroke();
+};
+
+// ColorSlotPickerMorph //////////////////////////////////////////////////////
+
+/*
+	I am the colour picker a ColorSlotMorph opens; there is at most one of me.
+	A press on my gray ramp or palette picks the screen pixel under the hand,
+	and I keep picking while the button is held. A press elsewhere on me drags
+	me, and I stay open until my close button is clicked.
+*/
+
+// ColorSlotPickerMorph inherits from Morph:
+
+ColorSlotPickerMorph.prototype = new Morph();
+ColorSlotPickerMorph.prototype.constructor = ColorSlotPickerMorph;
+ColorSlotPickerMorph.uber = Morph.prototype;
+
+ColorSlotPickerMorph.prototype.closeIcon = 'M2.14645 2.85355C1.95118 2.65829 1.95118 2.34171 2.14645 ' +
+	'2.14645C2.34171 1.95118 2.65829 1.95118 2.85355 2.14645L8 7.29289L13.1464 2.14645C13.3417 1.95118 13.6583 ' +
+	'1.95118 13.8536 2.14645C14.0488 2.34171 14.0488 2.65829 13.8536 2.85355L8.70711 8L13.8536 13.1464C14.0488 ' +
+	'13.3417 14.0488 13.6583 13.8536 13.8536C13.6583 14.0488 13.3417 14.0488 13.1464 13.8536L8 8.70711L2.85355 ' +
+	'13.8536C2.65829 14.0488 2.34171 14.0488 2.14645 13.8536C1.95119 13.6583 1.95119 13.3417 2.14645 13.1464L7.29289 ' +
+	'8L2.14645 2.85355Z';
+
+// ColorSlotPickerMorph instance creation:
+
+function ColorSlotPickerMorph() {
+	this.init();
+}
+
+ColorSlotPickerMorph.prototype.init = function () {
+	var labelColor = new Color(176, 179, 197); // blueGray 200
+	ColorSlotPickerMorph.uber.init.call(this);
+	this.action = null;
+	this.lastColor = null;
+	this.brightness = 50; // the slider's value: 0 is full brightness, 100 black
+	this.color = new Color(45, 49, 67); // blueGray 850
+	this.bounds.setExtent(new Point(289, 170));
+
+	this.fullPalette = newCanvas(new Point(200, 128), true);
+	this.drawColorPalette(this.fullPalette);
+	this.grayRamp = this.addPalette(this.drawGrayRamp(newCanvas(new Point(200, 10), true)), 10, 18);
+	this.colorPalette = this.addPalette(newCanvas(new Point(200, 128), true), 10, 32);
+	this.slider = this.addSlider(214, 32);
+	this.swatch = this.addPart(new Morph(), 228, 32, 52, 52);
+	this.swatch.color = WHITE;
+	this.addCloseButton();
+
+	this.boxes = ['R', 'G', 'B'].map((component, i) => {
+		var y = 93 + (26 * i),
+			label = new StringMorph(component, 13, 'monospace', true, false, false, null, null, labelColor, 'Courier'),
+			frame = this.addPart(new Morph(), 228 + label.width() + 6, y, 36, 15),
+			box = new StringMorph('000', 13, 'monospace', true, false, true, null, null, new Color(38, 41, 56), 'Courier');
+		this.addPart(label, 228, y + 2);
+		frame.color = WHITE;
+		box.isEditable = true;
+		frame.add(box);
+		box.setPosition(frame.position().add(new Point(3, Math.floor((frame.height() - box.height()) / 2))));
+		return box;
+	});
+};
+
+ColorSlotPickerMorph.prototype.addPart = function (part, x, y, w, h) {
+	if (w) part.setExtent(new Point(w, h));
+	part.setPosition(this.position().add(new Point(x, y)));
+	this.add(part);
+	return part;
+};
+
+ColorSlotPickerMorph.prototype.addPalette = function (canvas, x, y) {
+	// A part that shows canvas and picks screen colours while pressed.
+	var part = this.addPart(new Morph(), x, y, canvas.width, canvas.height);
+	part.canvas = canvas;
+	part.render = (ctx) => ctx.drawImage(canvas, 0, 0);
+	part.mouseDownLeft = () => {
+		this.world().worldCanvas.style.cursor = 'crosshair';
+		this.track((pos) => this.pickAt(pos), () => {
+			this.world().worldCanvas.style.cursor = '';
+		});
+	};
+	return part;
+};
+
+ColorSlotPickerMorph.prototype.addSlider = function (x, y) {
+	var slider = this.addPart(new Morph(), x, y, 10, 128);
+	slider.render = (ctx) => {
+		ctx.fillStyle = 'rgb(207, 209, 220)'; // blueGray 100
+		ctx.fillRect(0, 0, slider.width(), slider.height());
+		ctx.fillStyle = 'rgb(176, 179, 197)'; // blueGray 200
+		ctx.beginPath();
+		ctx.roundRect(0, Math.trunc((this.brightness / 100) * (slider.height() - 20)), slider.width(), 20, 4);
+		ctx.fill();
+	};
+	slider.mouseDownLeft = () => this.track((pos) => this.setBrightness(
+		100 * Math.min(Math.max((pos.y - slider.top()) / slider.height(), 0), 1)));
+	return slider;
+};
+
+ColorSlotPickerMorph.prototype.addCloseButton = function () {
+	var button = this.addPart(new Morph(), this.width() - 45, 5, 40, 25);
+	button.render = (ctx) => {
+		ctx.fillStyle = button.isHighlighted ? 'rgb(254, 215, 34)' : 'rgb(207, 209, 220)'; // yellow, blueGray 100
+		ctx.translate(button.width() - 16, 0);
+		ctx.fill(new Path2D(this.closeIcon));
+	};
+	button.mouseEnter = () => { button.isHighlighted = true; button.changed(); };
+	button.mouseLeave = () => { button.isHighlighted = false; button.changed(); };
+	button.mouseDownLeft = nop; // so a press here is a click, not a drag
+	button.mouseClickLeft = () => this.destroy();
+};
+
+// ColorSlotPickerMorph drawing:
+
+ColorSlotPickerMorph.prototype.render = function (ctx) {
+	ctx.fillStyle = this.color.toString();
+	ctx.beginPath();
+	ctx.roundRect(0, 0, this.width(), this.height(), 4);
+	ctx.fill();
+};
+
+ColorSlotPickerMorph.prototype.drawGrayRamp = function (canvas) {
+	// Black to white, with a few columns of each at the ends.
+	var ctx = canvas.getContext('2d'), w = canvas.width, x, level;
+	for (x = 1; x <= w; x++) {
+		level = Math.min(Math.max(Math.trunc((255 * (x - 10)) / (w - 20)), 0), 255);
+		ctx.fillStyle = new Color(level, level, level).toString();
+		ctx.fillRect(x - 1, 0, 1, canvas.height);
+	}
+	return canvas;
+};
+
+ColorSlotPickerMorph.prototype.drawColorPalette = function (canvas) {
+	// Hue across and saturation down, at full brightness.
+	var w = canvas.width, h = canvas.height,
+		ctx = canvas.getContext('2d'),
+		image = ctx.createImageData(w, h),
+		x, y, c;
+	for (y = 1; y <= h; y++) {
+		for (x = 1; x <= w; x++) {
+			c = this.colorHSV((360 * x) / w, y / h, 1);
+			image.data.set([c.r, c.g, c.b, 255], ((w * (y - 1)) + x - 1) * 4);
+		}
+	}
+	ctx.putImageData(image, 0, 0);
+};
+
+// ColorSlotPickerMorph colours:
+
+ColorSlotPickerMorph.prototype.colorHSV = function (h, s, v) {
+	// h in degrees, s and v from 0 to 1. Each channel is truncated, not rounded.
+	var i, f, p, q, t;
+	h = h % 360;
+	if (h < 0) h += 360;
+	s = Math.min(Math.max(s, 0), 1);
+	v = Math.min(Math.max(v, 0), 1);
+	i = Math.trunc(h / 60);
+	f = (h / 60) - i;
+	p = v * (1 - s);
+	q = v * (1 - (s * f));
+	t = v * (1 - (s * (1 - f)));
+	return new Color(...[[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i]
+		.map((each) => Math.trunc(255 * each)));
+};
+
+ColorSlotPickerMorph.prototype.hsv = function (c) {
+	// [hue in degrees, saturation, brightness]; a gray has hue 0.
+	var min = Math.min(c.r, c.g, c.b), max = Math.max(c.r, c.g, c.b), f, i;
+	if (max === min) return [0, 0, max / 255];
+	if (c.r === min) {
+		f = c.g - c.b;
+		i = 3;
+	} else if (c.g === min) {
+		f = c.b - c.r;
+		i = 5;
+	} else {
+		f = c.r - c.g;
+		i = 1;
+	}
+	return [(60 * (i - (f / (max - min)))) % 360, (max - min) / max, max / 255];
+};
+
+ColorSlotPickerMorph.prototype.pixelAt = function (pos) {
+	// The colour on the screen at a world position.
+	var world = this.world(), canvas = world.worldCanvas,
+		ratio = canvas.width / world.width(),
+		data = canvas.getContext('2d').getImageData(Math.round(pos.x * ratio), Math.round(pos.y * ratio), 1, 1).data;
+	return new Color(data[0], data[1], data[2]);
+};
+
+// ColorSlotPickerMorph picking:
+
+ColorSlotPickerMorph.prototype.setAction = function (action, initialColor) {
+	this.action = action;
+	this.lastColor = initialColor;
+	this.selectColor(initialColor, true);
+};
+
+ColorSlotPickerMorph.prototype.pickAt = function (pos) {
+	this.lastColor = this.pixelAt(pos);
+	this.selectColor(this.lastColor, true);
+};
+
+ColorSlotPickerMorph.prototype.selectColor = function (c, updateSlider) {
+	// Show c and give it to the action. Moving the slider to c's brightness
+	// redraws the palette, and the action sees c again after that.
+	this.swatch.setColor(c);
+	this.boxes.forEach((box, i) => this.setBoxText(box, String([c.r, c.g, c.b][i]).padStart(3, '0')));
+	if (updateSlider) this.setBrightness(100 * Math.sqrt(1 - this.hsv(c)[2]));
+	if (this.action) this.action(c);
+};
+
+ColorSlotPickerMorph.prototype.setBrightness = function (n) {
+	// Darken the palette towards black, in finer steps at the bright end, and
+	// reselect the last picked hue and saturation at the new brightness.
+	var ctx = this.colorPalette.canvas.getContext('2d'), alpha, hsv;
+	this.brightness = n;
+	n = Math.min(Math.max(n / 100, 0), 1);
+	n = 1 - (n * n);
+	alpha = Math.min(Math.max(Math.trunc(255 * n), 0), 255);
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = 'black';
+	ctx.fillRect(0, 0, this.colorPalette.width(), this.colorPalette.height());
+	ctx.globalAlpha = alpha / 255;
+	ctx.drawImage(this.fullPalette, 0, 0);
+	ctx.globalAlpha = 1;
+	this.colorPalette.changed();
+	this.slider.changed();
+	if (this.lastColor) {
+		hsv = this.hsv(this.lastColor);
+		this.selectColor(this.colorHSV(hsv[0], hsv[1], alpha / 255), false);
+	}
+};
+
+ColorSlotPickerMorph.prototype.track = function (onMove, onUp) {
+	// Call onMove with the hand's position now and on every move until the
+	// button comes up, even outside me.
+	var world = this.world(), hand = world.hand,
+		origin = getDocumentPositionOf(world.worldCanvas);
+	hand.morphToGrab = null;
+	hand.processMouseMove = (event) => {
+		hand.setPosition(new Point(event.pageX - origin.x, event.pageY - origin.y).divideBy(ZOOM));
+		onMove(hand.position());
+	};
+	hand.processMouseUp = () => {
+		delete hand.processMouseMove;
+		delete hand.processMouseUp;
+		hand.mouseButton = null;
+		hand.clickTarget = null;
+		if (onUp) onUp();
+	};
+	onMove(hand.position());
+};
+
+ColorSlotPickerMorph.prototype.mouseDownLeft = function (pos) {
+	var offset = pos.subtract(this.position());
+	this.track((handPos) => this.setPosition(handPos.subtract(offset)));
+};
+
+// ColorSlotPickerMorph R G B boxes:
+
+ColorSlotPickerMorph.prototype.setBoxText = function (box, text) {
+	box.text = text;
+	box.fixLayout();
+	box.rerender();
+};
+
+ColorSlotPickerMorph.prototype.reactToInput = function () {
+	// A box holds three characters at most while it is typed in.
+	var cursor = this.world().cursor, box = cursor && cursor.target;
+	if (box && this.boxes.includes(box) && (box.text.length > 3)) {
+		this.setBoxText(box, box.text.slice(0, 3));
+		cursor.textarea.value = box.text;
+		cursor.gotoSlot(3);
+		cursor.syncTextareaSelectionWith(box);
+	}
+};
+
+ColorSlotPickerMorph.prototype.reactToEdit = function (box) {
+	// Pad the box to three digits and apply all three, unless the edit was undone.
+	var cursor = this.world().cursor, rgb;
+	if (!this.boxes.includes(box) || (cursor && (box.text === cursor.originalContents))) return;
+	this.setBoxText(box, box.text.padStart(3, '0'));
+	rgb = this.boxes.map((each) => Math.min(Math.max(Math.trunc(Number(each.text)) || 0, 0), 255));
+	if ((rgb[0] !== this.lastColor.r) || (rgb[1] !== this.lastColor.g) || (rgb[2] !== this.lastColor.b)) {
+		this.selectColor(new Color(rgb[0], rgb[1], rgb[2]));
+	}
 };
 
 // BlockExpanderMorph //////////////////////////////////////////////////////
