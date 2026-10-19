@@ -845,6 +845,9 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		blockHeight,
 		l = [],
 		lines = [],
+		// these blocks start their inputs on a new line unless their spec has a #BR#
+		breakBeforeInput = ['[display:mbDisplay]', 'setNeoPixelColors10'].includes(this.selector) &&
+			!parts.some(part => part.isBlockLabelBreak),
 		space = this.isPrototype ? 1 : Math.floor(fontHeight(this.fontSize) / 3);
 
 	if (this instanceof ReporterBlockMorph) {
@@ -875,13 +878,16 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 			if (part.isVisible) {
 				x += part.fullBounds().width() + space;
 			}
-			if ((x > this.labelWidth) || part.isBlockLabelBreak) {
+			if ((x > this.labelWidth) || part.isBlockLabelBreak ||
+				(breakBeforeInput && (part instanceof SyntaxElementMorph))
+			) {
 				if (l.length > 0) {
 					lines.push(l);
 					l = [];
 					x = part.fullBounds().width() + space;
 				}
 			}
+			if (part instanceof SyntaxElementMorph) breakBeforeInput = false;
 			l.push(part);
 			if (part.isBlockLabelBreak) {
 				x = 0;
