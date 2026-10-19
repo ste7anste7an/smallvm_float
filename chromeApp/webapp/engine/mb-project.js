@@ -509,6 +509,9 @@ class MB_Project {
 	unusedGlobals() {
 		// Return global vars that are not referenced in any script or function.
 
+		// a variable reporter holds its name as its label, not in an input
+		const varNameOf = (b) => ('v' === b.selector) ? b.blockSpec : b.inputs()[0].evaluate();
+
 		// make a list of global variables not owned by any library
 		let unusedGlobals = new Set(this.main.variableNames);
 		for (const lib of this.libraries.values()) {
@@ -520,10 +523,7 @@ class MB_Project {
 			// an entry is a three-element list: [x, y, script]
 			if (!entry[2]) continue; // a script entry is [x, y, BlockMorph|null]
 			entry[2].forAllBlocks( b => {
-				if (['v', '=', '+='].includes(b.selector)) {
-					let inputs = b.inputs();
-					if (inputs.length > 0) unusedGlobals.delete(inputs[0].evaluate());
-				}
+				if (['v', '=', '+='].includes(b.selector)) unusedGlobals.delete(varNameOf(b));
 			});
 		}
 
@@ -533,11 +533,8 @@ class MB_Project {
 			if (!f.cmdList) continue;
 			f.cmdList.forAllBlocks( b => {
 				if (['v', '=', '+='].includes(b.selector)) {
-					let inputs = b.inputs();
-					if (inputs.length > 0) {
-						let varName = inputs[0].evaluate();
-						if (!localAndArgs.has(varName)) unusedGlobals.delete(varName);
-					}
+					let varName = varNameOf(b);
+					if (!localAndArgs.has(varName)) unusedGlobals.delete(varName);
 				}
 			});
 		}
