@@ -1816,24 +1816,9 @@ BlockMorph.prototype.chromeMenu = function () {
 		items.push(['duplicate all', () => copy().pickUp(world),
 			'duplicate this block and all blocks below it']);
 	}
-	if (!this.isTemplate) {
+	if (!this.isTemplate && isCommand) {
 		items.push('-');
-		if (isCommand) {
-			items.push(['extract block', () => this.userExtractJustThis(), 'pull out this block']);
-		}
-		const alternatives = this.alternateOperators();
-		if (alternatives) {
-			items.push('-');
-			for (const op of alternatives) {
-				const spec = MB_Specs.specArrayForSelector(op);
-				if (!spec || (op === this.selector)) continue;
-				const pic = MB_editor.pictureOf(MB_Specs.blockForSpec(spec, MB_Specs.categoryForSelector(op)));
-				items.push(['alternative-' + op, () => MB_editor.changeOperator(this, op),
-					'replace with this block', pic, '--block']);
-			}
-			items.push('-');
-		}
-		items.push(['delete block', () => this.userDestroy(), 'delete this block']);
+		items.push(['extract block', () => this.userExtractJustThis(), 'pull out this block']);
 	}
 	items.push('-');
 
@@ -1901,6 +1886,21 @@ BlockMorph.prototype.chromeMenu = function () {
 				() => MB_editor.deleteFunctionWithConfirm(this.selector),
 				'delete the definition of this block']);
 		}
+	}
+	if (!this.isTemplate) {
+		const alternatives = this.alternateOperators();
+		if (alternatives) {
+			items.push('-');
+			for (const op of alternatives) {
+				const spec = MB_Specs.specArrayForSelector(op);
+				if (!spec || (op === this.selector)) continue;
+				const pic = MB_editor.pictureOf(MB_Specs.blockForSpec(spec, MB_Specs.categoryForSelector(op)));
+				items.push(['alternative-' + op, () => MB_editor.changeOperator(this, op),
+					'replace with this block', pic, '--block']);
+			}
+		}
+		items.push('-');
+		items.push(['delete block', () => this.userDestroy(), 'delete this block']);
 	}
 	return chromeMenuFor(world, items);
 };
