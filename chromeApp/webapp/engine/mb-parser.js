@@ -387,7 +387,9 @@ class MB_Parser {
 			// first block of a body, so take its whole chain.
 			return arg.isReporter ? this.blockFromDecompiled(arg) : this.makeBlockChain(arg);
 		});
-		return this.blockWithArgs(node.selector, args, node.isReporter);
+		const block = this.blockWithArgs(node.selector, args, node.isReporter);
+		if (node.isDefaultColour) block.isDefaultColour = true; // see updateCallsOf
+		return block;
 	}
 
 	makeBlockList(bufList) {
