@@ -2982,8 +2982,38 @@ HandMorph.prototype.drop = function () {
 HandMorph.prototype.processMouseDownWithoutShift = HandMorph.prototype.processMouseDown;
 HandMorph.prototype.processMouseDown = function (event) {
 	this.shiftKey = !!(event && event.shiftKey);
+	this.ctrlPress = !!(event && event.ctrlKey && (event.button === 0));
 	MB_editor.removeResultBubbles(); // a click anywhere takes the board's values away
 	this.processMouseDownWithoutShift(event);
+};
+
+// morphic makes a press with Ctrl held a right click, whose menu opens on release.
+// If the pointer moves past the drag threshold first, a block pressed that way is
+// dragged instead: a copy of it and the blocks below, or with Shift of it alone.
+// A block morphic would not grab (not draggable, not a template) stays a right click.
+HandMorph.prototype.processMouseMoveWithoutCopying = HandMorph.prototype.processMouseMove;
+HandMorph.prototype.processMouseMove = function (event) {
+	var block = this.morphToGrab, dup, pos;
+	this.processMouseMoveWithoutCopying(event);
+	if (!this.ctrlPress || (this.mouseButton !== 'right') || this.children.length ||
+			!(block instanceof BlockMorph) || (!block.isDraggable && !block.isTemplate) ||
+			(this.grabPosition.distanceTo(this.bounds.origin) <= MorphicPreferences.grabThreshold)) {
+		return;
+	}
+	this.mouseButton = 'left';
+	if (block.isTemplate || block.isFunctionDefinition()) { // a palette block, or a definition: drag it as usual
+		this.processMouseMoveWithoutCopying(event);
+		return;
+	}
+	dup = block.fullCopy();
+	if ((event.shiftKey || this.shiftKey) && (dup instanceof CommandBlockMorph) && dup.nextBlock()) {
+		dup.nextBlock().destroy();
+	}
+	pos = this.position();
+	this.setPosition(this.grabPosition);
+	dup.setPosition(block.position());
+	this.grab(dup);
+	this.setPosition(pos);
 };
 
 // Files dropped on the window. morphic picks a reader by MIME type and climbs
@@ -4075,6 +4105,7 @@ ScriptsMorph.prototype.step = function () {
 	if (hand.children.length === 0) {
 		return null;
 	}
+	this.autoScroll(hand);
 	if (!this.bounds.containsPoint(hand.bounds.origin)) {
 		return null;
 	}
@@ -4090,6 +4121,23 @@ ScriptsMorph.prototype.step = function () {
 	} else {
 		this.showCommandDropFeedback(block);
 	}
+};
+
+ScriptsMorph.prototype.autoScroll = function (hand) {
+	// While a block is held within 80 pixels of an edge of the pane, scroll 15 pixels
+	// that way each frame.
+	var frame = this.scrollFrame,
+		pos = hand.bounds.origin,
+		zone = 80, jump = 15, dx = 0, dy = 0;
+
+	if (!frame || !frame.bounds.containsPoint(pos) || !this.wantsDropOf(hand.children[0])) return;
+	if (pos.x - frame.left() < zone) dx = jump;
+	if (frame.right() - pos.x < zone) dx = -jump;
+	if (pos.y - frame.top() < zone) dy = jump;
+	if (frame.bottom() - pos.y < zone) dy = -jump;
+	if (dx) frame.scrollX(dx);
+	if (dy) frame.scrollY(dy);
+	if (dx || dy) frame.adjustScrollBars();
 };
 
 ScriptsMorph.prototype.showReporterDropFeedback = function (block, hand) {

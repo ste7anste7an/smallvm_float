@@ -61,6 +61,9 @@ class MB_Editor {
 		// What FrameMorph's constructor would have set; ScriptsMorph takes no
 		// scroll frame, and adjustBounds does nothing without one.
 		this.scripts.scrollFrame = this.scriptsFrame;
+		// The scripting pane scrolls itself while a block is dragged near its edge; the palette does not.
+		this.scriptsFrame.enableAutoScrolling = false;
+		this.palette.enableAutoScrolling = false;
 
 		// The panes exist now, so they can take their colours. This is the only
 		// place that gives them one, here and on every later change.
@@ -106,7 +109,8 @@ class MB_Editor {
 			const spinnerWasUp = this.spinnerShowing; // Escape below cancels it
 			if ('Escape' === event.key) fireIDEEvent('ide.keyPressed', 'ESC');
 			if ((typeof GP === 'object') && GP.delegateKeyboardEvents) return;
-			if (this.shortcutKey(event, spinnerWasUp) || this.searchKey(event) || this.scripts.selectionKey(event)) event.preventDefault();
+			if (this.shortcutKey(event, spinnerWasUp) || this.searchKey(event) || this.scripts.selectionKey(event)
+				|| this.scrollKey(event)) event.preventDefault();
 		});
 
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
@@ -802,6 +806,23 @@ class MB_Editor {
 		// leaves it to the page. Not while an input method is composing.
 		if ((' ' !== event.key) || !(event.ctrlKey || event.metaKey) || event.isComposing) return false;
 		MB_BlockSearchBox.open();
+		return true;
+	}
+
+	scrollKey(event) {
+		// The arrows, Page Up, Page Down, Home and End scroll the pane under the pointer,
+		// and a held key keeps scrolling. With Cmd, Ctrl or Alt the key is the browser's.
+		const steps = { ArrowLeft: [50, 0], ArrowRight: [-50, 0], ArrowUp: [0, 50], ArrowDown: [0, -50] };
+		if (event.ctrlKey || event.metaKey || event.altKey) return false;
+		if (!(event.key in steps) && !['PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) return false;
+		if ((typeof Menus !== 'undefined') && Menus.current()) return false;
+		const frame = world.hand.morphAtPointer().parentThatIsA(ScrollFrameMorph);
+		if (!frame) return false;
+		const page = Math.round(frame.height() / 3);
+		const [dx, dy] = steps[event.key] || { PageUp: [0, page], PageDown: [0, -page], Home: [0, 1e6], End: [0, -1e6] }[event.key];
+		if (dx) frame.scrollX(dx);
+		if (dy) frame.scrollY(dy);
+		frame.adjustScrollBars();
 		return true;
 	}
 
