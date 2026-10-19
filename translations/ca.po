@@ -3,9 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-30 07:10+0200\n"
-"PO-Revision-Date: 2026-09-10 12:51+0000\n"
-"Last-Translator: Josep Ferràndiz "
-"<josep.ferrandiz@users.noreply.hosted.weblate.org>\n"
+"PO-Revision-Date: 2026-10-19 15:29+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Catalan <https://hosted.weblate.org/projects/microblocks/ide/"
 "ca/>\n"
 "Language: ca\n"
@@ -13,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9.1\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -6984,7 +6983,7 @@ msgstr "MotionKit distància (cm)"
 
 #. Calliope MotionKit2 library block
 msgid "IR key _ pressed?"
-msgstr "s'ha premut la tecla IR _?"
+msgstr "s'ha premut la tecla IR _ ?"
 
 #. Calliope MotionKit2 library block
 msgid "MotionKit set NeoPixels _"
