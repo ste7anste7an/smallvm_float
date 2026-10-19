@@ -220,12 +220,12 @@ class MB_Connection {
 		// Each transport needs its own API and no other. Boardie needs neither.
 		if ((portType == 'serial') && !this.hasWebSerial()) {
 			// running in a browser w/o WebSerial (or it is not enabled)
-			alert(localized('This browser does not support WebSerial.'));
+			MB_editor.inform(localized('Only recent Chrome and Edge browsers support WebSerial.'));
 			return;
 		}
 		if ((portType == 'BLE') && !this.hasWebBluetooth()) {
 			// running in a browser w/o WebBluetooth (or it is not enabled)
-			alert(localized('This browser does not support WebBluetooth.'));
+			MB_editor.inform(localized('This browser does not support WebBluetooth.'));
 			return;
 		}
 		this.port.connect(portType, boardieIFrame);
