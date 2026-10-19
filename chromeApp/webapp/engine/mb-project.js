@@ -1425,6 +1425,79 @@ class MB_Module {
 	hasTranslationFor(langCode) { return this.translationSources.has(langCode); }
 }
 
+// MB_LibraryEditor - the edits to one library's properties, kept apart from
+// the library until save(). The library dialog shows and changes these.
+
+class MB_LibraryEditor {
+	constructor(lib) {
+		this.library = lib;
+		this.description = lib.description;
+		this.dependencies = Array.from(lib.dependencies);
+		this.category = lib.moduleCategory;
+		this.versionText = 'v' + lib.version[0] + '.' + lib.version[1];
+		this.authorText = MB_LibraryEditor.byLabel() + ' ' + lib.author;
+	}
+
+	static byLabel() {
+		// 'by', as in "by Jane Doe"; the key carries a context prefix.
+
+		const key = 'libdata;by';
+		const s = localized(key);
+		return (s === key) ? 'by' : s;
+	}
+
+	setDescription(s) { this.description = s; }
+	setCategory(cat) { this.category = cat; }
+	setVersionText(s) { this.versionText = s; }
+	setAuthorText(s) { this.authorText = s; }
+
+	shownName(dep) {
+		// A dependency as the dialog shows it: no folder, extension or version, and no
+		// leading underscore, which marks an implementation library.
+
+		const name = this.library.dependencyName(dep);
+		return name.startsWith('_') ? name.slice(1) : name;
+	}
+
+	dependencyNames() { return this.dependencies.map((dep) => this.shownName(dep)); }
+
+	addDependency(pathOrName) {
+		// Add a library name, path or URL as typed, unless one of that name is there.
+
+		if (this.dependencyNames().includes(this.shownName(pathOrName))) return false;
+		this.dependencies.push(pathOrName);
+		return true;
+	}
+
+	removeDependency(name) {
+		const i = this.dependencyNames().indexOf(name);
+		if (i < 0) return false;
+		this.dependencies.splice(i, 1);
+		return true;
+	}
+
+	version() {
+		// [major, minor] from the digits and dots of the version text; a missing part is 0.
+
+		const parts = this.versionText.replace(/[^0-9.]/g, '').split('.');
+		return [parseInt(parts[0]) || 0, parseInt(parts[1]) || 0];
+	}
+
+	author() {
+		const s = this.authorText.trim(), by = MB_LibraryEditor.byLabel() + ' ';
+		return (s.startsWith(by) ? s.slice(by.length) : s).trim();
+	}
+
+	save() {
+		const lib = this.library;
+		lib.setDescription(this.description);
+		lib.setDependencies(this.dependencies);
+		lib.setCategory(this.category);
+		lib.setVersion(this.version());
+		lib.setAuthor(this.author());
+	}
+}
+
 // MB_ScriptExchange - export and import scripts between projects.
 // Ported from MicroBlocksExchange.gp.
 //

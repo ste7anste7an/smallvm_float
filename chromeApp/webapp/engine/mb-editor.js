@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Module, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -1072,12 +1072,35 @@ console.log('unknown');
 		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
 	}
 
-	showLibraryInfo(libName) {
-		// A read-only window with a library's description, version, author and dependencies.
+	showLibraryInfo(libName, forEditing = this.devMode()) {
+		// A window with a library's description, version, author and dependencies,
+		// which can change them when forEditing.
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
-		new MB_LibraryInfoDialog(lib).open(world);
+		new MB_LibraryInfoDialog(lib, forEditing).open(world);
+	}
+
+	newLibrary(libName) {
+		// Add an empty library of the given name and show its blocks. Answers it, or
+		// null for a blank name. A library of that name already there is replaced.
+
+		if (!libName) return null;
+		const lib = new MB_Module(libName);
+		this.project.addLibrary(lib);
+		this.updateLibraryList();
+		this.selectLibrary(libName);
+		return lib;
+	}
+
+	libraryCategories() {
+		// The categories a library can be given; 'Library' is shown as Generic.
+
+		const result = ['cat;Output', 'cat;Input', 'cat;Pins', 'cat;Comm', 'cat;Control',
+			'cat;Operators', 'cat;Variables', 'cat;Data', 'cat;My Blocks'];
+		if (!this.devMode()) result.splice(result.indexOf('cat;Comm'), 1);
+		result.push('Library');
+		return result;
 	}
 
 	async reloadLibrary(libName) {
@@ -1953,12 +1976,13 @@ console.log('unknown');
 			{ title: title || null, text: String(msg) }, resolve));
 	}
 
-	prompt(question, defaultValue, editRule) {
+	prompt(question, defaultValue, editRule, details) {
 		// Answer a promise of the text entered, or null, from the chrome's dialog, as GP's
 		// Page prompt does, or from the browser's own on a page without the chrome.
+		// details is shown under the question.
 		if (typeof FloatingWindow === 'undefined') return Promise.resolve(prompt(question, defaultValue));
 		return new Promise((resolve) => askChrome('window.prompt',
-			{ title: question, text: null, default: defaultValue, editRule: editRule }, resolve));
+			{ title: question, text: details || null, default: defaultValue, editRule: editRule }, resolve));
 	}
 
 	async newProject() {
