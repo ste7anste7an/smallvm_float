@@ -1798,7 +1798,17 @@ BlockMorph.prototype.chromeMenu = function () {
 	}
 	if (!this.isTemplate) {
 		const alternatives = this.alternateOperators();
-		if (alternatives) {
+		if ('v' === this.selector) {
+			const names = MB_editor.project.allVariableNames();
+			if (names.length > 1) { // a hidden name still counts here
+				for (const name of names) {
+					if (name.startsWith('_') && !MB_editor.showHiddenBlocks()) continue;
+					const pic = MB_editor.pictureOf(MB_Parser.blockForDecompiled(
+						{ selector: 'v', args: [name], isReporter: true, next: null }));
+					items.push([name, () => MB_editor.changeVar(this, name), null, pic, '--block']);
+				}
+			}
+		} else if (alternatives) {
 			items.push('-');
 			for (const op of alternatives) {
 				const spec = MB_Specs.specArrayForSelector(op);

@@ -1698,8 +1698,19 @@ console.log('unknown');
 
 	changeOperator(aBlock, newOp) {
 		// Make aBlock call newOp with the inputs it has, and rebuild its script to match.
-		const top = aBlock.topBlock();
 		aBlock.selector = newOp;
+		this.rebuildScriptOf(aBlock);
+	}
+
+	changeVar(aBlock, varName) {
+		// Make the variable reporter aBlock read varName, and rebuild its script to match.
+		aBlock.blockSpec = varName;
+		this.rebuildScriptOf(aBlock);
+	}
+
+	rebuildScriptOf(aBlock) {
+		// Rebuild the script aBlock is in from its expression, after aBlock changed in place.
+		const top = aBlock.topBlock();
 		if (top.isFunctionDefinition()) {
 			const func = top.functionDefinition;
 			func.cmdList = MB_Parser.blockForDecompiled(top.nextBlock().expression());
