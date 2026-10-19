@@ -88,6 +88,19 @@ class MB_Editor {
 			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents)) HTMLTextAreaElement.prototype.focus.call(this);
 		};
 
+		// morphic takes a Cmd-click as a right click; the click event after it must not close its menu.
+		world.worldCanvas.addEventListener('click', (event) => {
+			if (event.metaKey) event.ignoreGlobalListener = true;
+		});
+
+		// Text copied or cut while editing is what the text menu's paste offers.
+		if (world.keyboardHandler) for (const type of ['copy', 'cut']) {
+			world.keyboardHandler.addEventListener(type, () => {
+				const area = world.keyboardHandler;
+				setClipboardBuffer(area.value.slice(area.selectionStart, area.selectionEnd));
+			});
+		}
+
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
 		// The IDE's keys act unless a chrome dialog has them. Morphic handles a key before
@@ -853,6 +866,10 @@ class MB_Editor {
 		if ((typeof Menus !== 'undefined') && Menus.current()) return false;
 		const frame = world.hand.morphAtPointer().parentThatIsA(ScrollFrameMorph);
 		if (!frame) return false;
+		if (frame.arrowKey && (event.key in steps)) { // a list moves its marked row instead
+			frame.arrowKey(Math.sign(steps[event.key][0]), Math.sign(steps[event.key][1]));
+			return true;
+		}
 		const page = Math.round(frame.height() / 3);
 		const [dx, dy] = steps[event.key] || { PageUp: [0, page], PageDown: [0, -page], Home: [0, 1e6], End: [0, -1e6] }[event.key];
 		if (dx) frame.scrollX(dx);
@@ -2843,6 +2860,44 @@ function chromeMenuFor(aWorld, items) {
 	return chromeDrawnMenu;
 }
 
+// Text being edited answers a right-click with its own menu, and editing goes on.
+for (const textClass of [StringMorph, TextMorph]) {
+	const notEditingMenu = textClass.prototype.contextMenu;
+	textClass.prototype.contextMenu = function () {
+		const cursor = this.world() && this.world().cursor;
+		return (cursor && (cursor.target === this)) ? cursor.textMenu() : notEditingMenu.call(this);
+	};
+}
+
+CursorMorph.prototype.textMenu = function () {
+	const area = this.textarea,
+		selected = () => area.value.slice(area.selectionStart, area.selectionEnd),
+		insert = (s) => {
+			area.focus(); // the chrome's menu took the keys
+			area.setRangeText(s, area.selectionStart, area.selectionEnd, 'end');
+			area.dispatchEvent(new Event('input'));
+		},
+		items = [];
+	if (selected() !== '') {
+		items.push(['cut', () => { setClipboard(selected()); insert(''); }]);
+		items.push(['copy', () => { setClipboard(selected()); area.focus(); }]);
+	}
+	if (clipboardText() !== '') items.push(['paste', () => insert(clipboardText())]);
+	if (items.length > 0) items.push('-');
+	if (area.value !== this.originalContents) {
+		items.push(['accept', () => this.accept()]);
+		items.push(['revert', () => this.cancel()]);
+	} else {
+		items.push(['stop editing', () => this.target.world().stopEditing()]);
+	}
+	items.push(['select all', () => {
+		area.focus();
+		area.select();
+		this.processKeyUp({});
+	}]);
+	return chromeMenuFor(this.target.world(), items);
+};
+
 // Global singleton instance
 const MB_editor = new MB_Editor();
 
@@ -2995,8 +3050,7 @@ document.body.appendChild(MB.clipboard);
 function setGPClipboard(s) {
 	// Called by GP's setClipboard primitive
 
-	GP.clipboardBytes = toUTF8Array(s);
-	MB.clipboard.value = s;
+	setClipboardBuffer(s);
 
 	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.writeText)) {
 		navigator.clipboard.writeText(s).catch(() => {});
@@ -3009,6 +3063,12 @@ function setGPClipboard(s) {
 			console.error('setGPClipboard failed', err);
 		}
 	}
+}
+
+function setClipboardBuffer(s) {
+	// The IDE's own copy of the clipboard text, which clipboardText() reads.
+	GP.clipboardBytes = toUTF8Array(s);
+	MB.clipboard.value = s;
 }
 
 async function readGPClipboard(s) {

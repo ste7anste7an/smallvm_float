@@ -4661,7 +4661,7 @@ ScriptsMorph.prototype.selectForEdit = function () {
 
 ScriptsMorph.prototype.mouseDownLeft = function (pos) {
 	// A drag from a selected script carries the whole selection. One from the
-	// empty pane draws a band rather than panning, except on a touch screen.
+	// empty pane draws a band, but pans on a touch screen or with the middle button.
 	var hand = this.world().hand,
 		target = hand.morphAtPointer(),
 		block = target.parentThatIsA(BlockMorph);
@@ -4672,7 +4672,7 @@ ScriptsMorph.prototype.mouseDownLeft = function (pos) {
 			return this.dragSelection();
 		}
 	}
-	if (MorphicPreferences.isTouchDevice) return this.scrollFrame.mouseDownLeft(pos);
+	if (MorphicPreferences.isTouchDevice || hand.middleButton) return this.scrollFrame.mouseDownLeft(pos);
 	if (target === this) this.startSelecting(pos);
 };
 
@@ -5808,6 +5808,11 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 	}
 };
 
+InputSlotMorph.prototype.userMenu = function () {
+	// A right-click on a slot opens nothing, and the hand looks no further up for a menu.
+	return chromeDrawnMenu;
+};
+
 InputSlotMorph.prototype.reactToEdit = function () {
 	var block = this.parentThatIsA(BlockMorph);
 	// a number slot left with no number in it holds 0, and shows it
@@ -5820,6 +5825,41 @@ InputSlotMorph.prototype.reactToEdit = function () {
 
 InputSlotMorph.prototype.freshTextEdit = function (aStringOrTextMorph) {
 	this.onNextStep = () => aStringOrTextMorph.selectAll();
+};
+
+InputSlotMorph.prototype.becomeStringSlot = function (cursor) {
+	// Shift+Enter in an auto slot: go on editing in a string slot in my place, with a new
+	// line at the caret. Emptied, it gives the place back to me (TextSlotMorph reactToInput).
+	const area = cursor.textarea,
+		slot = this.parent.labelPart('%str');
+	slot.choices = this.choices;
+	slot.autoSlot = this;
+	slot.setContents(area.value.slice(0, area.selectionStart) + '\n' + area.value.slice(area.selectionEnd));
+	this.editInMyPlace(slot, area.selectionStart + 1, cursor.originalContents);
+};
+
+InputSlotMorph.prototype.editInMyPlace = function (slot, caret, originalContents) {
+	// Put slot in my place in my block and go on editing there, where Escape still reverts.
+	const world = this.world();
+	world.stopEditing();
+	this.parent.replaceInput(this, slot);
+	slot.contents().edit();
+	slot.onNextStep = null; // a fresh edit would select all
+	world.cursor.originalContents = originalContents;
+	world.cursor.textarea.setSelectionRange(caret, caret);
+	world.cursor.processKeyUp({});
+};
+
+CursorMorph.prototype.processKeyDownInText = CursorMorph.prototype.processKeyDown;
+CursorMorph.prototype.processKeyDown = function (event) {
+	const slot = this.target.parent;
+	if (('Enter' === event.key) && event.shiftKey && !event.isComposing && (slot instanceof InputSlotMorph) &&
+			slot.isAlphanumeric && !(slot instanceof TextSlotMorph)) {
+		event.preventDefault();
+		slot.becomeStringSlot(this);
+		return;
+	}
+	this.processKeyDownInText(event);
 };
 
 // InputSlotMorph replacing
@@ -6615,6 +6655,15 @@ TextSlotMorph.prototype.contents = function () {
 
 TextSlotMorph.prototype.layoutChanged = function () {
 	this.fixLayout();
+};
+
+TextSlotMorph.prototype.reactToInput = function () {
+	if (this.autoSlot && (this.contents().text === '')) {
+		const auto = this.autoSlot;
+		this.autoSlot = null;
+		auto.setContents('');
+		this.editInMyPlace(auto, 0, this.world().cursor.originalContents);
+	}
 };
 
 // ColorSlotMorph //////////////////////////////////////////////////////
