@@ -3,9 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:23+0200\n"
-"PO-Revision-Date: 2026-09-10 12:51+0000\n"
-"Last-Translator: Josep Ferràndiz "
-"<josep.ferrandiz@users.noreply.hosted.weblate.org>\n"
+"PO-Revision-Date: 2026-10-20 00:44+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/microblocks/ide/"
 "es/>\n"
 "Language: es\n"
@@ -13,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9.1\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. Block part type, while making a new block
 msgid "input"
@@ -6915,7 +6914,7 @@ msgstr "luna"
 
 #. micro:STEAMakers library block
 msgid "ms pin _ touched?"
-msgstr "ms ¿tocando el pin _?"
+msgstr "ms ¿tocando el pin _ ?"
 
 #. micro:STEAMakers library block
 msgid "ms accel _ m/s2"
@@ -7041,7 +7040,7 @@ msgstr "MotionKit distancia (cm)"
 
 #. Calliope MotionKit2 library block
 msgid "IR key _ pressed?"
-msgstr "¿Se presionó la tecla IR _?"
+msgstr "¿Se presionó la tecla IR _ ?"
 
 #. Calliope MotionKit2 library block
 msgid "MotionKit set NeoPixels _"
@@ -8466,7 +8465,7 @@ msgstr "El reproductor de MP3 tiene una tarjeta Flash"
 
 #. MP3 Player library block
 msgid "mp3 initialize _ pin _"
-msgstr "Inicializar_pin_MP3"
+msgstr "Inicializar _ pin _ MP3"
 
 #. MP3 Player library block
 msgid "mp3 play next track"
