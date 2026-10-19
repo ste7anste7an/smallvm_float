@@ -9164,27 +9164,23 @@ StringMorph.prototype.mouseClickLeft = function (pos) {
 };
 
 StringMorph.prototype.mouseDoubleClick = function (pos) {
-    // selects the word at pos
-    // if there is no word, we select whatever is between
-    // the previous and next words
-    var slot = this.slotAt(pos);
+    // selects the run of non-blank characters at pos
+    var start = this.slotAt(pos),
+        end;
 
     if (this.isEditable) {
         this.edit();
-
-        if (slot === this.text.length) {
-            slot -= 1;
+        while (start > 0 && !(/\s/).test(this.text[start - 1])) {
+            start -= 1;
         }
-
-        if (this.text[slot] && isWordChar(this.text[slot])) {
-            this.selectWordAt(slot);
-        } else if (this.text[slot]) {
-            this.selectBetweenWordsAt(slot);
-        } else {
-            // special case for when we click right after the
-            // last slot in multi line TextMorphs
-            this.selectAll();
+        end = start + 1;
+        while (end < this.text.length && !(/\s/).test(this.text[end])) {
+            end += 1;
         }
+        this.startMark = start;
+        this.endMark = Math.min(end, this.text.length);
+        this.root().cursor.gotoSlot(this.endMark);
+        this.changed();
         this.root().cursor.syncTextareaSelectionWith(this);
     } else {
         this.escalateEvent('mouseDoubleClick', pos);
