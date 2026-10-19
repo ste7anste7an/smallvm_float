@@ -5859,48 +5859,16 @@ CursorMorph.prototype.processInput = function (event) {
         filteredContent,
         caret;
 
-    // filter invalid chars for numeric fields
-    function filterText (content) {
-        var points = 0,
-            hasE = false,
-            result = '',
-            i, ch, valid;
-        if (content === '$' || content.startsWith('$_')) { // support selectors
-            return content;
-        }
-        for (i = 0; i < content.length; i += 1) {
-            ch = content.charAt(i);
-            valid = (
-                ('0' <= ch && ch <= '9') || // digits
-                (ch.toLowerCase() === 'e') || // scientific notation
-                ((i === 0 || hasE) && ch === '-')  || // leading '-' or sc. not.
-                (ch === '.' && points === 0) // at most '.'
-            );
-            if (valid) {
-                result += ch;
-                if (ch === '.') {
-                    points += 1;
-                }
-                if (ch.toLowerCase() === 'e') {
-                    hasE = true;
-                }
-            }
-        }
-        return result;
+    // a numeric field holds a whole number: undo any change that would end that
+    if (target.isNumeric && !/^-?[0-9]*$/.test(textarea.value)) {
+        caret = textarea.selectionStart -
+            (textarea.value.length - target.text.length);
+        textarea.value = target.text;
+        caret = Math.max(0, Math.min(caret, textarea.value.length));
+        textarea.setSelectionRange(caret, caret);
     }
+    filteredContent = textarea.value;
 
-    if (target.isNumeric) {
-        filteredContent = filterText(textarea.value);
-    } else {
-        filteredContent = textarea.value;
-    }
-
-    if (filteredContent.length < textarea.value.length) {
-        textarea.value = filteredContent;
-        caret = Math.min(textarea.selectionStart, filteredContent.length);
-        textarea.selectionEnd = caret;
-        textarea.selectionStart = caret;
-    }
     // target morph: copy the content and selection status to the target.
     target.text = filteredContent;
 
