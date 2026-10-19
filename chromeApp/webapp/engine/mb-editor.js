@@ -1231,11 +1231,11 @@ console.log('unknown');
 
 	async promptForVariable() {
 		// Ask for a name and make a global of it. An unanswered prompt gives null,
-		// which createVariable would take for a name.
+		// which createVariable would take for a name. Answers the name added.
 
 		const name = await this.prompt(localized('New variable name?'), '');
-		if (!name) return;
-		this.createVariable(name);
+		if (!name) return null;
+		return this.createVariable(name);
 	}
 
 	deleteVariable(name) {
