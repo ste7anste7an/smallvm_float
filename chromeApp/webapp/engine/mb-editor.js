@@ -102,6 +102,10 @@ class MB_Editor {
 			event.stopPropagation();
 			event.preventDefault();
 		}, true);
+		// Whether Shift is down now: a result shown while it is gets copied, and it arrives after the click.
+		const noteShift = (event) => { this.shiftDown = event.shiftKey; };
+		['keydown', 'keyup', 'pointerdown'].forEach((type) => document.addEventListener(type, noteShift, true));
+		window.addEventListener('blur', () => { this.shiftDown = false; });
 		let morphicHadKeys = false;
 		document.addEventListener('keydown', () => { morphicHadKeys = !!(world.keyboardFocus || world.activeMenu); }, true);
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
@@ -2578,6 +2582,7 @@ console.log('unknown');
 	showResultOn(block, value, isError) {
 		this.removeResultBubble(block);
 		if ((value == null) || ('' === value)) return;
+		if (this.shiftDown) this.copyToClipboard(String(value));
 
 		const world = block.world();
 		if (!world) return;
