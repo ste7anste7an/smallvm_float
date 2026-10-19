@@ -356,7 +356,7 @@ FloatingWindow.about = function() {
 			FloatingWindow.inform('About MicroBlocks', text);
 		});
 	});
-}
+};
 
 
 // Events
