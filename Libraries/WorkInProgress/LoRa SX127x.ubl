@@ -1,6 +1,6 @@
 module 'LoRa SX127x'
 author MicroBlocks
-version 0 8
+version 0 8 
 choices lora_bw '7.8 kHz' '10.4 kHz' '15.6 kHz' '20.8 kHz' '31.25 kHz' '41.7 kHz' '62.5 kHz' '125 kHz' '250 kHz' '500 kHz' 
 description 'Library LoRa for SX1276/RFM95 with SPI hardware.
 Datasheet: https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE
@@ -19,7 +19,7 @@ Default configuration:
   RX gain automatic (AGC; configurable with LoRa_sx127x_setGain).
   
 Warning: this version does not guarantee lossless reception of message bursts. TX timeout adapts to the configured LoRa time-on-air.'
-variables _lora_bw _lora_sf _lora_cr _lora_preamble _lora_cs _lora_reset _lora_freqMHz _lora_baseMode _lora_ready _lora_xorEnabled _lora_xorKey _lora_lastRSSI _lora_lastSNR _lora_packetPending _lora_lastBytes _lora_lastText _lora_lastLength _lora_bwLabels _lora_bwHz _lora_sleeping
+variables _lora_bw _lora_sf _lora_cr _lora_preamble _lora_cs _lora_reset _lora_freqMHz _lora_baseMode _lora_ready _lora_xorEnabled _lora_xorKey _lora_lastRSSI _lora_lastSNR _lora_packetPending _lora_lastBytes _lora_lastText _lora_lastLength _lora_bwLabels _lora_bwHz _lora_sleeping 
 
   spec ' ' 'LoRa_sx127x_init' 'LoRa initialize CS _ RESET _ freq _ MHz : encrypt _ key _' 'num num num bool str' 5 13 868 false 'encryption key'
   spec 'r' 'LoRa_sx127x_connected' 'LoRa connected?'
@@ -103,7 +103,7 @@ to LoRa_sx127x_init cs reset freq encrypt key {
   _lora_packetPending = (booleanConstant false)
   _lora_lastBytes = ('[data:newByteArray]' 0)
   _lora_lastText = ''
-  _lora_lastLength = 0  
+  _lora_lastLength = 0
   comment 'CS inactive before any SPI transaction.'
   digitalWriteOp _lora_cs true
   if (_lora_reset > 0) {
@@ -139,7 +139,7 @@ to LoRa_sx127x_init cs reset freq encrypt key {
   LoRa_sx127x_power 14
   comment 'LNA boost.'
   '_LoRa_sx127x_writeReg' 12 (('_LoRa_sx127x_readReg' 12) | 3)
-   comment 'Initialize LoRa configuration with explicit header, CRC and automatic AGC.'
+  comment 'Initialize LoRa configuration with explicit header, CRC and automatic AGC.'
   '_LoRa_sx127x_writeReg' 29 0
   '_LoRa_sx127x_writeReg' 30 4
   '_LoRa_sx127x_writeReg' 38 4
@@ -193,7 +193,9 @@ to LoRa_sx127x_message_bytes {
 
 to LoRa_sx127x_new_message {
   comment 'Mailbox semantics: true while one captured packet is waiting to be consumed by LoRa message or LoRa message bytes.'
-  if (not _lora_packetPending) {'_LoRa_sx127x_captureIfAvailable'}
+  if (not _lora_packetPending) {
+    '_LoRa_sx127x_captureIfAvailable'
+  }
   return _lora_packetPending
 }
 
@@ -201,7 +203,7 @@ to LoRa_sx127x_power dbm {
   '_LoRa_sx127x_writeReg' 9 (128 | ((maximum 2 (minimum dbm 17)) - 2))
 }
 
-to LoRa_sx127x_send message asciiSafe {  
+to LoRa_sx127x_send message asciiSafe {
   comment 'Encode text explicitly as UTF-8. Does not split a UTF-8 character at the 255-byte LoRa limit.
 When asciiSafe is true, accented/typographic characters are first transliterated to plain ASCII (e.g. for receivers/displays that cannot show UTF-8), then encoded normally.'
   local 'asciiSafe' (argOrDefault 2 (booleanConstant false))
@@ -233,12 +235,6 @@ Choose one of the list.'
   } else {
     sayIt 'Bandwidth type not valid!'
   }
-}
-
-to '_LoRa_sx127x_setBWIndex' bwIndex {
-  comment 'Apply the numeric BW register index (0..9), preserving CR and HeaderMode.'
-  _lora_bw = (maximum 0 (minimum 9 bwIndex))
-  '_LoRa_sx127x_writeReg' 29 ((_lora_bw << 4) | (('_LoRa_sx127x_readReg' 29) & 15))
 }
 
 to LoRa_sx127x_setCR cr {
@@ -366,6 +362,13 @@ to '_LoRa_sx127x_captureIfAvailable' {
   _lora_packetPending = (booleanConstant true)
 }
 
+to '_LoRa_sx127x_ensureBWTables' {
+  if ((size _lora_bwLabels) == 0) {
+    _lora_bwLabels = ('[data:makeList]' '7.8 kHz' '10.4 kHz' '15.6 kHz' '20.8 kHz' '31.25 kHz' '41.7 kHz' '62.5 kHz' '125 kHz' '250 kHz' '500 kHz')
+    _lora_bwHz = ('[data:makeList]' 7800 10400 15600 20800 31250 41700 62500 125000 250000 500000)
+  }
+}
+
 to '_LoRa_sx127x_readFifo' nBytes {
   local 'data' ('[data:newByteArray]' nBytes)
   if (nBytes <= 0) {
@@ -382,18 +385,6 @@ to '_LoRa_sx127x_readFifo' nBytes {
   return data
 }
 
-to '_LoRa_sx127x_writeFifo' data {
-  local 'nBytes' (size data)
-  local 'frame' ('[data:newByteArray]' (nBytes + 1))
-  atPut 1 frame 128
-  for i nBytes {
-    atPut (i + 1) frame ((at i data) & 255)
-  }
-  digitalWriteOp _lora_cs false
-  '[sensors:spiExchange]' frame
-  digitalWriteOp _lora_cs true
-}
-
 to '_LoRa_sx127x_readReg' reg {
   local 'frame' ('[data:newByteArray]' 2)
   atPut 1 frame (reg & 127)
@@ -402,16 +393,6 @@ to '_LoRa_sx127x_readReg' reg {
   '[sensors:spiExchange]' frame
   digitalWriteOp _lora_cs true
   return (at 2 frame)
-}
-
-to '_LoRa_sx127x_writeReg' reg value {
-  local 'frame' ('[data:newByteArray]' 2)
-  atPut 1 frame ((reg & 127) | 128)
-  atPut 2 frame (value & 255)
-
-  digitalWriteOp _lora_cs false
-  '[sensors:spiExchange]' frame
-  digitalWriteOp _lora_cs true
 }
 
 to '_LoRa_sx127x_rxMode' {
@@ -427,7 +408,6 @@ to '_LoRa_sx127x_sendPacket' packet {
   if _lora_xorEnabled {
     data = ('_LoRa_sx127x_xorBytes' data)
   }
-
   comment 'RegPayloadLength is 8 bits: maximum 255 bytes.'
   if ((size data) > 255) {
     local 'curtes' ('[data:newByteArray]' 255)
@@ -436,30 +416,24 @@ to '_LoRa_sx127x_sendPacket' packet {
     }
     data = curtes
   }
-
   if ((size data) == 0) {
     return
   }
-
   comment 'Before leaving RX, preserve one completed packet that may still be waiting only in the SX127x FIFO/IRQ registers.'
   if (not _lora_packetPending) {
     '_LoRa_sx127x_captureIfAvailable'
   }
-
   comment 'Standby before write at FIFO.'
   '_LoRa_sx127x_writeReg' 1 (_lora_baseMode | 1)
   '_LoRa_sx127x_writeReg' 18 255
   '_LoRa_sx127x_writeReg' 13 0
   '_LoRa_sx127x_writeReg' 34 (size data)
   '_LoRa_sx127x_writeFifo' data
-
   comment 'TX Mode'
   '_LoRa_sx127x_writeReg' 1 (_lora_baseMode | 3)
-
   local 'timeout' ('_LoRa_sx127x_txTimeout' (size data))
   local 'doIt' (booleanConstant false)
   local 'elapsed' 0
-
   repeatUntil (or _lora_sleeping (or doIt (elapsed >= timeout))) {
     if ((('_LoRa_sx127x_readReg' 18) & 8) != 0) {
       doIt = (booleanConstant true)
@@ -468,40 +442,23 @@ to '_LoRa_sx127x_sendPacket' packet {
       elapsed += 1
     }
   }
-
   if _lora_sleeping {
     comment 'LoRa sleep was requested while transmitting. Stay asleep.'
     return
   }
-
   if doIt {
     '_LoRa_sx127x_writeReg' 18 8
   } else {
     comment 'Timeout. Clear all IRQs to restore a known state.'
     '_LoRa_sx127x_writeReg' 18 255
   }
-
   '_LoRa_sx127x_rxMode'
 }
 
-to '_LoRa_sx127x_txTimeout' payloadLength {
-  comment 'Conservative LoRa TX timeout in milliseconds. 
-The payload-symbol quotient is rounded upward, then the estimated time-on-air gets a 2x safety factor plus 250 ms.'
-  '_LoRa_sx127x_ensureBWTables'
-  local 'bwHz' (at (_lora_bw + 1) _lora_bwHz)
-  local 'symbolMs' (((1 << _lora_sf) * 1000) / bwHz)
-  local 'ldo' 0
-  if (((1 << _lora_sf) * 1000) > (bwHz * 16)) {
-    ldo = 1
-  }
-  local 'numerator' (((8 * payloadLength) - (4 * _lora_sf)) + 44)
-  local 'denominator' (4 * (_lora_sf - (2 * ldo)))
-  local 'payloadSymbols' 8
-  if (numerator > 0) {
-    payloadSymbols = (payloadSymbols + (((numerator / denominator) + 1) * _lora_cr))
-  }
-  local 'airtimeMs' ((_lora_preamble + 4.25 + payloadSymbols) * symbolMs)
-  return (maximum 1000 ((airtimeMs * 2) + 250))
+to '_LoRa_sx127x_setBWIndex' bwIndex {
+  comment 'Apply the numeric BW register index (0..9), preserving CR and HeaderMode.'
+  _lora_bw = (maximum 0 (minimum 9 bwIndex))
+  '_LoRa_sx127x_writeReg' 29 ((_lora_bw << 4) | (('_LoRa_sx127x_readReg' 29) & 15))
 }
 
 to '_LoRa_sx127x_setFreq' mhz {
@@ -698,11 +655,24 @@ Stops before 255 bytes so a multibyte UTF-8 character is never cut in half.'
   return ('[data:asByteArray]' output)
 }
 
-to '_LoRa_sx127x_ensureBWTables' {
-  if ((size _lora_bwLabels) == 0) {
-    _lora_bwLabels = ('[data:makeList]' '7.8 kHz' '10.4 kHz' '15.6 kHz' '20.8 kHz' '31.25 kHz' '41.7 kHz' '62.5 kHz' '125 kHz' '250 kHz' '500 kHz')
-    _lora_bwHz = ('[data:makeList]' 7800 10400 15600 20800 31250 41700 62500 125000 250000 500000)
+to '_LoRa_sx127x_txTimeout' payloadLength {
+  comment 'Conservative LoRa TX timeout in milliseconds. 
+The payload-symbol quotient is rounded upward, then the estimated time-on-air gets a 2x safety factor plus 250 ms.'
+  '_LoRa_sx127x_ensureBWTables'
+  local 'bwHz' (at (_lora_bw + 1) _lora_bwHz)
+  local 'symbolMs' (((1 << _lora_sf) * 1000) / bwHz)
+  local 'ldo' 0
+  if (((1 << _lora_sf) * 1000) > (bwHz * 16)) {
+    ldo = 1
   }
+  local 'numerator' (((8 * payloadLength) - (4 * _lora_sf)) + 44)
+  local 'denominator' (4 * (_lora_sf - (2 * ldo)))
+  local 'payloadSymbols' 8
+  if (numerator > 0) {
+    payloadSymbols = (payloadSymbols + (((numerator / denominator) + 1) * _lora_cr))
+  }
+  local 'airtimeMs' (('_lora_preamble' '+' 4.25 '+' payloadSymbols) * symbolMs)
+  return (maximum 1000 ((airtimeMs * 2) + 250))
 }
 
 to '_LoRa_sx127x_updateLDO' {
@@ -719,6 +689,27 @@ This bit must be set when the LoRa symbols last for too long.'
   } else {
     '_LoRa_sx127x_writeReg' 38 (cur & 247)
   }
+}
+
+to '_LoRa_sx127x_writeFifo' data {
+  local 'nBytes' (size data)
+  local 'frame' ('[data:newByteArray]' (nBytes + 1))
+  atPut 1 frame 128
+  for i nBytes {
+    atPut (i + 1) frame ((at i data) & 255)
+  }
+  digitalWriteOp _lora_cs false
+  '[sensors:spiExchange]' frame
+  digitalWriteOp _lora_cs true
+}
+
+to '_LoRa_sx127x_writeReg' reg value {
+  local 'frame' ('[data:newByteArray]' 2)
+  atPut 1 frame ((reg & 127) | 128)
+  atPut 2 frame (value & 255)
+  digitalWriteOp _lora_cs false
+  '[sensors:spiExchange]' frame
+  digitalWriteOp _lora_cs true
 }
 
 to '_LoRa_sx127x_xorBytes' data {
