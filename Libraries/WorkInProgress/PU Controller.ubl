@@ -3,7 +3,7 @@ author MicroBlocks
 version 1 1 
 depends _Radio 
 tags controller remote pu elecfreaks microbit 
-choices pu_button 'joystick button' B1 B2 B3 B4 A B touch 
+choices pu_button 'pu;joystick button' B1 B2 B3 B4 A B 'pu;touch' 
 choices pu_accel_axis X Y Z 
 choices pu_joystick_axis X Y 
 description 'PU Robot remote control library for micro:bit V2. Can automatically transmit joystick, acceleration, and button press events, or explicitly send these values.
@@ -195,7 +195,7 @@ to '_pu_controllerTouchSample' {
 to '_pu_ensureControllerButtonTables' {
   comment 'Build the controller button name/pin lists lazily. Button codes are: joystick button=1, B1=2, B2=3, B3=4, B4=5, A=6, B=7, touch=8.'
   if ((size _pu_controller_button_names) == 0) {
-    _pu_controller_button_names = ('[data:makeList]' 'joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'touch')
+    _pu_controller_button_names = ('[data:makeList]' 'pu;joystick button' 'B1' 'B2' 'B3' 'B4' 'A' 'B' 'pu;touch')
     _pu_controller_button_pins = ('[data:makeList]' 8 13 14 15 16 -1 -1 -1)
   }
 }
@@ -226,7 +226,7 @@ to puControllerAutomaticSend enabled {
 to puControllerButtonPressed button {
   if (button == 'A') {return (buttonA)}
   if (button == 'B') {return (buttonB)}
-  if (button == 'touch') {return ('_pu_controllerTouchPressed')}
+  if (button == 'pu;touch') {return ('_pu_controllerTouchPressed')}
   local 'code' ('_pu_controllerButtonCode' button)
   if (code <= 0) {
     return (booleanConstant false)
