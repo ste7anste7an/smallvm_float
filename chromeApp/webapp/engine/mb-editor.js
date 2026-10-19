@@ -1119,9 +1119,13 @@ console.log('unknown');
 
 	newLibrary(libName) {
 		// Add an empty library of the given name and show its blocks. Answers it, or
-		// null for a blank name. A library of that name already there is replaced.
+		// null for a blank name or one already in the project, which is left as it is.
 
 		if (!libName) return null;
+		if (this.project.libraryNamed(libName)) {
+			this.inform(localized('A library with that name is already in the project. Remove it first to make a new one.'));
+			return null;
+		}
 		const lib = new MB_Module(libName);
 		this.project.addLibrary(lib);
 		this.updateLibraryList();

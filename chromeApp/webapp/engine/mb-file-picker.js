@@ -59,7 +59,7 @@ class MB_FilePicker {
 
 		const libName = await MB_editor.prompt(localized('New library name?'), '');
 		if (!libName) return;
-		MB_editor.newLibrary(libName);
+		if (!MB_editor.newLibrary(libName)) return;
 		MB_editor.showLibraryInfo(libName, true);
 		this.isDone = true;
 		this.removeFromOwner();
