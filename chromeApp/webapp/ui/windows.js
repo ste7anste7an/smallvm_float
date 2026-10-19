@@ -72,7 +72,7 @@ class FloatingWindow extends HTMLElement {
 				document.createElement('input');
 			input.classList.add('window__input');
 			input.type = descriptor.input.type ?? 'text';
-			input.default = descriptor.input.defaultValue ?? '';
+			input.value = descriptor.input.defaultValue ?? '';
 			input.placeholder = descriptor.input.placeholder ?? '';
 			input.onfocus = () => { GP.delegateKeyboardEvents = true; };
 			input.onblur = () => { GP.delegateKeyboardEvents = false; };
