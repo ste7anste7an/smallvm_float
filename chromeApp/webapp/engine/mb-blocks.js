@@ -1650,8 +1650,12 @@ BlockMorph.prototype.localizedSpecSection = function (section) {
 		return str;
 	}).join(' ');
 
+	// a translation with a different number of slots would lose input values
+	let translated = localized(abstractSpec);
+	if (translated.split('_').length != abstractSpec.split('_').length) return section;
+
 	// remove any Snap! style slot descripters from the translation
-	let translation = this.parseSpec(localized(abstractSpec)).map(str =>
+	let translation = this.parseSpec(translated).map(str =>
 		(str.length > 1 && ('%' == str[0])) ? '_' : str
 	).join(' ');
 
