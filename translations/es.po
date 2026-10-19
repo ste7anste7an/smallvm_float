@@ -8485,7 +8485,7 @@ msgstr "Reproducir pista _ de la carpeta _ hasta finalizar"
 
 #. MP3 Player library block
 msgid "mp3 repeat all in folder _"
-msgstr "Repetir todo en la carpeta_"
+msgstr "Repetir todo en la carpeta _"
 
 #. MP3 Player library block
 msgid "mp3 resume"
