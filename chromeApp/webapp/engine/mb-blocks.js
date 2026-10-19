@@ -322,6 +322,10 @@ SyntaxElementMorph.prototype.labelParts = {
 		type: 'input',
 		tags: 'alphanum'
 	},
+	'%any': { // an input with no type: it shows its default as a hint, which cannot be edited
+		type: 'input',
+		tags: 'read-only hint'
+	},
 	'%bool': {
 		type: 'boolean'
 	},
@@ -780,7 +784,7 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 
 		// apply the tags
 		// ---------------
-		// input: numeric, numstring, alphanum, read-only, static
+		// input: numeric, numstring, alphanum, read-only, static, hint
 		// text entry: monospace
 		// boolean: static
 		// symbol: static
@@ -810,6 +814,9 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 							break;
 						case 'static':
 							part.isStatic = true;
+							break;
+						case 'hint':
+							part.isHint = true;
 							break;
 						case 'monospace':
 							part.contents().fontName = 'monospace';
@@ -2389,6 +2396,7 @@ BlockMorph.prototype.fillSlotDefault = function (slot, inputIndex) {
 		if (value !== null) slot.setContents((value === true) || (value === 'true'));
 	} else if (slot instanceof InputSlotMorph) {
 		slot.setContents((value === null) ? '' : value);
+		if (slot.isHint) slot.mbValue = null; // shown, but not a value
 	} else if ((slot instanceof ColorSlotMorph) || (slot instanceof MicroBitDisplaySlotMorph)) {
 		if (value !== null) slot.setContents(value);
 	}
