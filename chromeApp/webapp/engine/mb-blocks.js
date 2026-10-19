@@ -3174,6 +3174,7 @@ HandMorph.prototype.processMouseMoveWithoutCopying = HandMorph.prototype.process
 HandMorph.prototype.processMouseMove = function (event) {
 	var block = this.morphToGrab, dup, pos;
 	this.processMouseMoveWithoutCopying(event);
+	this.updateCursor();
 	if (!this.ctrlPress || (this.mouseButton !== 'right') || this.children.length ||
 			!(block instanceof BlockMorph) || (!block.isDraggable && !block.isTemplate) ||
 			(this.grabPosition.distanceTo(this.bounds.origin) <= MorphicPreferences.grabThreshold)) {
@@ -3193,6 +3194,27 @@ HandMorph.prototype.processMouseMove = function (event) {
 	dup.setPosition(block.position());
 	this.grab(dup);
 	this.setPosition(pos);
+};
+
+HandMorph.prototype.updateCursor = function () {
+	// Show what the morph under the pointer does with a press. A drag keeps the
+	// cursor it started with.
+	if (this.children.length || this.inputTarget) return;
+	const cursor = this.cursorFor(this.morphAtPointer());
+	const style = this.world.worldCanvas.style;
+	if (style.cursor !== cursor) style.cursor = cursor;
+};
+
+HandMorph.prototype.cursorFor = function (morph) {
+	if (morph === MB_editor.paletteResizer) return 'ew-resize';
+	for (let m = morph; m; m = m.parent) {
+		if (m instanceof MicroBitDisplaySlotMorph) return 'crosshair'; // drawn on with the pointer
+		if (m instanceof BlockExpanderMorph) return 'pointer';
+		if (((m instanceof StringMorph) || (m instanceof TextMorph)) && m.isEditable) return 'text';
+		if (m instanceof SliderMorph) return 'move';
+		if ((m instanceof HandleMorph) && ('resize' === m.type)) return 'nwse-resize';
+	}
+	return '';
 };
 
 // Files dropped on the window. morphic picks a reader by MIME type and climbs

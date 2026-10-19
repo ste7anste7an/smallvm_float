@@ -348,6 +348,21 @@ class MB_Project {
 		return result;
 	}
 
+	functionsInSeveralLibraries() {
+		// A line such as 'wifiConnect: External WiFi, WiFi' for each function that
+		// more than one library defines. Only one of those definitions is used.
+		const libsByName = new Map();
+		for (const lib of this.libraries.values()) {
+			for (const f of lib.functions) {
+				if (!libsByName.has(f.functionName)) libsByName.set(f.functionName, []);
+				libsByName.get(f.functionName).push(lib.moduleName);
+			}
+		}
+		return [...libsByName.keys()].sort()
+			.filter((name) => libsByName.get(name).length > 1)
+			.map((name) => name + ': ' + libsByName.get(name).sort().join(', '));
+	}
+
 	functionNamed(name) {
 		let f = this.main.functionNamed(name);
 		if (f) return f;
@@ -848,6 +863,52 @@ class MB_Module {
 		// Return true if this library and otherLib implement the same library.
 		if (otherLib.implementsLib(this.moduleName)) return true;
 		return this.implementedLibs.some((libName) => otherLib.implementsLib(libName));
+	}
+
+	apiOpsOf(otherLib) {
+		// Return the op of every function and block of otherLib. A block may call a primitive directly,
+		// and a library that implements otherLib covers it with a function of the same name.
+		const result = otherLib.functions.map((f) => f.functionName);
+		for (const op of otherLib.blockList) {
+			if (!['-', 'advanced'].includes(op) && !result.includes(op)) result.push(op);
+		}
+		return result;
+	}
+
+	missingFunctionsOf(otherLib) {
+		// Return the ops of otherLib, including primitive blocks, that this library does not define as functions.
+		return this.apiOpsOf(otherLib).filter((op) => !this.functionNamed(op));
+	}
+
+	mismatchedFunctionsOf(otherLib) {
+		// Return a description of each op of otherLib that this library defines with a different block,
+		// such as 'wifiConnect (inputs, label)'.
+		const result = [];
+		for (const op of this.apiOpsOf(otherLib)) {
+			const myFunc = this.functionNamed(op);
+			if (!myFunc) continue;
+			const diffs = [];
+			const otherFunc = otherLib.functionNamed(op);
+			if (otherFunc && (myFunc.argNames.length !== otherFunc.argNames.length)) diffs.push('inputs');
+			const mySpec = this.specParts(this.blockSpecs.get(op));
+			const otherSpec = this.specParts(otherLib.blockSpecs.get(op));
+			if (!mySpec || !otherSpec) {
+				if (mySpec || otherSpec) diffs.push('block');
+			} else {
+				if (mySpec[0] !== otherSpec[0]) diffs.push('type');
+				if (mySpec[1] !== otherSpec[1]) diffs.push('label');
+				if (mySpec[2] !== otherSpec[2]) diffs.push('slots');
+			}
+			if (diffs.length > 0) result.push(op + ' (' + diffs.join(', ') + ')');
+		}
+		return result;
+	}
+
+	specParts(spec) {
+		// Return the block type, label, and slot types of a block spec as its spec line writes them,
+		// or null if spec is null.
+		if (!spec) return null;
+		return [spec.blockType || ' ', spec.specString || spec.opName, specSlotInfo(spec).map((slot) => slot[0]).join(' ')];
 	}
 
 	mintScriptId(x, y, bodyText, taken) {

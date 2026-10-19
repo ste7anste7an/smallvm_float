@@ -115,6 +115,10 @@ class MB_Editor {
 			event.stopPropagation();
 			event.preventDefault();
 		}, true);
+		// Whether Shift is down now: a result shown while it is gets copied, and it arrives after the click.
+		const noteShift = (event) => { this.shiftDown = event.shiftKey; };
+		['keydown', 'keyup', 'pointerdown'].forEach((type) => document.addEventListener(type, noteShift, true));
+		window.addEventListener('blur', () => { this.shiftDown = false; });
 		let morphicHadKeys = false;
 		document.addEventListener('keydown', () => { morphicHadKeys = !!(world.keyboardFocus || world.activeMenu); }, true);
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
@@ -186,7 +190,6 @@ class MB_Editor {
 		let offset = 0;
 		const highlight = (on) => {
 			resizer.alpha = on ? 0.6 : 0;
-			world.worldCanvas.style.cursor = on ? 'ew-resize' : '';
 			resizer.changed();
 		};
 		// A block being carried passes through to the scripting area below.
@@ -445,10 +448,12 @@ class MB_Editor {
 		return this.pasteScriptText(event.data);
 	}
 
-	pasteScriptText(text) {
+	pasteScriptText(text, atHand = false) {
 		// Both a browser paste event and the chrome's paste menu item arrive here.
+		// The menu item pastes at the hand, moved up and left by about a menu's offset.
 		if (!text.startsWith('GP Script')) return; // ignore non-script paste
-		return this.pasteScripts(text.slice(text.indexOf('\n') + 1));
+		const dst = atHand ? world.hand.position().subtract(new Point(40, 90)).subtract(this.scriptsPane().position()) : null;
+		return this.pasteScripts(text.slice(text.indexOf('\n') + 1), dst);
 	}
 
 	async pasteScripts(scriptString, dst) {
@@ -568,20 +573,34 @@ class MB_Editor {
 	applyUserPreferences() {
 		// Resize, recolour and refill for a preference that changes the canvas,
 		// and leave the user on the library or category they were showing. Only
-		// a selection that is no longer there falls back.
+		// a selection that is no longer offered falls back.
 
-		const percent = this.readUserPreferences().blockSizePercent;
+		const prefs = this.readUserPreferences();
+		if (typeof prefs.locale !== 'string') {
+			// The chrome starts in the saved language, read after this runs.
+			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh_chs' : 'en');
+		}
+		const percent = prefs.blockSizePercent;
 		if (typeof percent === 'number' && Number.isFinite(percent)) {
 			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
 		}
 		this.applyDarkMode();
-		this.tellIDE('libraryList', this.libraryList());
-		const showing = this.library ? this.project.libraryNamed(this.library) : this.category;
-		if (showing) {
+		const libs = this.libraryList();
+		this.tellIDE('libraryList', libs);
+		const offered = this.library
+			? libs.some((lib) => lib.label === this.library)
+			: this.category && (this.devMode() || ('cat;Comm' !== this.category));
+		if (offered) {
 			this.updatePalette();
 		} else {
 			this.selectCategory('cat;Control');
 		}
+	}
+
+	isChineseWebapp() {
+		// A Chinese mirror of the IDE, or a browser that asks for Chinese.
+		return ['microblocksfun.cn', 'blocks.aimaker.space'].some((host) => location.href.includes(host))
+			|| Array.from(navigator.languages || []).some((lang) => lang.includes('zh'));
 	}
 
 	libraryList() {
@@ -1249,18 +1268,36 @@ console.log('unknown');
 		this.librariesChanged();
 		this.updateLibraryList();
 		this.selectLibrary(moduleName); // last, so a dependency's own select does not win
-		this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
+		await this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
 		return moduleName;
 	}
 
-	reportReplacedLibraries(lib, oldLibs) {
-		// Tell the user which of oldLibs, no longer in the project, lib replaced.
+	async reportReplacedLibraries(lib, oldLibs) {
+		// Tell the user which of oldLibs, no longer in the project, lib replaced. For the author of lib,
+		// also list the functions of each shipped library it implements that it lacks or defines with a
+		// different block.
 
 		if (!lib) return;
 		const msg = [];
 		for (const old of oldLibs) {
 			if ((old.moduleName !== lib.moduleName) && !this.project.libraryNamed(old.moduleName) && lib.replaces(old)) {
 				msg.push(localized('%1 replaces %2').replace('%1', lib.moduleName).replace('%2', old.moduleName) + '.');
+			}
+		}
+		for (const libName of lib.implementedLibs) {
+			const cmds = await lib.embeddedLibraryCmds(libName);
+			if (!cmds) continue;
+			const shipped = new MB_Module(libName);
+			shipped.loadFromCmds(cmds);
+			const missing = lib.missingFunctionsOf(shipped);
+			if (missing.length > 0) {
+				msg.push(localized('Blocks and functions of %1 that this library does not define:').replace('%1', libName) +
+					' ' + missing.join(', ') + '.');
+			}
+			const mismatched = lib.mismatchedFunctionsOf(shipped);
+			if (mismatched.length > 0) {
+				msg.push(localized('Blocks and functions of %1 that differ in this library:').replace('%1', libName) +
+					' ' + mismatched.join(', ') + '.');
 			}
 		}
 		if (msg.length > 0) this.inform(msg.join('\n'));
@@ -2062,7 +2099,7 @@ console.log('unknown');
 		// Write the project to a file the browser downloads.
 
 		this.updateProject();
-		let name = this.projectName || 'untitled.ubp';
+		let name = this.projectName || 'Untitled';
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		this.saveTextAsFile(this.project.codeString(), name);
 		this.unsavedEdits = false; // the file holds what the pane holds
@@ -2355,6 +2392,15 @@ console.log('unknown');
 		// Last, for the same reason as in clearProject: loading the project
 		// destroys and builds blocks, and each of those is an edit.
 		MB_editor.unsavedEdits = false;
+		MB_editor.reportFunctionsInSeveralLibraries();
+	}
+
+	reportFunctionsInSeveralLibraries() {
+		const duplicates = this.project.functionsInSeveralLibraries();
+		if (duplicates.length > 0) {
+			this.inform(localized('These functions are defined in more than one library, so only one of each is used:') +
+				' ' + duplicates.join('; ') + '.');
+		}
 	}
 
 	async importFromURL(url) {
@@ -2627,11 +2673,11 @@ console.log('unknown');
 
 	// Placeholder functions for UI actopms
 
-	inform(msg) {
+	inform(msg, title) {
 		// Shown by the chrome's window.inform dialog, which answers into GP.apiResponses[id].
 		console.log(msg);
 		this.informCount = (this.informCount || 0) + 1;
-		fireIDEEvent('window.inform', { title: null, text: String(msg), id: 'inform' + this.informCount });
+		fireIDEEvent('window.inform', { title: title || null, text: String(msg), id: 'inform' + this.informCount });
 	}
 
 	showResult(chunkID, value, isError) {
@@ -2650,6 +2696,7 @@ console.log('unknown');
 	showResultOn(block, value, isError) {
 		this.removeResultBubble(block);
 		if ((value == null) || ('' === value)) return;
+		if (this.shiftDown) this.copyToClipboard(String(value));
 
 		const world = block.world();
 		if (!world) return;
