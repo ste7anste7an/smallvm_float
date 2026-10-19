@@ -1928,10 +1928,12 @@ console.log('unknown');
 
 	closeAllDialogs() {
 		// Close whatever the old project left open: everything on the world but the
-		// two panes, the chrome's windows (the graph among them), the graph's samples and the spinner.
+		// two panes and the divider between them, the chrome's windows (the graph among them),
+		// the graph's samples and the spinner.
 		// A block in the hand stays, since the hand is not a child of the world.
+		const keep = [this.palette, this.scriptsFrame, this.paletteResizer];
 		for (const m of world.children.slice()) {
-			if ((m !== this.palette) && (m !== this.scriptsFrame)) m.destroy();
+			if (!keep.includes(m)) m.destroy();
 		}
 		// The port also runs with no DOM, and with a partial one.
 		if ((typeof document !== 'undefined') && (typeof document.querySelectorAll === 'function')) {
