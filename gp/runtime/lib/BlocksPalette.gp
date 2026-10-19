@@ -51,6 +51,7 @@ method justReceivedDrop BlocksPalette aHandler {
 	}
 	if (and (isClass aHandler 'Block') (notNil pe)) {
 		deleteChunkFor (smallRuntime) aHandler
+		scriptChanged (scripter pe)
 	}
 	if (isClass aHandler 'MicroBlocksSelectionContents') {
 		for part (parts (morph aHandler)) {
