@@ -3364,20 +3364,6 @@ CommandBlockMorph.prototype.bottomAttachPoint = function () {
 	);
 };
 
-CommandBlockMorph.prototype.wrapAttachPoint = function () {
-	var cslot = detect( // could be a method making uses of caching...
-		this.inputs(), // ... although these already are cached
-		each => each instanceof CSlotMorph
-	);
-	if (cslot && !cslot.nestedBlock()) {
-		return new Point(
-			cslot.left() + (cslot.inset * 2) + cslot.corner,
-			cslot.top() + (cslot.corner * 2)
-		);
-	}
-	return null;
-};
-
 CommandBlockMorph.prototype.dentLeft = function () {
 	return this.left()
 		+ this.corner
@@ -3390,124 +3376,42 @@ CommandBlockMorph.prototype.dentCenter = function () {
 		+ (this.dent * 0.5);
 };
 
-CommandBlockMorph.prototype.attachTargets = function () {
-	var answer = [],
-		tp;
-	if (this.isPrototype) return answer;
-	if (!(this instanceof HatBlockMorph)) {
-		tp = this.topAttachPoint();
-		if (!(this.parent instanceof SyntaxElementMorph)) {
-			answer.push({
-				point: tp,
-				element: this,
-				loc: 'top',
-				type: 'block'
-			});
-		}
-		if (ScriptsMorph.prototype.enableNestedAutoWrapping ||
-				!this.parentThatIsA(CommandSlotMorph)) {
-			answer.push({
-				point: tp,
-				element: this,
-				loc: 'wrap',
-				type: 'block'
-			});
-		}
-	}
-	if (!this.isStop()) {
-		answer.push({
-			point: this.bottomAttachPoint(),
-			element: this,
-			loc: 'bottom',
-			type: 'block'
-		});
-	}
-	return answer;
-};
-
-CommandBlockMorph.prototype.allAttachTargets = function (newParent) {
-	var target = newParent || this.parent,
-		answer = [],
-		topBlocks;
-
-	if (this instanceof HatBlockMorph &&
-		((newParent.rejectsHats && !this.isCustomBlockSpecific()) ||
-			(!newParent.rejectsHats && this.isCustomBlockSpecific()))
-	) {
-		return answer;
-	}
-	topBlocks = target.children.filter(child =>
-		(child !== this) &&
-			child instanceof SyntaxElementMorph &&
-				!child.isTemplate
-	);
-	topBlocks.forEach(block =>
-		block.forAllChildren(child => {
-			if (child.attachTargets) {
-				child.attachTargets().forEach(at =>
-					answer.push(at)
-				);
-			}
-		})
-	);
-	return answer;
-};
-
 CommandBlockMorph.prototype.closestAttachTarget = function (newParent) {
-	var target = newParent || this.parent,
-		bottomBlock = this.bottomBlock(),
-		answer = null,
-		thresh = Math.max(
-			this.corner * 2 + this.dent,
-			this.minSnapDistance
-		),
-		dist,
-		ref = [],
-		minDist = 1000,
-		wrap;
+	// Answer the first block or C slot, front to back, with an edge inside a box
+	// around my top-left corner. A hat attaches only above the top of a stack.
+	var scripts = newParent || this.parent,
+		box = new Point(62.5, 18.75).multiplyBy(this.scale), // 50 by 15 at the default 125% block scale
+		x = this.left(),
+		y = this.top(),
+		yb = this.bottomBlock().bottom(),
+		isHat = this instanceof HatBlockMorph,
+		cslot = detect(this.inputs(), each => each instanceof CSlotMorph),
+		near = (dx, dy) => (Math.abs(dx) < box.x) && (Math.abs(dy) < box.y),
+		target = (element, loc) => ({element: element, loc: loc, type: 'block',
+			point: loc === 'bottom' ? element.bottomAttachPoint() : element.topAttachPoint()}),
+		isTop;
 
-	if (!(this instanceof HatBlockMorph)) {
-		ref.push(
-			{
-				point: this.topAttachPoint(),
-				loc: 'top'
+	if (cslot && cslot.nestedBlock()) {cslot = null; }
+	for (const m of scripts.morphsFrontToBack(this)) {
+		if (m instanceof CommandSlotMorph) {
+			if (!isHat && near(x - m.left() - m.inset, y - m.top() - m.corner)) {
+				return {element: m, loc: 'bottom', type: 'slot', point: m.slotAttachPoint()};
 			}
-		);
-		wrap = this.wrapAttachPoint();
-		if (wrap) {
-			ref.push(
-				{
-					point: wrap,
-					loc: 'wrap'
+		} else if ((m instanceof CommandBlockMorph) && !m.isPrototype && !m.isTemplate) {
+			isTop = m.parent === scripts;
+			if (isHat) {
+				if (isTop && !(m instanceof HatBlockMorph) && near(x - m.left(), m.top() - yb)) {
+					return target(m, 'top');
 				}
-			);
+			} else if (near(x - m.left(), y - m.bottom())) {
+				return target(m, 'bottom');
+			} else if (isTop && !(m instanceof HatBlockMorph)) {
+				if (near(x - m.left(), m.top() - yb)) {return target(m, 'top'); }
+				if (cslot && near(x - m.left(), cslot.top() - m.top())) {return target(m, 'wrap'); }
+			}
 		}
 	}
-	if (!bottomBlock.isStop()) {
-		ref.push(
-			{
-				point: bottomBlock.bottomAttachPoint(),
-				loc: 'bottom'
-			}
-		);
-	}
-	this.allAttachTargets(target).forEach(eachTarget =>
-		ref.forEach(eachRef => {
-			// match: either both locs are 'wrap' or both are different,
-			// none being 'wrap' (can this be expressed any better?)
-			if ((eachRef.loc === 'wrap' && (eachTarget.loc === 'wrap')) ||
-				((eachRef.loc !== eachTarget.loc) &&
-					(eachRef.loc !== 'wrap') && (eachTarget.loc !== 'wrap'))
-			) {
-				dist = eachRef.point.distanceTo(eachTarget.point);
-				if ((dist < thresh) && (dist < minDist)) {
-					minDist = dist;
-					answer = eachTarget;
-				}
-			}
-		})
-	);
-	return answer;
+	return null;
 };
 
 CommandBlockMorph.prototype.snap = function (hand) {
@@ -4032,7 +3936,7 @@ ReporterBlockMorph.prototype.snap = function (hand) {
 		return null;
 	}
 
-	target = scripts.closestInput(this, hand);
+	target = scripts.closestInput(this);
 	if (target !== null) {
 		if (target instanceof CommandSlotMorph) {
 			nb = target.nestedBlock();
@@ -4044,6 +3948,11 @@ ReporterBlockMorph.prototype.snap = function (hand) {
 			}
 		}
 		target.parent.replaceInput(target, this);
+		if (target instanceof ReporterBlockMorph) { // the replaced reporter stays in the scripts
+			scripts.add(target);
+			target.moveBy(new Point(20, 20));
+			target.fixBlockColor();
+		}
 		if (this.snapSound) {
 			this.snapSound.play();
 		}
@@ -4242,9 +4151,7 @@ ScriptsMorph.uber = FrameMorph.prototype;
 
 ScriptsMorph.prototype.cleanUpMargin = 20;
 ScriptsMorph.prototype.cleanUpSpacing = 15;
-ScriptsMorph.prototype.isPreferringEmptySlots = true;
 ScriptsMorph.prototype.enableKeyboard = true;
-ScriptsMorph.prototype.enableNestedAutoWrapping = true;
 ScriptsMorph.prototype.feedbackColor = WHITE;
 
 // ScriptsMorph instance creation:
@@ -4363,7 +4270,7 @@ ScriptsMorph.prototype.autoScroll = function (hand) {
 };
 
 ScriptsMorph.prototype.showReporterDropFeedback = function (block, hand) {
-	var target = this.closestInput(block, hand);
+	var target = this.closestInput(block);
 
 	if (target === null) {
 		return null;
@@ -4442,88 +4349,34 @@ ScriptsMorph.prototype.showCSlotWrapFeedback = function (srcBlock, trgBlock) {
 	this.feedbackMorph.rerender();
 };
 
-ScriptsMorph.prototype.closestInput = function (reporter, hand) {
-	// passing the hand is optional (when dragging reporters)
-	var fb = reporter.fullBoundsNoShadow(),
-		stacks = this.children.filter(child =>
-			(child instanceof BlockMorph) &&
-				(child.fullBounds().intersects(fb))
-		),
-		blackList = reporter.allInputs(),
-		handPos,
-		target,
-		all;
+ScriptsMorph.prototype.closestInput = function (reporter) {
+	// Answer the unlocked slot under a point just inside the reporter's top-left,
+	// allowing a few pixels around it, or else the reporter under that point.
+	var point = reporter.position().add(10 * reporter.scale),
+		morphs = this.morphsFrontToBack(reporter);
 
-	all = [];
-	stacks.forEach(stack =>
-		all = all.concat(stack.allInputs())
-	);
-	if (all.length === 0) {return null; }
-
-	function touchingVariadicArrowsIfAny(inp, point) {
-		return true;
-	}
-
-	// What the hand is over comes first; a block it only overlaps is a fallback.
-	if (hand) {
-		handPos = hand.position();
-		if (this.isPreferringEmptySlots) {
-			target = detect(
-				all,
-				input => (input instanceof InputSlotMorph ||
-						(input instanceof ArgMorph && !(input instanceof CommandSlotMorph)
-						) || input.isEmptySlot()
-					) &&
-						!input.isLocked() &&
-							input.bounds.containsPoint(handPos) &&
-								!contains(blackList, input)
-			);
-			if (target) {
-				return target;
-			}
-		}
-		target = detect(
-			all,
-			input => (input !== reporter) &&
-				!input.isLocked() &&
-					input.bounds.containsPoint(handPos) &&
-							!contains(blackList, input) &&
-								touchingVariadicArrowsIfAny(input, handPos)
+	return detect(morphs, m =>
+			(m instanceof InputSlotMorph || m instanceof BooleanSlotMorph || m instanceof ColorSlotMorph) &&
+				!m.isLocked() && m.bounds.expandBy(5).containsPoint(point)
+		) || detect(morphs, m =>
+			(m instanceof ReporterBlockMorph) && (m.parent instanceof BlockMorph) &&
+				!m.isTemplate && !m.isPrototype && !m.isLocked() && m.bounds.containsPoint(point)
 		);
-		if (target) {
-			return target;
-		}
-		// A reporter held over a slot that refuses it is not dropped into a neighbour.
-		if (detect(all, input => input.isLocked() &&
-				!(input instanceof CommandSlotMorph) && input.bounds.containsPoint(handPos))) {
-			return null;
-		}
-	}
+};
 
-	if (this.isPreferringEmptySlots) {
-		target = detect(
-			all,
-			input => (input instanceof InputSlotMorph ||
-					input instanceof ArgMorph ||
-					input.isEmptySlot()
-				) &&
-					!input.isLocked() &&
-						input.bounds.intersects(fb) &&
-							!contains(blackList, input) &&
-								touchingVariadicArrowsIfAny(input, handPos)
-		);
-		if (target) {
-			return target;
+ScriptsMorph.prototype.morphsFrontToBack = function (except) {
+	// Every part of every script, the one drawn on top first.
+	var answer = [];
+	function add(m) {
+		if ((m !== except) && m.isVisible) {
+			answer.push(m);
+			m.children.forEach(add);
 		}
 	}
-	return detect(
-		all,
-		input => (input !== reporter) &&
-			!input.isLocked() &&
-				input.fullBounds().intersects(fb) &&
-						!contains(blackList, input) &&
-							touchingVariadicArrowsIfAny(input)
-	);
+	this.children.forEach(child => {
+		if (child instanceof BlockMorph) {add(child); }
+	});
+	return answer.reverse();
 };
 
 // ScriptsMorph user menu
@@ -5087,17 +4940,6 @@ CommandSlotMorph.prototype.dentCenter = function () {
 	return this.dentLeft()
 		+ this.corner
 		+ (this.dent * 0.5);
-};
-
-CommandSlotMorph.prototype.attachTargets = function () {
-	var answer = [];
-	answer.push({
-		point: this.slotAttachPoint(),
-		element: this,
-		loc: 'bottom',
-		type: 'slot'
-	});
-	return answer;
 };
 
 // CommandSlotMorph layout:
