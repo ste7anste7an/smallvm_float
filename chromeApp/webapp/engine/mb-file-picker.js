@@ -262,8 +262,12 @@ class MB_FilePicker {
 		const list = new ListMorph(this.folderContents(), (row) => (isString(row) ? row : row[0]));
 		list.color = MB_FilePicker.colors.list;
 		list.action = (row) => { if (!isString(row)) this.fileOrFolderSelected(row[1]); };
+		list.arrowKey = (dx, dy) => this.arrowKey(dx, dy);
 		const shownAt = Date.now();
 		for (const item of list.listContents.children) {
+			item.highlightColor = list.color.darker(8);
+			item.mouseEnter = () => { if (item.userState === 'normal') this.shade(item, 'highlight'); };
+			item.mouseLeave = () => { if (item.userState === 'highlight') this.shade(item, 'normal'); };
 			item.doubleClickAction = () => {
 				// Ignore a double click whose first click replaced the list.
 				if ((Date.now() - shownAt < 500) || isString(item.action)) return;
@@ -273,6 +277,31 @@ class MB_FilePicker {
 		this.listPane = list;
 		this.morph.add(list);
 		this.morph.fixLayout(); // a dialog that embeds the picker lays out its own parts too
+	}
+
+	arrowKey(dx, dy) {
+		// Up and Down mark the previous or next row, and a folder row is not entered.
+		// With nothing marked, any arrow marks the first row.
+
+		const rows = this.listPane.elements;
+		if (rows.some(isString)) return; // '(empty)'
+		const i = rows.findIndex((row) => row[1] === this.selection);
+		if (i < 0) return this.markRow(0);
+		if ((dy < 0) && (i < rows.length - 1)) this.markRow(i + 1);
+		if ((dy > 0) && (i > 0)) this.markRow(i - 1);
+	}
+
+	markRow(i) {
+		const item = this.listPane.listContents.children[i];
+		this.listPane.listContents.unselectAllItems();
+		this.shade(item, 'pressed');
+		this.listPane.active = item;
+		this.fileOrFolderSelected(this.listPane.elements[i][1], true);
+	}
+
+	shade(item, state) {
+		item.userState = state;
+		item.rerender();
 	}
 
 	fixLayout() {

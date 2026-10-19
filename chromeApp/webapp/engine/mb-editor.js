@@ -866,6 +866,10 @@ class MB_Editor {
 		if ((typeof Menus !== 'undefined') && Menus.current()) return false;
 		const frame = world.hand.morphAtPointer().parentThatIsA(ScrollFrameMorph);
 		if (!frame) return false;
+		if (frame.arrowKey && (event.key in steps)) { // a list moves its marked row instead
+			frame.arrowKey(Math.sign(steps[event.key][0]), Math.sign(steps[event.key][1]));
+			return true;
+		}
 		const page = Math.round(frame.height() / 3);
 		const [dx, dy] = steps[event.key] || { PageUp: [0, page], PageDown: [0, -page], Home: [0, 1e6], End: [0, -1e6] }[event.key];
 		if (dx) frame.scrollX(dx);

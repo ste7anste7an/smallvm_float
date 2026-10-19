@@ -8431,12 +8431,13 @@ MenuMorph.prototype.processKeyDown = function (event) {
         return;
     case 27: // 'esc'
         return this.destroy();
-    case 37: // 'left arrow'
-        return this.leaveSubmenu();
+    case 37: // 'left arrow', previous item unless in a submenu
+        return (this.parent instanceof MenuMorph) ? this.leaveSubmenu() : this.selectUp();
     case 38: // 'up arrow'
         return this.selectUp();
-    case 39: // 'right arrow'
-        return this.enterSubmenu();
+    case 39: // 'right arrow', next item unless it opens a submenu
+        return (this.selection && this.selection.action instanceof MenuMorph) ?
+            this.enterSubmenu() : this.selectDown();
     case 40: // 'down arrow'
         return this.selectDown();
     default:
