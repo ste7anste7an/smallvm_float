@@ -1775,6 +1775,12 @@ BlockMorph.prototype.userMenu = function () {
 	return menu;
 };
 
+BlockMorph.prototype.isCallable = function () {
+	// A "call" block can name a function of the project or a [lib:name] primitive.
+	var name = this.selector || '';
+	return !!MB_editor.project.functionNamed(name) || (name.startsWith('[') && name.endsWith(']'));
+};
+
 BlockMorph.prototype.showDevView = function (view) {
 	// Open a window showing this block's instructions, compiled bytes or call tree.
 	// Inside a definition, that is the function's.
@@ -1860,6 +1866,11 @@ BlockMorph.prototype.chromeMenu = function () {
 	}
 	if (MB_editor.devMode()) {
 		items.push('-');
+		if (this.isCallable()) {
+			items.push(['copy callable name', () => MB_editor.copyToClipboard(this.selector),
+				'copy this block\'s name for use in a "call" block']);
+			items.push('-');
+		}
 		items.push(['show instructions', () => this.showDevView('showInstructions')]);
 		items.push(['show compiled bytes', () => this.showDevView('showCompiledBytes')]);
 		if (this.isTemplate && MB_editor.project.functionNamed(this.selector)) {
