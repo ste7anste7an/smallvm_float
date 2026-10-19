@@ -1805,6 +1805,18 @@ BlockMorph.prototype.chromeMenu = function () {
 		if (isCommand) {
 			items.push(['extract block', () => this.userExtractJustThis(), 'pull out this block']);
 		}
+		const alternatives = this.alternateOperators();
+		if (alternatives) {
+			items.push('-');
+			for (const op of alternatives) {
+				const spec = MB_Specs.specArrayForSelector(op);
+				if (!spec || (op === this.selector)) continue;
+				const pic = MB_editor.pictureOf(MB_Specs.blockForSpec(spec, MB_Specs.categoryForSelector(op)));
+				items.push(['alternative-' + op, () => MB_editor.changeOperator(this, op),
+					'replace with this block', pic, '--block']);
+			}
+			items.push('-');
+		}
 		items.push(['delete block', () => this.userDestroy(), 'delete this block']);
 	}
 	items.push('-');
@@ -1875,6 +1887,24 @@ BlockMorph.prototype.chromeMenu = function () {
 		}
 	}
 	return chromeMenuFor(world, items);
+};
+
+BlockMorph.prototype.operatorGroups = [
+	['analogReadOp', 'digitalReadOp'],
+	['analogWriteOp', 'digitalWriteOp'],
+	['analogPins', 'digitalPins'],
+	['and', 'or'],
+	['+', '-', '*', '/', '%'],
+	['buttonA', 'buttonB'],
+	['<', '<=', '==', '!=', '>=', '>'],
+	['maximum', 'minimum'],
+	['millisOp', 'microsOp'],
+	['&', '|', '^', '<<', '>>'],
+];
+
+BlockMorph.prototype.alternateOperators = function () {
+	// The group of operators this block can be changed into, its own included, or null.
+	return this.operatorGroups.find((group) => group.includes(this.selector)) || null;
 };
 
 BlockMorph.prototype.copyToClipboard = function () {

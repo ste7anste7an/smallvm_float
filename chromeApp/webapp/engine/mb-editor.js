@@ -1673,24 +1673,42 @@ console.log('unknown');
 			func.cmdList = MB_Parser.blockForDecompiled(node);
 			this.rehangDefinitionsOf(func);
 		}
-		// A rebuilt script keeps its id, so its chunk is replaced, not deleted.
 		for (const old of this.scriptsPane().children.slice()) {
 			if (!(old instanceof BlockMorph) || old.isFunctionDefinition()) continue;
 			const node = old.expression();
 			if (!fixCalls(node)) continue;
-			const fresh = MB_Parser.blockForDecompiled(node);
-			fresh.mbScriptId = old.mbScriptId;
-			fresh.setPosition(old.position());
-			old.destroy();
-			this.scriptsPane().add(fresh);
-			if (this.runningChunks.has(old)) {
-				this.runningChunks.set(fresh, this.runningChunks.get(old));
-				this.runningChunks.delete(old);
-				fresh.addHighlight();
-			}
+			this.replaceScript(old, MB_Parser.blockForDecompiled(node));
 		}
 		this.updateProject();
 		this.scriptChanged(); // every rebuilt call is a chunk the board has not got
+	}
+
+	replaceScript(old, fresh) {
+		// Put fresh where old was. It keeps old's id, so its chunk is replaced, not deleted.
+		fresh.mbScriptId = old.mbScriptId;
+		fresh.setPosition(old.position());
+		old.destroy();
+		this.scriptsPane().add(fresh);
+		if (this.runningChunks.has(old)) {
+			this.runningChunks.set(fresh, this.runningChunks.get(old));
+			this.runningChunks.delete(old);
+			fresh.addHighlight();
+		}
+	}
+
+	changeOperator(aBlock, newOp) {
+		// Make aBlock call newOp with the inputs it has, and rebuild its script to match.
+		const top = aBlock.topBlock();
+		aBlock.selector = newOp;
+		if (top.isFunctionDefinition()) {
+			const func = top.functionDefinition;
+			func.cmdList = MB_Parser.blockForDecompiled(top.nextBlock().expression());
+			this.rehangDefinitionsOf(func);
+		} else {
+			this.replaceScript(top, MB_Parser.blockForDecompiled(top.expression()));
+		}
+		this.updateProject();
+		this.scriptChanged();
 	}
 
 	rehangDefinitionsOf(func) {
