@@ -312,6 +312,9 @@ SyntaxElementMorph.prototype.labelParts = {
 	'%str': {
 		type: 'text entry',
 	},
+	'%cmt': {
+		type: 'comment',
+	},
 	'%auto': {
 		type: 'input',
 		tags: 'alphanum'
@@ -728,6 +731,10 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 				break;
 			case 'text entry':
 				part = new TextSlotMorph();
+				break;
+			case 'comment':
+				part = new TextSlotMorph();
+				part.isComment = true;
 				break;
 			case 'slot':
 				part = new ArgMorph(info.kind);
@@ -1345,6 +1352,7 @@ BlockIconMorph.prototype.render = function (ctx) {
 		arity: single
 
 		%str	- white rectangular type-in slot (multi-line string)
+		%cmt	- like %str, with square corners (comment)
 		%num	- white roundish type-in slot (number)
 		%auto	- white roundish type-in slot (number or string)
 		%cmd	- C-shaped, auto-reifying, accepts reporter drops
@@ -5827,22 +5835,26 @@ InputSlotMorph.prototype.render = function (ctx) {
 
 	r = Math.max((this.height() - (this.edge * 2)) / 2, 0);
 	ctx.beginPath();
-	ctx.arc(
-		r + this.edge,
-		r + this.edge,
-		r,
-		radians(90),
-		radians(-90),
-		false
-	);
-	ctx.arc(
-		this.width() - r - this.edge,
-		r + this.edge,
-		r,
-		radians(-90),
-		radians(90),
-		false
-	);
+	if (this.isComment) { // a comment slot has square corners
+		ctx.rect(this.edge, this.edge, this.width() - (this.edge * 2), this.height() - (this.edge * 2));
+	} else {
+		ctx.arc(
+			r + this.edge,
+			r + this.edge,
+			r,
+			radians(90),
+			radians(-90),
+			false
+		);
+		ctx.arc(
+			this.width() - r - this.edge,
+			r + this.edge,
+			r,
+			radians(-90),
+			radians(90),
+			false
+		);
+	}
 	ctx.closePath();
 	ctx.fill();
 

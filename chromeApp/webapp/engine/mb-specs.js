@@ -250,7 +250,7 @@ MB_Specs.snapSpecForSpecArray = function (specArray) {
 MB_Specs.snapTypeForMBType = function (mbType) {
 	// Return the Snap! slot type for the given MicroBlocks slot type or '%auto' if mbType is null.
 	// The Snap! types are the MicroBlocks types prefixed by '%'.
-	// MicroBlocks types: 'num' 'str' 'auto' 'bool' 'color' 'cmd' 'var' 'menu' 'microbitDisplay'
+	// MicroBlocks types: 'num' 'str' 'auto' 'bool' 'color' 'cmd' 'var' 'menu' 'microbitDisplay' 'cmt'
 
 	if (mbType == null) return '%auto'; // default
 
@@ -423,7 +423,7 @@ MB_Specs.mbBlockSpecs = function () {
 			["h", "whenBroadcastReceived", "when _ received", "str.broadcastMenu", "go!"],
 			[" ", "sendBroadcast", "broadcast _", "str.broadcastMenu", "go!", ""],
 		"-",
-			[" ", "comment", "comment _", "str", "How this works..."],
+			[" ", "comment", "comment _", "cmt", "How this works..."],
 			["r", "[data:range]", "range _ to _ : by _", "num num num", 1, 10, 2],
 			[" ", "for", "for _ in _ _", "var num cmd", "i", 10],
 			[" ", "repeatUntil", "repeat until _ _", "bool cmd", false],
