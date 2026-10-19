@@ -1979,7 +1979,7 @@ console.log('unknown');
 		// Write the project to a file the browser downloads.
 
 		this.updateProject();
-		let name = this.projectName || 'untitled.ubp';
+		let name = this.projectName || 'Untitled';
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		this.saveTextAsFile(this.project.codeString(), name);
 		this.unsavedEdits = false; // the file holds what the pane holds
