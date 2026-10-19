@@ -909,6 +909,8 @@ class MB_Editor {
 		let runningChunkID = this.runningChunks.get(top);
 		if (runningChunkID !== undefined) {
 			MB_connection.sendMsg('stopChunkMsg', runningChunkID);
+		} else if ('not connected' == MB_connection.updateConnection()) {
+			this.showError(top, localized('Board not connected'));
 		} else {
 			let chunkID = this.codeManager.ensureChunkIdFor(top);
 			this.compileAndRun(top, chunkID);
