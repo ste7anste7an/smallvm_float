@@ -118,20 +118,47 @@ function specDefinitionString(spec) {
 	return parts.join(' ');
 }
 
-function scriptForFunction(func, body = null) {
+function scriptForFunction(func, body = null, project = MB_editor.project) {
 	// The block that shows a function definition in the scripting pane: a hat
-	// that holds the function.
+	// that holds the function and shows its block's prototype.
 	if (func == null) return null;
 	let hat = new HatBlockMorph();
 	hat.selector = 'to';
 	hat.functionDefinition = func;
-	hat.setSpec(MB_Specs.specFor('to', [func.functionName]));
-	hat.setCategory(MB_Specs.categoryForSelector('to'));
+	hat.setSpec('define');
+	hat.setCategory('Definition');
 	hat.isDraggable = true;
-	hat.inputs()[0].setContents(func.functionName);
+	hat.add(blockPrototypeForFunction(func, project));
+	hat.fixLayout();
 	let cmdList = body || func.cmdList;
 	if (cmdList) hat.nextBlock(cmdList);
 	return hat;
+}
+
+function blockPrototypeForFunction(func, project) {
+	// A block of the function's shape and colour holding its editable
+	// prototype. A drag takes a copy of it, as from the palette.
+	const op = func.functionName;
+	const args = func.argNames || [];
+	MB_Specs.initialize();
+	const builtIn = MB_Specs.selectorToSpec.get(op);
+	const spec = project.blockSpecs.get(op)
+		|| (builtIn && { blockType: builtIn[0], opName: op, specString: builtIn[2],
+			slotTypes: builtIn[3] || '', defaults: builtIn.slice(4) })
+		|| { blockType: ' ', opName: op, specString: [op, ...args.map(() => '_')].join(' '),
+			slotTypes: args.map(() => 'auto').join(' ') };
+	const proto = ('r' === spec.blockType) ? new ReporterBlockMorph() : new CommandBlockMorph();
+	proto.isPrototype = true;
+	proto.isDraggable = false;
+	proto.isTemplate = true;
+	const lib = [...project.libraries.values()].find((m) => m.functions.includes(func));
+	proto.setCategory(lib ? lib.moduleCategory : 'My Blocks'); // as the palette colours it
+	const def = new BlockDefinitionMorph(op, spec, args, proto);
+	if (builtIn) def.isBuiltIn = true; // its spec is not the user's to change
+	proto.add(def);
+	if (builtIn) def.hideDetails();
+	proto.fixLayout();
+	return proto;
 }
 
 function blockForBody(bodyArg, singleIsReporter = false) {
@@ -709,7 +736,7 @@ class MB_Project {
 			// the function's own body; each later hat gets a copy of it.
 			let body = (bodyTaken.has(func) && func.cmdList) ? func.cmdList.fullCopy() : null;
 			bodyTaken.add(func);
-			const hat = scriptForFunction(func, body);
+			const hat = scriptForFunction(func, body, this);
 			// The hat stands for the entry that was read, so it keeps that
 			// entry's name rather than being minted a second one from a body
 			// the file does not hold.
