@@ -813,6 +813,8 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 			});
 			part.fixLayout();
 		}
+	} else if (spec.startsWith('#SVG#')) {
+		part = new BlockIconMorph(spec, this.fontSize, WHITE);
 	} else {
 		part = new BlockLabelMorph(
 			spec, // text
@@ -1227,6 +1229,75 @@ BlockLabelMorph.prototype.getShadowRenderColor = function () {
 	return (block && block.alpha > 0.5) ?
 		this.shadowColor
 		: CLEAR;
+};
+
+// BlockIconMorph //////////////////////////////////////////////////////
+
+/*
+	I am an icon in a block's label, written '#SVG#name' in a spec, or
+	'#SVG#name#rrggbb' for a fixed colour. I draw img/name.svg in my colour.
+*/
+
+BlockIconMorph.prototype = new BlockLabelMorph();
+BlockIconMorph.prototype.constructor = BlockIconMorph;
+BlockIconMorph.uber = BlockLabelMorph.prototype;
+
+BlockIconMorph.images = new Map(); // icon name -> Image, loaded once per page
+BlockIconMorph.waiting = new Map(); // icon name -> the icons to lay out when it loads
+
+function BlockIconMorph(spec, fontSize, color) {
+	this.init(spec, fontSize, null, true, false, false, ZERO, null, color);
+	const [name, hex] = spec.slice(5).split('#');
+	this.iconColor = hex ? new Color(
+		parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)
+	) : null;
+	this.image = this.iconImage(name);
+	this.fixLayout(true);
+}
+
+BlockIconMorph.prototype.iconImage = function (name) {
+	if (typeof Image === 'undefined') return null; // no page to load it from
+	let img = BlockIconMorph.images.get(name);
+	if (!img) {
+		// Read as text: an image needs the svg namespace, which some icon files leave out.
+		img = new Image();
+		img.onload = () => {
+			BlockIconMorph.waiting.get(name).forEach((icon) => { icon.fixLayout(); icon.rerender(); });
+			BlockIconMorph.waiting.delete(name);
+		};
+		BlockIconMorph.images.set(name, img);
+		BlockIconMorph.waiting.set(name, []);
+		fetch('img/' + name + '.svg').then((response) => response.text()).then((svg) => {
+			if (!svg.includes('xmlns=')) svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+			img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+		}).catch(() => {}); // a missing icon leaves a blank space
+	}
+	if (BlockIconMorph.waiting.has(name)) BlockIconMorph.waiting.get(name).push(this);
+	return img;
+};
+
+BlockIconMorph.prototype.fixLayout = function (justMe) {
+	// The icon's own size at my scale; a label's fontSize is 14 at scale 1.
+	const img = this.image, scale = this.fontSize / 14;
+	const w = (img && img.naturalWidth) || 14, h = (img && img.naturalHeight) || 14;
+	this.bounds.corner = this.bounds.origin.add(new Point(Math.round(w * scale), Math.round(h * scale)));
+	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
+};
+
+BlockIconMorph.prototype.render = function (ctx) {
+	// The icon's shape filled with my colour, as text is. It is tinted on a
+	// canvas of its own because ctx also holds the block drawn under it.
+	if (!this.image || !this.image.naturalWidth) return;
+	const ratio = window.devicePixelRatio || 1, w = this.width(), h = this.height();
+	const tinted = document.createElement('canvas');
+	tinted.width = Math.ceil(w * ratio);
+	tinted.height = Math.ceil(h * ratio);
+	const tctx = tinted.getContext('2d');
+	tctx.drawImage(this.image, 0, 0, tinted.width, tinted.height);
+	tctx.globalCompositeOperation = 'source-in';
+	tctx.fillStyle = (this.iconColor || this.getRenderColor()).toString();
+	tctx.fillRect(0, 0, tinted.width, tinted.height);
+	ctx.drawImage(tinted, 0, 0, w, h);
 };
 
 // BlockMorph //////////////////////////////////////////////////////////
