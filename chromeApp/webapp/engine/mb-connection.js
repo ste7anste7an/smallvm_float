@@ -407,7 +407,7 @@ class MB_Connection {
 			}
 		} else {
 			// Updating these boards needs the board put into boot mode, so only say so.
-			MB_editor.inform(msg);
+			MB_editor.inform(msg, localized('Firmware version'));
 		}
 		return false;
 	}
