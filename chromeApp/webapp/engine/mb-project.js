@@ -1075,7 +1075,10 @@ class MB_Module {
 			if (block instanceof ReporterBlockMorph) {
 				// codeString() already parenthesises a reporter, so do not add
 				// a second pair here as GP's scriptString has to.
-				result.push(block.codeString() + '\n');
+				// A variable is the exception: codeString() writes it bare.
+				let text = (block.selector == 'v') ?
+					('(v ' + quoteIfNeeded(block.blockSpec) + ')') : block.codeString();
+				result.push(text + '\n');
 			} else {
 				result.push('{\n');
 				// At its own column, as GP's prettyPrintList writes a script body.
