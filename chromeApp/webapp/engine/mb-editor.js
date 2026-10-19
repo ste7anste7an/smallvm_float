@@ -1224,18 +1224,36 @@ console.log('unknown');
 		this.librariesChanged();
 		this.updateLibraryList();
 		this.selectLibrary(moduleName); // last, so a dependency's own select does not win
-		this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
+		await this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
 		return moduleName;
 	}
 
-	reportReplacedLibraries(lib, oldLibs) {
-		// Tell the user which of oldLibs, no longer in the project, lib replaced.
+	async reportReplacedLibraries(lib, oldLibs) {
+		// Tell the user which of oldLibs, no longer in the project, lib replaced. For the author of lib,
+		// also list the functions of each shipped library it implements that it lacks or defines with a
+		// different block.
 
 		if (!lib) return;
 		const msg = [];
 		for (const old of oldLibs) {
 			if ((old.moduleName !== lib.moduleName) && !this.project.libraryNamed(old.moduleName) && lib.replaces(old)) {
 				msg.push(localized('%1 replaces %2').replace('%1', lib.moduleName).replace('%2', old.moduleName) + '.');
+			}
+		}
+		for (const libName of lib.implementedLibs) {
+			const cmds = await lib.embeddedLibraryCmds(libName);
+			if (!cmds) continue;
+			const shipped = new MB_Module(libName);
+			shipped.loadFromCmds(cmds);
+			const missing = lib.missingFunctionsOf(shipped);
+			if (missing.length > 0) {
+				msg.push(localized('Blocks and functions of %1 that this library does not define:').replace('%1', libName) +
+					' ' + missing.join(', ') + '.');
+			}
+			const mismatched = lib.mismatchedFunctionsOf(shipped);
+			if (mismatched.length > 0) {
+				msg.push(localized('Blocks and functions of %1 that differ in this library:').replace('%1', libName) +
+					' ' + mismatched.join(', ') + '.');
 			}
 		}
 		if (msg.length > 0) this.inform(msg.join('\n'));
