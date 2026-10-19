@@ -1372,6 +1372,7 @@ method exportAsImageScaled Block result isError fName {
 }
 
 method delete Block {
+	se = (ownerThatIsA morph 'ScriptEditor')
 	if ('reporter' != type) { // hat or command
 		nxt = (next this)
 		if (and (notNil nxt) (notNil (owner morph))) {
@@ -1391,6 +1392,7 @@ method delete Block {
 	}
 	aboutToBeGrabbed this
 	removeFromOwner morph
+	if (notNil se) { scriptChanged (handler se) } // a top-level block has no owner block to report the change
 }
 
 method editAsText Block {
