@@ -208,7 +208,7 @@ class MB_Editor {
 
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(scriptsPane.position().add(new Point(x, y)));
-		b.category = MB_Specs.categoryForSelector(b.selector);
+		if (!b.isFunctionDefinition()) b.category = MB_Specs.categoryForSelector(b.selector);
 		b.setColor(b.colorFor(b.category));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
@@ -1549,6 +1549,7 @@ console.log('unknown');
 		// Give the function op the prototype the user edited, then fix every
 		// call to it in main to match.
 		this.updateProject();
+		this.scriptsPane().cancelSelection(); // the rebuild replaces selected blocks
 		const func = this.project.functionNamed(op);
 		if (func) {
 			func.argNames = argNames.slice();
@@ -1564,8 +1565,26 @@ console.log('unknown');
 		// a call that changed shape has to leave the place it was standing in.
 		if (oldSpec && (oldSpec.blockType !== blockType)) this.ejectCallsOf(op, 'r' === blockType);
 		this.updateCallsOf(op, colourSlots);
+		if (func) this.rebuildDefinitionsOf(func);
+		this.updatePalette();
 		// Its own, because updateCallsOf answers early when the spec is missing.
 		this.scriptChanged();
+	}
+
+	rebuildDefinitionsOf(func) {
+		// Replace each definition of func in the pane with one showing its
+		// current prototype, keeping its place, its script id and its body.
+		const pane = this.scriptsPane();
+		for (const old of pane.children.slice()) {
+			if (!(old instanceof BlockMorph) || (old.functionDefinition !== func)) continue;
+			const body = old.nextBlock();
+			if (body) old.removeChild(body);
+			const hat = scriptForFunction(func, body);
+			hat.mbScriptId = old.mbScriptId;
+			hat.setPosition(old.position());
+			old.destroy();
+			pane.add(hat);
+		}
 	}
 
 	ejectCallsOf(op, becomesReporter) {
@@ -1640,6 +1659,7 @@ console.log('unknown');
 		// Pad or cut every call to op in main's functions and scripts to the
 		// inputs its spec declares, and replace a literal of the wrong type with
 		// the slot's default. colourSlots says which inputs were colour slots.
+		// Everything that calls op is rebuilt, so its calls show the new labels.
 		const spec = this.project.blockSpecs.get(op);
 		if (spec == null) return;
 		const { sections, repeatLast } = specSections(spec);
@@ -1659,11 +1679,14 @@ console.log('unknown');
 			}),
 		};
 		const fixCalls = (node) => {
-			let changed = false;
+			let calls = false;
 			forEachExpression(node, (n) => {
-				if (n.selector === op) changed = fixedCallArgs(n, rule) || changed;
+				if (n.selector === op) {
+					fixedCallArgs(n, rule);
+					calls = true;
+				}
 			});
-			return changed;
+			return calls;
 		};
 
 		for (const func of this.project.main.functions) {

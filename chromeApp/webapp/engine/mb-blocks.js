@@ -425,9 +425,10 @@ SyntaxElementMorph.prototype.debugCachedInputs = function () {
 SyntaxElementMorph.prototype.allInputs = function () {
 	// answer arguments and nested reporters of all children
 	return this.allChildren().slice(0).reverse().filter(child =>
-		(child instanceof ArgMorph) ||
+		((child instanceof ArgMorph) ||
 		(child instanceof ReporterBlockMorph &&
-			child !== this)
+			child !== this)) &&
+		!child.isPrototype && !child.parentThatIsA(BlockDefinitionMorph)
 	);
 };
 
@@ -1386,6 +1387,7 @@ BlockMorph.prototype.colorFor = function (category) {
 		'My Blocks' : new Color(26, 140, 221),
 		Library : new Color(30, 153, 122),
 		Obsolete : new Color(196, 15, 0),
+		Definition : new Color(140, 0, 140),
 	}[category];
 	if (result === undefined) {
 		result = new Color(37, 145, 221);
@@ -1799,6 +1801,7 @@ BlockMorph.prototype.chromeMenu = function () {
 		};
 
 	if (this.isFunctionDefinition()) return this.definitionMenu();
+	if (this.isPrototype || this.parentThatIsA(BlockDefinitionMorph)) return this.topBlock().definitionMenu();
 	if (this.parent instanceof TemplateSlotMorph) {
 		items.push(['rename...', () => this.userRenameVariable()]);
 		items.push('-');
@@ -3003,6 +3006,9 @@ BlockMorph.prototype.hasLabels = function () {
 // BlockMorph copying
 
 BlockMorph.prototype.fullCopy = function () {
+	if (this.isPrototype) { // a prototype is copied as a call of its block
+		return MB_editor.blockForFunction(MB_editor.project.functionNamed(this.topBlock().definedFunctionName()));
+	}
 	var ans = BlockMorph.uber.fullCopy.call(this);
 	ans.removeHighlight();
 	ans.isDraggable = true;
@@ -3017,6 +3023,9 @@ BlockMorph.prototype.fullCopy = function () {
 };
 
 BlockMorph.prototype.reactToTemplateCopy = function () {
+	// A copy of a prototype's input is a plain variable.
+	this.children.filter((m) => m instanceof InputDeclarationMorph).forEach((m) => m.destroy());
+	this.fixLayout();
 	this.forceNormalColoring();
 };
 
@@ -3032,6 +3041,10 @@ BlockMorph.prototype.pickUp = function (wrrld) {
 
 BlockMorph.prototype.mouseClickLeft = function () {
 	var scripts = MB_editor.scripts;
+	if (this.isPrototype) {
+		this.children.find((m) => m instanceof BlockDefinitionMorph).clicked();
+		return;
+	}
 	if (scripts.selection && this.world().hand.shiftKey &&
 			(this.parentThatIsA(ScriptsMorph) === scripts)) {
 		scripts.toggleSelected(this.topBlock());
@@ -3370,6 +3383,7 @@ CommandBlockMorph.prototype.dentCenter = function () {
 CommandBlockMorph.prototype.attachTargets = function () {
 	var answer = [],
 		tp;
+	if (this.isPrototype) return answer;
 	if (!(this instanceof HatBlockMorph)) {
 		tp = this.topAttachPoint();
 		if (!(this.parent instanceof SyntaxElementMorph)) {
@@ -3789,6 +3803,38 @@ HatBlockMorph.prototype.isFunctionDefinition = function () {
 	// A definition hat is one that carries a function. Its `define` label is
 	// localised and is not a selector.
 	return this.functionDefinition instanceof MB_Function;
+};
+
+HatBlockMorph.prototype.blockDefinition = function () {
+	// The prototype I show, if I am a definition hat.
+	const proto = this.parts().find((m) => m.isPrototype);
+	return proto ? proto.children.find((m) => m instanceof BlockDefinitionMorph) : null;
+};
+
+HatBlockMorph.prototype.inputs = function () {
+	// A definition's prototype is not an input, so block walks pass over it.
+	return HatBlockMorph.uber.inputs.call(this).filter((m) => !m.isPrototype);
+};
+
+HatBlockMorph.prototype.argList = function () {
+	// A definition hat reads as "to name", as the saved project writes it.
+	if (this.functionDefinition) return [this.functionDefinition.functionName];
+	return HatBlockMorph.uber.argList.call(this);
+};
+
+HatBlockMorph.prototype.nextBlock = function (block) {
+	// Attaching a body to a definition hides its prototype's details.
+	const answer = HatBlockMorph.uber.nextBlock.call(this, block);
+	if (block && this.blockDefinition()) this.blockDefinition().hideDetails();
+	return answer;
+};
+
+HatBlockMorph.prototype.removeChild = function (aMorph) {
+	// So does taking the body off.
+	HatBlockMorph.uber.removeChild.call(this, aMorph);
+	if ((aMorph instanceof CommandBlockMorph) && !aMorph.isPrototype && this.blockDefinition()) {
+		this.blockDefinition().hideDetails();
+	}
 };
 
 HatBlockMorph.prototype.definedFunctionName = function () {
@@ -7082,4 +7128,400 @@ WorkspaceMorph.prototype.fixLayout = function () {
 		this.resizer.fixLayout();
 		this.add(this.resizer); // keep it in front
 	}
+};
+
+// BlockDefinitionMorph ////////////////////////////////////////////////
+
+/*
+	I am the prototype of a custom block in its definition hat: one
+	BlockSectionDefinitionMorph per section of the block's spec. A click on
+	the prototype shows or hides the details that edit it, and each edit
+	becomes a new prototype for the function.
+*/
+
+BlockDefinitionMorph.prototype = new Morph();
+BlockDefinitionMorph.prototype.constructor = BlockDefinitionMorph;
+BlockDefinitionMorph.uber = Morph.prototype;
+
+function BlockDefinitionMorph(op, spec, argNames, aBlock) {
+	this.init(op, spec, argNames, aBlock);
+}
+
+BlockDefinitionMorph.prototype.init = function (op, spec, argNames, aBlock) {
+	// spec is a project spec object; aBlock is the prototype block, whose
+	// colours and fonts my labels take.
+	BlockDefinitionMorph.uber.init.call(this);
+	this.op = op;
+	this.blockType = spec.blockType || ' ';
+	this.isShort = false;
+	const { sections, repeatLast } = specSections(spec);
+	this.isRepeating = repeatLast;
+	const slots = specSlotInfo(spec);
+	let slotIndex = 0;
+	sections.forEach((section, i) => {
+		const sec = new BlockSectionDefinitionMorph((0 === i) ? 1 : 0);
+		this.add(sec);
+		for (const word of section.split(/\s+/).filter((w) => w.length > 0)) {
+			if ('_' === word) {
+				const [type, value] = slots[slotIndex] || ['auto', null];
+				const name = (argNames && (slotIndex < argNames.length)) ? argNames[slotIndex] : 'args';
+				sec.addInputPart(name, type, value);
+				slotIndex += 1;
+			} else {
+				sec.addLabelPart(word, aBlock);
+			}
+		}
+	});
+	this.showDetails();
+};
+
+BlockDefinitionMorph.prototype.render = nop;
+
+BlockDefinitionMorph.prototype.sections = function () {
+	return this.children.filter((m) => m instanceof BlockSectionDefinitionMorph);
+};
+
+BlockDefinitionMorph.prototype.detailsHidden = function () {
+	return this.isShort;
+};
+
+BlockDefinitionMorph.prototype.clicked = function () {
+	if (this.isShort) this.showDetails(); else this.hideDetails();
+};
+
+BlockDefinitionMorph.prototype.showDetails = function () {
+	if (this.isBuiltIn) return;
+	this.sections().forEach((sec) => sec.showDetails());
+	this.isShort = false;
+	this.fixLayout();
+};
+
+BlockDefinitionMorph.prototype.hideDetails = function () {
+	this.sections().forEach((sec) => sec.hideDetails());
+	this.isShort = true;
+	this.fixLayout();
+};
+
+BlockDefinitionMorph.prototype.fixLayout = function () {
+	// Sections one below another, each starting at my left.
+	const gap = blockScale();
+	let y = this.top(), width = 0;
+	this.sections().forEach((sec) => {
+		sec.setPosition(new Point(this.left(), y));
+		y += sec.height() + gap;
+		width = Math.max(width, sec.width());
+	});
+	this.bounds.setExtent(new Point(width, Math.max(0, y - gap - this.top())));
+	if (this.parent instanceof BlockMorph) {
+		this.parent.fixLayout();
+		this.parent.topBlock().fullChanged();
+	}
+};
+
+BlockDefinitionMorph.prototype.newInputName = function () {
+	// A default input name that isn't already taken.
+	const taken = this.inputNames();
+	const names = ['foo', 'bar', 'baz', 'quux', 'garply', 'spam', 'frob', 'corge', 'grault',
+		'waldo', 'ham', 'eggs', 'plugh', 'fred', 'wibble', 'wobble', 'flob', 'inp', 'parm',
+		'blah', 'blubb'];
+	return names.find((n) => !taken.includes(n)) || ('input #' + taken.length);
+};
+
+// BlockDefinitionMorph spec:
+
+BlockDefinitionMorph.prototype.specString = function () {
+	const spec = this.sections().map((sec) => sec.specString()).join(' : ');
+	return this.isRepeating ? spec + ' : ...' : spec;
+};
+
+BlockDefinitionMorph.prototype.typeString = function () {
+	return this.sections().flatMap((sec) => sec.inputParts().map((v) => v.inputType)).join(' ');
+};
+
+BlockDefinitionMorph.prototype.defaults = function () {
+	return this.sections().flatMap((sec) => sec.inputParts().map((v) => v.inputDefault));
+};
+
+BlockDefinitionMorph.prototype.inputNames = function () {
+	return this.sections().flatMap((sec) => sec.inputParts().map((v) => v.blockSpec));
+};
+
+BlockDefinitionMorph.prototype.updateBlockDefinition = function () {
+	// Give the function the prototype I now show. The editor rebuilds me.
+	MB_editor.changeFunctionPrototype(this.op, this.blockType, this.specString(),
+		this.typeString(), this.defaults(), this.inputNames());
+};
+
+// BlockSectionDefinitionMorph /////////////////////////////////////////
+
+/*
+	I am one section of a block prototype: a row of labels and inputs, then
+	a drawer whose arrows add a part or remove the last one.
+*/
+
+BlockSectionDefinitionMorph.prototype = new Morph();
+BlockSectionDefinitionMorph.prototype.constructor = BlockSectionDefinitionMorph;
+BlockSectionDefinitionMorph.uber = Morph.prototype;
+
+function BlockSectionDefinitionMorph(minElements) {
+	this.init(minElements);
+}
+
+BlockSectionDefinitionMorph.prototype.init = function (minElements) {
+	BlockSectionDefinitionMorph.uber.init.call(this);
+	this.minElements = minElements || 0;
+	this.drawer = new BlockDrawerMorph(this);
+	this.add(this.drawer);
+};
+
+BlockSectionDefinitionMorph.prototype.render = nop;
+
+BlockSectionDefinitionMorph.prototype.elements = function () {
+	// My labels and inputs, in order. A label being edited has its cursor
+	// beside it among my children.
+	return this.children.filter((m) => (m instanceof BlockLabelMorph) || (m instanceof ReporterBlockMorph));
+};
+
+BlockSectionDefinitionMorph.prototype.inputParts = function () {
+	return this.elements().filter((m) => m instanceof ReporterBlockMorph);
+};
+
+BlockSectionDefinitionMorph.prototype.definition = function () {
+	return this.parentThatIsA(BlockDefinitionMorph);
+};
+
+BlockSectionDefinitionMorph.prototype.addElement = function (aMorph) {
+	// Insert before the drawer, which stays last.
+	this.add(aMorph);
+	this.children.splice(this.children.indexOf(aMorph), 1);
+	this.children.splice(this.children.indexOf(this.drawer), 0, aMorph);
+};
+
+BlockSectionDefinitionMorph.prototype.addLabelPart = function (text, aBlock) {
+	const label = new BlockLabelMorph(text, aBlock.fontSize, aBlock.labelFontStyle, true, false,
+		false, ZERO, aBlock.color.darker(aBlock.labelContrast), WHITE, aBlock.labelFontName);
+	this.addElement(label);
+	return label;
+};
+
+BlockSectionDefinitionMorph.prototype.addInputPart = function (name, type, value) {
+	// An input is its variable, which a drag copies, holding its declaration.
+	const v = new MB_Parser('').makeVariableReporter(name);
+	v.isDraggable = false;
+	v.isTemplate = true;
+	v.inputType = type;
+	v.inputDefault = value;
+	v.declaration = new InputDeclarationMorph(type, value);
+	this.addElement(v);
+	return v;
+};
+
+BlockSectionDefinitionMorph.prototype.showDetails = function () {
+	this.drawer.show();
+	this.elements().forEach((m) => {
+		if (m instanceof BlockLabelMorph) {
+			m.isEditable = true;
+			m.enableSelecting();
+		} else if (m.declaration && !m.children.includes(m.declaration)) {
+			m.add(m.declaration);
+			m.fixLayout();
+		}
+	});
+	this.fixLayout();
+};
+
+BlockSectionDefinitionMorph.prototype.hideDetails = function () {
+	this.drawer.hide();
+	this.elements().forEach((m) => {
+		if (m instanceof BlockLabelMorph) {
+			m.isEditable = false;
+			m.disableSelecting();
+		} else if (m.declaration && m.children.includes(m.declaration)) {
+			m.removeChild(m.declaration);
+			m.fixLayout();
+		}
+	});
+	this.fixLayout();
+};
+
+BlockSectionDefinitionMorph.prototype.fixLayout = function () {
+	// One row, centred vertically; a hidden part takes no room.
+	const gap = 5 * blockScale();
+	this.drawer.fixLayout();
+	const parts = this.elements().concat(this.drawer.isVisible ? [this.drawer] : []);
+	const height = Math.max(0, ...parts.map((m) => m.height()));
+	let x = this.left();
+	parts.forEach((m) => {
+		m.setPosition(new Point(x, this.top() + Math.floor((height - m.height()) / 2)));
+		x += m.width() + gap;
+	});
+	this.bounds.setExtent(new Point(Math.max(0, x - gap - this.left()), height));
+	if (this.parent instanceof BlockDefinitionMorph) this.parent.fixLayout();
+};
+
+// BlockSectionDefinitionMorph editing:
+
+BlockSectionDefinitionMorph.prototype.canExpand = function () {
+	return true;
+};
+
+BlockSectionDefinitionMorph.prototype.canCollapse = function () {
+	return this.elements().length > this.minElements;
+};
+
+BlockSectionDefinitionMorph.prototype.expand = function () {
+	// After a label the next part is surely an input; otherwise ask.
+	if (this.elements().at(-1) instanceof BlockLabelMorph) {
+		this.addInput();
+		return;
+	}
+	// After the click that asked for it, which would otherwise close it.
+	const world = this.world();
+	setTimeout(() => chromeMenuFor(world, [
+		['label', () => this.addLabel()],
+		['input', () => this.addInput()],
+	]));
+};
+
+BlockSectionDefinitionMorph.prototype.collapse = function () {
+	const last = this.elements().at(-1);
+	if (!last) return;
+	last.destroy();
+	this.fixLayout();
+	this.definition().updateBlockDefinition();
+};
+
+BlockSectionDefinitionMorph.prototype.addLabel = function () {
+	this.addLabelPart('label', this.parentThatIsA(BlockMorph));
+	this.fixLayout();
+	this.definition().updateBlockDefinition();
+};
+
+BlockSectionDefinitionMorph.prototype.addInput = function () {
+	this.addInputPart(this.definition().newInputName(), 'auto', '10');
+	this.fixLayout();
+	this.definition().updateBlockDefinition();
+};
+
+BlockSectionDefinitionMorph.prototype.reactToKeystroke = function () {
+	this.fixLayout(); // a label grows as it is typed into
+};
+
+BlockSectionDefinitionMorph.prototype.reactToEdit = function () {
+	// A label edit is done: the definition takes it unless nothing changed.
+	const def = this.definition();
+	const spec = MB_editor.project.blockSpecs.get(def.op);
+	if (spec && (spec.specString === def.specString())) return;
+	if (!/[^\s:.]/.test(def.specString())) { // a block needs a word, so put the label back
+		MB_editor.rebuildDefinitionsOf(MB_editor.project.functionNamed(def.op));
+		return;
+	}
+	def.updateBlockDefinition();
+};
+
+BlockSectionDefinitionMorph.prototype.specString = function () {
+	// Colons mark sections in a spec, so a label cannot hold one.
+	return this.elements().map((m) => {
+		if (!(m instanceof BlockLabelMorph)) return '_';
+		return m.text.replaceAll(':', '').trim();
+	}).filter((w) => w.length > 0).join(' ');
+};
+
+// BlockDrawerMorph ////////////////////////////////////////////////////
+
+/*
+	I am the pair of arrows at the end of a prototype section. The right
+	one asks my target to expand, the left one to collapse; each is drawn
+	only when my target can do it.
+*/
+
+BlockDrawerMorph.prototype = new BlockExpanderMorph({ canContract: () => true, canExpand: () => true, scale: 1 });
+BlockDrawerMorph.prototype.constructor = BlockDrawerMorph;
+BlockDrawerMorph.uber = BlockExpanderMorph.prototype;
+
+function BlockDrawerMorph(target) {
+	this.target = target;
+	BlockDrawerMorph.uber.init.call(this, {
+		canContract: () => target.canCollapse(),
+		canExpand: () => target.canExpand(),
+		scale: blockScale(),
+	});
+}
+
+BlockDrawerMorph.prototype.render = function (ctx) {
+	this.showLeft = this.target.canCollapse();
+	this.showRight = this.target.canExpand();
+	BlockDrawerMorph.uber.render.call(this, ctx);
+};
+
+BlockDrawerMorph.prototype.fixLayout = function () {
+	const both = this.target.canCollapse() && this.target.canExpand();
+	this.bounds.setWidth((both ? 18 : 10) * blockScale());
+};
+
+BlockDrawerMorph.prototype.mouseClickLeft = function (pos) {
+	const less = this.target.canCollapse();
+	const more = this.target.canExpand();
+	if (less && (!more || ((pos.x - this.left()) <= (this.width() / 2)))) {
+		this.target.collapse();
+	} else if (more) {
+		this.target.expand();
+	}
+};
+
+// InputDeclarationMorph ///////////////////////////////////////////////
+
+/*
+	I show the type and default of a declared input, as the slot a call
+	gets for it, followed by a down arrow.
+*/
+
+InputDeclarationMorph.prototype = new Morph();
+InputDeclarationMorph.prototype.constructor = InputDeclarationMorph;
+InputDeclarationMorph.uber = Morph.prototype;
+
+function InputDeclarationMorph(type, value) {
+	this.init(type, value);
+}
+
+InputDeclarationMorph.prototype.init = function (type, value) {
+	InputDeclarationMorph.uber.init.call(this);
+	this.slotImage = this.slotFor(String(type || 'auto').split('.')[0], value).fullImage();
+	const s = blockScale();
+	this.arrowWidth = 12 * s;
+	this.arrowHeight = 9 * s;
+	this.gap = 2 * s;
+	this.bounds.setExtent(new Point(
+		this.slotImage.width + this.gap + this.arrowWidth + (8 * s),
+		Math.max(this.slotImage.height, this.arrowHeight + (8 * s))));
+};
+
+InputDeclarationMorph.prototype.slotFor = function (type, value) {
+	// The slot a call shows for an input of this type holding this default.
+	let slot;
+	if ('bool' === type) {
+		slot = new BooleanSlotMorph(value !== false);
+	} else if ('color' === type) {
+		slot = new ColorSlotMorph();
+	} else {
+		slot = new InputSlotMorph(null, 'num' === type);
+		slot.setContents((value == null) ? '' : value);
+	}
+	slot.fixLayout();
+	return slot;
+};
+
+InputDeclarationMorph.prototype.render = function (ctx) {
+	const s = blockScale();
+	const h = this.height();
+	ctx.drawImage(this.slotImage, 0, Math.floor((h - this.slotImage.height) / 2));
+	const left = this.slotImage.width + this.gap + (4 * s);
+	const top = Math.floor((h - this.arrowHeight) / 2);
+	ctx.fillStyle = BLACK.toString();
+	ctx.beginPath();
+	ctx.moveTo(left, top);
+	ctx.lineTo(left + this.arrowWidth, top);
+	ctx.lineTo(left + (this.arrowWidth / 2), top + this.arrowHeight);
+	ctx.closePath();
+	ctx.fill();
 };
