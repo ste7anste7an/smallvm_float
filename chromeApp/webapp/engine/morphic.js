@@ -5767,6 +5767,7 @@ CursorMorph.prototype.processKeyDown = function (event) {
         - ctrl-d, ctrl-i and ctrl-p: doit, inspect it and print it
         - tab: goto next text field
         - esc: discard the editing
+        - ctrl-s / cmd-s: accept the editing
         - enter / shift+enter: accept the editing
     */
     var keyName = event.key,
@@ -5792,6 +5793,11 @@ CursorMorph.prototype.processKeyDown = function (event) {
             this.target.showIt();
             return;
         }
+    }
+
+    if ((event.ctrlKey || event.metaKey) && (keyName === 's')) {
+        this.accept(); // the world's key handler stops the browser saving the page
+        return;
     }
 
     if (keyName === 'Tab' || keyName === 'U+0009') {
