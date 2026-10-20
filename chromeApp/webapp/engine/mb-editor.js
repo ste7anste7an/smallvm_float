@@ -43,7 +43,7 @@ class MB_Editor {
 	}
 
 	open(world) {
-		this.paletteWidth = 208;
+		this.paletteWidth = 260; // screen px, whatever the block size
 
 		this.palette = new ScrollFrameMorph();
 		this.palette.contents.acceptsDrops = true;
@@ -168,11 +168,12 @@ class MB_Editor {
 		let height = world.height();
 		if (typeof MB_Tips !== 'undefined') height -= MB_Tips.height;
 		this.palette.setPosition(world.position());
-		this.palette.setExtent(new Point(this.paletteWidth, height));
+		const paletteWidth = this.paletteWidth / ZOOM; // paletteWidth is screen px, the world is in scene units
+		this.palette.setExtent(new Point(paletteWidth, height));
 		this.scriptsFrame.setPosition(
-			world.position().add(new Point(this.paletteWidth, 0)));
+			world.position().add(new Point(paletteWidth, 0)));
 		this.scriptsFrame.setExtent(
-			new Point(world.width() - this.paletteWidth,
+			new Point(world.width() - paletteWidth,
 			this.palette.height()
 		));
 		if (this.paletteResizer) {
@@ -183,7 +184,7 @@ class MB_Editor {
 
 	newPaneResizer() {
 		// A strip over the left edge of the scripting area. Dragging it sets the
-		// palette's width, from 90 to 600 and no closer than 25 to the world's right edge.
+		// palette's width, from 90 to 600 screen px and no closer than 25 scene units to the world's right edge.
 		const resizer = new Morph();
 		resizer.color = new Color(180, 180, 255);
 		resizer.alpha = 0; // drawn only while the pointer is over it
@@ -202,8 +203,8 @@ class MB_Editor {
 		};
 		resizer.mouseMove = (pos, button) => {
 			if (button !== 'left') return;
-			const right = pos.x - offset - this.palette.left();
-			this.paletteWidth = Math.max(90, Math.min(right, 600, world.width() - 25));
+			const right = (pos.x - offset - this.palette.left()) * ZOOM;
+			this.paletteWidth = Math.max(90, Math.min(right, 600, (world.width() - 25) * ZOOM));
 			this.fixLayout();
 		};
 		return resizer;
