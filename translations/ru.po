@@ -4,8 +4,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:36+0200\n"
 "PO-Revision-Date: 2026-10-20 15:02+0000\n"
-"Last-Translator: Konstantin Gorodetskiy "
-"<cirodil@users.noreply.hosted.weblate.org>\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/microblocks/ide/"
 "ru/>\n"
 "Language: ru\n"
@@ -617,7 +616,7 @@ msgstr "остановить степперы"
 
 #. TFT Display library block
 msgid "draw triangle on TFT at x _ y _ , x _ y _ , x _ y _ color _"
-msgstr "нарисовать треугольник на TFT в x _ y _, x _ y _, x _ y _ color _"
+msgstr "нарисовать треугольник на TFT в x _ y _ , x _ y _ , x _ y _ color _"
 
 #. NeoPixel library block
 msgid "attach _ LED NeoPixel strip to pin _"
