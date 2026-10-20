@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2025-02-03 16:24+0200\n"
-"PO-Revision-Date: 2026-09-28 09:51+0000\n"
-"Last-Translator: Andriy Utkin <andriy_utkin@fastmail.com>\n"
+"PO-Revision-Date: 2026-10-20 15:02+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/microblocks/"
 "ide/uk/>\n"
 "Language: uk\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.10.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -245,7 +245,7 @@ msgstr "останнє повідомлення"
 
 #. Block in Control category
 msgid "arg _ default _"
-msgstr "аргумент _, за замовчуванням _"
+msgstr "аргумент _ , за замовчуванням _"
 
 #. Block in Control category
 msgid "exit loop"
@@ -6320,7 +6320,7 @@ msgstr ""
 
 #. Analog Synthesis library block
 msgid "set frequency ramp from _ % to _ % for gate _"
-msgstr "встановити рампу частоти з _% до _% для логічних ворот _"
+msgstr "встановити рампу частоти з _ % до _ % для логічних ворот _"
 
 #. Analog Synthesis library block
 msgid "amplitude for gate _"
@@ -6372,9 +6372,8 @@ msgstr ""
 "_ _ _ #BR# _ _ _ _ _"
 
 #. OLED Graphics library block
-#, fuzzy
 msgid "initialize i2c(auto) reset pin# _ flip _"
-msgstr "Ініціалізувати i2c(auto) скинути пін №_ поміняти _"
+msgstr "Ініціалізувати i2c(auto) скинути пін № _ поміняти _"
 
 #. Real Time Clock library block
 msgid "set hours _ minutes _ seconds _"
