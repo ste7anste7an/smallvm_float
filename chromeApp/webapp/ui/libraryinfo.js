@@ -25,14 +25,29 @@ class LibraryInfoWindow extends FloatingWindow {
 			className: 'library'
 		})
 		this.library = library;
+		this.fields = {};
 		contents.replaceWith(this.bodyDiv());
 
 		function onSave() { this.saveChanges(); };
 	}
 
 	saveChanges() {
-		//TODO
-		console.log('Saving...');
+		Object.keys(this.fields).forEach(fieldName => {
+			this.library[fieldName] =
+				this.extractInputValue(fieldName, this.fields[fieldName]);
+		});
+	}
+
+	extractInputValue(selector, input) {
+		if (['moduleName', 'author', 'description'].includes(selector)) {
+			return input.value;
+		} else if (selector == 'version') {
+			return input.value.split('.');
+		} else if (selector == 'dependencies') {
+			return Array.from(input).map(div => div.getAttribute('data-value'));
+		} else if (selector == 'moduleCategory') {
+			return input.getAttribute('data-value');
+		}
 	}
 
 	bodyDiv() {
@@ -67,6 +82,7 @@ class LibraryInfoWindow extends FloatingWindow {
 		field.classList.add(selector);
 		field.appendChild(label);
 		field.appendChild(input);
+		this.fields[selector] = input;
 		return field;
 	}
 
@@ -97,6 +113,7 @@ class LibraryInfoWindow extends FloatingWindow {
 			this.library.dependencies.forEach(dep => {
 				let span = document.createElement('span');
 				span.innerText = dep[0] == '_' ? dep.substr(1) : dep;
+				span.setAttribute('data-value', dep);
 				div.appendChild(span);
 			});
 		} else {
@@ -114,7 +131,11 @@ class LibraryInfoWindow extends FloatingWindow {
 		let button = document.createElement('button');
 		button.style.backgroundColor =
 			Categories.colorFor(this.library.moduleCategory);
-		// TODO click action when in devmode to open category picker
+		button.setAttribute('data-value', this.library.moduleCategory);
+		button.onclick = () => {
+			// TODO click action when in devmode to open category picker
+			console.log('Opening category picker');
+		};
 		return button;
 	}
 
