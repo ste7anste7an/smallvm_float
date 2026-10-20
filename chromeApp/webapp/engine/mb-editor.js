@@ -39,7 +39,7 @@ class MB_Editor {
 		this.undoStack = [];
 		this.redoStack = [];
 		this.watchProjectVariables();
-		this.blockSize = 100;
+		this.blockSize = 125; // a fresh profile draws at GP's default block size
 	}
 
 	open(world) {
@@ -583,6 +583,8 @@ class MB_Editor {
 		const percent = prefs.blockSizePercent;
 		if (typeof percent === 'number' && Number.isFinite(percent)) {
 			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
+		} else {
+			this.applyBlockSize(this.blockSize);
 		}
 		this.applyDarkMode();
 		const libs = this.libraryList();
