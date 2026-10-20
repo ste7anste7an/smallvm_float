@@ -96,11 +96,17 @@ GP.apiCall = function (endPoint, params, callback) {
 			// Deferred so the menu item that called this has closed before installVM may open a menu.
 			Promise.resolve().then(() => MB_Firmware.installVM(params[0]));
 			break;
-		case 'board.installVMfromRepo':
 		case 'board.installVMfromURL':
-			// These install ESP firmware only.
+			// Installs ESP firmware only, as does installVMfromRepo.
 			callback(0);
-			MB_Firmware.notSupportedYet(null);
+			Promise.resolve().then(() => MB_Firmware.installESPFirmwareFromURL())
+				.catch((e) => MB_editor.reportError(e));
+			break;
+		case 'board.installVMfromRepo':
+			// Deferred, as installVM is, so the menu item has closed before this opens a menu.
+			callback(0);
+			Promise.resolve().then(() => MB_Firmware.installESPFirmwareFromRepo())
+				.catch((e) => MB_editor.reportError(e));
 			break;
 		case 'board.downloadFile':
 			// Answer, then act: the download waits on a menu and the board.
@@ -181,11 +187,12 @@ GP.apiCall = function (endPoint, params, callback) {
 			break;
 		case 'ide.spinnerCancelled':
 			// Reply first, then act. The chrome sends this for every Escape key
-			// whether a spinner is up or not, and the only thing a spinner here
-			// stands over that can be stopped is a file transfer: a project read
+			// whether a spinner is up or not. What a spinner here stands over that can
+			// be stopped is a file transfer or a firmware download: a project read
 			// shows one and runs to its end either way.
 			callback(0);
 			if (MB_editor.spinnerShowing && MB_connection.busy()) MB_connection.abortFileTransfer();
+			if (MB_Firmware.downloadAborter) MB_Firmware.downloadAborter.abort();
 			MB_editor.spinnerShowing = false; // cancelled or not, the overlay is gone
 			break;
 		case 'ide.version':
