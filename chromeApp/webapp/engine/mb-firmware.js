@@ -107,11 +107,10 @@ MB_Firmware.hasSaveDialog = function () {
 // Installing
 
 MB_Firmware.isUpdatableBoard = function (boardType) {
-	// Whether the IDE may offer to update this board's firmware. The installer
-	// cannot update a DFU board yet, so those are told rather than offered.
-	if (this.dfuBoards.includes(boardType)) return false;
+	// Whether the IDE may offer to update this board's firmware.
 	if (['micro:bit v2', 'Calliope v3', 'RP2040'].includes(boardType)) return true; // variants
-	return this.boardMenu.includes(boardType) || this.espBoards.includes(boardType);
+	return this.boardMenu.includes(boardType) || this.espBoards.includes(boardType) ||
+		this.dfuBoards.includes(boardType);
 }
 
 MB_Firmware.installVM = async function (eraseFlashFlag) {
@@ -222,8 +221,16 @@ MB_Firmware.installDFUFirmware = function (boardName) {
 
 // ESP boards
 
-MB_Firmware.flashVM = async function (boardName, eraseFlashFlag) {
-	// Install the firmware on an ESP board through the chip's ROM boot loader.
+MB_Firmware.installFirmwareFile = function (fileName, data) {
+	// Install a firmware file the user dropped on an ESP32 board, without erasing Flash.
+	// ESP8266 firmware is named after its board, and is not installed yet.
+	if (/8266|nodemcu|d1mini/i.test(fileName)) return this.notSupportedYet(fileName);
+	return this.flashVM(fileName, false, data);
+}
+
+MB_Firmware.flashVM = async function (boardName, eraseFlashFlag, vmData) {
+	// Install vmData, or the board's own VM, on an ESP board through the chip's ROM
+	// boot loader. boardName may instead be the name of the firmware file vmData came from.
 	MB_connection.disconnect(); // so the board's messages do not interfere with the install
 	this.showSpinner();
 	const port = await this.openESPPort();
@@ -236,7 +243,7 @@ MB_Firmware.flashVM = async function (boardName, eraseFlashFlag) {
 	const espTool = new MB_ESPTool(port);
 	// the spinner shows the install's progress twice a second
 	const ticker = setInterval(() => fireIDEEvent('spinner.setTitle', espTool.status), 500);
-	const vmData = await this.fetchVM(MB_ESPTool.vmNameForBoard(boardName));
+	if (!vmData) vmData = await this.fetchVM(MB_ESPTool.vmNameForBoard(boardName));
 	const ok = await espTool.installFirmware(boardName, eraseFlashFlag, vmData);
 	clearInterval(ticker);
 	// the board must be reconnected through the port chooser after an install

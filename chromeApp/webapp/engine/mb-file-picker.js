@@ -41,8 +41,7 @@ class MB_FilePicker {
 	}
 
 	shortcuts() {
-		// The names of the shortcut buttons, in order. The library dialog also
-		// has New in developer mode, which the port does not have.
+		// The names of the shortcut buttons, in order.
 
 		const ext = this.extensions || [];
 		const forLibraries = ext.includes('.ubl');
@@ -51,7 +50,19 @@ class MB_FilePicker {
 		if (forLibraries) result.push('Libraries');
 		result.push('Computer');
 		if (forLibraries) result.push('Cloud');
+		if (forLibraries && MB_editor.devMode()) result.push('New');
 		return result;
+	}
+
+	async newLibrary() {
+		// Ask for a name, then close and open the new library for editing.
+
+		const libName = await MB_editor.prompt(localized('New library name?'), '');
+		if (!libName) return;
+		if (!MB_editor.newLibrary(libName)) return;
+		MB_editor.showLibraryInfo(libName, true);
+		this.isDone = true;
+		this.removeFromOwner();
 	}
 
 	// actions
@@ -226,7 +237,7 @@ class MB_FilePicker {
 
 	shortcutButton(name) {
 		const selector = { Examples: 'setExamples', Libraries: 'setLibraries',
-			Computer: 'setComputer', Cloud: 'cloudAction' }[name];
+			Computer: 'setComputer', Cloud: 'cloudAction', New: 'newLibrary' }[name];
 		const button = new TriggerMorph(this, selector, localized(name), 9, null, null, null, null, true);
 		button.color = MB_FilePicker.colors.client;
 		button.highlightColor = MB_FilePicker.colors.highlight;
@@ -262,8 +273,12 @@ class MB_FilePicker {
 		const list = new ListMorph(this.folderContents(), (row) => (isString(row) ? row : row[0]));
 		list.color = MB_FilePicker.colors.list;
 		list.action = (row) => { if (!isString(row)) this.fileOrFolderSelected(row[1]); };
+		list.arrowKey = (dx, dy) => this.arrowKey(dx, dy);
 		const shownAt = Date.now();
 		for (const item of list.listContents.children) {
+			item.highlightColor = list.color.darker(8);
+			item.mouseEnter = () => { if (item.userState === 'normal') this.shade(item, 'highlight'); };
+			item.mouseLeave = () => { if (item.userState === 'highlight') this.shade(item, 'normal'); };
 			item.doubleClickAction = () => {
 				// Ignore a double click whose first click replaced the list.
 				if ((Date.now() - shownAt < 500) || isString(item.action)) return;
@@ -273,6 +288,31 @@ class MB_FilePicker {
 		this.listPane = list;
 		this.morph.add(list);
 		this.morph.fixLayout(); // a dialog that embeds the picker lays out its own parts too
+	}
+
+	arrowKey(dx, dy) {
+		// Up and Down mark the previous or next row, and a folder row is not entered.
+		// With nothing marked, any arrow marks the first row.
+
+		const rows = this.listPane.elements;
+		if (rows.some(isString)) return; // '(empty)'
+		const i = rows.findIndex((row) => row[1] === this.selection);
+		if (i < 0) return this.markRow(0);
+		if ((dy < 0) && (i < rows.length - 1)) this.markRow(i + 1);
+		if ((dy > 0) && (i > 0)) this.markRow(i - 1);
+	}
+
+	markRow(i) {
+		const item = this.listPane.listContents.children[i];
+		this.listPane.listContents.unselectAllItems();
+		this.shade(item, 'pressed');
+		this.listPane.active = item;
+		this.fileOrFolderSelected(this.listPane.elements[i][1], true);
+	}
+
+	shade(item, state) {
+		item.userState = state;
+		item.rerender();
 	}
 
 	fixLayout() {
@@ -520,4 +560,25 @@ MB_FilePicker.icons = {
 		'H8AMYLaM3ePu7mZYXc0+QDNAdU39qAXkbc6eqxtKNkmBWCCzuqae51YtRakce4sd7uSmvo31P/0FXV3d' +
 		'AH+VAGFADRCj0YTx+uYCFuVkoFKNzpq/pzCZOik/Vsm77xXS3m4Ee8ufPvQ8FbjIGDjG6qXrIpDyfZHk' +
 		'wGbs//4yjYEg3X2ZgGPApvt1BeBfy0VRnxa1jVQAAAAASUVORK5CYII=',
+	New: 'data:image/png;base64,' +
+		'iVBORw0KGgoAAAANSUhEUgAAACMAAAAjCAYAAAAe2bNZAAAACXBIWXMAABAnAAAQJwFR8a7xAAAAGXRF' +
+		'WHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAABARJREFUWIXtln1M1HUcx1+/33G/23HccccB' +
+		'hxhNRQWEIsAHkIcawpKHHMLWTMyNJms92dbc2lrTVZabNKgtWy6NRsBWUDFK0B0+jFQEhbDSMhggIHIc' +
+		'wREQcncd/dFqIx68g2Ot5fvv9/v7ee37+T584J7u6T8sYYG5VGAb0Ouk3wzUAP3uhslUKKRqL5UnGenJ' +
+		'VmcCHZ3d9qbLV7FabQ8Dze6CyZEkeUVm+hbh2vU2mi997XSw8N1jjoLCo42jo2Ob5/KILoDskuTyinfe' +
+		'PiDsydvhQuxPpSQniHa7bd18HmdhdiokqaSkuEjYvSvHZRAAURSYmpq/Ex5OrPOoJMlLS4qLhIy0ZAAc' +
+		'jilkMpHqykLM/V2zhmQeEnEJ2YREzNkVl2HCFArFicLDr/4NAnDSeBZJtPB9yxlSMvag0ehnBEcsAxhr' +
+		'j7kPRq32anA4HLK6Mxcw1tWDINBvMtPR0U1Z8VsErwrCP2DlrNmB/i4u1lc6DXJXmMnJSXn+U09gMPjR' +
+		'2d7K0GAv8evXUHDwaaJikmhpquWH1nOzZsfHLKjVM3dswTCiKNqfzM0mIjyEyYlxvr1ykvYbV/jpu9ME' +
+		'BCynvq6MlasfQj1Lm9QaPbGJrh12Zw4wAAqlitjEHDRaP2qrjlB2/BVkMg+StuSi0y9zqeiiYQD6ettQ' +
+		'KjXk7z2CxtsX0+0OLMMmLMOmaT6tzrAgQKdhmhtP8E1dOYIoQ+tj4IGoZM6e+hiVSodckqZ5h4ZuszPv' +
+		'IMuDQpYGZqCvk+hN6awIjuRyw1d0treyak00W7c9g9JTM81bUfoG/X3tSweDKGCzTeIfsILtO15GFEXs' +
+		'dit2m5U7E2PTrL/b7YiizCUQl2DCIhKoLHuThvpKojemkb79BY6/9yJm080ZXq3OQFrWc0sHsyI4kn37' +
+		'P6PxQhVN57/k8/JDjAybyHu2yOV2LBrmL4VFJCCXKwAIXhuDYdnsL/CSwvxi7uFU9QdMTIwSGZPK+rjH' +
+		'qPq0YN6ZRuWlIzUzH73vfe6FaWmsxdNLi843EGPNh5wzfsLknd/IyNmLt7f/rJmrzUZaGmtJzch3L4zd' +
+		'ZsVHH8jmRx4nNjEbAEEQ0eoMc2Z6uq4xPjrsbAnnYby89dy43sDY6BCrQzewNiyWpvNVDJp75sz03Woj' +
+		'ZF2c+2E2xWehUCj5+cdGmi/VoNb4crG+cs6PEuDBqGSiNmx1P4ykULIxPguN1o/TNR/xRfkh5JKCpJRc' +
+		'dD7/wkcJEBoeT2h4vFuK/1PzDuSSJA129/S5pdDN7ltIkmSezzPvtC6K4vM+PtrDr+1/SXl/UOCiQA68' +
+		'XjgxPDyyz+FwvL8gGACZTLZbrfLMnxKY+w7fRcIUJsuvo0eB0oWu8f/WH7ozRDZHhK3AAAAAAElFTkSu' +
+		'QmCC',
 };

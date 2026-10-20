@@ -5767,7 +5767,8 @@ CursorMorph.prototype.processKeyDown = function (event) {
         - ctrl-d, ctrl-i and ctrl-p: doit, inspect it and print it
         - tab: goto next text field
         - esc: discard the editing
-        - enter / shift+enter: accept the editing
+        - ctrl-s / cmd-s: accept the editing
+        - enter: accept the editing of a single line
     */
     var keyName = event.key,
         shift = event.shiftKey,
@@ -5794,6 +5795,11 @@ CursorMorph.prototype.processKeyDown = function (event) {
         }
     }
 
+    if ((event.ctrlKey || event.metaKey) && (keyName === 's')) {
+        this.accept(); // the world's key handler stops the browser saving the page
+        return;
+    }
+
     if (keyName === 'Tab' || keyName === 'U+0009') {
         if (shift) {
             this.target.backTab(this.target);
@@ -5804,24 +5810,39 @@ CursorMorph.prototype.processKeyDown = function (event) {
         this.target.escalateEvent('reactToEdit', this.target);
     } else if (keyName === 'Escape') {
         this.cancel();
-    } else if (keyName === "Enter" && (singleLineText || shift)) {
+    } else if (keyName === "Enter" && singleLineText) {
         this.accept();
     } else {
         // catch "up arrow" and "down arrow" keys
-        if (keyName === 'ArrowDown') {
+        if (shift && !singleLineText &&
+                (keyName === 'ArrowDown' || keyName === 'ArrowUp')) {
+            this.extendSelectionLine(keyName === 'ArrowDown');
+            event.preventDefault();
+        } else if (keyName === 'ArrowDown') {
             dest = this.target.downFrom(this.slot);
             this.textarea.setSelectionRange(dest, dest);
-            // to do: allow holding shift to select
             event.preventDefault();
-        }
-        if (keyName === 'ArrowUp') {
+        } else if (keyName === 'ArrowUp') {
             dest = this.target.upFrom(this.slot);
             this.textarea.setSelectionRange(dest, dest);
-            // to do: allow holding shift to select
             event.preventDefault();
         }
         this.target.escalateEvent('reactToKeystroke', event);
     }
+};
+
+CursorMorph.prototype.extendSelectionLine = function (down) {
+    // move the moving end of the selection a line down or up, keeping the other
+    var area = this.textarea,
+        back = area.selectionDirection === 'backward',
+        anchor = back ? area.selectionEnd : area.selectionStart,
+        from = back ? area.selectionStart : area.selectionEnd,
+        dest = down ? this.target.downFrom(from) : this.target.upFrom(from);
+    area.setSelectionRange(
+        Math.min(anchor, dest),
+        Math.max(anchor, dest),
+        dest < anchor ? 'backward' : 'forward'
+    );
 };
 
 CursorMorph.prototype.processKeyUp = function (event) {
@@ -5853,48 +5874,16 @@ CursorMorph.prototype.processInput = function (event) {
         filteredContent,
         caret;
 
-    // filter invalid chars for numeric fields
-    function filterText (content) {
-        var points = 0,
-            hasE = false,
-            result = '',
-            i, ch, valid;
-        if (content === '$' || content.startsWith('$_')) { // support selectors
-            return content;
-        }
-        for (i = 0; i < content.length; i += 1) {
-            ch = content.charAt(i);
-            valid = (
-                ('0' <= ch && ch <= '9') || // digits
-                (ch.toLowerCase() === 'e') || // scientific notation
-                ((i === 0 || hasE) && ch === '-')  || // leading '-' or sc. not.
-                (ch === '.' && points === 0) // at most '.'
-            );
-            if (valid) {
-                result += ch;
-                if (ch === '.') {
-                    points += 1;
-                }
-                if (ch.toLowerCase() === 'e') {
-                    hasE = true;
-                }
-            }
-        }
-        return result;
+    // a numeric field holds a whole number: undo any change that would end that
+    if (target.isNumeric && !/^-?[0-9]*$/.test(textarea.value)) {
+        caret = textarea.selectionStart -
+            (textarea.value.length - target.text.length);
+        textarea.value = target.text;
+        caret = Math.max(0, Math.min(caret, textarea.value.length));
+        textarea.setSelectionRange(caret, caret);
     }
+    filteredContent = textarea.value;
 
-    if (target.isNumeric) {
-        filteredContent = filterText(textarea.value);
-    } else {
-        filteredContent = textarea.value;
-    }
-
-    if (filteredContent.length < textarea.value.length) {
-        textarea.value = filteredContent;
-        caret = Math.min(textarea.selectionStart, filteredContent.length);
-        textarea.selectionEnd = caret;
-        textarea.selectionStart = caret;
-    }
     // target morph: copy the content and selection status to the target.
     target.text = filteredContent;
 
@@ -8442,12 +8431,13 @@ MenuMorph.prototype.processKeyDown = function (event) {
         return;
     case 27: // 'esc'
         return this.destroy();
-    case 37: // 'left arrow'
-        return this.leaveSubmenu();
+    case 37: // 'left arrow', previous item unless in a submenu
+        return (this.parent instanceof MenuMorph) ? this.leaveSubmenu() : this.selectUp();
     case 38: // 'up arrow'
         return this.selectUp();
-    case 39: // 'right arrow'
-        return this.enterSubmenu();
+    case 39: // 'right arrow', next item unless it opens a submenu
+        return (this.selection && this.selection.action instanceof MenuMorph) ?
+            this.enterSubmenu() : this.selectDown();
     case 40: // 'down arrow'
         return this.selectDown();
     default:
@@ -9175,27 +9165,23 @@ StringMorph.prototype.mouseClickLeft = function (pos) {
 };
 
 StringMorph.prototype.mouseDoubleClick = function (pos) {
-    // selects the word at pos
-    // if there is no word, we select whatever is between
-    // the previous and next words
-    var slot = this.slotAt(pos);
+    // selects the run of non-blank characters at pos
+    var start = this.slotAt(pos),
+        end;
 
     if (this.isEditable) {
         this.edit();
-
-        if (slot === this.text.length) {
-            slot -= 1;
+        while (start > 0 && !(/\s/).test(this.text[start - 1])) {
+            start -= 1;
         }
-
-        if (this.text[slot] && isWordChar(this.text[slot])) {
-            this.selectWordAt(slot);
-        } else if (this.text[slot]) {
-            this.selectBetweenWordsAt(slot);
-        } else {
-            // special case for when we click right after the
-            // last slot in multi line TextMorphs
-            this.selectAll();
+        end = start + 1;
+        while (end < this.text.length && !(/\s/).test(this.text[end])) {
+            end += 1;
         }
+        this.startMark = start;
+        this.endMark = Math.min(end, this.text.length);
+        this.root().cursor.gotoSlot(this.endMark);
+        this.changed();
         this.root().cursor.syncTextareaSelectionWith(this);
     } else {
         this.escalateEvent('mouseDoubleClick', pos);
@@ -11289,6 +11275,7 @@ HandMorph.prototype.init = function (aWorld) {
     this.touchHoldTimeout = null;
     this.contextMenuEnabled = false;
     this.touchStartPosition = null;
+    this.middleButton = false;
 
     // properties for caching dragged objects:
     this.cachedFullImage = null;
@@ -11494,6 +11481,7 @@ HandMorph.prototype.processMouseDown = function (event) {
         this.inputTarget = null;
         this.clickTarget = null;
     } else {
+        this.middleButton = (event.button === 1); // still dispatched as a left press
         morph = this.morphAtPointer();
         this.clickTarget = morph;
         if (this.world.activeMenu) {
@@ -11522,7 +11510,7 @@ HandMorph.prototype.processMouseDown = function (event) {
             this.morphToGrab = morph.rootForGrab();
             this.grabPosition = this.bounds.origin.copy();
         }
-        if (event.button === 2 || event.ctrlKey) {
+        if (event.button === 2 || event.ctrlKey || event.metaKey) {
             this.mouseButton = 'right';
             actualClick = 'mouseDownRight';
         } else {
@@ -11534,6 +11522,12 @@ HandMorph.prototype.processMouseDown = function (event) {
         }
         morph[actualClick](this.bounds.origin);
     }
+};
+
+HandMorph.prototype.touchPoint = function (touch) {
+    // With a menu up, aim 12 units above the finger so it does not hide the item.
+    var offset = this.world.activeMenu ? 12 * ZOOM : 0;
+    return {pageX: touch.pageX, pageY: touch.pageY - offset};
 };
 
 HandMorph.prototype.processTouchStart = function (event) {
@@ -11551,9 +11545,9 @@ HandMorph.prototype.processTouchStart = function (event) {
                 event.preventDefault();
                 clearInterval(this.touchHoldTimeout);
             },
-            400
+            350
         );
-        this.processMouseMove(event.touches[0]); // update my position
+        this.processMouseMove(this.touchPoint(event.touches[0])); // update my position
         this.processMouseDown({button: 0});
         event.preventDefault();
     }
@@ -11571,7 +11565,7 @@ HandMorph.prototype.processTouchMove = function (event) {
     }
     if (event.touches.length === 1) {
         var touch = event.touches[0];
-        this.processMouseMove(touch);
+        this.processMouseMove(this.touchPoint(touch));
         clearInterval(this.touchHoldTimeout);
     }
 };

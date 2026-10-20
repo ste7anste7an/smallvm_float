@@ -118,20 +118,47 @@ function specDefinitionString(spec) {
 	return parts.join(' ');
 }
 
-function scriptForFunction(func, body = null) {
+function scriptForFunction(func, body = null, project = MB_editor.project) {
 	// The block that shows a function definition in the scripting pane: a hat
-	// that holds the function.
+	// that holds the function and shows its block's prototype.
 	if (func == null) return null;
 	let hat = new HatBlockMorph();
 	hat.selector = 'to';
 	hat.functionDefinition = func;
-	hat.setSpec(MB_Specs.specFor('to', [func.functionName]));
-	hat.setCategory(MB_Specs.categoryForSelector('to'));
+	hat.setSpec('define');
+	hat.setCategory('Definition');
 	hat.isDraggable = true;
-	hat.inputs()[0].setContents(func.functionName);
+	hat.add(blockPrototypeForFunction(func, project));
+	hat.fixLayout();
 	let cmdList = body || func.cmdList;
 	if (cmdList) hat.nextBlock(cmdList);
 	return hat;
+}
+
+function blockPrototypeForFunction(func, project) {
+	// A block of the function's shape and colour holding its editable
+	// prototype. A drag takes a copy of it, as from the palette.
+	const op = func.functionName;
+	const args = func.argNames || [];
+	MB_Specs.initialize();
+	const builtIn = MB_Specs.selectorToSpec.get(op);
+	const spec = project.blockSpecs.get(op)
+		|| (builtIn && { blockType: builtIn[0], opName: op, specString: builtIn[2],
+			slotTypes: builtIn[3] || '', defaults: builtIn.slice(4) })
+		|| { blockType: ' ', opName: op, specString: [op, ...args.map(() => '_')].join(' '),
+			slotTypes: args.map(() => 'auto').join(' ') };
+	const proto = ('r' === spec.blockType) ? new ReporterBlockMorph() : new CommandBlockMorph();
+	proto.isPrototype = true;
+	proto.isDraggable = false;
+	proto.isTemplate = true;
+	const lib = [...project.libraries.values()].find((m) => m.functions.includes(func));
+	proto.setCategory(lib ? lib.moduleCategory : 'My Blocks'); // as the palette colours it
+	const def = new BlockDefinitionMorph(op, spec, args, proto);
+	if (builtIn) def.isBuiltIn = true; // its spec is not the user's to change
+	proto.add(def);
+	if (builtIn) def.hideDetails();
+	proto.fixLayout();
+	return proto;
 }
 
 function blockForBody(bodyArg, singleIsReporter = false) {
@@ -319,6 +346,21 @@ class MB_Project {
 			result.push(...lib.functions);
 		}
 		return result;
+	}
+
+	functionsInSeveralLibraries() {
+		// A line such as 'wifiConnect: External WiFi, WiFi' for each function that
+		// more than one library defines. Only one of those definitions is used.
+		const libsByName = new Map();
+		for (const lib of this.libraries.values()) {
+			for (const f of lib.functions) {
+				if (!libsByName.has(f.functionName)) libsByName.set(f.functionName, []);
+				libsByName.get(f.functionName).push(lib.moduleName);
+			}
+		}
+		return [...libsByName.keys()].sort()
+			.filter((name) => libsByName.get(name).length > 1)
+			.map((name) => name + ': ' + libsByName.get(name).sort().join(', '));
 	}
 
 	functionNamed(name) {
@@ -709,7 +751,7 @@ class MB_Project {
 			// the function's own body; each later hat gets a copy of it.
 			let body = (bodyTaken.has(func) && func.cmdList) ? func.cmdList.fullCopy() : null;
 			bodyTaken.add(func);
-			const hat = scriptForFunction(func, body);
+			const hat = scriptForFunction(func, body, this);
 			// The hat stands for the entry that was read, so it keeps that
 			// entry's name rather than being minted a second one from a body
 			// the file does not hold.
@@ -821,6 +863,52 @@ class MB_Module {
 		// Return true if this library and otherLib implement the same library.
 		if (otherLib.implementsLib(this.moduleName)) return true;
 		return this.implementedLibs.some((libName) => otherLib.implementsLib(libName));
+	}
+
+	apiOpsOf(otherLib) {
+		// Return the op of every function and block of otherLib. A block may call a primitive directly,
+		// and a library that implements otherLib covers it with a function of the same name.
+		const result = otherLib.functions.map((f) => f.functionName);
+		for (const op of otherLib.blockList) {
+			if (!['-', 'advanced'].includes(op) && !result.includes(op)) result.push(op);
+		}
+		return result;
+	}
+
+	missingFunctionsOf(otherLib) {
+		// Return the ops of otherLib, including primitive blocks, that this library does not define as functions.
+		return this.apiOpsOf(otherLib).filter((op) => !this.functionNamed(op));
+	}
+
+	mismatchedFunctionsOf(otherLib) {
+		// Return a description of each op of otherLib that this library defines with a different block,
+		// such as 'wifiConnect (inputs, label)'.
+		const result = [];
+		for (const op of this.apiOpsOf(otherLib)) {
+			const myFunc = this.functionNamed(op);
+			if (!myFunc) continue;
+			const diffs = [];
+			const otherFunc = otherLib.functionNamed(op);
+			if (otherFunc && (myFunc.argNames.length !== otherFunc.argNames.length)) diffs.push('inputs');
+			const mySpec = this.specParts(this.blockSpecs.get(op));
+			const otherSpec = this.specParts(otherLib.blockSpecs.get(op));
+			if (!mySpec || !otherSpec) {
+				if (mySpec || otherSpec) diffs.push('block');
+			} else {
+				if (mySpec[0] !== otherSpec[0]) diffs.push('type');
+				if (mySpec[1] !== otherSpec[1]) diffs.push('label');
+				if (mySpec[2] !== otherSpec[2]) diffs.push('slots');
+			}
+			if (diffs.length > 0) result.push(op + ' (' + diffs.join(', ') + ')');
+		}
+		return result;
+	}
+
+	specParts(spec) {
+		// Return the block type, label, and slot types of a block spec as its spec line writes them,
+		// or null if spec is null.
+		if (!spec) return null;
+		return [spec.blockType || ' ', spec.specString || spec.opName, specSlotInfo(spec).map((slot) => slot[0]).join(' ')];
 	}
 
 	mintScriptId(x, y, bodyText, taken) {
@@ -1075,7 +1163,10 @@ class MB_Module {
 			if (block instanceof ReporterBlockMorph) {
 				// codeString() already parenthesises a reporter, so do not add
 				// a second pair here as GP's scriptString has to.
-				result.push(block.codeString() + '\n');
+				// A variable is the exception: codeString() writes it bare.
+				let text = (block.selector == 'v') ?
+					('(v ' + quoteIfNeeded(block.blockSpec) + ')') : block.codeString();
+				result.push(text + '\n');
 			} else {
 				result.push('{\n');
 				// At its own column, as GP's prettyPrintList writes a script body.
@@ -1393,6 +1484,79 @@ class MB_Module {
 	setTranslations(translationsDict) { this.translationSources = translationsDict; }
 	getTranslationSources(langCode) { return this.translationSources.get(langCode); }
 	hasTranslationFor(langCode) { return this.translationSources.has(langCode); }
+}
+
+// MB_LibraryEditor - the edits to one library's properties, kept apart from
+// the library until save(). The library dialog shows and changes these.
+
+class MB_LibraryEditor {
+	constructor(lib) {
+		this.library = lib;
+		this.description = lib.description;
+		this.dependencies = Array.from(lib.dependencies);
+		this.category = lib.moduleCategory;
+		this.versionText = 'v' + lib.version[0] + '.' + lib.version[1];
+		this.authorText = MB_LibraryEditor.byLabel() + ' ' + lib.author;
+	}
+
+	static byLabel() {
+		// 'by', as in "by Jane Doe"; the key carries a context prefix.
+
+		const key = 'libdata;by';
+		const s = localized(key);
+		return (s === key) ? 'by' : s;
+	}
+
+	setDescription(s) { this.description = s; }
+	setCategory(cat) { this.category = cat; }
+	setVersionText(s) { this.versionText = s; }
+	setAuthorText(s) { this.authorText = s; }
+
+	shownName(dep) {
+		// A dependency as the dialog shows it: no folder, extension or version, and no
+		// leading underscore, which marks an implementation library.
+
+		const name = this.library.dependencyName(dep);
+		return name.startsWith('_') ? name.slice(1) : name;
+	}
+
+	dependencyNames() { return this.dependencies.map((dep) => this.shownName(dep)); }
+
+	addDependency(pathOrName) {
+		// Add a library name, path or URL as typed, unless one of that name is there.
+
+		if (this.dependencyNames().includes(this.shownName(pathOrName))) return false;
+		this.dependencies.push(pathOrName);
+		return true;
+	}
+
+	removeDependency(name) {
+		const i = this.dependencyNames().indexOf(name);
+		if (i < 0) return false;
+		this.dependencies.splice(i, 1);
+		return true;
+	}
+
+	version() {
+		// [major, minor] from the digits and dots of the version text; a missing part is 0.
+
+		const parts = this.versionText.replace(/[^0-9.]/g, '').split('.');
+		return [parseInt(parts[0]) || 0, parseInt(parts[1]) || 0];
+	}
+
+	author() {
+		const s = this.authorText.trim(), by = MB_LibraryEditor.byLabel() + ' ';
+		return (s.startsWith(by) ? s.slice(by.length) : s).trim();
+	}
+
+	save() {
+		const lib = this.library;
+		lib.setDescription(this.description);
+		lib.setDependencies(this.dependencies);
+		lib.setCategory(this.category);
+		lib.setVersion(this.version());
+		lib.setAuthor(this.author());
+	}
 }
 
 // MB_ScriptExchange - export and import scripts between projects.

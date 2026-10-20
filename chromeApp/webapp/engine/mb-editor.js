@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Module, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
 
 class MB_Editor {
 	constructor() {
@@ -88,6 +88,19 @@ class MB_Editor {
 			if (!((typeof GP === 'object') && GP.delegateKeyboardEvents)) HTMLTextAreaElement.prototype.focus.call(this);
 		};
 
+		// morphic takes a Cmd-click as a right click; the click event after it must not close its menu.
+		world.worldCanvas.addEventListener('click', (event) => {
+			if (event.metaKey) event.ignoreGlobalListener = true;
+		});
+
+		// Text copied or cut while editing is what the text menu's paste offers.
+		if (world.keyboardHandler) for (const type of ['copy', 'cut']) {
+			world.keyboardHandler.addEventListener(type, () => {
+				const area = world.keyboardHandler;
+				setClipboardBuffer(area.value.slice(area.selectionStart, area.selectionEnd));
+			});
+		}
+
 		// Escape with nothing being edited goes to the chrome, as GP's Page sends it. Until
 		// morphic refocuses its keyboard textarea after a click, the key goes to the body.
 		// The IDE's keys act unless a chrome dialog has them. Morphic handles a key before
@@ -102,6 +115,10 @@ class MB_Editor {
 			event.stopPropagation();
 			event.preventDefault();
 		}, true);
+		// Whether Shift is down now: a result shown while it is gets copied, and it arrives after the click.
+		const noteShift = (event) => { this.shiftDown = event.shiftKey; };
+		['keydown', 'keyup', 'pointerdown'].forEach((type) => document.addEventListener(type, noteShift, true));
+		window.addEventListener('blur', () => { this.shiftDown = false; });
 		let morphicHadKeys = false;
 		document.addEventListener('keydown', () => { morphicHadKeys = !!(world.keyboardFocus || world.activeMenu); }, true);
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
@@ -173,7 +190,6 @@ class MB_Editor {
 		let offset = 0;
 		const highlight = (on) => {
 			resizer.alpha = on ? 0.6 : 0;
-			world.worldCanvas.style.cursor = on ? 'ew-resize' : '';
 			resizer.changed();
 		};
 		// A block being carried passes through to the scripting area below.
@@ -208,7 +224,7 @@ class MB_Editor {
 
 		let scriptsPane = this.scriptsPane();
 		b.setPosition(scriptsPane.position().add(new Point(x, y)));
-		b.category = MB_Specs.categoryForSelector(b.selector);
+		if (!b.isFunctionDefinition()) b.category = MB_Specs.categoryForSelector(b.selector);
 		b.setColor(b.colorFor(b.category));
 		scriptsPane.add(b);
 		scriptsPane.adjustBounds();
@@ -432,10 +448,12 @@ class MB_Editor {
 		return this.pasteScriptText(event.data);
 	}
 
-	pasteScriptText(text) {
+	pasteScriptText(text, atHand = false) {
 		// Both a browser paste event and the chrome's paste menu item arrive here.
+		// The menu item pastes at the hand, moved up and left by about a menu's offset.
 		if (!text.startsWith('GP Script')) return; // ignore non-script paste
-		return this.pasteScripts(text.slice(text.indexOf('\n') + 1));
+		const dst = atHand ? world.hand.position().subtract(new Point(40, 90)).subtract(this.scriptsPane().position()) : null;
+		return this.pasteScripts(text.slice(text.indexOf('\n') + 1), dst);
 	}
 
 	async pasteScripts(scriptString, dst) {
@@ -555,20 +573,34 @@ class MB_Editor {
 	applyUserPreferences() {
 		// Resize, recolour and refill for a preference that changes the canvas,
 		// and leave the user on the library or category they were showing. Only
-		// a selection that is no longer there falls back.
+		// a selection that is no longer offered falls back.
 
-		const percent = this.readUserPreferences().blockSizePercent;
+		const prefs = this.readUserPreferences();
+		if (typeof prefs.locale !== 'string') {
+			// The chrome starts in the saved language, read after this runs.
+			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh_chs' : 'en');
+		}
+		const percent = prefs.blockSizePercent;
 		if (typeof percent === 'number' && Number.isFinite(percent)) {
 			this.applyBlockSize(Math.max(25, Math.min(500, percent)));
 		}
 		this.applyDarkMode();
-		this.tellIDE('libraryList', this.libraryList());
-		const showing = this.library ? this.project.libraryNamed(this.library) : this.category;
-		if (showing) {
+		const libs = this.libraryList();
+		this.tellIDE('libraryList', libs);
+		const offered = this.library
+			? libs.some((lib) => lib.label === this.library)
+			: this.category && (this.devMode() || ('cat;Comm' !== this.category));
+		if (offered) {
 			this.updatePalette();
 		} else {
 			this.selectCategory('cat;Control');
 		}
+	}
+
+	isChineseWebapp() {
+		// A Chinese mirror of the IDE, or a browser that asks for Chinese.
+		return ['microblocksfun.cn', 'blocks.aimaker.space'].some((host) => location.href.includes(host))
+			|| Array.from(navigator.languages || []).some((lang) => lang.includes('zh'));
 	}
 
 	libraryList() {
@@ -853,6 +885,10 @@ class MB_Editor {
 		if ((typeof Menus !== 'undefined') && Menus.current()) return false;
 		const frame = world.hand.morphAtPointer().parentThatIsA(ScrollFrameMorph);
 		if (!frame) return false;
+		if (frame.arrowKey && (event.key in steps)) { // a list moves its marked row instead
+			frame.arrowKey(Math.sign(steps[event.key][0]), Math.sign(steps[event.key][1]));
+			return true;
+		}
 		const page = Math.round(frame.height() / 3);
 		const [dx, dy] = steps[event.key] || { PageUp: [0, page], PageDown: [0, -page], Home: [0, 1e6], End: [0, -1e6] }[event.key];
 		if (dx) frame.scrollX(dx);
@@ -1072,12 +1108,39 @@ console.log('unknown');
 		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
 	}
 
-	showLibraryInfo(libName) {
-		// A read-only window with a library's description, version, author and dependencies.
+	showLibraryInfo(libName, forEditing = this.devMode()) {
+		// A window with a library's description, version, author and dependencies,
+		// which can change them when forEditing.
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
-		new MB_LibraryInfoDialog(lib).open(world);
+		new MB_LibraryInfoDialog(lib, forEditing).open(world);
+	}
+
+	newLibrary(libName) {
+		// Add an empty library of the given name and show its blocks. Answers it, or
+		// null for a blank name or one already in the project, which is left as it is.
+
+		if (!libName) return null;
+		if (this.project.libraryNamed(libName)) {
+			this.inform(localized('A library with that name is already in the project. Remove it first to make a new one.'));
+			return null;
+		}
+		const lib = new MB_Module(libName);
+		this.project.addLibrary(lib);
+		this.updateLibraryList();
+		this.selectLibrary(libName);
+		return lib;
+	}
+
+	libraryCategories() {
+		// The categories a library can be given; 'Library' is shown as Generic.
+
+		const result = ['cat;Output', 'cat;Input', 'cat;Pins', 'cat;Comm', 'cat;Control',
+			'cat;Operators', 'cat;Variables', 'cat;Data', 'cat;My Blocks'];
+		if (!this.devMode()) result.splice(result.indexOf('cat;Comm'), 1);
+		result.push('Library');
+		return result;
 	}
 
 	async reloadLibrary(libName) {
@@ -1209,18 +1272,36 @@ console.log('unknown');
 		this.librariesChanged();
 		this.updateLibraryList();
 		this.selectLibrary(moduleName); // last, so a dependency's own select does not win
-		this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
+		await this.reportReplacedLibraries(this.project.libraryNamed(moduleName), oldLibs);
 		return moduleName;
 	}
 
-	reportReplacedLibraries(lib, oldLibs) {
-		// Tell the user which of oldLibs, no longer in the project, lib replaced.
+	async reportReplacedLibraries(lib, oldLibs) {
+		// Tell the user which of oldLibs, no longer in the project, lib replaced. For the author of lib,
+		// also list the functions of each shipped library it implements that it lacks or defines with a
+		// different block.
 
 		if (!lib) return;
 		const msg = [];
 		for (const old of oldLibs) {
 			if ((old.moduleName !== lib.moduleName) && !this.project.libraryNamed(old.moduleName) && lib.replaces(old)) {
 				msg.push(localized('%1 replaces %2').replace('%1', lib.moduleName).replace('%2', old.moduleName) + '.');
+			}
+		}
+		for (const libName of lib.implementedLibs) {
+			const cmds = await lib.embeddedLibraryCmds(libName);
+			if (!cmds) continue;
+			const shipped = new MB_Module(libName);
+			shipped.loadFromCmds(cmds);
+			const missing = lib.missingFunctionsOf(shipped);
+			if (missing.length > 0) {
+				msg.push(localized('Blocks and functions of %1 that this library does not define:').replace('%1', libName) +
+					' ' + missing.join(', ') + '.');
+			}
+			const mismatched = lib.mismatchedFunctionsOf(shipped);
+			if (mismatched.length > 0) {
+				msg.push(localized('Blocks and functions of %1 that differ in this library:').replace('%1', libName) +
+					' ' + mismatched.join(', ') + '.');
 			}
 		}
 		if (msg.length > 0) this.inform(msg.join('\n'));
@@ -1549,6 +1630,7 @@ console.log('unknown');
 		// Give the function op the prototype the user edited, then fix every
 		// call to it in main to match.
 		this.updateProject();
+		this.scriptsPane().cancelSelection(); // the rebuild replaces selected blocks
 		const func = this.project.functionNamed(op);
 		if (func) {
 			func.argNames = argNames.slice();
@@ -1564,8 +1646,26 @@ console.log('unknown');
 		// a call that changed shape has to leave the place it was standing in.
 		if (oldSpec && (oldSpec.blockType !== blockType)) this.ejectCallsOf(op, 'r' === blockType);
 		this.updateCallsOf(op, colourSlots);
+		if (func) this.rebuildDefinitionsOf(func);
+		this.updatePalette();
 		// Its own, because updateCallsOf answers early when the spec is missing.
 		this.scriptChanged();
+	}
+
+	rebuildDefinitionsOf(func) {
+		// Replace each definition of func in the pane with one showing its
+		// current prototype, keeping its place, its script id and its body.
+		const pane = this.scriptsPane();
+		for (const old of pane.children.slice()) {
+			if (!(old instanceof BlockMorph) || (old.functionDefinition !== func)) continue;
+			const body = old.nextBlock();
+			if (body) old.removeChild(body);
+			const hat = scriptForFunction(func, body);
+			hat.mbScriptId = old.mbScriptId;
+			hat.setPosition(old.position());
+			old.destroy();
+			pane.add(hat);
+		}
 	}
 
 	ejectCallsOf(op, becomesReporter) {
@@ -1640,6 +1740,7 @@ console.log('unknown');
 		// Pad or cut every call to op in main's functions and scripts to the
 		// inputs its spec declares, and replace a literal of the wrong type with
 		// the slot's default. colourSlots says which inputs were colour slots.
+		// Everything that calls op is rebuilt, so its calls show the new labels.
 		const spec = this.project.blockSpecs.get(op);
 		if (spec == null) return;
 		const { sections, repeatLast } = specSections(spec);
@@ -1659,11 +1760,14 @@ console.log('unknown');
 			}),
 		};
 		const fixCalls = (node) => {
-			let changed = false;
+			let calls = false;
 			forEachExpression(node, (n) => {
-				if (n.selector === op) changed = fixedCallArgs(n, rule) || changed;
+				if (n.selector === op) {
+					fixedCallArgs(n, rule);
+					calls = true;
+				}
 			});
-			return changed;
+			return calls;
 		};
 
 		for (const func of this.project.main.functions) {
@@ -1698,8 +1802,19 @@ console.log('unknown');
 
 	changeOperator(aBlock, newOp) {
 		// Make aBlock call newOp with the inputs it has, and rebuild its script to match.
-		const top = aBlock.topBlock();
 		aBlock.selector = newOp;
+		this.rebuildScriptOf(aBlock);
+	}
+
+	changeVar(aBlock, varName) {
+		// Make the variable reporter aBlock read varName, and rebuild its script to match.
+		aBlock.blockSpec = varName;
+		this.rebuildScriptOf(aBlock);
+	}
+
+	rebuildScriptOf(aBlock) {
+		// Rebuild the script aBlock is in from its expression, after aBlock changed in place.
+		const top = aBlock.topBlock();
 		if (top.isFunctionDefinition()) {
 			const func = top.functionDefinition;
 			func.cmdList = MB_Parser.blockForDecompiled(top.nextBlock().expression());
@@ -1930,12 +2045,13 @@ console.log('unknown');
 			{ title: title || null, text: String(msg) }, resolve));
 	}
 
-	prompt(question, defaultValue, editRule) {
+	prompt(question, defaultValue, editRule, details) {
 		// Answer a promise of the text entered, or null, from the chrome's dialog, as GP's
 		// Page prompt does, or from the browser's own on a page without the chrome.
+		// details is shown under the question.
 		if (typeof FloatingWindow === 'undefined') return Promise.resolve(prompt(question, defaultValue));
 		return new Promise((resolve) => askChrome('window.prompt',
-			{ title: question, text: null, default: defaultValue, editRule: editRule }, resolve));
+			{ title: question, text: details || null, default: defaultValue, editRule: editRule }, resolve));
 	}
 
 	async newProject() {
@@ -1998,7 +2114,7 @@ console.log('unknown');
 		// Write the project to a file the browser downloads.
 
 		this.updateProject();
-		let name = this.projectName || 'untitled.ubp';
+		let name = this.projectName || 'Untitled';
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		this.saveTextAsFile(this.project.codeString(), name);
 		this.unsavedEdits = false; // the file holds what the pane holds
@@ -2291,6 +2407,15 @@ console.log('unknown');
 		// Last, for the same reason as in clearProject: loading the project
 		// destroys and builds blocks, and each of those is an edit.
 		MB_editor.unsavedEdits = false;
+		MB_editor.reportFunctionsInSeveralLibraries();
+	}
+
+	reportFunctionsInSeveralLibraries() {
+		const duplicates = this.project.functionsInSeveralLibraries();
+		if (duplicates.length > 0) {
+			this.inform(localized('These functions are defined in more than one library, so only one of each is used:') +
+				' ' + duplicates.join('; ') + '.');
+		}
 	}
 
 	async importFromURL(url) {
@@ -2353,9 +2478,9 @@ console.log('unknown');
 	}
 
 	async processDroppedFile(fileName, data) {
-		// Act on a file by its extension: a project, a library, graph data or a
-		// picture. Any other file is written to the board, unless it is one the IDE
-		// should open. data is the file's text for the first three, and its bytes otherwise.
+		// Act on a file by its extension: a project, a library, graph data, a picture,
+		// ESP firmware or a translation. Any other file is written to the board.
+		// data is the file's text for a project, library, graph data or translation, else its bytes.
 
 		const name = fileName.toLowerCase();
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
@@ -2366,8 +2491,46 @@ console.log('unknown');
 		}
 		else if (name.endsWith('.csv')) this.importLoggedData(data);
 		else if (MB_Editor.isScriptPicture(name)) await this.importFromPNG(data);
+		else if (name.endsWith('.bin')) await MB_Firmware.installFirmwareFile(fileName, data);
 		else if (name.endsWith('.po')) await this.installTranslation(data, MB_Editor.droppedTranslationName(fileName));
-		else if (!MB_Editor.isUnsupportedIDEFile(name)) await this.writeFileToBoard(fileName, data);
+		else await this.writeFileToBoard(fileName, data);
+	}
+
+	async processDroppedText(text) {
+		// A link dragged from another page opens what it points at, if that is
+		// something the IDE opens. Any other text becomes a comment at the hand.
+		if (!text.startsWith('http')) return this.addCommentAtHand(text);
+		const url = text.split(/\r\n|\r|\n/)[0];
+		if (url.includes('scripts=') || url.includes('project=')) return this.importFromURL(url);
+		if (!['.ubp', '.ubl', '.png'].some((ext) => url.toLowerCase().endsWith(ext))) return;
+		let fileName = url.slice(url.lastIndexOf('/') + 1);
+		try { fileName = decodeURIComponent(fileName); } catch (e) { /* not encoded: keep it as it is */ }
+		let data;
+		try {
+			const response = await fetch(url);
+			if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
+			data = MB_Editor.isTextFile(fileName)
+				? await response.text() : new Uint8Array(await response.arrayBuffer());
+		} catch (error) {
+			console.error('Could not read:', url, error);
+			alert(localized('Could not read: ') + url);
+			return;
+		}
+		if (fileName.toLowerCase().endsWith('.ubl')) {
+			// Given the address, the library keeps it as the source the reload verb reads.
+			if (await this.importLibraryFromString(data, url)) await this.codeManager.saveAllChunksAfterLoad();
+			return;
+		}
+		await this.processDroppedFile(fileName, data);
+	}
+
+	addCommentAtHand(text) {
+		const comment = MB_Parser.blockForDecompiled(
+			{ selector: 'comment', args: [text], isReporter: false, next: null });
+		const pane = this.scriptsPane();
+		const hand = world.hand.position();
+		this.addBlockToScriptsAt(comment, hand.x - pane.left(), hand.y - pane.top());
+		this.scriptChanged();
 	}
 
 	importLoggedData(text) {
@@ -2391,12 +2554,6 @@ console.log('unknown');
 		// A project, a library, graph data or a translation. Every other file is read as bytes.
 		const name = fileName.toLowerCase();
 		return ['.ubp', '.ubp.txt', '.ubl', '.csv', '.po'].some((ext) => name.endsWith(ext));
-	}
-
-	static isUnsupportedIDEFile(fileName) {
-		// Firmware: the IDE's to install, not the board's, though it does not
-		// install it yet.
-		return fileName.toLowerCase().endsWith('.bin');
 	}
 
 	static isScriptPicture(fileName) {
@@ -2531,11 +2688,11 @@ console.log('unknown');
 
 	// Placeholder functions for UI actopms
 
-	inform(msg) {
+	inform(msg, title) {
 		// Shown by the chrome's window.inform dialog, which answers into GP.apiResponses[id].
 		console.log(msg);
 		this.informCount = (this.informCount || 0) + 1;
-		fireIDEEvent('window.inform', { title: null, text: String(msg), id: 'inform' + this.informCount });
+		fireIDEEvent('window.inform', { title: title || null, text: String(msg), id: 'inform' + this.informCount });
 	}
 
 	showResult(chunkID, value, isError) {
@@ -2554,6 +2711,7 @@ console.log('unknown');
 	showResultOn(block, value, isError) {
 		this.removeResultBubble(block);
 		if ((value == null) || ('' === value)) return;
+		if (this.shiftDown) this.copyToClipboard(String(value));
 
 		const world = block.world();
 		if (!world) return;
@@ -2696,11 +2854,11 @@ function fireIDEEvent(name, value) {
 }
 
 // The hand's position as the chrome expects GP's: menus.js adds the offset of
-// #canvas.emscripten, while the hand is in world units on the world's own canvas,
+// #canvas, while the hand is in world units on the world's own canvas,
 // which morphic draws ZOOM times larger.
 function chromePoint(aWorld) {
 	const page = aWorld.worldCanvas.getBoundingClientRect();
-	const canvas = document.querySelector('#canvas.emscripten');
+	const canvas = document.querySelector('#canvas');
 	const hand = aWorld.hand.position();
 	return {
 		x: (hand.x * ZOOM) + page.left - canvas.offsetLeft,
@@ -2763,6 +2921,44 @@ function chromeMenuFor(aWorld, items) {
 	});
 	return chromeDrawnMenu;
 }
+
+// Text being edited answers a right-click with its own menu, and editing goes on.
+for (const textClass of [StringMorph, TextMorph]) {
+	const notEditingMenu = textClass.prototype.contextMenu;
+	textClass.prototype.contextMenu = function () {
+		const cursor = this.world() && this.world().cursor;
+		return (cursor && (cursor.target === this)) ? cursor.textMenu() : notEditingMenu.call(this);
+	};
+}
+
+CursorMorph.prototype.textMenu = function () {
+	const area = this.textarea,
+		selected = () => area.value.slice(area.selectionStart, area.selectionEnd),
+		insert = (s) => {
+			area.focus(); // the chrome's menu took the keys
+			area.setRangeText(s, area.selectionStart, area.selectionEnd, 'end');
+			area.dispatchEvent(new Event('input'));
+		},
+		items = [];
+	if (selected() !== '') {
+		items.push(['cut', () => { setClipboard(selected()); insert(''); }]);
+		items.push(['copy', () => { setClipboard(selected()); area.focus(); }]);
+	}
+	if (clipboardText() !== '') items.push(['paste', () => insert(clipboardText())]);
+	if (items.length > 0) items.push('-');
+	if (area.value !== this.originalContents) {
+		items.push(['accept', () => this.accept()]);
+		items.push(['revert', () => this.cancel()]);
+	} else {
+		items.push(['stop editing', () => this.target.world().stopEditing()]);
+	}
+	items.push(['select all', () => {
+		area.focus();
+		area.select();
+		this.processKeyUp({});
+	}]);
+	return chromeMenuFor(this.target.world(), items);
+};
 
 // Global singleton instance
 const MB_editor = new MB_Editor();
@@ -2916,8 +3112,7 @@ document.body.appendChild(MB.clipboard);
 function setGPClipboard(s) {
 	// Called by GP's setClipboard primitive
 
-	GP.clipboardBytes = toUTF8Array(s);
-	MB.clipboard.value = s;
+	setClipboardBuffer(s);
 
 	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.writeText)) {
 		navigator.clipboard.writeText(s).catch(() => {});
@@ -2930,6 +3125,12 @@ function setGPClipboard(s) {
 			console.error('setGPClipboard failed', err);
 		}
 	}
+}
+
+function setClipboardBuffer(s) {
+	// The IDE's own copy of the clipboard text, which clipboardText() reads.
+	GP.clipboardBytes = toUTF8Array(s);
+	MB.clipboard.value = s;
 }
 
 async function readGPClipboard(s) {

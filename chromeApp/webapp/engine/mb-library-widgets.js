@@ -7,15 +7,19 @@
 // mb-library-widgets.js - dialogs that show what a library is.
 //
 // The import dialog shows the selected library file's properties beside its
-// list; the information dialog shows those of a library in the project.
+// list; the information dialog shows those of a library in the project, and in
+// developer mode lets the user change them.
 
-/* global MB_FilePicker, MB_Files, MB_Module, MB_Parser, localized, BoxMorph, Color, FrameMorph, HandleMorph, Morph,
-	Point, ScrollFrameMorph, StringMorph, TextMorph, TriggerMorph */
+/* global MB_FilePicker, MB_Files, MB_LibraryEditor, MB_Module, MB_Parser, MB_editor, chromeMenuFor, localized,
+	BlockMorph, BoxMorph, Color, FrameMorph, HandleMorph, Morph, Point, ScrollFrameMorph, StringMorph, TextMorph,
+	TriggerMorph */
 
 class MB_LibraryPropertiesFrame {
-	constructor() {
+	constructor(forEditing) {
 		const colors = MB_LibraryPropertiesFrame.colors;
+		this.editFlag = !!forEditing;
 		this.library = null;
+		this.edits = null; // an MB_LibraryEditor on the library
 		this.morph = new Morph();
 		this.morph.alpha = 0;
 
@@ -32,6 +36,15 @@ class MB_LibraryPropertiesFrame {
 		this.versionText = this.versionFrame.children[0];
 		this.authorFrame = this.field();
 		this.authorText = this.authorFrame.children[0];
+		this.versionText.isEditable = this.authorText.isEditable = this.editFlag;
+
+		if (this.editFlag) {
+			this.categoryBox = new Morph();
+			this.categoryBox.mouseClickLeft = () => this.pickCategory();
+			this.morph.add(this.categoryBox);
+			this.sourceFrame = this.field();
+			this.sourceText = this.sourceFrame.children[0];
+		}
 
 		this.depsView = new FrameMorph(); // clips a dependency name wider than the pane
 		this.depsView.alpha = 0;
@@ -61,22 +74,33 @@ class MB_LibraryPropertiesFrame {
 
 	setLibrary(lib) {
 		this.library = lib;
+		this.edits = lib ? new MB_LibraryEditor(lib) : null;
 		this.updateFields();
 		this.fixLayout();
 	}
 
 	clearFields() {
-		this.library = null;
-		this.updateFields();
-		this.fixLayout();
+		this.setLibrary(null);
 	}
 
 	updateFields() {
-		const lib = this.library;
-		this.setText(this.descriptionText, lib ? lib.description : '');
-		this.setText(this.versionText, lib ? 'v' + lib.version[0] + '.' + lib.version[1] : '');
-		this.setText(this.authorText, lib ? MB_LibraryPropertiesFrame.byLabel() + ' ' + lib.author : '');
-		this.buildDependencies(lib ? lib.dependencies.map((dep) => lib.dependencyName(dep)) : []);
+		const edits = this.edits;
+		this.setText(this.descriptionText, edits ? edits.description : '');
+		this.setText(this.versionText, edits ? edits.versionText : '');
+		this.setText(this.authorText, edits ? edits.authorText : '');
+		if (this.editFlag) {
+			this.setText(this.sourceText, this.sourceLine());
+			this.updateCategoryColor();
+		}
+		this.buildDependencies();
+	}
+
+	sourceLine() {
+		const path = this.library && this.library.path;
+		if (path == null) return localized('user library');
+		if (path.startsWith('/')) return 'Libraries' + path + '.ubl';
+		if (/^https?:\/\//.test(path)) return path;
+		return localized('built-in library');
 	}
 
 	setText(aMorph, s) {
@@ -85,29 +109,139 @@ class MB_LibraryPropertiesFrame {
 		aMorph.rerender();
 	}
 
-	buildDependencies(names) {
-		// A 'Depends:' label and one item per dependency, or nothing at all. A
-		// leading underscore marks an implementation library and is not shown.
+	saveChanges() {
+		// Write the fields as they are now to the library.
+
+		const world = this.morph.world();
+		if (world) world.stopEditing();
+		this.edits.setDescription(this.descriptionText.text);
+		this.edits.setVersionText(this.versionText.text);
+		this.edits.setAuthorText(this.authorText.text);
+		this.edits.save();
+	}
+
+	// category
+
+	static categoryColor(cat) {
+		let name = String(cat);
+		if (name.startsWith('cat;')) name = name.slice(4);
+		if (name.endsWith('-Advanced')) name = name.slice(0, -9);
+		return BlockMorph.prototype.colorFor(name);
+	}
+
+	static swatch(cat) {
+		// A PNG of a box in the category's colour, for the chrome's menu.
+
+		const canvas = document.createElement('canvas');
+		canvas.width = canvas.height = 32;
+		const ctx = canvas.getContext('2d');
+		ctx.fillStyle = MB_LibraryPropertiesFrame.categoryColor(cat).toString();
+		ctx.fillRect(0, 0, 32, 32);
+		return canvas.toDataURL('image/png');
+	}
+
+	updateCategoryColor() {
+		this.categoryBox.color = MB_LibraryPropertiesFrame.categoryColor(this.edits ? this.edits.category : 'Library');
+		this.categoryBox.rerender();
+	}
+
+	pickCategory() {
+		const items = MB_editor.libraryCategories().map((cat) => [
+			localized(('Library' === cat) ? 'Generic' : cat),
+			() => { this.edits.setCategory(cat); this.updateCategoryColor(); },
+			null, MB_LibraryPropertiesFrame.swatch(cat), '--category-color']);
+		this.openMenu(items);
+	}
+
+	openMenu(items) {
+		// After the click that asked for it, which would otherwise close it.
+
+		const world = this.morph.world();
+		setTimeout(() => chromeMenuFor(world, items));
+	}
+
+	// dependencies
+
+	buildDependencies() {
+		// A 'Depends:' label and one item per dependency, or nothing at all. When
+		// editing, the label always, then '-' to remove one and '+' to add one.
 
 		for (const m of this.depsView.children.slice()) m.destroy();
-		if (names.length === 0) return;
+		const names = this.edits ? this.edits.dependencyNames() : [];
+		if ((names.length === 0) && !this.editFlag) return;
 		const heading = new StringMorph(localized('Depends:'), 14, null, true);
 		heading.rootForGrab = () => this.dialog().rootForGrab();
 		this.depsView.add(heading);
-		for (const name of names) {
-			const item = new Morph();
-			item.color = MB_LibraryPropertiesFrame.colors.item;
-			const label = new StringMorph(name.startsWith('_') ? name.slice(1) : name, 14);
-			item.rootForGrab = label.rootForGrab = () => this.dialog().rootForGrab();
-			item.add(label);
-			item.setExtent(new Point(label.width() + 10, label.height() + 6));
-			this.depsView.add(item);
+		for (const name of names) this.depsView.add(this.item(name));
+		if (this.editFlag) {
+			if (names.length > 0) this.depsView.add(this.item('-', () => this.queryRemoveItem()));
+			this.depsView.add(this.item('+', () => this.queryNewItem()));
 		}
 	}
 
+	item(name, onClick) {
+		// A grey box with a name. A dependency can be dragged out of the dialog to remove it
+		// when editing; a button darkens under the pointer.
+
+		const colors = MB_LibraryPropertiesFrame.colors;
+		const item = new Morph();
+		item.color = colors.item;
+		const label = new StringMorph(name, 14);
+		item.add(label);
+		item.setExtent(new Point(label.width() + 10, label.height() + 6));
+		if (onClick) {
+			item.mouseClickLeft = onClick;
+			item.mouseEnter = () => { item.color = colors.itemHover; item.rerender(); };
+			item.mouseLeave = () => { item.color = colors.item; item.rerender(); };
+			label.rootForGrab = item.rootForGrab = () => this.dialog().rootForGrab();
+		} else if (this.editFlag) {
+			item.isDraggable = true;
+			label.rootForGrab = item.rootForGrab = () => item;
+			item.justDropped = (hand) => this.itemDropped(item, name, hand);
+		} else {
+			label.rootForGrab = item.rootForGrab = () => this.dialog().rootForGrab();
+		}
+		return item;
+	}
+
+	itemDropped(item, name, hand) {
+		// Dropped outside the dialog, a dependency is removed; inside, the dialog sends it back.
+
+		if (!hand || this.dialog().bounds.containsPoint(hand.position())) return;
+		this.edits.removeDependency(name);
+		item.destroy();
+		this.buildDependencies();
+		this.fixLayout();
+	}
+
+	queryNewItem() {
+		MB_editor.prompt(localized('Dependency path, name or URL?'), '', 'line', this.libraryImportHint()).then((s) => {
+			if (s && this.edits.addDependency(s)) {
+				this.buildDependencies();
+				this.fixLayout();
+			}
+		});
+	}
+
+	queryRemoveItem() {
+		this.openMenu(this.edits.dependencyNames().map((name) => [name, () => {
+			this.edits.removeDependency(name);
+			this.buildDependencies();
+			this.fixLayout();
+		}]));
+	}
+
+	libraryImportHint() {
+		return [
+			localized('If you are adding a library that\'s built into MicroBlocks, you can just enter its name.'),
+			localized('If your library is in the Libraries folder in your local MicroBlocks project folder, you need to prefix it with a slash (/).'),
+			localized('If the library is hosted online, please input its full URL.'),
+		].join('\n');
+	}
+
 	fixLayout() {
-		// Dependencies along the bottom, version and author above them, and the
-		// description in the space that is left.
+		// Dependencies along the bottom, version and author above them, when editing
+		// the category and source above those, and the description in the space that is left.
 
 		const margin = 8, box = this.morph;
 		let bottom = box.bottom(), descriptionHeight = box.height();
@@ -127,6 +261,16 @@ class MB_LibraryPropertiesFrame {
 		this.versionText.setPosition(this.versionFrame.position().add(new Point(5, 3)));
 		this.authorText.setPosition(this.authorFrame.position().add(new Point(5, 3)));
 		descriptionHeight -= lineHeight + margin;
+
+		if (this.editFlag) {
+			const top = this.versionFrame.top() - (margin + lineHeight);
+			this.categoryBox.setExtent(new Point(Math.round(box.width() / 6), lineHeight));
+			this.categoryBox.setPosition(new Point(box.left(), top));
+			this.sourceFrame.setExtent(new Point(Math.max(0, box.width() - (this.categoryBox.width() + margin)), lineHeight));
+			this.sourceFrame.setPosition(new Point(this.categoryBox.right() + margin, top));
+			this.sourceText.setPosition(this.sourceFrame.position().add(new Point(5, 3)));
+			descriptionHeight -= lineHeight + margin;
+		}
 
 		this.descriptionFrame.setPosition(box.position());
 		this.descriptionFrame.setExtent(new Point(box.width(), Math.max(0, descriptionHeight)));
@@ -161,14 +305,7 @@ class MB_LibraryPropertiesFrame {
 MB_LibraryPropertiesFrame.colors = {
 	field: new Color(255, 255, 255),
 	item: new Color(200, 200, 200),
-};
-
-MB_LibraryPropertiesFrame.byLabel = function () {
-	// 'by', as in "by Jane Doe"; the key carries a context prefix.
-
-	const key = 'libdata;by';
-	const s = localized(key);
-	return (s === key) ? 'by' : s;
+	itemHover: new Color(180, 180, 180),
 };
 
 class MB_LibraryImportDialog {
@@ -246,11 +383,13 @@ class MB_LibraryImportDialog {
 }
 
 class MB_LibraryInfoDialog {
-	// A window showing the properties of a library in the project.
+	// A window showing the properties of a library in the project. Opened for
+	// editing, it has Save and Cancel, and either one selects the library.
 
-	constructor(lib) {
+	constructor(lib, forEditing) {
 		this.library = lib;
-		this.propertiesFrame = new MB_LibraryPropertiesFrame();
+		this.editFlag = !!forEditing;
+		this.propertiesFrame = new MB_LibraryPropertiesFrame(this.editFlag);
 		this.propertiesFrame.setLibrary(lib);
 		this.morph = null;
 	}
@@ -277,6 +416,14 @@ class MB_LibraryInfoDialog {
 		box.add(this.closeButton);
 		box.add(this.propertiesFrame.morph);
 
+		if (this.editFlag) {
+			this.saveButton = this.textButton(localized('Save'), 'saveChanges', true);
+			this.cancelButton = this.textButton(localized('Cancel'), 'cancel');
+			// A dependency dropped inside the window goes back to its place.
+			box.wantsDropOf = () => aWorld.hand.grabOrigin?.origin === this.propertiesFrame.depsView;
+			box.reactToDropOf = (m, hand) => m.slideBackTo(hand.grabOrigin);
+		}
+
 		box.setExtent(new Point(width, height));
 		box.setPosition(new Point(aWorld.left() + Math.round((aWorld.width() - width) / 2), aWorld.top() + 40));
 		this.resizer = new HandleMorph(box, 320, 240, 6, 6);
@@ -284,6 +431,27 @@ class MB_LibraryInfoDialog {
 		aWorld.add(box);
 		box.fullChanged();
 		return this;
+	}
+
+	textButton(label, selector, isDefault) {
+		const colors = MB_FilePicker.colors;
+		const button = new TriggerMorph(this, selector, label, 14, null, null, null,
+			isDefault ? colors.client : colors.frame);
+		button.color = isDefault ? colors.frame : colors.button;
+		button.highlightColor = colors.highlight;
+		button.setExtent(new Point(Math.max(30, button.label.width() + 20), 26));
+		this.morph.add(button);
+		return button;
+	}
+
+	saveChanges() {
+		this.propertiesFrame.saveChanges();
+		this.cancel();
+	}
+
+	cancel() {
+		MB_editor.selectLibrary(this.library.moduleName);
+		this.close();
 	}
 
 	close() {
@@ -298,9 +466,16 @@ class MB_LibraryInfoDialog {
 		this.titleLabel.setPosition(new Point(box.left() + 10, box.top() + 5));
 		this.closeButton.setExtent(new Point(30, 20));
 		this.closeButton.setPosition(new Point(box.right() - (inset + 30), box.top() + 2));
+		let bottomInset = 0;
+		if (this.editFlag) {
+			this.saveButton.setPosition(new Point(box.right() - (3 * inset + this.saveButton.width()),
+				box.bottom() - (3 * inset + this.saveButton.height())));
+			this.cancelButton.setPosition(new Point(this.saveButton.left() - (inset + this.cancelButton.width()), this.saveButton.top()));
+			bottomInset = this.saveButton.height() + inset;
+		}
 		const frame = this.propertiesFrame.morph;
 		frame.setPosition(this.client.position().add(new Point(inset, inset)));
-		frame.setExtent(this.client.extent().subtract(new Point(2 * inset, 2 * inset)));
+		frame.setExtent(this.client.extent().subtract(new Point(2 * inset, (2 * inset) + bottomInset)));
 		this.propertiesFrame.fixLayout();
 		if (this.resizer) this.resizer.fixLayout();
 		box.changed();
