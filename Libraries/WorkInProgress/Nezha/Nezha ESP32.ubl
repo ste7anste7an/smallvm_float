@@ -31,8 +31,8 @@ variables _nezha32_buttonEdges _nezha32_buttonLoopStarted _nezha32_buttonLoopHea
   spec 'r' 'nezha32_getGaryAcc' 'acceleration of _ axis of the gyroscope (unit g)' 'menu.nezha32_axisMenu' 'X'
   space
   space
-  spec 'r' '[elfreaks_dev_sensor:lightLevel]' 'Nezha light level'
-  spec 'r' '[elfreaks_dev_sensor:noiseDb]' 'Nezha loudness'
+  spec 'r' '[elfreaks_dev_sensor:lightLevel]' 'Nezha light level(unit lux)'
+  spec 'r' '[elfreaks_dev_sensor:noiseDb]' 'Nezha loudness(unit db)'
   space
   space
   spec 'r' 'nezha32_getColorVal' 'set color to _' 'color'
@@ -63,58 +63,6 @@ variables _nezha32_buttonEdges _nezha32_buttonLoopStarted _nezha32_buttonLoopHea
   space
   space
   spec 'r' 'nezha32_getIoNum' 'pin for port _ _' 'menu.nezha32_portMenu menu.range:1-2' 'J1' 1
-  advanced
-  spec 'r' 'nezhaEsp32_buttonEvent' 'button _ _ event?' 'menu.nezha32_buttonMenu menu.nezha32_pressReleaseMenu' 'A' 'pressed'
-  spec 'r' 'nezhaEsp32_getGaryAngle' 'Obtain the angle of the _ axis of the gyroscope (0-360 degrees)' 'menu.nezha32_axisMenu' 'X'
-  spec 'r' 'nezhaEsp32_getGaryAcc' 'Obtain the acceleration of the _ axis of the gyroscope (unit g)' 'menu.nezha32_axisMenu' 'X'
-  spec 'r' 'nezhaEsp32_getColorVal' 'set color to _' 'color'
-  spec ' ' 'nezhaEsp32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1
-  spec ' ' 'nezhaEsp32_board_rgb_all' 'set all RGB LEDs to _' 'color'
-  spec ' ' 'nezhaEsp32_board_rgb_off' 'turn off _ RGB LED' 'menu.range:1-3' 1
-  spec ' ' 'nezhaEsp32_board_rgb_off_all' 'turn off all RGB LEDs'
-  spec ' ' 'nezhaEsp32_lvgl_title_bar' '_ title bar' 'menu.nezha32_titleBarState' 'show'
-  spec ' ' 'nezhaEsp32_lvgl_set_bg' 'screen background color _' 'color'
-  spec ' ' 'nezhaEsp32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1'
-  spec 'r' 'nezhaEsp32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32
-  spec ' ' 'nezhaEsp32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text'
-  spec ' ' 'nezhaEsp32_screenDelete' 'delete object ID _' 'num' 1
-  spec ' ' 'nezhaEsp32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10
-  spec ' ' 'nezhaEsp32_clear' 'clear display'
-  spec ' ' 'nezhaEsp32_sound_set_volume' 'set volume to _ %' 'num' 100
-  spec ' ' 'nezhaEsp32_play_melody' 'play melody _ at tempo _ bpm' 'str.nezha32_melodyMenu num' 'C D E F G A B C5' 120
-  spec ' ' 'nezhaEsp32_play_sound' 'play sound _' 'menu.nezha32_soundName' 'Chinese style'
-  spec ' ' 'nezhaEsp32_sound_play_tone' 'play tone _ Hz for _ ms' 'num num' 440 500
-  spec ' ' 'nezhaEsp32_sound_stop_all_sounds' 'stop all sounds'
-  spec ' ' 'iotSwitchEventBroadcast' 'when SmartIoT switch _ send broadcast _' 'menu.smartiot_switchMenu str' 'on' ''
-  spec ' ' 'connectSmartiot' 'Connect SmartIoT with userToken _ topic _' 'str str' 'YourUserToken' '1'
-  spec ' ' 'setSmartIotUploadData' 'set data to send SmartIoT Data 1 _ : Data 2 _ Data 3 _ Data 4 _ Data 5 _ Data 6 _ Data 7 _ Data 8 _' 'num num num num num num num num' 0 0 0 0 0 0 0 0
-  spec ' ' 'uploadSmartIotData' 'Upload data to SmartIoT'
-  spec 'r' 'smartiotState' 'SmartIoT connection'
-  spec 'r' 'smartIotSwitchState' 'SmartIoT switch _' 'menu.smartiot_switchMenu' 'on'
-  spec 'r' 'nezhaEsp32_getIoNum' 'pin for port _ _' 'menu.nezha32_portMenu menu.range:1-2' 'J1' 1
-  spec ' ' 'setSmartIotAddr' 'set SmartIoT server host _ port _' 'str num' 'http://www.smartiot.space' 8080
-  spec 'r' 'smartIotLastResponse' 'SmartIoT last response'
-  spec 'r' '_nezha32_buttonEvent' 'button _ _ event?' 'menu.nezha32_buttonMenu menu.nezha32_pressReleaseMenu' 'A' 'pressed'
-  spec ' ' '_nezha32_gyroReset' 'reset gyro'
-  spec 'r' '_nezha32_getGaryAngle' 'angle of _ axis of the gyroscope (0-360 degrees)' 'menu.nezha32_axisMenu' 'X'
-  spec 'r' '_nezha32_getGaryAcc' 'acceleration of _ axis of the gyroscope (unit mg)' 'menu.nezha32_axisMenu' 'X'
-  spec ' ' '_nezha32_board_rgb' 'set RGB _ to _' 'menu.range:1-3 color' 1
-  spec ' ' '_nezha32_board_rgb_off' 'turn off _ RGB LED' 'menu.range:1-3' 1
-  spec ' ' '_nezha32_board_rgb_all' 'set all RGB LEDs to _' 'color'
-  spec ' ' '_nezha32_board_rgb_off_all' 'turn off all RGB LEDs'
-  spec ' ' '_nezha32_lvgl_title_bar' '_ title bar' 'menu.nezha32_titleBarState' 'show'
-  spec ' ' '_nezha32_lvgl_set_bg' 'screen background color _' 'color'
-  spec ' ' '_nezha32_screenTextToLine' 'set text _ to line _ color _' 'str menu.range:1-10 color' 'text' '1'
-  spec 'r' '_nezha32_screenText' 'create text _ x _ y _ color _ and return object ID' 'str num num color' 'text' 0 32
-  spec ' ' '_nezha32_screenUpdateText' 'update ID _ text _ color _' 'num str color' 1 'text'
-  spec ' ' '_nezha32_screenDelete' 'delete object ID _' 'num' 1
-  spec ' ' '_nezha32_setPixel' 'set screen pixel x _ y _ to _' 'num num color' 10 10
-  spec ' ' '_nezha32_clear' 'clear display'
-  spec ' ' '_nezha32_sound_set_volume' 'set volume to _ %' 'num' 100
-  spec ' ' '_nezha32_play_melody' 'play melody _ at tempo _ bpm' 'str.nezha32_melodyMenu num' 'C D E F G A B C5' 120
-  spec ' ' '_nezha32_play_sound' 'play sound _' 'menu.nezha32_soundName' 'Chinese style'
-  spec ' ' '_nezha32_sound_play_tone' 'play tone _ Hz for _ ms' 'num num' 440 500
-  spec ' ' '_nezha32_sound_stop_all_sounds' 'stop all sounds'
 
 to '_efsound_background_loop' {
   local 'my_id' 0
@@ -336,22 +284,6 @@ to '_efsound_upper_trimmed' s {
   return ('[data:unicodeString]' result)
 }
 
-to '_nezha32_board_rgb' led color {
-  nezha32_board_rgb led color
-}
-
-to '_nezha32_board_rgb_all' color {
-  nezha32_board_rgb_all color
-}
-
-to '_nezha32_board_rgb_off' led {
-  nezha32_board_rgb_off led
-}
-
-to '_nezha32_board_rgb_off_all' {
-  nezha32_board_rgb_off_all
-}
-
 to '_nezha32_buttonEdgeEntry' key {
   if (_nezha32_buttonEdges == 0) {_nezha32_buttonEdges = ('[data:makeList]')}
   for edge _nezha32_buttonEdges {
@@ -368,10 +300,6 @@ to '_nezha32_buttonEnsureLoop' {
   }}
   _nezha32_buttonLoopStarted = true
   sendBroadcast '_nezha32_buttonLoop'
-}
-
-to '_nezha32_buttonEvent' button event {
-  return (nezha32_buttonEvent button event)
 }
 
 to '_nezha32_buttonLoop' {
@@ -494,97 +422,14 @@ to '_nezha32_buttonQueueEvent' mask event {
   }
 }
 
-to '_nezha32_clear' {
-  nezha32_clear
-}
-
-to '_nezha32_getColorVal' color {
-  return (nezha32_getColorVal color)
-}
-
-to '_nezha32_getGaryAcc' axis {
-  return ((nezha32_getGaryAcc axis) * 1000)
-}
-
-to '_nezha32_getGaryAngle' axis {
-  return (nezha32_getGaryAngle axis)
-}
-
-to '_nezha32_getIoNum' port ioNum {
-  return (nezha32_getIoNum port ioNum)
-}
-
-to '_nezha32_gyroReset' {
-  '[elfreaks_dev_sensor:gyroReset]'
-}
-
-to '_nezha32_lvgl_set_bg' color {
-  nezha32_lvgl_set_bg color
-}
-
-to '_nezha32_lvgl_title_bar' state {
-  nezha32_lvgl_title_bar state
-}
-
-to '_nezha32_play_melody' melody bpm {
-  nezha32_play_melody melody bpm
-}
-
-to '_nezha32_play_sound' soundName {
-  nezha32_play_sound soundName
-}
-
-to '_nezha32_screenDelete' id {
-  nezha32_screenDelete id
-}
-
-to '_nezha32_screenText' text x y color {
-  return (nezha32_screenText text x y color)
-}
-
-to '_nezha32_screenTextToLine' text line color {
-  nezha32_screenTextToLine text line color
-}
-
-to '_nezha32_screenUpdateText' id text color {
-  nezha32_screenUpdateText id text color
-}
-
-to '_nezha32_setPixel' x y color {
-  nezha32_setPixel x y color
-}
-
-to '_nezha32_sound_play_tone' frequency ms {
-  nezha32_sound_play_tone frequency ms
-}
-
-to '_nezha32_sound_set_volume' volume {
-  nezha32_sound_set_volume volume
-}
-
-to '_nezha32_sound_stop_all_sounds' {
-  nezha32_sound_stop_all_sounds
-}
-
 to '_nezha32_stop_melody' {
   _efsound_play_id += 1
   _efsound_bg_melody = ''
   '[elfreaks_dev_sensor:stopTone]'
 }
 
-to connectSmartiot userToken topic {
-  _smartiot_spaceNezhaCompatibility = true
-  'smartiot connect' userToken topic
-}
-
 to efsound_set_tempo bpm {
   if (bpm > 0) {_efsound_tempo = (maximum 1 bpm)}
-}
-
-to iotSwitchEventBroadcast state message {
-  _smartiot_spaceNezhaCompatibility = true
-  '_smartiot_spaceStartSwitchLoop'
-  '[elfreaks:Event_RegisterSmartIotSwitch]' state message
 }
 
 to nezha32_board_rgb led color {
@@ -746,117 +591,5 @@ to nezha32_sound_set_volume volume {
 
 to nezha32_sound_stop_all_sounds {
   '_nezha32_stop_melody'
-}
-
-to nezhaEsp32_board_rgb led color {
-  nezha32_board_rgb led color
-}
-
-to nezhaEsp32_board_rgb_all color {
-  nezha32_board_rgb_all color
-}
-
-to nezhaEsp32_board_rgb_off led {
-  nezha32_board_rgb_off led
-}
-
-to nezhaEsp32_board_rgb_off_all {
-  nezha32_board_rgb_off_all
-}
-
-to nezhaEsp32_buttonEvent button event {
-  return (nezha32_buttonEvent button event)
-}
-
-to nezhaEsp32_clear {
-  nezha32_clear
-}
-
-to nezhaEsp32_getColorVal color {
-  return (nezha32_getColorVal color)
-}
-
-to nezhaEsp32_getGaryAcc axis {
-  return (nezha32_getGaryAcc axis)
-}
-
-to nezhaEsp32_getGaryAngle axis {
-  return (nezha32_getGaryAngle axis)
-}
-
-to nezhaEsp32_getIoNum port ioNum {
-  return (nezha32_getIoNum port ioNum)
-}
-
-to nezhaEsp32_lvgl_set_bg color {
-  nezha32_lvgl_set_bg color
-}
-
-to nezhaEsp32_lvgl_title_bar state {
-  nezha32_lvgl_title_bar state
-}
-
-to nezhaEsp32_play_melody melody bpm {
-  nezha32_play_melody melody bpm
-}
-
-to nezhaEsp32_play_sound soundName {
-  nezha32_play_sound soundName
-}
-
-to nezhaEsp32_screenDelete id {
-  nezha32_screenDelete id
-}
-
-to nezhaEsp32_screenText text x y color {
-  return (nezha32_screenText text x y color)
-}
-
-to nezhaEsp32_screenTextToLine text line color {
-  nezha32_screenTextToLine text line color
-}
-
-to nezhaEsp32_screenUpdateText id text color {
-  nezha32_screenUpdateText id text color
-}
-
-to nezhaEsp32_setPixel x y color {
-  nezha32_setPixel x y color
-}
-
-to nezhaEsp32_sound_play_tone frequency ms {
-  nezha32_sound_play_tone frequency ms
-}
-
-to nezhaEsp32_sound_set_volume volume {
-  nezha32_sound_set_volume volume
-}
-
-to nezhaEsp32_sound_stop_all_sounds {
-  nezha32_sound_stop_all_sounds
-}
-
-to setSmartIotAddr host port {
-  'smartiot set server' host port
-}
-
-to setSmartIotUploadData n1 n2 n3 n4 n5 n6 n7 n8 {
-  'smartiot set data' n1 n2 n3 n4 n5 n6 n7 n8
-}
-
-to smartIotLastResponse {
-  return ('smartiot last response')
-}
-
-to smartIotSwitchState state {
-  return ('smartiot switch is' state)
-}
-
-to smartiotState {
-  return ('smartiot connected')
-}
-
-to uploadSmartIotData {
-  'smartiot upload'
 }
 

@@ -6,25 +6,8 @@ choices nezha_SR_Language CN EN
 description 'Speech recognition'
 
   spec ' ' 'nezha_SR_Enable' 'enable speech recognition _' 'menu.nezha_SR_Language' 'CN'
-  spec ' ' 'nezha_SR_Disable' 'disable speech recognition'
-  spec ' ' 'nezha_SR_Register' 'when _ is recognized send broadcast _' 'str str' '' ''
-  advanced
-  spec ' ' 'SR_Enable' 'enable speech recognition _' 'menu.nezha_SR_Language' 'CN'
   spec ' ' '[elfreaks:SR_Disable]' 'disable speech recognition'
-  spec ' ' 'SR_Register' 'when _ is recognized send broadcast _' 'str str' '' ''
-  spec 'r' '_nezha_SR_ParseLanguage' '_nezha_SR_ParseLanguage _' 'menu.nezha_SR_Language' 'CN'
-
-to ParseLanguage language {
-  return ('_nezha_SR_ParseLanguage' language)
-}
-
-to SR_Enable language {
-  nezha_SR_Enable language
-}
-
-to SR_Register str message {
-  nezha_SR_Register str message
-}
+  spec ' ' 'nezha_SR_Register' 'when _ is recognized send broadcast _' 'str str' '' ''
 
 to '_nezha_SR_ParseLanguage' language {
   if (or (language == 'CN') (language == '中文')) {
@@ -33,10 +16,6 @@ to '_nezha_SR_ParseLanguage' language {
     return 1
   }
   return 0
-}
-
-to nezha_SR_Disable {
-  '[elfreaks:SR_Disable]'
 }
 
 to nezha_SR_Enable language {

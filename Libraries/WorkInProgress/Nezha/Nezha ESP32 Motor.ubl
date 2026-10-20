@@ -19,7 +19,7 @@ Vehicle motion control'
   spec ' ' 'nezhaMotor_Stop' 'stop motor _' 'menu.nezhaMotor_Port' 'M1'
   space
   space
-  spec ' ' 'nezhaMotor_Reset' 'reset motor _ position : _' 'menu.nezhaMotor_Port menu.nezhaMotor_WaitMode' 'M1' 'wait until done'
+  spec ' ' 'nezhaMotor_Reset' 'reset motor _ position' 'menu.nezhaMotor_Port' 'M1'
   spec ' ' 'nezhaMotor_MoveRelativeV2' 'turn motor _ speed _ % direction _ for _ _ : _' 'menu.nezhaMotor_Port num menu.nezhaMotor_TurnDirection num menu.nezhaMotor_TurnMode menu.nezhaMotor_WaitMode' 'M1' 50 'clockwise' 0 'seconds' 'wait until done'
   spec ' ' 'nezhaMotor_MoveAbsoluteV2' 'turn motor _ speed _ % direction _ to absolute angle _ : _' 'menu.nezhaMotor_Port num menu.nezhaMotor_TurnDirectionEx num menu.nezhaMotor_WaitMode' 'M1' 50 'shortest path' 0 'wait until done'
   space
@@ -36,138 +36,6 @@ Vehicle motion control'
   spec 'r' 'nezhaMotor_GetSpeed' 'read motor _ speed (degrees/sec)' 'menu.nezhaMotor_Port' 'M1'
   spec 'r' 'nezhaMotor_GetAbsoluteAngle' 'read motor _ absolute angle (degrees)' 'menu.nezhaMotor_Port' 'M1'
   spec 'r' 'nezhaMotor_GetRelativeAngle' 'read motor _ relative angle (degrees)' 'menu.nezhaMotor_Port' 'M1'
-  advanced
-  spec ' ' 'MotorStart' 'start motor _ speed _ % direction _' 'menu.nezhaMotor_Port num menu.nezhaMotor_TurnDirection' 'M1' 50 'clockwise'
-  spec ' ' 'MotorStop' 'stop motor _' 'menu.nezhaMotor_Port' 'M1'
-  spec ' ' 'MotorReset' 'reset motor _ position : _' 'menu.nezhaMotor_Port menu.nezhaMotor_WaitMode' 'M1' 'wait until done'
-  spec ' ' 'MotorMoveRelativeV2' 'turn motor _ speed _ % direction _ for _ _ : _' 'menu.nezhaMotor_Port num menu.nezhaMotor_TurnDirection num menu.nezhaMotor_TurnMode menu.nezhaMotor_WaitMode' 'M1' 50 'clockwise' 0 'seconds' 'wait until done'
-  spec ' ' 'MotorMoveAbsoluteV2' 'turn motor _ speed _ % direction _ to absolute angle _ : _' 'menu.nezhaMotor_Port num menu.nezhaMotor_TurnDirectionEx num menu.nezhaMotor_WaitMode' 'M1' 50 'shortest path' 0 'wait until done'
-  spec ' ' 'RobotSetWeight' 'set robot load _' 'menu.nezhaMotor_Weight' 'medium'
-  spec ' ' 'RobotSetWheelDiameter' 'set robot wheel diameter _ mm' 'num' 0
-  spec ' ' 'RobotSetMotors' 'set robot left wheel _ right wheel _' 'menu.nezhaMotor_Port menu.nezhaMotor_Port' 'M1' 'M2'
-  spec ' ' 'RobotMove' 'run robot left wheel speed _ % right wheel speed _ %' 'num num' 0 0
-  spec ' ' 'RobotTurnToV2' 'turn robot at _ % speed with _ acceleration by _ degrees : _' 'num menu.nezhaMotor_AccelLevel num menu.nezhaMotor_WaitMode' 50 'medium' 0 'wait until done'
-  spec ' ' 'RobotDriveStraightV2' 'drive robot at _ % speed _ with _ acceleration for _ _ : _' 'num menu.nezhaMotor_DriveDirection menu.nezhaMotor_AccelLevel num menu.nezhaMotor_DriveMode menu.nezhaMotor_WaitMode' 50 'forward' 'medium' 0 'seconds' 'wait until done'
-  spec ' ' 'RobotStop' 'stop robot'
-  spec 'r' 'MotorGetSpeed' 'read motor _ speed (degrees/sec)' 'menu.nezhaMotor_Port' 'M1'
-  spec 'r' 'MotorGetAbsoluteAngle' 'read motor _ absolute angle (degrees)' 'menu.nezhaMotor_Port' 'M1'
-  spec 'r' 'MotorGetRelativeAngle' 'read motor _ relative angle (degrees)' 'menu.nezhaMotor_Port' 'M1'
-
-to MotorGetAbsoluteAngle port {
-  return (nezhaMotor_GetAbsoluteAngle port)
-}
-
-to MotorGetRelativeAngle port {
-  return (nezhaMotor_GetRelativeAngle port)
-}
-
-to MotorGetSpeed port {
-  return (nezhaMotor_GetSpeed port)
-}
-
-to MotorMoveAbsolute port value speed turn_dir_ex wait_mode {
-  nezhaMotor_MoveAbsolute port value speed turn_dir_ex wait_mode
-}
-
-to MotorMoveAbsoluteV2 port speed turn_dir_ex value wait_mode {
-  nezhaMotor_MoveAbsoluteV2 port speed turn_dir_ex value wait_mode
-}
-
-to MotorMoveRelative port value turn_mode speed turn_dir wait_mode {
-  nezhaMotor_MoveRelative port value turn_mode speed turn_dir wait_mode
-}
-
-to MotorMoveRelativeV2 port speed turn_dir value turn_mode wait_mode {
-  nezhaMotor_MoveRelativeV2 port speed turn_dir value turn_mode wait_mode
-}
-
-to MotorReset port wait_mode {
-  nezhaMotor_Reset port wait_mode
-}
-
-to MotorStart port speed turn_dir {
-  nezhaMotor_Start port speed turn_dir
-}
-
-to MotorStop port {
-  nezhaMotor_Stop port
-}
-
-to ParseAccelLevel accel {
-  return ('_nezhaMotor_ParseAccelLevel' accel)
-}
-
-to ParseDriveDirection dir {
-  return ('_nezhaMotor_ParseDriveDirection' dir)
-}
-
-to ParseDriveMode mode {
-  return ('_nezhaMotor_ParseDriveMode' mode)
-}
-
-to ParsePort port_name {
-  return ('_nezhaMotor_ParsePort' port_name)
-}
-
-to ParseTurnDirectionEx dir {
-  return ('_nezhaMotor_ParseTurnDirectionEx' dir)
-}
-
-to ParseTurnMode mode {
-  return ('_nezhaMotor_ParseTurnMode' mode)
-}
-
-to ParseWaitMode mode {
-  return ('_nezhaMotor_ParseWaitMode' mode)
-}
-
-to ParseWeight mode {
-  return ('_nezhaMotor_ParseWeight' mode)
-}
-
-to RobotDriveStraight dir value mode speed accel wait_mode {
-  nezhaMotor_RobotDriveStraight dir value mode speed accel wait_mode
-}
-
-to RobotDriveStraightV2 speed dir accel value mode wait_mode {
-  nezhaMotor_RobotDriveStraightV2 speed dir accel value mode wait_mode
-}
-
-to RobotGetYawDeciDeg {
-  return (nezhaMotor_RobotGetYawDeciDeg)
-}
-
-to RobotMove left_speed right_speed {
-  nezhaMotor_RobotMove left_speed right_speed
-}
-
-to RobotSetMotors left right {
-  nezhaMotor_RobotSetMotors left right
-}
-
-to RobotSetWeight weight {
-  nezhaMotor_RobotSetWeight weight
-}
-
-to RobotSetWheelDiameter diameter {
-  nezhaMotor_RobotSetWheelDiameter diameter
-}
-
-to RobotStop {
-  nezhaMotor_RobotStop
-}
-
-to RobotTurnTo angle speed accel wait_mode {
-  nezhaMotor_RobotTurnTo angle speed accel wait_mode
-}
-
-to RobotTurnToV2 speed accel angle wait_mode {
-  nezhaMotor_RobotTurnToV2 speed accel angle wait_mode
-}
-
-to RoundDiv10 value {
-  return ('_nezhaMotor_RoundDiv10' value)
-}
 
 to '_nezhaMotor_ParseAccelLevel' accel {
   if (accel == 'low') {
@@ -353,15 +221,13 @@ to nezhaMotor_MoveRelativeV2 port speed turn_dir value turn_mode wait_mode {
   }
 }
 
-to nezhaMotor_Reset port wait_mode {
-  local 'wait' ('_nezhaMotor_ParseWaitMode' wait_mode)
+to nezhaMotor_Reset port {
   local 'port_num' ('_nezhaMotor_ParsePort' port)
   '[elfreaks:MotorReset]' port_num
-  if (wait == 1) {
-    repeatUntil (('_nezhaMotor_RoundDiv10' ('[elfreaks:MotorGetRelativeAngleDeciDeg]' port_num)) <= 1) {
-      waitMillis 10
-    }
+  repeatUntil (('_nezhaMotor_RoundDiv10' ('[elfreaks:MotorGetRelativeAngleDeciDeg]' port_num)) <= 1) {
+    waitMillis 10
   }
+  waitMillis 300
 }
 
 to nezhaMotor_RobotDriveStraight dir value mode speed accel wait_mode {
