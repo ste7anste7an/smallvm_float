@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2026-05-08 11:12+0200\n"
-"PO-Revision-Date: 2026-05-09 12:11+0000\n"
-"Last-Translator: Giedrius Baronas <g.baronas@gmail.com>\n"
+"PO-Revision-Date: 2026-10-20 15:02+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Lithuanian <https://hosted.weblate.org/projects/microblocks/"
 "ide/lt/>\n"
 "Language: lt\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "(n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.5-dev\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -73,7 +73,7 @@ msgstr "versija"
 
 #. Block in Input category
 msgid "milliseconds since _"
-msgstr "nuo kurios milisekundės_"
+msgstr "nuo kurios milisekundės _"
 
 #. Block in Input category
 msgid "end time _"

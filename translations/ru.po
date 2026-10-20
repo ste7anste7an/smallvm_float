@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:36+0200\n"
-"PO-Revision-Date: 2026-05-28 09:11+0000\n"
-"Last-Translator: Konstantin Gorodetskiy <cirodil@gmail.com>\n"
+"PO-Revision-Date: 2026-10-20 15:02+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/microblocks/ide/"
 "ru/>\n"
 "Language: ru\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.6.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -616,7 +616,7 @@ msgstr "остановить степперы"
 
 #. TFT Display library block
 msgid "draw triangle on TFT at x _ y _ , x _ y _ , x _ y _ color _"
-msgstr "нарисовать треугольник на TFT в x _ y _, x _ y _, x _ y _ color _"
+msgstr "нарисовать треугольник на TFT в x _ y _ , x _ y _ , x _ y _ color _"
 
 #. NeoPixel library block
 msgid "attach _ LED NeoPixel strip to pin _"
@@ -2511,7 +2511,7 @@ msgstr ""
 
 #. NeoPanel library block
 msgid "attach NeoPixel panel width _ height _ at pin _"
-msgstr "подключить NeoPixel панель ширина _ высота _ к контакту _"
+msgstr "прикрепить NeoPixel панель ширина _ высота _ на контакт _"
 
 #. Block in Comm category
 msgid "soft serial write byte _ pin _ baud _"
@@ -2523,23 +2523,23 @@ msgstr "функция _ существует"
 
 #. NeoPanel library block
 msgid "NeoPanel fill row _ color _"
-msgstr "NeoPanel заполнить строку _ цветом _"
+msgstr "NeoPanel заполнить строку _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw line from x _ y _ to x _ y _ color _"
-msgstr "NeoPanel нарисовать линию от x _ y _ др x _ y _ цветом _"
+msgstr "NeoPanel нарисовать линию от x _ y _ до x _ y _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw circle at x _ y _ radius _ color _"
-msgstr "NeoPanel нарисовать окружность в x _ y _ с радиусом _ цветом _"
+msgstr "NeoPanel нарисовать окружность в x _ y _ радиус _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw rectangle at x _ y _ width _ height _ color _"
-msgstr "NeoPanel нарисовать прямоугольник в x _ y _ ширина _ высота _ цветом _"
+msgstr "NeoPanel нарисовать прямоугольник в x _ y _ ширина _ высота _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw text _ at x _ y _ color _"
-msgstr "NeoPanel нарисовать текст _ в x _ y _ цветом _"
+msgstr "NeoPanel нарисовать текст _ в x _ y _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw BMP file _ at x _ y _"

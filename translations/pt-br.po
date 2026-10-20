@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:36+0200\n"
-"PO-Revision-Date: 2026-09-25 16:57+0000\n"
-"Last-Translator: Allan Moreira <allan.moreira@gmail.com>\n"
+"PO-Revision-Date: 2026-10-20 15:02+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "microblocks/ide/pt_BR/>\n"
 "Language: pt-br\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.10.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. Block in Input category
 msgid "microseconds"
@@ -2656,7 +2656,7 @@ msgstr "inicializa i2c(auto) pino reset# _ inverter _"
 
 #. OLED Graphics library block
 msgid "write _ at x _ y _ inverse _"
-msgstr "escrever _ em X _ y_ inveter _"
+msgstr "escrever _ em X _ y _ inveter _"
 
 #. OLED Graphics library block
 msgid "show display buffer"
@@ -2680,7 +2680,7 @@ msgstr "desenhar imagem _ em x _ y _"
 
 #. OLED Graphics library block
 msgid "draw line from x _ y _ to x _ y _ erase _"
-msgstr "desenha linha de x _ y_ para x _ y_ apagado _"
+msgstr "desenha linha de x _ y _ para x _ y _ apagado _"
 
 #. OLED Graphics library block
 msgid "draw rectangle x _ y _ w _ h _ erase _ rounding(3-15) _"
@@ -2700,7 +2700,7 @@ msgstr "criar imagem _"
 
 #. OLED Graphics library block
 msgid "set pixel x _ y _ erase _"
-msgstr "definir pixel x _ y _ apagado_"
+msgstr "definir pixel x _ y _ apagado _"
 
 #. OLED Graphics library block
 msgid "set video _"
@@ -2798,7 +2798,7 @@ msgstr "cinza _ %"
 #. The #BR# tag must be kept intact. It translates to a new line
 msgid "attach ST7735 w _ h _ rotation _ #BR# dc pin _ cs pin _ backlight pin _"
 msgstr ""
-"anexar ST7735 largura _ altura _ rotacionado_ #BR# pino DC _ pino CS _ pino "
+"anexar ST7735 largura _ altura _ rotacionado _ #BR# pino DC _ pino CS _ pino "
 "luz de fundo _"
 
 #. External Displays Library block
@@ -3013,7 +3013,7 @@ msgstr "Frações"
 
 #. Fractions library block
 msgid "fract _ / _"
-msgstr "fração _ /_"
+msgstr "fração _ / _"
 
 #. Fractions library block
 msgid "fract _ + _"
@@ -3238,7 +3238,7 @@ msgstr "reproduzir tecla MIDI _ por _ milisegundos na porta _ amplitude _"
 
 #. Analog Synthesis library block
 msgid "set frequency ramp from _ % to _ % for gate _"
-msgstr "definir a frequência da rampa de _% para _ % para porta _"
+msgstr "definir a frequência da rampa de _ % para _ % para porta _"
 
 #. Analog Synthesis library block
 msgid "amplitude for gate _"
