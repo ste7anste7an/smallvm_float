@@ -104,6 +104,11 @@ MB_Firmware.hasSaveDialog = function () {
 	return (typeof window !== 'undefined') && (typeof window.showSaveFilePicker === 'function');
 }
 
+MB_Firmware.isPilot = function () {
+	// A pilot IDE is served from run-pilot, or from port 8000 while one is being tested.
+	return ['run-pilot', ':8000'].some((s) => location.href.includes(s));
+}
+
 // Installing
 
 MB_Firmware.isUpdatableBoard = function (boardType) {
@@ -226,6 +231,81 @@ MB_Firmware.installFirmwareFile = function (fileName, data) {
 	// ESP8266 firmware is named after its board, and is not installed yet.
 	if (/8266|nodemcu|d1mini/i.test(fileName)) return this.notSupportedYet(fileName);
 	return this.flashVM(fileName, false, data);
+}
+
+MB_Firmware.installESPFirmwareFromURL = async function () {
+	// Ask for the address of an ESP32 firmware file and install it.
+	const defaultURL = ('Databot' == MB_connection.boardType) ?
+		'http://microblocks.fun/downloads/databot/databot2.0_V2.18.bin' : '';
+	const url = ((await MB_editor.prompt(localized('ESP32 firmware URL?'), defaultURL)) || '').trim();
+	if (url) await this.flashESPFirmwareFromURL(url);
+}
+
+MB_Firmware.installESPFirmwareFromRepo = async function () {
+	// Offer the ESP firmware files on microblocks.fun for this IDE version, and install the one chosen.
+	const version = this.isPilot() ? 'pilot' : 'v' + (await MB_connection.readVersionFile()).replace(/-pilot$/, '');
+	const folder = 'https://microblocks.fun/downloads/' + version + '/vm/';
+	const listing = await this.download(folder, false);
+	const items = [];
+	for (const line of (listing ? new TextDecoder().decode(listing) : '').split(/\r?\n/)) {
+		const binIndex = line.indexOf('.bin');
+		if (line.startsWith('<a href="vm_') && (binIndex > 0)) {
+			const boardName = line.slice(12, binIndex);
+			items.push([boardName, () => this.flashESPFirmwareFromURL(folder + 'vm_' + boardName + '.bin')
+				.catch((e) => MB_editor.reportError(e))]);
+		}
+	}
+	if (0 == items.length) {
+		MB_editor.inform(localized('Could not find firmware files at') + ' ' + folder);
+		return;
+	}
+	chromeMenuFor(world, items);
+}
+
+MB_Firmware.flashESPFirmwareFromURL = async function (url) {
+	const vmData = await this.download(url, true);
+	if (!vmData) {
+		if (this.downloadCancelled) return;
+		MB_editor.inform(localized('Could not download') + ' ' + url);
+		return;
+	}
+	await this.installFirmwareFile(url, vmData);
+}
+
+MB_Firmware.download = async function (url, showProgress) {
+	// Answer the bytes at url, fetched over https, or null. A page served over https
+	// cannot fetch http, and microblocks.fun answers both. Escape stops a download with progress.
+	url = url.replace(/^http:/, 'https:');
+	const aborter = new AbortController();
+	this.downloadCancelled = false;
+	if (showProgress) {
+		this.downloadAborter = aborter;
+		fireIDEEvent('spinner.show', { title: localized('Downloading...'), subtitle: '',
+			note: '(press ESC to cancel)', percent: 0 });
+		url += (url.includes('?') ? '&' : '?') + 'v=' + Math.floor(Math.random() * 1000000); // skip any cached copy
+	}
+	try {
+		const response = await fetch(url, { signal: aborter.signal });
+		if (!response.ok) return null;
+		if (!showProgress || !response.body) return new Uint8Array(await response.arrayBuffer());
+		// content-length counts compressed bytes when the server compresses, so it only paces the spinner
+		const total = Number(response.headers.get('content-length')) || 0;
+		const chunks = [];
+		let received = 0;
+		const reader = response.body.getReader();
+		for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+			chunks.push(chunk.value);
+			received += chunk.value.length;
+			if (total) fireIDEEvent('spinner.setPercent', Math.min(100, Math.round((100 * received) / total)));
+		}
+		return new Uint8Array(await new Blob(chunks).arrayBuffer());
+	} catch (error) {
+		return null; // cancelled, or the host is down or does not let web pages read it
+	} finally {
+		this.downloadCancelled = aborter.signal.aborted;
+		if (this.downloadAborter === aborter) this.downloadAborter = null;
+		if (showProgress) fireIDEEvent('spinner.hide');
+	}
 }
 
 MB_Firmware.flashVM = async function (boardName, eraseFlashFlag, vmData) {

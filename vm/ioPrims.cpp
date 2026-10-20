@@ -150,6 +150,9 @@ void hardwareInit() {
 	#if defined(DUELink)
 		DUE_EnableBoot0();
 	#endif
+	#if defined(ARDUINO_ARCH_ESP32) && !ARDUINO_USB_CDC_ON_BOOT
+		Serial.setTxBufferSize(1024); // without a TX buffer, a write waits until the UART has sent it
+	#endif
 	Serial.begin(115200);
 	#ifdef USE_NRF5x_CLOCK
 		initClock_NRF5x();

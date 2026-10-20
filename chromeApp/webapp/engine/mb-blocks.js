@@ -264,7 +264,7 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.minSnapDistance = 20;
 	this.reporterDropFeedbackPadding = 10 * scale;
 	this.labelContrast = 25;
-	this.activeHighlight = new Color(153, 255, 213);
+	this.activeHighlight = new Color(254, 215, 34, 1);
 	this.errorHighlight = new Color(173, 15, 0);
 	this.activeBlur = 20;
 	this.activeBorder = 4;
@@ -1804,8 +1804,7 @@ BlockMorph.prototype.showDevView = function (view) {
 		}[view];
 
 	if (text === null) return;
-	new WorkspaceMorph(win.title, text).openAtHand(
-		this.world(), new Point(win.width, 400));
+	FloatingWindow.workspace(win.title, text);
 };
 
 BlockMorph.prototype.chromeMenu = function () {

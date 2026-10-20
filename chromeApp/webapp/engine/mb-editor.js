@@ -1114,7 +1114,7 @@ console.log('unknown');
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
-		new MB_LibraryInfoDialog(lib, forEditing).open(world);
+		(new LibraryInfoWindow(lib)).popUp();
 	}
 
 	newLibrary(libName) {
@@ -2335,8 +2335,7 @@ console.log('unknown');
 
 	openVMFolder() {
 		// The server's folder of VM builds, the pilot one when the IDE is a pilot.
-		const pilot = ['run-pilot', ':8000'].some((s) => location.href.includes(s));
-		window.open('https://microblocks.fun/downloads/' + (pilot ? 'pilot' : 'latest') + '/vm/', '_blank');
+		window.open('https://microblocks.fun/downloads/' + (MB_Firmware.isPilot() ? 'pilot' : 'latest') + '/vm/', '_blank');
 	}
 
 	async toggleBLE() {
