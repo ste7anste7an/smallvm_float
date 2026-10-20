@@ -12,7 +12,9 @@
 
     This file is a copy of a file from Snap!
     This specific file was licensed by Jens Mönig for use in MicroBlocks
-    on October 13, 2026 under the MIT license.
+    on October 17, 2026 under the MIT license.
+    It is based on this commit of morphic.js of May 11, 2026:
+    https://github.com/jmoenig/Snap/commit/f4c5b772c66df0173f72d947b6485fb02ff68508
 
     This file is part of Snap!.
 
