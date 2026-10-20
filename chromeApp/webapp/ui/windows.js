@@ -1,3 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with GetText
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+// Copyright 2025 John Maloney, Bernat Romagosa, and Jens Mönig
+
+// windows.js - Floating windows for the IDE
+
+// Bernat Romagosa, 2025
+
 class FloatingWindow extends HTMLElement {
 	constructor(descriptor) {
 		super();
@@ -349,7 +359,6 @@ FloatingWindow.prompt =
 FloatingWindow.workspace = function(title, text) {
 	let textarea = document.createElement('textarea');
 	textarea.textContent = text ?? '';
-	console.log(textarea.scrollHeight);
 	let win = new FloatingWindow({
 		title: title ?? 'Workspace',
 		body: textarea,
@@ -364,6 +373,7 @@ FloatingWindow.workspace = function(title, text) {
 
 
 // Specific Window Definitions
+
 FloatingWindow.about = function() {
 	GP.apiCall('ide.version', [], ideVersion => {
 		GP.apiCall('board.vmVersion',[], vmVersion => {
