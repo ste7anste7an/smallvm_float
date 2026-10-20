@@ -736,6 +736,9 @@ method specString BlockSectionDefinition {
 		if (isClass part 'Text') {
 			// remove colons from label (colons are reserved for marking optional parameters in spec)
 			label = (joinStrings (copyWithout (letters (text part)) ':'))
+			// remove underscores standing alone (an underscore word marks an input slot in a spec)
+			pieces = (splitWith label ' ')
+			if (contains pieces '_') { label = (joinStrings (copyWithout pieces '_') ' ') }
 			if (label != (text part)) { setText part label }
 			spec = (join spec delim label)
 			delim = ' '
