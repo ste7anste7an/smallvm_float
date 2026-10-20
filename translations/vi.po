@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2025-06-06 09:00+0200\n"
-"PO-Revision-Date: 2026-09-10 12:51+0000\n"
-"Last-Translator: 梁帅 <jiangren1209@gmail.com>\n"
+"PO-Revision-Date: 2026-10-20 15:02+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Vietnamese <https://hosted.weblate.org/projects/microblocks/"
 "ide/vi/>\n"
 "Language: vi\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 2026.9.1\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -3913,7 +3913,7 @@ msgstr "Phát hiện chuyển động trong nhà?"
 
 #. Keyestudio Smart Home library block
 msgid "Home _ button pressed?"
-msgstr "Nhấn nút Home _?"
+msgstr "Nhấn nút Home _ ?"
 
 #. Keyestudio Smart Home button (left/right) label
 msgid "shbutton;left"
