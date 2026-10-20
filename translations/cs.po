@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-30 06:26+0200\n"
-"PO-Revision-Date: 2026-08-21 11:36+0000\n"
-"Last-Translator: Miroslav Klimoš <miraklim@centrum.cz>\n"
+"PO-Revision-Date: 2026-10-20 02:13+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/microblocks/ide/"
 "cs/>\n"
 "Language: cs\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=((n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.9.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -6584,7 +6584,7 @@ msgstr "CB PIR detekován pohyb?"
 
 #. Coding Box library block
 msgid "cb set _ LED to _"
-msgstr "CB nastav _LED na _"
+msgstr "CB nastav _ LED na _"
 
 #. Coding Box library block
 msgid "cb _ ADKey button pressed?"
@@ -7253,7 +7253,7 @@ msgstr "smaž Tiny OLED displej"
 
 #. Tiny OLED library block
 msgid "draw circle center _ _ radius _ fill _ white _"
-msgstr "nakresli kružnici střed __ poloměr _ výplň _ bílá _"
+msgstr "nakresli kružnici střed _ _ poloměr _ výplň _ bílá _"
 
 #. Tiny OLED library block
 msgid "draw image _ x _ y _"
