@@ -1831,9 +1831,13 @@ BlockMorph.prototype.chromeMenu = function () {
 			return dup;
 		};
 
+	const isInput = this.parent instanceof BlockSectionDefinitionMorph; // an input of a prototype
 	if (this.isFunctionDefinition()) return this.definitionMenu();
-	if (this.isPrototype || this.parentThatIsA(BlockDefinitionMorph)) return this.topBlock().definitionMenu();
-	if (this.parent instanceof TemplateSlotMorph) {
+	if (!isInput && (this.isPrototype || this.parentThatIsA(BlockDefinitionMorph))) return this.topBlock().definitionMenu();
+	if (isInput) {
+		items.push(['rename...', () => this.userRenameInput()]);
+		items.push('-');
+	} else if (this.parent instanceof TemplateSlotMorph) {
 		items.push(['rename...', () => this.userRenameVariable()]);
 		items.push('-');
 	}
@@ -4143,6 +4147,45 @@ ReporterBlockMorph.prototype.userRenameVariable = function () {
 		if (!newName) return; // an empty or cancelled answer changes nothing
 		this.userSetSpec(newName);
 		this.scriptChanged();
+	});
+};
+
+ReporterBlockMorph.prototype.userRenameInput = function () {
+	// Rename an input of a block prototype, and its reads and sets in the body.
+	// A name in use is refused rather than changed, so the input gets the name typed.
+	// A name is in use when another input has it or the body uses it; a global the body never uses is free.
+	const def = this.parentThatIsA(BlockDefinitionMorph),
+		oldName = this.blockSpec;
+	MB_editor.prompt('Variable Name?', oldName, 'line').then((answer) => {
+		const newName = (answer || '').trim();
+		if (!newName || (newName === oldName)) return;
+		const hat = def.parentThatIsA(HatBlockMorph),
+			body = hat && hat.nextBlock();
+		const taken = new Set(def.inputNames()),
+			declared = new Set();
+		if (body) body.forAllBlocks((b) => {
+			if ('v' === b.selector) taken.add(b.blockSpec);
+			if (!['=', '+=', 'local', 'for'].includes(b.selector)) return;
+			const slot = b.inputs()[0];
+			if (!slot || (slot instanceof BlockMorph)) return;
+			taken.add(slot.evaluate());
+			if (['local', 'for'].includes(b.selector)) declared.add(slot.evaluate());
+		});
+		if (taken.has(newName)) {
+			MB_editor.inform(localized('That name is already in use.'));
+			return;
+		}
+		// A local or for of the old name is local to the whole function, so the body never reads the input.
+		if (body && !declared.has(oldName)) body.allChildren().forEach((m) => {
+			if ((m instanceof ReporterBlockMorph) && ('v' === m.selector) && (m.blockSpec === oldName)) {
+				m.setSpec(newName);
+			} else if ((m instanceof BlockMorph) && ['=', '+='].includes(m.selector)) {
+				const slot = m.inputs()[0];
+				if ((slot instanceof InputSlotMorph) && (slot.contents().text === oldName)) slot.setContents(newName);
+			}
+		});
+		this.setSpec(newName);
+		def.updateBlockDefinition();
 	});
 };
 
