@@ -18,8 +18,8 @@ https://www.elecfreaks.com/learn-en/microbitKit/smart_cutebot/cutebot_car.html
   spec ' ' 'cutebot_setWheelSpeed' 'Cutebot set wheel left _ right _ (-100 to 100)' 'num num' 25 -25
   spec ' ' 'cutebot_stopWheels' 'Cutebot stop wheels'
   space
-  spec ' ' 'cutebot_setServo' 'Cutebot set servo _ to _ degrees (-90 to 90)' 'menu num' 1 25
-  spec ' ' 'cutebot_setServoSpeed' 'Cutebot set servo _ to speed _ (-100 to 100)' 'menu num' 1 25
+  spec ' ' 'cutebot_setServo' 'Cutebot set servo _ to _ degrees (-90 to 90)' 'menu.range:1-2 num' 1 25
+  spec ' ' 'cutebot_setServoSpeed' 'Cutebot set servo _ to speed _ (-100 to 100)' 'menu.range:1-2 num' 1 25
   space
   spec ' ' 'cutebot_setHeadlightColor' 'Cutebot set headlight _ to _' 'menu.cutebot_light color' 'cutebotlight;both'
   spec ' ' 'cutebot_setNeopixels' 'Cutebot set NeoPixel _ to _' 'menu.cutebot_light color' 'cutebotlight;both'
