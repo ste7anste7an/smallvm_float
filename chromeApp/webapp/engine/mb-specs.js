@@ -86,7 +86,8 @@ MB_Specs.projectSpecArrayForSelector = function (selector) {
 	let spec = MB_editor.project.blockSpecs.get(selector);
 	if (!spec) return undefined;
 	let result = [spec.blockType || ' ', selector, spec.specString || selector];
-	if (spec.slotTypes) result.push(spec.slotTypes, ...(spec.defaults || []));
+	const defaults = spec.defaults || [];
+	if (spec.slotTypes || (defaults.length > 0)) result.push(spec.slotTypes || '', ...defaults); // '' types keep their defaults
 	return result;
 }
 
@@ -122,7 +123,8 @@ MB_Specs.specFor = function (selector, args, isReporter) {
 				if (i > 0) spec += ' ';
 				let p = specParts[i];
 				if (p == '_') {
-					spec += this.snapTypeForMBType(mbTypes[typeIndex++]);
+					spec += this.snapTypeForMBType(mbTypes[typeIndex], specArray[4 + typeIndex]);
+					typeIndex++;
 				} else if (p.startsWith('#')) {
 					spec += p;
 				} else {
@@ -210,6 +212,8 @@ MB_Specs.blockForSpec = function (spec, category) {
 	let b = new MB_Parser('').blockWithArgs(spec[1], spec.slice(4), ('r' == type), false, false, type,
 		this.snapSpecForSpecArray(spec));
 	b.setCategory(category);
+	// A slot with no type shows its default only as a hint: a copy is called with nil there.
+	b.inputs().forEach((slot) => { if (slot.isHint) slot.mbValue = null; });
 	// A template is copied when it is dragged; a draggable one would be taken
 	// out of the palette instead (HandMorph.processMouseMove).
 	b.isDraggable = false;
@@ -236,7 +240,8 @@ MB_Specs.snapSpecForSpecArray = function (specArray) {
 	for (let i = 0; i < parts.length; i++) {
 		let p = parts[i];
 		if (p == '_') {
-			parts[i] = this.snapTypeForMBType(mbArgTypes[argIndex++]);
+			parts[i] = this.snapTypeForMBType(mbArgTypes[argIndex], specArray[4 + argIndex]);
+			argIndex++;
 		} else if (this.isSlotSpec(p)) {
 			// Label text in a MicroBlocks spec, but a slot spec to Snap's parseSpec,
 			// and labelPart throws on one it does not know. A zero-width space in
@@ -247,12 +252,13 @@ MB_Specs.snapSpecForSpecArray = function (specArray) {
 	return parts.join(' ');
 }
 
-MB_Specs.snapTypeForMBType = function (mbType) {
-	// Return the Snap! slot type for the given MicroBlocks slot type or '%auto' if mbType is null.
+MB_Specs.snapTypeForMBType = function (mbType, defaultValue) {
+	// Return the Snap! slot type for the given MicroBlocks slot type.
 	// The Snap! types are the MicroBlocks types prefixed by '%'.
 	// MicroBlocks types: 'num' 'str' 'auto' 'bool' 'color' 'cmd' 'var' 'menu' 'microbitDisplay' 'cmt'
+	// An input with no type takes a number if its default is one, and is otherwise '%any'.
 
-	if (mbType == null) return '%auto'; // default
+	if ((mbType == null) || ('' == mbType)) return ('number' == typeof defaultValue) ? '%num' : '%any';
 
 	let typeParts = mbType.split('.');
 	if (typeParts.length > 1) { // this is a menu (e.g. menu.buttonMenu)
