@@ -1,0 +1,160 @@
+module 'Planet X Speech' Input
+author 'Elecfreaks Team'
+version 1 0 
+depends '_Planet X Support' 
+choices planetXASRWord none 'hello Xiaoen' 'turn headlights on' 'turn headlights off' 'turn left' 'turn right' 'move forward' 'move backward' 'line-tracking mode' 'obstacle-avoidance mode' park 'start device' 'stop device' 'pause operation' 'resume operation' 'increase level' 'decrease level' 'play music' 'stop music' 'next track' 'run function one' 'run function two' 'learned phrase 1' 'learned phrase 2' 'learned phrase 3' 'learned phrase 4' 'learned phrase 5' 'learned phrase 6' 'learned phrase 7' 'learned phrase 8' 'learned phrase 9' 'learned phrase 10' 
+description 'Planet X speech recognition sensor (EF05037, SNR3512M).
+Say 你好，小恩 to wake the module before use.
+Clear learned phrases before recording a new set.
+In learning mode, follow the spoken instructions, then say 退出学习 to exit learning mode.
+The WIKI documents I2C commands 0x50 (enter learning) and 0x60 (clear learned phrases); no programmatic exit command is documented.
+Current code is an advanced diagnostic block; normal programs should use the heard phrase menu.
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05037'
+variables _planetX_asrReady _planetX_asrData _planetX_asrLastCode _planetX_asrLastReadTime 
+
+  spec ' ' 'planetXASRClearLearned' 'speech recognition sensor clear learned phrases'
+  spec ' ' 'planetXASREnterLearning' 'speech recognition sensor enter learning mode'
+  spec 'r' 'planetXASRHeard' 'speech recognition sensor heard _ ?' 'menu.planetXASRWord' 'hello Xiaoen'
+  advanced
+  spec 'r' 'planetXASRReadCode' 'speech recognition sensor current code'
+  spec ' ' '_planetX_asrClearCache' '_planetX_asrClearCache'
+  spec 'r' '_planetX_asrDeviceCode' '_planetX_asrDeviceCode _' 'str' ''
+  spec 'r' '_planetX_asrEnsure' '_planetX_asrEnsure'
+  spec 'r' '_planetX_asrExpectedCode' '_planetX_asrExpectedCode _' 'str' ''
+  spec 'r' '_planetX_asrFunctionCode' '_planetX_asrFunctionCode _' 'str' ''
+  spec 'r' '_planetX_asrLearnedCode' '_planetX_asrLearnedCode _' 'str' ''
+  spec 'r' '_planetX_asrMatchGroup' '_planetX_asrMatchGroup _ _ _ _' 'str auto auto auto' '' 0 0 0
+  spec 'r' '_planetX_asrReadCode' '_planetX_asrReadCode'
+  spec 'r' '_planetX_asrReadRawCode' '_planetX_asrReadRawCode'
+  spec 'r' '_planetX_asrVehicleCode' '_planetX_asrVehicleCode _' 'str' ''
+  spec 'r' '_planetX_asrWrite' '_planetX_asrWrite _' 'auto' 0
+
+to '_planetX_asrClearCache' {
+  _planetX_asrLastCode = 0
+  _planetX_asrLastReadTime = 0
+}
+
+to '_planetX_asrDeviceCode' word {
+  return ('_planetX_asrMatchGroup' word 'start device,stop device,pause operation,resume operation,increase level,decrease level,play music,stop music,next track' '启动设备,停止设备,暂停运行,继续运行,增加一档,降低一档,播放音乐,关闭音乐,切换音乐' 32)
+}
+
+to '_planetX_asrEnsure' {
+  if (not ('_planetX_extI2CInit')) {
+    _planetX_asrReady = false
+    return false
+  }
+  if (_planetX_asrData == 0) {
+    _planetX_asrData = ('[data:newByteArray]' 1 0)
+  }
+  if _planetX_asrReady {
+    return true
+  }
+  waitMillis 100
+  _planetX_asrReady = true
+  return true
+}
+
+to '_planetX_asrExpectedCode' word {
+  if (or (word == 'hello Xiaoen') (word == '你好小恩')) {return 1}
+  local 'code' ('_planetX_asrVehicleCode' word)
+  if (code > 0) {
+    return code
+  }
+  code = ('_planetX_asrDeviceCode' word)
+  if (code > 0) {
+    return code
+  }
+  code = ('_planetX_asrFunctionCode' word)
+  if (code > 0) {
+    return code
+  }
+  return ('_planetX_asrLearnedCode' word)
+}
+
+to '_planetX_asrFunctionCode' word {
+  return ('_planetX_asrMatchGroup' word 'run function one,run function two' '执行功能一,执行功能二' 49)
+}
+
+to '_planetX_asrLearnedCode' word {
+  return ('_planetX_asrMatchGroup' word 'learned phrase 1,learned phrase 2,learned phrase 3,learned phrase 4,learned phrase 5,learned phrase 6,learned phrase 7,learned phrase 8,learned phrase 9,learned phrase 10' '自学习词条 1,自学习词条 2,自学习词条 3,自学习词条 4,自学习词条 5,自学习词条 6,自学习词条 7,自学习词条 8,自学习词条 9,自学习词条 10' 80)
+}
+
+to '_planetX_asrMatchGroup' word english chinese firstCode {
+  local 'idx' 0
+  local 'items' ('[data:split]' english ',')
+  local 'legacyItems' ('[data:split]' chinese ',')
+  for item items {
+    idx += 1
+    if (or (item == word) ((at idx legacyItems) == word)) {
+      return ((firstCode + idx) - 1)
+    }
+  }
+  return 0
+}
+
+to '_planetX_asrReadCode' {
+  if (and (_planetX_asrLastCode > 0) ((millisSince _planetX_asrLastReadTime) < 250)) {return _planetX_asrLastCode}
+  local 'code' ('_planetX_asrReadRawCode')
+  if (code > 0) {
+    _planetX_asrLastCode = code
+    _planetX_asrLastReadTime = (millisOp)
+    return code
+  }
+  _planetX_asrLastCode = 0
+  return 0
+}
+
+to '_planetX_asrReadRawCode' {
+  if (not ('_planetX_asrEnsure')) {return 0}
+  if (not ('_planetX_i2cAcquire')) {return 0}
+  atPut 'all' _planetX_asrData 0
+  '[sensors:i2cSetClockSpeed]' 100000
+  local 'readCount' ('[sensors:i2cRead]' 11 _planetX_asrData)
+  local 'code' (at 1 _planetX_asrData)
+  '_planetX_i2cRelease'
+  if (or (readCount != 1) (code == 255)) {
+    return 0
+  }
+  return code
+}
+
+to '_planetX_asrVehicleCode' word {
+  return ('_planetX_asrMatchGroup' word 'turn headlights on,turn headlights off,turn left,turn right,move forward,move backward,line-tracking mode,obstacle-avoidance mode,park' '打开车灯,关闭车灯,向左转,向右转,向前进,向后退,巡线模式,避障模式,停车' 16)
+}
+
+to '_planetX_asrWrite' command {
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 100000
+  local 'present' ('[sensors:i2cExists]' 11)
+  if present {
+    '[sensors:i2cWrite]' 11 command
+  }
+  '_planetX_i2cRelease'
+  return present
+}
+
+to planetXASRClearLearned {
+  if (not ('_planetX_asrEnsure')) {return}
+  '_planetX_asrClearCache'
+  '_planetX_asrWrite' 96
+  waitMillis 50
+}
+
+to planetXASREnterLearning {
+  if (not ('_planetX_asrEnsure')) {return}
+  '_planetX_asrClearCache'
+  '_planetX_asrWrite' 80
+  waitMillis 50
+}
+
+to planetXASRHeard word {
+  local 'expected' ('_planetX_asrExpectedCode' word)
+  local 'code' ('_planetX_asrReadCode')
+  return (and (expected > 0) (code == expected))
+}
+
+to planetXASRReadCode {
+  return ('_planetX_asrReadCode')
+}
+

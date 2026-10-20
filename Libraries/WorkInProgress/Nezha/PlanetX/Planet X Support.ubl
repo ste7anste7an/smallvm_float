@@ -1,0 +1,116 @@
+module 'Planet X Support' Control
+author 'Elecfreaks Team'
+version 1 1 
+choices planetXOnOff off on 
+choices planetXBasicColor red green blue white black yellow 
+choices planetXLetterCard A B C D E 
+choices planetXPort J1 J2 J3 J4 
+choices planetXNumberCard '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 
+choices planetXObjectValue 'x coordinate' 'y coordinate' width height 'confidence (%)' id 
+description 'Shared Planet X menus, I2C initialization, FIFO transaction lock and sensor communication.
+Import this as an implementation dependency.'
+variables _planetX_extI2CReady _planetX_i2cRequestBusy _planetX_i2cQueue 
+
+  spec 'r' '_planetX_extI2CInit' '_planetX_extI2CInit'
+  spec 'r' '_planetX_i2cAcquire' '_planetX_i2cAcquire'
+  spec ' ' '_planetX_i2cRelease' '_planetX_i2cRelease'
+  spec 'r' '_planetX_i2cExists' '_planetX_i2cExists _' 'auto' 0
+  spec 'r' '_planetX_i2cRead' '_planetX_i2cRead _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_i2cReadReg' '_planetX_i2cReadReg _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_i2cReadUInt16LE' '_planetX_i2cReadUInt16LE _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_i2cWrite' '_planetX_i2cWrite _ _' 'auto auto' 0 0
+
+to '_planetX_extI2CInit' {
+  _planetX_extI2CReady = true
+  return true
+}
+
+to '_planetX_i2cAcquire' {
+  if (_planetX_i2cQueue == 0) {_planetX_i2cQueue = ('[data:makeList]')}
+  local 'request' ('[data:newByteArray]' 1 0)
+  '[data:addLast]' request _planetX_i2cQueue
+  if (('[data:find]' request _planetX_i2cQueue) < 1) {
+    return false
+  }
+  local 'start' (millisOp)
+  repeatUntil (and (not _planetX_i2cRequestBusy) ((at 1 _planetX_i2cQueue) == request)) {
+    if ((millisSince start) >= 500) {
+      local 'index' ('[data:find]' request _planetX_i2cQueue)
+      if (index > 0) {
+        '[data:delete]' index _planetX_i2cQueue
+      }
+      return false
+    }
+    waitMillis 1
+  }
+  _planetX_i2cRequestBusy = true
+  return true
+}
+
+to '_planetX_i2cExists' addr {
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'present' ('[sensors:i2cExists]' addr)
+  '_planetX_i2cRelease'
+  return present
+}
+
+to '_planetX_i2cRead' addr bytes {
+  if (or ((size bytes) <= 0) ((size bytes) > 32)) {return false}
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'read' false
+  if ('[sensors:i2cExists]' addr) {
+    read = (('[sensors:i2cRead]' addr bytes) == (size bytes))
+  }
+  '_planetX_i2cRelease'
+  return read
+}
+
+to '_planetX_i2cReadReg' addr reg {
+  if (not ('_planetX_i2cAcquire')) {return 0}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'buf' ('[data:newByteArray]' 1 0)
+  local 'value' 0
+  if ('[sensors:i2cExists]' addr) {
+    '[sensors:i2cWrite]' addr ('[data:makeList]' reg) false
+    if (('[sensors:i2cRead]' addr buf) == 1) {
+      value = (at 1 buf)
+    }
+  }
+  '_planetX_i2cRelease'
+  return value
+}
+
+to '_planetX_i2cReadUInt16LE' addr reg {
+  if (not ('_planetX_i2cAcquire')) {return 0}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'buf' ('[data:newByteArray]' 2 0)
+  local 'value' 0
+  if ('[sensors:i2cExists]' addr) {
+    '[sensors:i2cWrite]' addr ('[data:makeList]' reg) false
+    if (('[sensors:i2cRead]' addr buf) == 2) {
+      value = ((at 1 buf) + ((at 2 buf) << 8))
+    }
+  }
+  '_planetX_i2cRelease'
+  return value
+}
+
+to '_planetX_i2cRelease' {
+  if (not _planetX_i2cRequestBusy) {return}
+  '[data:delete]' 1 _planetX_i2cQueue
+  _planetX_i2cRequestBusy = false
+}
+
+to '_planetX_i2cWrite' addr bytes {
+  if (not ('_planetX_i2cAcquire')) {return false}
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'present' ('[sensors:i2cExists]' addr)
+  if present {
+    '[sensors:i2cWrite]' addr bytes
+  }
+  '_planetX_i2cRelease'
+  return present
+}
+

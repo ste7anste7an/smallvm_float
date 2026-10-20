@@ -1,0 +1,196 @@
+module 'Planet X Color' Input
+author 'Elecfreaks Team'
+version 1 1 
+depends '_Planet X Support' 
+choices planetXColorName red green blue cyan magenta yellow white 
+description 'Planet X color recognition sensor: hue and color detection.
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05006'
+variables _planetX_colorReady _planetX_colorHue _planetX_colorClear _planetX_colorR _planetX_colorG _planetX_colorB _planetX_colorAddr _planetX_colorNewMode 
+
+  spec 'r' 'planetXColorHue' 'color sensor hue (0-360)'
+  spec 'r' 'planetXColorDetected' 'color sensor detected _ ?' 'menu.planetXColorName' 'red'
+  spec 'r' '_planetX_colorCeilDivide' '_planetX_colorCeilDivide _ _' 'auto auto' 0 1
+  spec 'r' '_planetX_colorEnsure' '_planetX_colorEnsure'
+  spec 'r' '_planetX_colorHueFromRGB' '_planetX_colorHueFromRGB _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_colorIsWhite' '_planetX_colorIsWhite'
+  spec 'r' '_planetX_colorReadReg' '_planetX_colorReadReg _' 'auto' 0
+  spec 'r' '_planetX_colorReadUInt16LE' '_planetX_colorReadUInt16LE _' 'auto' 0
+  spec ' ' '_planetX_colorWriteReg' '_planetX_colorWriteReg _ _' 'auto auto' 0 0
+
+to '_planetX_colorCeilDivide' numerator denominator {
+  local 'result' (numerator / denominator)
+  if (and (numerator > 0) ((numerator % denominator) != 0)) {
+    result += 1
+  }
+  return result
+}
+
+to '_planetX_colorEnsure' {
+  '_planetX_extI2CInit'
+  if _planetX_colorReady {
+    return true
+  }
+  _planetX_colorNewMode = false
+  if ('_planetX_i2cExists' 67) {
+    _planetX_colorAddr = 67
+    local 'i' 0
+    repeatUntil (or _planetX_colorNewMode (i >= 20)) {
+      i += 1
+      '_planetX_colorWriteReg' 129 202
+      '_planetX_colorWriteReg' 128 23
+      waitMillis 50
+      if (('_planetX_colorReadUInt16LE' 164) != 0) {
+        _planetX_colorNewMode = true
+      }
+    }
+    if _planetX_colorNewMode {
+      _planetX_colorReady = true
+      return true
+    }
+  }
+  if (not ('_planetX_i2cExists' 57)) {
+    return false
+  }
+  _planetX_colorAddr = 57
+  '_planetX_colorWriteReg' 129 252
+  '_planetX_colorWriteReg' 143 3
+  '_planetX_colorWriteReg' 128 0
+  '_planetX_colorWriteReg' 171 0
+  '_planetX_colorWriteReg' 231 0
+  '_planetX_colorWriteReg' 128 1
+  '_planetX_colorWriteReg' 128 3
+  _planetX_colorReady = true
+  return true
+}
+
+to '_planetX_colorHueFromRGB' color_r color_g color_b {
+  local 'R' ('_planetX_colorCeilDivide' (color_r * 100) 255)
+  local 'G' ('_planetX_colorCeilDivide' (color_g * 100) 255)
+  local 'B' ('_planetX_colorCeilDivide' (color_b * 100) 255)
+  local 'maxVal' (maximum R (maximum G B))
+  local 'minVal' (minimum R (minimum G B))
+  local 'delta' (maxVal - minVal)
+  if (delta <= 0) {
+    return 0
+  }
+  local 'Hue' 0
+  if (maxVal == R) {
+    Hue = ('_planetX_colorCeilDivide' (60 * (G - B)) delta)
+    if (G < B) {
+      Hue += 360
+    }
+  } (maxVal == G) {
+    Hue = (('_planetX_colorCeilDivide' (60 * (B - R)) delta) + 120)
+  } else {
+    Hue = (('_planetX_colorCeilDivide' (60 * (R - G)) delta) + 240)
+  }
+  return (maximum 0 (minimum Hue 360))
+}
+
+to '_planetX_colorIsWhite' {
+  if (_planetX_colorClear < 120) {return false}
+  local 'rg' (absoluteValue (_planetX_colorR - _planetX_colorG))
+  local 'gb' (absoluteValue (_planetX_colorG - _planetX_colorB))
+  local 'rb' (absoluteValue (_planetX_colorR - _planetX_colorB))
+  return (and (rg < 35) (and (gb < 35) (rb < 35)))
+}
+
+to '_planetX_colorReadReg' reg {
+  return ('_planetX_i2cReadReg' _planetX_colorAddr reg)
+}
+
+to '_planetX_colorReadUInt16LE' reg {
+  return ('_planetX_i2cReadUInt16LE' _planetX_colorAddr reg)
+}
+
+to '_planetX_colorWriteReg' reg value {
+  '_planetX_i2cWrite' _planetX_colorAddr ('[data:makeList]' reg value)
+}
+
+to planetXColorDetected color {
+  local 'hue' (planetXColorHue)
+  if (or (color == 'red') (color == '红色')) {
+    return (or (hue > 330) (hue < 20))
+  }
+  if (or (color == 'green') (color == '绿色')) {
+    return (and (hue > 120) (180 > hue))
+  }
+  if (or (color == 'blue') (color == '蓝色')) {
+    return (and (hue > 210) (270 > hue))
+  }
+  if (or (color == 'cyan') (color == '青色')) {
+    return (and (hue > 190) (210 > hue))
+  }
+  if (or (color == 'magenta') (color == '洋红')) {
+    return (and (hue > 260) (330 > hue))
+  }
+  if (or (color == 'yellow') (color == '黄色')) {
+    return (and (hue > 30) (120 > hue))
+  }
+  return ('_planetX_colorIsWhite')
+}
+
+to planetXColorHue {
+  if (not ('_planetX_colorEnsure')) {return 0}
+  local 'r' 0
+  local 'g' 0
+  local 'b' 0
+  local 'temp_c' 0
+  local 'temp_r' 0
+  local 'temp_g' 0
+  local 'temp_b' 0
+  if _planetX_colorNewMode {
+    waitMillis 100
+    _planetX_colorClear = ('_planetX_colorReadUInt16LE' 166)
+    r = ('_planetX_colorReadUInt16LE' 160)
+    g = ('_planetX_colorReadUInt16LE' 162)
+    b = ('_planetX_colorReadUInt16LE' 164)
+    r = ('_planetX_colorCeilDivide' (r * 507) 1000)
+    g = ('_planetX_colorCeilDivide' (g * 321) 1000)
+    b = ('_planetX_colorCeilDivide' (b * 276) 1000)
+    _planetX_colorClear = ('_planetX_colorCeilDivide' (_planetX_colorClear * 3) 10)
+    if (and (r > b) (r > g)) {
+      b = ('_planetX_colorCeilDivide' (b * 118) 100)
+      g = ('_planetX_colorCeilDivide' (g * 95) 100)
+    }
+    temp_c = _planetX_colorClear
+    temp_r = r
+    temp_g = g
+    temp_b = b
+    r = (minimum r 4095)
+    g = (minimum g 4095)
+    b = (minimum b 4095)
+    _planetX_colorClear = (minimum _planetX_colorClear 4095)
+    if (temp_b < temp_g) {
+      local 'temp' temp_b
+      temp_b = temp_g
+      temp_g = temp
+    }
+  } else {
+    local 'tries' 0
+    repeatUntil (or ((('_planetX_colorReadReg' 147) & 1) == 1) (tries >= 40)) {
+      tries += 1
+      waitMillis 5
+    }
+    _planetX_colorClear = ('_planetX_colorReadUInt16LE' 148)
+    r = ('_planetX_colorReadUInt16LE' 150)
+    g = ('_planetX_colorReadUInt16LE' 152)
+    b = ('_planetX_colorReadUInt16LE' 154)
+    temp_c = _planetX_colorClear
+    temp_r = r
+    temp_g = g
+    temp_b = b
+  }
+  local 'avg' (maximum 1 ('_planetX_colorCeilDivide' _planetX_colorClear 3))
+  _planetX_colorR = (maximum 0 (minimum ('_planetX_colorCeilDivide' (r * 255) avg) 255))
+  _planetX_colorG = (maximum 0 (minimum ('_planetX_colorCeilDivide' (g * 255) avg) 255))
+  _planetX_colorB = (maximum 0 (minimum ('_planetX_colorCeilDivide' (b * 255) avg) 255))
+  _planetX_colorHue = ('_planetX_colorHueFromRGB' _planetX_colorR _planetX_colorG _planetX_colorB)
+  if (or (and (and (and _planetX_colorNewMode (_planetX_colorHue >= 180)) (_planetX_colorHue <= 201)) (and (temp_c >= 6000) ((temp_b - temp_g) < 1000))) (and (temp_r > 4096) (and (temp_g > 4096) (temp_b > 4096)))) {
+    temp_c = ('_planetX_colorCeilDivide' (temp_c * 13000) 15000)
+    _planetX_colorHue = (180 + ('_planetX_colorCeilDivide' (13000 - temp_c) 1000))
+  }
+  return _planetX_colorHue
+}
+

@@ -1,0 +1,1931 @@
+module 'Planet X AI Lens Pro' Input
+author 'Elecfreaks Team'
+version 2 1 
+depends '_Planet X Support' 
+choices planetXAILensProLineValueMenu angle distance 
+choices planetXAILensProColorModeMenu 'learn mode' 'recognize mode' 
+choices planetXAILensProObjectClassMenu 'any recognizable object' person bicycle car motorcycle airplane bus train truck boat 'traffic light' 'fire hydrant' 'stop sign' 'parking meter' bench bird cat dog horse sheep cow elephant bear zebra giraffe backpack umbrella handbag tie suitcase frisbee skis snowboard 'sports ball' kite 'baseball bat' 'baseball glove' skateboard surfboard 'tennis racket' bottle 'wine glass' cup fork knife spoon bowl banana apple sandwich orange broccoli carrot 'hot dog' pizza donut cake chair couch 'potted plant' bed 'dining table' toilet television laptop mouse 'remote control' keyboard 'cell phone' microwave oven toaster sink refrigerator book clock vase scissors 'teddy bear' 'hair drier' toothbrush 
+choices planetXAILensProTrafficCardMenu forward 'turn around' left right stop 
+choices planetXAILensProColorValueMenu 'x coordinate' 'y coordinate' id 'confidence (%)' width height r g b 
+choices planetXAILensProItemCardMenu cat dog mouse apple pear grapes airplane car ship pen ruler microbit clock cup umbrella 
+choices planetXAILensProTargetSelectionMenu center largest 
+choices planetXAILensProPostureValueMenu id 'confidence (%)' 'center x' 'center y' width height 'nose x' 'nose y' 'left eye x' 'left eye y' 'right eye x' 'right eye y' 'left ear x' 'left ear y' 'right ear x' 'right ear y' 'left shoulder x' 'left shoulder y' 'right shoulder x' 'right shoulder y' 'left elbow x' 'left elbow y' 'right elbow x' 'right elbow y' 'left wrist x' 'left wrist y' 'right wrist x' 'right wrist y' 'left buttock x' 'left buttock y' 'right buttock x' 'right buttock y' 'left knee x' 'left knee y' 'right knee x' 'right knee y' 'left ankle x' 'left ankle y' 'right ankle x' 'right ankle y' 
+choices planetXAILensProColorCenterValueMenu r g b 
+choices planetXAILensProCardSelectionMenu largest '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' A B C D E forward 'turn around' left right stop cat dog mouse apple pear grapes airplane car ship pen ruler microbit clock cup umbrella 
+choices planetXAILensProCardValueMenu 'x coordinate' 'y coordinate' size 'confidence (%)' 'card id' 
+choices planetXAILensProCodeTypeMenu 'any code' 'QR code' barcode 
+choices planetXAILensProLineDirectionMenu left right center 
+choices planetXAILensProSelfValueMenu id 'confidence (%)' 
+choices planetXAILensProBallValueMenu 'x coordinate' 'y coordinate' size 'confidence (%)' 
+choices planetXAILensProFaceValueMenu 'x coordinate' 'y coordinate' width height 'confidence (%)' 'blink count' 'mouth open count' 
+choices planetXAILensProPostureTypeMenu standing 'hand up' 'both hands up' squatting bending sitting falling kneeling running 
+choices planetXAILensProRhythmValueMenu bpm 'beat count' 'duration milliseconds' 
+choices planetXAILensProModeMenu 'main menu' 'face recognition' 'self learning' 'gesture recognition' 'remote file manager' 'photo album' 'take photo' settings 'rhythm recognition' 'ball recognition' 'object recognition' OCR 'line recognition' 'object tracking' 'expression recognition' 'posture recognition' 'color recognition' 'card recognition' 'code recognition' 
+choices planetXAILensProOcrValueMenu length 'confidence (%)' 
+choices planetXAILensProExpressionTypeMenu any happy sad angry surprise fear disgust neutral 
+choices planetXAILensProBallColorMenu any red blue 
+choices planetXAILensProTrackingValueMenu 'x coordinate' 'y coordinate' width height 'confidence (%)' 
+description 'AI Lens Pro
+Initialization and I2C communication
+Application switching
+Flashlight control
+Face recognition
+Self learning
+Gesture recognition
+Rhythm recognition
+Wi-Fi
+Ball recognition
+Object recognition
+OCR
+Object tracking
+Expression recognition
+Posture recognition
+Color recognition
+Card recognition
+Code recognition
+Line recognition
+Rhythm duration uses milliseconds
+Confidence values use integer percentages (0-100%)
+
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/ai-lens-pro/'
+variables _planetX_aiLensPro_addr _planetX_aiLensPro_gap _planetX_aiLensPro_init_done _planetX_aiLensPro_online _planetX_aiLensPro_read_fail_count _planetX_aiLensPro_last_recovery_probe _planetX_aiLensPro_current_mode _planetX_aiLensPro_face_state _planetX_aiLensPro_face_id _planetX_aiLensPro_face_confidence _planetX_aiLensPro_face_blink _planetX_aiLensPro_face_mouth _planetX_aiLensPro_face_coord_valid _planetX_aiLensPro_face_left_x _planetX_aiLensPro_face_left_y _planetX_aiLensPro_face_right_x _planetX_aiLensPro_face_right_y _planetX_aiLensPro_face_label _planetX_aiLensPro_face_count _planetX_aiLensPro_self_status _planetX_aiLensPro_self_id _planetX_aiLensPro_self_confidence _planetX_aiLensPro_hand_status _planetX_aiLensPro_hand_id _planetX_aiLensPro_hand_confidence _planetX_aiLensPro_hand_x _planetX_aiLensPro_hand_y _planetX_aiLensPro_hand_width _planetX_aiLensPro_hand_height _planetX_aiLensPro_hand_label _planetX_aiLensPro_rhythm_status _planetX_aiLensPro_rhythm_bpm _planetX_aiLensPro_rhythm_beats _planetX_aiLensPro_rhythm_duration_ms _planetX_aiLensPro_recording_active _planetX_aiLensPro_recording_seconds _planetX_aiLensPro_wifi_state _planetX_aiLensPro_wifi_flags _planetX_aiLensPro_wifi_seq _planetX_aiLensPro_wifi_mailbox_type _planetX_aiLensPro_ball_count _planetX_aiLensPro_ball_red _planetX_aiLensPro_ball_blue _planetX_aiLensPro_ball_records _planetX_aiLensPro_ball_targets _planetX_aiLensPro_object_count _planetX_aiLensPro_object_records _planetX_aiLensPro_object_targets _planetX_aiLensPro_object_labels _planetX_aiLensPro_ocr_status _planetX_aiLensPro_ocr_confidence _planetX_aiLensPro_ocr_length _planetX_aiLensPro_ocr_text _planetX_aiLensPro_ocr_bytes _planetX_aiLensPro_tracking_records _planetX_aiLensPro_tracking_targets _planetX_aiLensPro_expression_count _planetX_aiLensPro_expression_records _planetX_aiLensPro_expression_targets _planetX_aiLensPro_expression_labels _planetX_aiLensPro_posture_records _planetX_aiLensPro_posture_targets _planetX_aiLensPro_posture_label _planetX_aiLensPro_color_mode _planetX_aiLensPro_color_records _planetX_aiLensPro_color_targets _planetX_aiLensPro_color_center_id _planetX_aiLensPro_color_r _planetX_aiLensPro_color_g _planetX_aiLensPro_color_b _planetX_aiLensPro_card_count _planetX_aiLensPro_card_records _planetX_aiLensPro_card_targets _planetX_aiLensPro_code_detected _planetX_aiLensPro_code_type _planetX_aiLensPro_code_length _planetX_aiLensPro_code_bytes _planetX_aiLensPro_code_content _planetX_aiLensPro_line_detected _planetX_aiLensPro_line_angle _planetX_aiLensPro_line_distance 
+
+  spec ' ' 'planetX_aiLensPro_init' 'initialize AI Lens Pro'
+  spec ' ' 'planetX_aiLensPro_switch_to' 'switch function to _' 'menu.planetXAILensProModeMenu' 'main menu'
+  spec ' ' 'planetX_aiLensPro_set_flashlight' 'set flashlight _ brightness _ %' 'menu.planetXOnOff num' 'on' 80
+  spec ' ' 'planetX_aiLensPro_get_one_frame' 'get one frame from AI Lens Pro'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_face' 'image contains face'
+  spec 'r' 'planetX_aiLensPro_image_face_count' 'get total number of faces from image'
+  spec 'r' 'planetX_aiLensPro_center_face_value' 'get face _ value from image' 'menu.planetXAILensProFaceValueMenu' 'x coordinate'
+  spec 'r' 'planetX_aiLensPro_learned_face_confidence' 'get learned face confidence (%) from image'
+  spec 'r' 'planetX_aiLensPro_learned_face_name' 'get learned face name from image'
+  space
+  spec ' ' 'planetX_aiLensPro_learn_center_object_as' 'learn center object as ID _' 'num' 1
+  spec ' ' 'planetX_aiLensPro_clear_learned_object' 'clear learned object _' 'num' 0
+  spec 'r' 'planetX_aiLensPro_image_contains_learned_object' 'image contains learned object _' 'num' 0
+  spec 'r' 'planetX_aiLensPro_learned_object_value' 'get learned object _ value from image' 'menu.planetXAILensProSelfValueMenu' 'id'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_learned_gesture' 'image contains learned gesture'
+  spec 'r' 'planetX_aiLensPro_image_contains_gesture' 'image contains gesture _' 'str' 'gesture name'
+  spec 'r' 'planetX_aiLensPro_center_gesture_value' 'get gesture _ value from image' 'menu.planetXObjectValue' 'x coordinate'
+  spec 'r' 'planetX_aiLensPro_center_gesture_name' 'get gesture name from image'
+  space
+  spec ' ' 'planetX_aiLensPro_recognize_audio_path' 'recognize audio at path _' 'str' '/sound_touch/test.wav'
+  spec ' ' 'planetX_aiLensPro_record_and_recognize_rhythm' 'record for _ seconds and recognize' 'num' 10
+  spec 'r' 'planetX_aiLensPro_rhythm_recognition_succeeded' 'rhythm recognition succeeded'
+  spec 'r' 'planetX_aiLensPro_current_rhythm_value' 'current rhythm _ value' 'menu.planetXAILensProRhythmValueMenu' 'bpm'
+  space
+  spec ' ' 'planetX_aiLensPro_connect_camera_wifi' 'AI Lens Pro connect WiFi name _ password _' 'str str' 'wifi name' 'password'
+  spec 'r' 'planetX_aiLensPro_is_camera_wifi_connected' 'AI Lens Pro WiFi connected'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_ball' 'image contains _ ball' 'menu.planetXAILensProBallColorMenu' 'any'
+  spec 'r' 'planetX_aiLensPro_image_ball_count' 'get total number of balls from image'
+  spec 'r' 'planetX_aiLensPro_selected_ball_value' 'get _ ball _ value from image' 'menu.planetXAILensProTargetSelectionMenu menu.planetXAILensProBallValueMenu' 'center' 'x coordinate'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_object' 'image contains _' 'menu.planetXAILensProObjectClassMenu' 'any recognizable object'
+  spec 'r' 'planetX_aiLensPro_image_object_count' 'get total number of recognized objects from image'
+  spec 'r' 'planetX_aiLensPro_center_object_value' 'get object _ value from image' 'menu.planetXObjectValue' 'x coordinate'
+  spec 'r' 'planetX_aiLensPro_center_object_name' 'get object name from image'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_text' 'image contains text'
+  spec 'r' 'planetX_aiLensPro_image_text_equals' 'text content from image is _' 'str' 'text'
+  spec 'r' 'planetX_aiLensPro_image_text_value' 'get text content _ value from image' 'menu.planetXAILensProOcrValueMenu' 'length'
+  spec 'r' 'planetX_aiLensPro_image_text' 'get text content from image'
+  spec ' ' 'planetX_aiLensPro_set_ocr_region' 'set OCR region top left X _ top left Y _ bottom right X _ bottom right Y _' 'num num num num' 0 0 640 480
+  spec ' ' 'planetX_aiLensPro_reset_ocr_region' 'clear OCR region'
+  space
+  spec ' ' 'planetX_aiLensPro_start_object_tracking' 'start tracking selected object top left X _ top left Y _ bottom right X _ bottom right Y _' 'num num num num' 220 140 420 340
+  spec ' ' 'planetX_aiLensPro_stop_object_tracking' 'stop object tracking'
+  spec 'r' 'planetX_aiLensPro_object_tracking_running' 'object tracking is running'
+  spec 'r' 'planetX_aiLensPro_object_tracking_target_lost' 'object tracking target is lost'
+  spec 'r' 'planetX_aiLensPro_tracking_target_value' 'get object tracking target _ value' 'menu.planetXAILensProTrackingValueMenu' 'x coordinate'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_expression' 'image contains _ expression' 'menu.planetXAILensProExpressionTypeMenu' 'any'
+  spec 'r' 'planetX_aiLensPro_image_expression_count' 'get total number of expressions from image'
+  spec 'r' 'planetX_aiLensPro_center_expression_name' 'get expression name from image'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_posture' 'image contains human posture'
+  spec 'r' 'planetX_aiLensPro_center_posture_is' 'posture from image is _' 'menu.planetXAILensProPostureTypeMenu' 'standing'
+  spec 'r' 'planetX_aiLensPro_center_posture_value' 'get human posture _ value from image' 'menu.planetXAILensProPostureValueMenu' 'center x'
+  spec 'r' 'planetX_aiLensPro_center_posture_name' 'get human posture name from image'
+  space
+  spec ' ' 'planetX_aiLensPro_set_color_recognition_mode' 'set color recognition mode to _' 'menu.planetXAILensProColorModeMenu' 'learn mode'
+  spec 'r' 'planetX_aiLensPro_image_color_is' 'image color is _' 'menu.planetXBasicColor' 'red'
+  spec 'r' 'planetX_aiLensPro_image_rgb_value' 'get image color _ value' 'menu.planetXAILensProColorCenterValueMenu' 'r'
+  spec 'r' 'planetX_aiLensPro_image_contains_learned_color' 'image contains learned color ID _' 'num' 1
+  spec 'r' 'planetX_aiLensPro_learned_color_value' 'get learned color ID _ _ value from image' 'num menu.planetXAILensProColorValueMenu' 1 'r'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_number_card' 'image contains _ number card' 'menu.planetXNumberCard' '0'
+  spec 'r' 'planetX_aiLensPro_image_contains_letter_card' 'image contains _ letter card' 'menu.planetXLetterCard' 'A'
+  spec 'r' 'planetX_aiLensPro_image_contains_traffic_card' 'image contains _ traffic sign card' 'menu.planetXAILensProTrafficCardMenu' 'forward'
+  spec 'r' 'planetX_aiLensPro_image_contains_item_card' 'image contains _ item card' 'menu.planetXAILensProItemCardMenu' 'cat'
+  spec 'r' 'planetX_aiLensPro_image_card_count' 'get total number of cards from image'
+  spec 'r' 'planetX_aiLensPro_selected_card_value' 'get _ card _ value from image' 'menu.planetXAILensProCardSelectionMenu menu.planetXAILensProCardValueMenu' 'largest' 'x coordinate'
+  space
+  spec 'r' 'planetX_aiLensPro_image_contains_code' 'image contains _' 'menu.planetXAILensProCodeTypeMenu' 'any code'
+  spec 'r' 'planetX_aiLensPro_image_code_equals' 'recognized code content is _' 'str' 'text'
+  spec 'r' 'planetX_aiLensPro_image_code' 'get recognized code content'
+  space
+  spec 'r' 'planetX_aiLensPro_black_line_value' 'get black line offset _ value from image' 'menu.planetXAILensProLineValueMenu' 'angle'
+  spec 'r' 'planetX_aiLensPro_image_contains_black_line' 'image contains black line offset _ center range ± _ degrees' 'menu.planetXAILensProLineDirectionMenu num' 'center' 10
+  spec ' ' '_planetX_aiLensPro_defaults' '_planetX_aiLensPro_defaults'
+  spec 'r' '_planetX_aiLensPro_ready' '_planetX_aiLensPro_ready'
+  spec ' ' '_planetX_aiLensPro_offline' '_planetX_aiLensPro_offline'
+  spec ' ' '_planetX_aiLensPro_mark_online' '_planetX_aiLensPro_mark_online'
+  spec 'r' '_planetX_aiLensPro_mode_id' '_planetX_aiLensPro_mode_id _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_mode_id_basic' '_planetX_aiLensPro_mode_id_basic _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_mode_id_vision' '_planetX_aiLensPro_mode_id_vision _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_mode_id_extra' '_planetX_aiLensPro_mode_id_extra _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_update_mode' '_planetX_aiLensPro_update_mode _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_crc8' '_planetX_aiLensPro_crc8 _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_packet' '_planetX_aiLensPro_packet _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_device_write' '_planetX_aiLensPro_device_write _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_device_read' '_planetX_aiLensPro_device_read _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_read_reg' '_planetX_aiLensPro_read_reg _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_read_reg_retry' '_planetX_aiLensPro_read_reg_retry _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_uart_frame' '_planetX_aiLensPro_uart_frame _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_write_uart_frame' '_planetX_aiLensPro_write_uart_frame _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_send_uart_command' '_planetX_aiLensPro_send_uart_command _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_probe' '_planetX_aiLensPro_probe _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_probe_timeout' '_planetX_aiLensPro_probe_timeout _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_probe_init' '_planetX_aiLensPro_probe_init'
+  spec 'r' '_planetX_aiLensPro_try_read_mode' '_planetX_aiLensPro_try_read_mode _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_switch_mode' '_planetX_aiLensPro_switch_mode _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_refresh_current_result' '_planetX_aiLensPro_refresh_current_result'
+  spec 'r' '_planetX_aiLensPro_read_reg_bytes' '_planetX_aiLensPro_read_reg_bytes _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_refresh_face' '_planetX_aiLensPro_refresh_face'
+  spec 'r' '_planetX_aiLensPro_refresh_self' '_planetX_aiLensPro_refresh_self'
+  spec 'r' '_planetX_aiLensPro_refresh_hand' '_planetX_aiLensPro_refresh_hand'
+  spec 'r' '_planetX_aiLensPro_u16le' '_planetX_aiLensPro_u16le _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_decode_string' '_planetX_aiLensPro_decode_string _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_parse_face' '_planetX_aiLensPro_parse_face _' 'auto' 0
+  spec ' ' '_planetX_aiLensPro_parse_face_box' '_planetX_aiLensPro_parse_face_box _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_parse_self' '_planetX_aiLensPro_parse_self _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_parse_hand' '_planetX_aiLensPro_parse_hand _' 'auto' 0
+  spec ' ' '_planetX_aiLensPro_record_rhythm_task' '_planetX_aiLensPro_record_rhythm_task'
+  spec 'r' '_planetX_aiLensPro_refresh_rhythm' '_planetX_aiLensPro_refresh_rhythm'
+  spec 'r' '_planetX_aiLensPro_refresh_ball' '_planetX_aiLensPro_refresh_ball'
+  spec 'r' '_planetX_aiLensPro_parse_ball' '_planetX_aiLensPro_parse_ball _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_selected_ball_offset' '_planetX_aiLensPro_selected_ball_offset _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_ball_metric' '_planetX_aiLensPro_ball_metric _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_next_wifi_seq' '_planetX_aiLensPro_next_wifi_seq'
+  spec 'r' '_planetX_aiLensPro_wifi_public_ready' '_planetX_aiLensPro_wifi_public_ready'
+  spec 'r' '_planetX_aiLensPro_refresh_wifi_status' '_planetX_aiLensPro_refresh_wifi_status _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_read_wifi_mailbox' '_planetX_aiLensPro_read_wifi_mailbox _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_wifi_header_matches' '_planetX_aiLensPro_wifi_header_matches _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_valid_wifi_status' '_planetX_aiLensPro_valid_wifi_status _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_send_wifi_connect' '_planetX_aiLensPro_send_wifi_connect _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_wait_wifi_receipt' '_planetX_aiLensPro_wait_wifi_receipt _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_wait_wifi_ready' '_planetX_aiLensPro_wait_wifi_ready _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_trim_text' '_planetX_aiLensPro_trim_text _' 'str' ''
+  spec 'r' '_planetX_aiLensPro_trim_text_end' '_planetX_aiLensPro_trim_text_end _ _ _' 'str auto auto' '' 0 0
+  spec 'r' '_planetX_aiLensPro_is_space' '_planetX_aiLensPro_is_space _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_refresh_objects' '_planetX_aiLensPro_refresh_objects'
+  spec 'r' '_planetX_aiLensPro_parse_objects' '_planetX_aiLensPro_parse_objects _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_nearest_object_offset' '_planetX_aiLensPro_nearest_object_offset'
+  spec 'r' '_planetX_aiLensPro_object_class_id' '_planetX_aiLensPro_object_class_id _' 'str' ''
+  spec 'r' '_planetX_aiLensPro_refresh_ocr' '_planetX_aiLensPro_refresh_ocr'
+  spec 'r' '_planetX_aiLensPro_parse_ocr' '_planetX_aiLensPro_parse_ocr _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_utf8_bytes_match' '_planetX_aiLensPro_utf8_bytes_match _ _' 'auto str' 0 ''
+  spec 'r' '_planetX_aiLensPro_refresh_tracking' '_planetX_aiLensPro_refresh_tracking'
+  spec 'r' '_planetX_aiLensPro_parse_tracking' '_planetX_aiLensPro_parse_tracking _' 'auto' 0
+  spec ' ' '_planetX_aiLensPro_clear_tracking_cache' '_planetX_aiLensPro_clear_tracking_cache'
+  spec 'r' '_planetX_aiLensPro_region_payload' '_planetX_aiLensPro_region_payload _ _ _ _ _ _' 'auto auto auto auto auto auto' 0 0 0 0 0 0
+  spec ' ' '_planetX_aiLensPro_put_u16le' '_planetX_aiLensPro_put_u16le _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_aiLensPro_object_classes_0' '_planetX_aiLensPro_object_classes_0'
+  spec 'r' '_planetX_aiLensPro_object_classes_20' '_planetX_aiLensPro_object_classes_20'
+  spec 'r' '_planetX_aiLensPro_object_classes_40' '_planetX_aiLensPro_object_classes_40'
+  spec 'r' '_planetX_aiLensPro_object_classes_60' '_planetX_aiLensPro_object_classes_60'
+  spec 'r' '_planetX_aiLensPro_refresh_expression' '_planetX_aiLensPro_refresh_expression'
+  spec 'r' '_planetX_aiLensPro_parse_expression' '_planetX_aiLensPro_parse_expression _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_expression_type_id' '_planetX_aiLensPro_expression_type_id _' 'str' ''
+  spec 'r' '_planetX_aiLensPro_nearest_expression_index' '_planetX_aiLensPro_nearest_expression_index'
+  spec 'r' '_planetX_aiLensPro_refresh_posture' '_planetX_aiLensPro_refresh_posture'
+  spec 'r' '_planetX_aiLensPro_parse_posture' '_planetX_aiLensPro_parse_posture _' 'auto' 0
+  spec ' ' '_planetX_aiLensPro_clear_posture_cache' '_planetX_aiLensPro_clear_posture_cache'
+  spec 'r' '_planetX_aiLensPro_posture_center_valid' '_planetX_aiLensPro_posture_center_valid'
+  spec 'r' '_planetX_aiLensPro_posture_coord' '_planetX_aiLensPro_posture_coord _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_posture_value_id' '_planetX_aiLensPro_posture_value_id _' 'str' ''
+  spec 'r' '_planetX_aiLensPro_refresh_color' '_planetX_aiLensPro_refresh_color'
+  spec 'r' '_planetX_aiLensPro_parse_color' '_planetX_aiLensPro_parse_color _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_parse_color_center' '_planetX_aiLensPro_parse_color_center _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_parse_color_learn' '_planetX_aiLensPro_parse_color_learn _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_clear_color_center' '_planetX_aiLensPro_clear_color_center'
+  spec 'r' '_planetX_aiLensPro_color_offset_by_id' '_planetX_aiLensPro_color_offset_by_id _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_posture_fields_0' '_planetX_aiLensPro_posture_fields_0'
+  spec 'r' '_planetX_aiLensPro_posture_fields_10' '_planetX_aiLensPro_posture_fields_10'
+  spec 'r' '_planetX_aiLensPro_posture_fields_20' '_planetX_aiLensPro_posture_fields_20'
+  spec 'r' '_planetX_aiLensPro_posture_fields_30' '_planetX_aiLensPro_posture_fields_30'
+  spec 'r' '_planetX_aiLensPro_refresh_cards' '_planetX_aiLensPro_refresh_cards'
+  spec 'r' '_planetX_aiLensPro_parse_cards' '_planetX_aiLensPro_parse_cards _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_card_id' '_planetX_aiLensPro_card_id _' 'str' ''
+  spec 'r' '_planetX_aiLensPro_card_offset_by_id' '_planetX_aiLensPro_card_offset_by_id _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_largest_card_offset' '_planetX_aiLensPro_largest_card_offset'
+  spec 'r' '_planetX_aiLensPro_refresh_code' '_planetX_aiLensPro_refresh_code'
+  spec 'r' '_planetX_aiLensPro_parse_code' '_planetX_aiLensPro_parse_code _' 'auto' 0
+  spec 'r' '_planetX_aiLensPro_refresh_line' '_planetX_aiLensPro_refresh_line'
+  spec 'r' '_planetX_aiLensPro_i16le' '_planetX_aiLensPro_i16le _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_aiLensPro_card_names_0' '_planetX_aiLensPro_card_names_0'
+  spec 'r' '_planetX_aiLensPro_card_names_20' '_planetX_aiLensPro_card_names_20'
+
+to '_planetX_aiLensPro_ball_metric' offset selection {
+  if (selection == 'largest') {return (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 7)) * ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 9)))}
+  local 'dx' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 3)) - 320)
+  local 'dy' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 5)) - 240)
+  return ((dx * dx) + (dy * dy))
+}
+
+to '_planetX_aiLensPro_card_id' name {
+  if (name == 'largest') {return 255}
+  name = ('[data:convertType]' name 'string')
+  local 'index' ('[data:find]' name ('_planetX_aiLensPro_card_names_0'))
+  if (index > 0) {
+    return (index - 1)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_card_names_20'))
+  if (index > 0) {
+    return (index + 19)
+  }
+  return -1
+}
+
+to '_planetX_aiLensPro_card_names_0' {
+  return ('[data:split]' '0|1|2|3|4|5|6|7|8|9|A|B|C|D|E|forward|turn around|left|right|stop' '|')
+}
+
+to '_planetX_aiLensPro_card_names_20' {
+  return ('[data:split]' 'cat|dog|mouse|apple|pear|grapes|airplane|car|ship|pen|ruler|microbit|clock|cup|umbrella' '|')
+}
+
+to '_planetX_aiLensPro_card_offset_by_id' id {
+  if (id < 0) {return -1}
+  id = (id & 255)
+  local 'best' -1
+  local 'distance' 0
+  for i _planetX_aiLensPro_card_records {
+    local 'offset' ((i - 1) * 8)
+    if ((at (offset + 1) _planetX_aiLensPro_card_targets) == id) {
+      local 'dx' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_card_targets (offset + 3)) - 320)
+      local 'dy' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_card_targets (offset + 5)) - 240)
+      local 'metric' ((dx * dx) + (dy * dy))
+      if (or (best < 0) (metric < distance)) {
+        best = offset
+        distance = metric
+      }
+    }
+  }
+  return best
+}
+
+to '_planetX_aiLensPro_clear_color_center' {
+  _planetX_aiLensPro_color_center_id = 0
+  _planetX_aiLensPro_color_r = 0
+  _planetX_aiLensPro_color_g = 0
+  _planetX_aiLensPro_color_b = 0
+  return true
+}
+
+to '_planetX_aiLensPro_clear_posture_cache' {
+  _planetX_aiLensPro_posture_records = 0
+  _planetX_aiLensPro_posture_targets = ('[data:newByteArray]' 0)
+  _planetX_aiLensPro_posture_label = ''
+}
+
+to '_planetX_aiLensPro_clear_tracking_cache' {
+  _planetX_aiLensPro_tracking_records = 0
+  _planetX_aiLensPro_tracking_targets = ('[data:newByteArray]' 0)
+}
+
+to '_planetX_aiLensPro_color_offset_by_id' id {
+  id = (id | 0)
+  if (or (id < 1) (id > 30)) {
+    return -1
+  }
+  for i _planetX_aiLensPro_color_records {
+    local 'offset' ((i - 1) * 14)
+    if (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_color_targets (offset + 1)) == id) {
+      return offset
+    }
+  }
+  return -1
+}
+
+to '_planetX_aiLensPro_crc8' data length {
+  local 'crc' 0
+  local 'n' (minimum length (size data))
+  for i n {
+    crc = ((crc ^ (at i data)) & 255)
+    for b 8 {
+      if ((crc & 128) != 0) {
+        crc = (((crc << 1) ^ 7) & 255)
+      } else {
+        crc = ((crc << 1) & 255)
+      }
+    }
+  }
+  return (crc & 255)
+}
+
+to '_planetX_aiLensPro_decode_string' data start len {
+  if (or (len <= 0) ((start + len) > ((size data) + 1))) {return ''}
+  return ('[data:convertType]' ('[data:copyFromTo]' data start ((start + len) - 1)) 'string')
+}
+
+to '_planetX_aiLensPro_defaults' {
+  if (_planetX_aiLensPro_addr == 0) {
+    _planetX_aiLensPro_addr = 96
+    _planetX_aiLensPro_gap = 2
+    _planetX_aiLensPro_current_mode = 1
+  }
+  if (not (isType _planetX_aiLensPro_face_label 'string')) {
+    _planetX_aiLensPro_face_label = ''
+  }
+  if (not (isType _planetX_aiLensPro_hand_label 'string')) {
+    _planetX_aiLensPro_hand_label = ''
+  }
+  if (not (isType _planetX_aiLensPro_ocr_text 'string')) {
+    _planetX_aiLensPro_ocr_text = ''
+  }
+}
+
+to '_planetX_aiLensPro_device_read' command params readLen {
+  if (or (readLen <= 0) (readLen > 31)) {return ('[data:newByteArray]' 0)}
+  local 'packet' ('_planetX_aiLensPro_packet' command params)
+  if (not ('_planetX_i2cAcquire')) {
+    return ('[data:newByteArray]' 0)
+  }
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'raw' ('[data:newByteArray]' (readLen + 1) 0)
+  local 'read' false
+  if ('[sensors:i2cExists]' _planetX_aiLensPro_addr) {
+    '[sensors:i2cWrite]' _planetX_aiLensPro_addr packet
+    if (_planetX_aiLensPro_gap > 0) {
+      waitMillis _planetX_aiLensPro_gap
+    }
+    read = (('[sensors:i2cRead]' _planetX_aiLensPro_addr raw) == (readLen + 1))
+  }
+  '_planetX_i2cRelease'
+  if (not read) {
+    return ('[data:newByteArray]' 0)
+  }
+  if (('_planetX_aiLensPro_crc8' raw readLen) != (at (readLen + 1) raw)) {
+    return ('[data:newByteArray]' 0)
+  }
+  return ('[data:copyFromTo]' raw 1 readLen)
+}
+
+to '_planetX_aiLensPro_device_write' command params {
+  local 'packet' ('_planetX_aiLensPro_packet' command params)
+  if (not ('_planetX_i2cAcquire')) {
+    return false
+  }
+  '[sensors:i2cSetClockSpeed]' 200000
+  local 'present' ('[sensors:i2cExists]' _planetX_aiLensPro_addr)
+  if present {
+    '[sensors:i2cWrite]' _planetX_aiLensPro_addr packet
+    if (_planetX_aiLensPro_gap > 0) {
+      waitMillis _planetX_aiLensPro_gap
+    }
+  }
+  '_planetX_i2cRelease'
+  return present
+}
+
+to '_planetX_aiLensPro_expression_type_id' expression {
+  local 'index' ('[data:find]' expression ('[data:split]' 'angry|disgust|fear|happy|sad|surprise|neutral' '|'))
+  if (index < 1) {
+    return 6
+  }
+  return (index - 1)
+}
+
+to '_planetX_aiLensPro_i16le' bytes offset {
+  local 'value' ('_planetX_aiLensPro_u16le' bytes offset)
+  if (value >= 32768) {
+    value = (value - 65536)
+  }
+  return value
+}
+
+to '_planetX_aiLensPro_is_space' code {
+  if (and (code >= 9) (code <= 13)) {return true}
+  if (and (code >= 8192) (code <= 8202)) {return true}
+  return (('[data:find]' code ('[data:makeList]' 32 160 5760 8232 8233 8239 8287 12288 65279)) > 0)
+}
+
+to '_planetX_aiLensPro_largest_card_offset' {
+  local 'best' -1
+  local 'bestSize' -1
+  for i _planetX_aiLensPro_card_records {
+    local 'offset' ((i - 1) * 8)
+    local 'size' ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_card_targets (offset + 7))
+    if (size > bestSize) {
+      best = offset
+      bestSize = size
+    }
+  }
+  return best
+}
+
+to '_planetX_aiLensPro_mark_online' {
+  _planetX_aiLensPro_online = true
+  _planetX_aiLensPro_read_fail_count = 0
+}
+
+to '_planetX_aiLensPro_mode_id' mode {
+  local 'id' ('_planetX_aiLensPro_mode_id_basic' mode)
+  if (id != 0) {
+    return id
+  }
+  id = ('_planetX_aiLensPro_mode_id_vision' mode)
+  if (id != 0) {
+    return id
+  }
+  id = ('_planetX_aiLensPro_mode_id_extra' mode)
+  if (id != 0) {
+    return id
+  }
+  return 1
+}
+
+to '_planetX_aiLensPro_mode_id_basic' mode {
+  if (or (mode == 'main menu') (mode == '主菜单')) {return 1}
+  if (or (or (mode == 'face recognition') (mode == '人脸识别')) (mode == 'face recognize')) {return (hexToInt '10')}
+  if (or (or (mode == 'self learning') (mode == '自主学习')) (mode == 'self learn')) {return (hexToInt '11')}
+  if (or (or (mode == 'gesture recognition') (mode == '手势识别')) (mode == 'hand recognize')) {return (hexToInt '12')}
+  if (or (mode == 'remote file manager') (mode == '远程文件管理')) {return (hexToInt '13')}
+  if (or (or (mode == 'photo album') (mode == '相册')) (mode == 'photos')) {return (hexToInt '14')}
+  return 0
+}
+
+to '_planetX_aiLensPro_mode_id_extra' mode {
+  if (or (mode == 'object tracking') (mode == '物体追踪')) {return (hexToInt '22')}
+  if (or (mode == 'expression recognition') (mode == '表情识别')) {return (hexToInt '23')}
+  if (or (mode == 'posture recognition') (mode == '人体姿态识别')) {return (hexToInt '24')}
+  if (or (mode == 'color recognition') (mode == '颜色识别')) {return (hexToInt '25')}
+  if (or (mode == 'card recognition') (mode == '卡片识别')) {return (hexToInt '26')}
+  if (or (mode == 'code recognition') (mode == '图码识别')) {return (hexToInt '27')}
+  return 0
+}
+
+to '_planetX_aiLensPro_mode_id_vision' mode {
+  if (or (or (mode == 'take photo') (mode == '拍照')) (mode == 'camera')) {return (hexToInt '15')}
+  if (or (mode == 'settings') (mode == '设置')) {return (hexToInt '16')}
+  if (or (or (mode == 'rhythm recognition') (mode == '节奏识别')) (or (mode == 'sound touch') (mode == '声音触碰'))) {return (hexToInt '1B')}
+  if (or (mode == 'ball recognition') (mode == '球识别')) {return (hexToInt '1E')}
+  if (or (mode == 'object recognition') (mode == '物体识别')) {return (hexToInt '1F')}
+  if (or (mode == 'OCR') (mode == '文字识别')) {return (hexToInt '20')}
+  if (or (mode == 'line recognition') (mode == '巡线识别')) {return (hexToInt '21')}
+  return 0
+}
+
+to '_planetX_aiLensPro_nearest_expression_index' {
+  local 'best' -1
+  local 'distance' 0
+  for i _planetX_aiLensPro_expression_records {
+    local 'offset' ((i - 1) * 11)
+    local 'dx' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_expression_targets (offset + 4)) - 320)
+    local 'dy' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_expression_targets (offset + 6)) - 240)
+    local 'metric' ((dx * dx) + (dy * dy))
+    if (or (best < 0) (metric < distance)) {
+      best = i
+      distance = metric
+    }
+  }
+  return best
+}
+
+to '_planetX_aiLensPro_nearest_object_offset' {
+  local 'best' -1
+  local 'distance' 0
+  for i _planetX_aiLensPro_object_records {
+    local 'offset' ((i - 1) * 10)
+    local 'dx' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_object_targets (offset + 3)) - 320)
+    local 'dy' (('_planetX_aiLensPro_u16le' _planetX_aiLensPro_object_targets (offset + 5)) - 240)
+    local 'metric' ((dx * dx) + (dy * dy))
+    if (or (best < 0) (metric < distance)) {
+      best = offset
+      distance = metric
+    }
+  }
+  return best
+}
+
+to '_planetX_aiLensPro_next_wifi_seq' {
+  _planetX_aiLensPro_wifi_seq = ((_planetX_aiLensPro_wifi_seq + 1) & 255)
+  if (_planetX_aiLensPro_wifi_seq == 0) {
+    _planetX_aiLensPro_wifi_seq = 1
+  }
+  return _planetX_aiLensPro_wifi_seq
+}
+
+to '_planetX_aiLensPro_object_class_id' name {
+  if (name == 'any recognizable object') {return 255}
+  local 'index' ('[data:find]' name ('_planetX_aiLensPro_object_classes_0'))
+  if (index > 0) {
+    return (index - 1)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_object_classes_20'))
+  if (index > 0) {
+    return (index + 19)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_object_classes_40'))
+  if (index > 0) {
+    return (index + 39)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_object_classes_60'))
+  if (index > 0) {
+    return (index + 59)
+  }
+  return -1
+}
+
+to '_planetX_aiLensPro_object_classes_0' {
+  return ('[data:split]' 'person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light|fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow' '|')
+}
+
+to '_planetX_aiLensPro_object_classes_20' {
+  return ('[data:split]' 'elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee|skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle' '|')
+}
+
+to '_planetX_aiLensPro_object_classes_40' {
+  return ('[data:split]' 'wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange|broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed' '|')
+}
+
+to '_planetX_aiLensPro_object_classes_60' {
+  return ('[data:split]' 'dining table|toilet|television|laptop|mouse|remote control|keyboard|cell phone|microwave|oven|toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush' '|')
+}
+
+to '_planetX_aiLensPro_offline' {
+  _planetX_aiLensPro_read_fail_count += 1
+  if (_planetX_aiLensPro_read_fail_count >= 3) {
+    _planetX_aiLensPro_online = false
+  }
+}
+
+to '_planetX_aiLensPro_packet' command params {
+  if (params == 0) {params = ('[data:newByteArray]' 0)}
+  params = ('[data:asByteArray]' params)
+  local 'plen' (size params)
+  local 'packet' ('[data:newByteArray]' (plen + 4) 0)
+  atPut 1 packet (hexToInt 'AA')
+  atPut 2 packet (command & 255)
+  atPut 3 packet (plen & 255)
+  for i plen {
+    atPut (i + 3) packet (at i params)
+  }
+  atPut (plen + 4) packet ('_planetX_aiLensPro_crc8' packet (plen + 3))
+  return packet
+}
+
+to '_planetX_aiLensPro_parse_ball' raw {
+  if ((size raw) < 2) {
+    _planetX_aiLensPro_ball_red = 0
+    _planetX_aiLensPro_ball_blue = 0
+    return false
+  }
+  _planetX_aiLensPro_ball_count = (at 1 raw)
+  local 'flags' (at 2 raw)
+  _planetX_aiLensPro_ball_red = (flags & 64)
+  _planetX_aiLensPro_ball_blue = (flags & 128)
+  _planetX_aiLensPro_ball_records = (minimum (minimum 16 _planetX_aiLensPro_ball_count) (minimum (flags & 31) (((size raw) - 2) / 10)))
+  _planetX_aiLensPro_ball_targets = ('[data:copyFromTo]' raw 3 (2 + (_planetX_aiLensPro_ball_records * 10)))
+  return true
+}
+
+to '_planetX_aiLensPro_parse_cards' raw {
+  if ((size raw) < 2) {return false}
+  _planetX_aiLensPro_card_count = (at 1 raw)
+  _planetX_aiLensPro_card_records = (minimum (minimum 16 _planetX_aiLensPro_card_count) (minimum (at 2 raw) (((size raw) - 2) / 8)))
+  _planetX_aiLensPro_card_targets = ('[data:copyFromTo]' raw 3 (2 + (_planetX_aiLensPro_card_records * 8)))
+  return true
+}
+
+to '_planetX_aiLensPro_parse_code' raw {
+  if ((size raw) < 14) {return false}
+  _planetX_aiLensPro_code_detected = (at 1 raw)
+  _planetX_aiLensPro_code_type = (at 2 raw)
+  _planetX_aiLensPro_code_length = (minimum (at 13 raw) ((size raw) - 14))
+  _planetX_aiLensPro_code_bytes = ('[data:copyFromTo]' raw 15 (14 + _planetX_aiLensPro_code_length))
+  _planetX_aiLensPro_code_content = ('_planetX_aiLensPro_decode_string' raw 15 _planetX_aiLensPro_code_length)
+  return true
+}
+
+to '_planetX_aiLensPro_parse_color' raw {
+  if ((size raw) < 1) {return false}
+  _planetX_aiLensPro_color_mode = (at 1 raw)
+  if (_planetX_aiLensPro_color_mode == 1) {
+    return ('_planetX_aiLensPro_parse_color_center' raw)
+  }
+  if ((size raw) < 3) {
+    return false
+  }
+  _planetX_aiLensPro_color_mode = 0
+  return ('_planetX_aiLensPro_parse_color_learn' raw)
+}
+
+to '_planetX_aiLensPro_parse_color_center' raw {
+  if ((size raw) < 7) {return false}
+  _planetX_aiLensPro_color_center_id = (at 2 raw)
+  _planetX_aiLensPro_color_r = (at 4 raw)
+  _planetX_aiLensPro_color_g = (at 5 raw)
+  _planetX_aiLensPro_color_b = (at 6 raw)
+  local 'len' (minimum 12 (at 7 raw))
+  if ((7 + len) > (size raw)) {
+    return false
+  }
+  _planetX_aiLensPro_color_records = 0
+  _planetX_aiLensPro_color_targets = ('[data:newByteArray]' 0)
+  return true
+}
+
+to '_planetX_aiLensPro_parse_color_learn' raw {
+  local 'count' (minimum 10 (minimum (at 2 raw) (at 3 raw)))
+  _planetX_aiLensPro_color_records = 0
+  _planetX_aiLensPro_color_targets = ('[data:newByteArray]' (count * 14) 0)
+  local 'offset' 4
+  for i count {
+    if ((offset + 14) > (size raw)) {return ('_planetX_aiLensPro_clear_color_center')}
+    local 'len' (minimum 12 (at (offset + 14) raw))
+    if ((offset + (14 + len)) > (size raw)) {
+      return ('_planetX_aiLensPro_clear_color_center')
+    }
+    for j 14 {
+      atPut (((i - 1) * 14) + j) _planetX_aiLensPro_color_targets (at ((offset - 1) + j) raw)
+    }
+    _planetX_aiLensPro_color_records += 1
+    offset += (15 + len)
+  }
+  return ('_planetX_aiLensPro_clear_color_center')
+}
+
+to '_planetX_aiLensPro_parse_expression' raw {
+  if ((size raw) < 2) {return false}
+  _planetX_aiLensPro_expression_count = (at 1 raw)
+  local 'count' (minimum 10 (minimum _planetX_aiLensPro_expression_count (at 2 raw)))
+  _planetX_aiLensPro_expression_records = 0
+  _planetX_aiLensPro_expression_targets = ('[data:newByteArray]' (count * 11) 0)
+  _planetX_aiLensPro_expression_labels = ('[data:makeList]')
+  local 'offset' 3
+  for i count {
+    if ((offset + 11) > (size raw)) {return true}
+    local 'len' (minimum 12 (at (offset + 11) raw))
+    if ((offset + (11 + len)) > (size raw)) {
+      return true
+    }
+    for j 11 {
+      atPut (((i - 1) * 11) + j) _planetX_aiLensPro_expression_targets (at ((offset - 1) + j) raw)
+    }
+    '[data:addLast]' ('_planetX_aiLensPro_decode_string' raw (offset + 12) len) _planetX_aiLensPro_expression_labels
+    _planetX_aiLensPro_expression_records += 1
+    offset += (12 + len)
+  }
+  return true
+}
+
+to '_planetX_aiLensPro_parse_face' raw {
+  if ((size raw) < 15) {return false}
+  _planetX_aiLensPro_face_state = (at 1 raw)
+  _planetX_aiLensPro_face_id = (at 2 raw)
+  if (_planetX_aiLensPro_face_id == 255) {
+    _planetX_aiLensPro_face_id = 0
+  }
+  _planetX_aiLensPro_face_confidence = (minimum 100 (at 3 raw))
+  _planetX_aiLensPro_face_blink = (at 4 raw)
+  _planetX_aiLensPro_face_mouth = (at 5 raw)
+  '_planetX_aiLensPro_parse_face_box' raw
+  local 'labelLen' (at 15 raw)
+  _planetX_aiLensPro_face_label = ('_planetX_aiLensPro_decode_string' raw 16 labelLen)
+  local 'countOffset' (16 + labelLen)
+  if ((size raw) >= countOffset) {
+    _planetX_aiLensPro_face_count = (at countOffset raw)
+  } else {
+    _planetX_aiLensPro_face_count = _planetX_aiLensPro_face_coord_valid
+  }
+  return true
+}
+
+to '_planetX_aiLensPro_parse_face_box' raw {
+  local 'leftX' ('_planetX_aiLensPro_u16le' raw 7)
+  local 'leftY' ('_planetX_aiLensPro_u16le' raw 9)
+  local 'rightX' ('_planetX_aiLensPro_u16le' raw 11)
+  local 'rightY' ('_planetX_aiLensPro_u16le' raw 13)
+  _planetX_aiLensPro_face_coord_valid = 0
+  if ((at 6 raw) == 0) {
+    return
+  }
+  if (and (leftX == rightX) (leftY == rightY)) {
+    return
+  }
+  _planetX_aiLensPro_face_left_x = leftX
+  _planetX_aiLensPro_face_left_y = leftY
+  _planetX_aiLensPro_face_right_x = rightX
+  _planetX_aiLensPro_face_right_y = rightY
+  _planetX_aiLensPro_face_coord_valid = 1
+}
+
+to '_planetX_aiLensPro_parse_hand' raw {
+  if ((size raw) < 13) {return false}
+  _planetX_aiLensPro_hand_status = (at 1 raw)
+  _planetX_aiLensPro_hand_id = (at 2 raw)
+  _planetX_aiLensPro_hand_confidence = (minimum 100 (at 3 raw))
+  _planetX_aiLensPro_hand_x = ('_planetX_aiLensPro_u16le' raw 5)
+  _planetX_aiLensPro_hand_y = ('_planetX_aiLensPro_u16le' raw 7)
+  _planetX_aiLensPro_hand_width = ('_planetX_aiLensPro_u16le' raw 9)
+  _planetX_aiLensPro_hand_height = ('_planetX_aiLensPro_u16le' raw 11)
+  _planetX_aiLensPro_hand_label = ('_planetX_aiLensPro_decode_string' raw 14 (at 13 raw))
+  return true
+}
+
+to '_planetX_aiLensPro_parse_objects' raw {
+  if ((size raw) < 2) {return false}
+  _planetX_aiLensPro_object_count = (at 1 raw)
+  local 'count' (minimum 8 (minimum _planetX_aiLensPro_object_count (at 2 raw)))
+  _planetX_aiLensPro_object_records = 0
+  _planetX_aiLensPro_object_targets = ('[data:newByteArray]' (count * 10) 0)
+  _planetX_aiLensPro_object_labels = ('[data:makeList]')
+  local 'offset' 3
+  for i count {
+    if ((offset + 10) > (size raw)) {return true}
+    local 'len' (minimum 16 (at (offset + 10) raw))
+    if ((offset + (10 + len)) > (size raw)) {
+      return true
+    }
+    for j 10 {
+      atPut (((i - 1) * 10) + j) _planetX_aiLensPro_object_targets (at ((offset - 1) + j) raw)
+    }
+    '[data:addLast]' ('_planetX_aiLensPro_decode_string' raw (offset + 11) len) _planetX_aiLensPro_object_labels
+    _planetX_aiLensPro_object_records += 1
+    offset += (11 + len)
+  }
+  return true
+}
+
+to '_planetX_aiLensPro_parse_ocr' raw {
+  if ((size raw) < 3) {return false}
+  _planetX_aiLensPro_ocr_status = (at 1 raw)
+  _planetX_aiLensPro_ocr_confidence = (minimum 100 (at 2 raw))
+  local 'len' (minimum (at 3 raw) ((size raw) - 3))
+  _planetX_aiLensPro_ocr_bytes = ('[data:copyFromTo]' raw 4 (3 + len))
+  _planetX_aiLensPro_ocr_length = 0
+  for byte _planetX_aiLensPro_ocr_bytes {
+    if ((byte & 192) != 128) {_planetX_aiLensPro_ocr_length += 1}
+  }
+  _planetX_aiLensPro_ocr_text = ('_planetX_aiLensPro_decode_string' raw 4 len)
+  return true
+}
+
+to '_planetX_aiLensPro_parse_posture' raw {
+  if ((size raw) < 4) {return false}
+  '_planetX_aiLensPro_clear_posture_cache'
+  if ((at 1 raw) != 2) {
+    return false
+  }
+  if ((at 2 raw) != 1) {
+    return true
+  }
+  local 'count' (minimum (at 3 raw) (at 4 raw))
+  if (count < 1) {
+    return true
+  }
+  if ((size raw) < 84) {
+    return true
+  }
+  local 'len' (minimum 24 (at 84 raw))
+  if ((84 + len) > (size raw)) {
+    return true
+  }
+  _planetX_aiLensPro_posture_targets = ('[data:copyFromTo]' raw 5 83)
+  _planetX_aiLensPro_posture_label = ('_planetX_aiLensPro_decode_string' raw 85 len)
+  _planetX_aiLensPro_posture_records = 1
+  return true
+}
+
+to '_planetX_aiLensPro_parse_self' raw {
+  if ((size raw) < 4) {return false}
+  _planetX_aiLensPro_self_status = (at 1 raw)
+  _planetX_aiLensPro_self_id = (at 2 raw)
+  _planetX_aiLensPro_self_confidence = (minimum 100 (at 3 raw))
+  return true
+}
+
+to '_planetX_aiLensPro_parse_tracking' raw {
+  if ((size raw) < 2) {return false}
+  _planetX_aiLensPro_tracking_records = (minimum 1 (minimum (at 2 raw) (((size raw) - 2) / 11)))
+  _planetX_aiLensPro_tracking_targets = ('[data:copyFromTo]' raw 3 (2 + (_planetX_aiLensPro_tracking_records * 11)))
+  return true
+}
+
+to '_planetX_aiLensPro_posture_center_valid' {
+  if (_planetX_aiLensPro_posture_records < 1) {return false}
+  return (and (('_planetX_aiLensPro_posture_coord' 4) >= 0) (('_planetX_aiLensPro_posture_coord' 6) >= 0))
+}
+
+to '_planetX_aiLensPro_posture_coord' offset {
+  local 'value' ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_posture_targets offset)
+  if (value == 65535) {
+    return -1
+  }
+  return value
+}
+
+to '_planetX_aiLensPro_posture_fields_0' {
+  return ('[data:split]' 'id|confidence (%)|center x|center y|width|height|nose x|nose y|left eye x|left eye y' '|')
+}
+
+to '_planetX_aiLensPro_posture_fields_10' {
+  return ('[data:split]' 'right eye x|right eye y|left ear x|left ear y|right ear x|right ear y|left shoulder x|left shoulder y|right shoulder x|right shoulder y' '|')
+}
+
+to '_planetX_aiLensPro_posture_fields_20' {
+  return ('[data:split]' 'left elbow x|left elbow y|right elbow x|right elbow y|left wrist x|left wrist y|right wrist x|right wrist y|left buttock x|left buttock y' '|')
+}
+
+to '_planetX_aiLensPro_posture_fields_30' {
+  return ('[data:split]' 'right buttock x|right buttock y|left knee x|left knee y|right knee x|right knee y|left ankle x|left ankle y|right ankle x|right ankle y' '|')
+}
+
+to '_planetX_aiLensPro_posture_value_id' name {
+  local 'index' ('[data:find]' name ('_planetX_aiLensPro_posture_fields_0'))
+  if (index > 0) {
+    return (index - 1)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_posture_fields_10'))
+  if (index > 0) {
+    return (index + 9)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_posture_fields_20'))
+  if (index > 0) {
+    return (index + 19)
+  }
+  index = ('[data:find]' name ('_planetX_aiLensPro_posture_fields_30'))
+  if (index > 0) {
+    return (index + 29)
+  }
+  return -1
+}
+
+to '_planetX_aiLensPro_probe' retry {
+  local 'cur' ('_planetX_aiLensPro_read_reg_retry' 0 1 retry)
+  if ((size cur) >= 1) {
+    local 'id' ((at 1 cur) & 255)
+    if ('_planetX_aiLensPro_update_mode' id) {
+      '_planetX_aiLensPro_mark_online'
+      return (booleanConstant true)
+    }
+  }
+  '_planetX_aiLensPro_offline'
+  return (booleanConstant false)
+}
+
+to '_planetX_aiLensPro_probe_init' {
+  if ('_planetX_aiLensPro_probe_timeout' 1000) {return true}
+  _planetX_aiLensPro_online = false
+  return false
+}
+
+to '_planetX_aiLensPro_probe_timeout' timeoutMSecs {
+  local 'start' (millisOp)
+  repeatUntil (((millisOp) - start) >= (maximum 1 timeoutMSecs)) {
+    if ('_planetX_aiLensPro_probe' 1) {return (booleanConstant true)}
+    waitMillis 20
+  }
+  return (booleanConstant false)
+}
+
+to '_planetX_aiLensPro_put_u16le' bytes offset value {
+  atPut offset bytes (value & 255)
+  atPut (offset + 1) bytes ((value >> 8) & 255)
+}
+
+to '_planetX_aiLensPro_read_reg' addr len {
+  local 'req' ('[data:makeList]' ((addr >> 8) & 255) (addr & 255) 0 (len & 255))
+  return ('_planetX_aiLensPro_device_read' (hexToInt '21') req len)
+}
+
+to '_planetX_aiLensPro_read_reg_bytes' addr totalLen {
+  if (totalLen <= 0) {return ('[data:newByteArray]' 0)}
+  local 'out' ('[data:newByteArray]' totalLen 0)
+  local 'offset' 0
+  repeatUntil (offset >= totalLen) {
+    local 'n' (minimum 10 (totalLen - offset))
+    local 'part' ('_planetX_aiLensPro_read_reg_retry' (addr + offset) n 3)
+    if ((size part) < n) {
+      if (offset == 0) {return ('[data:newByteArray]' 0)}
+      return ('[data:copyFromTo]' out 1 offset)
+    }
+    for i n {
+      atPut (offset + i) out (at i part)
+    }
+    offset += n
+    if (and (offset < totalLen) (_planetX_aiLensPro_gap > 0)) {
+      waitMillis _planetX_aiLensPro_gap
+    }
+  }
+  return out
+}
+
+to '_planetX_aiLensPro_read_reg_retry' addr len retry {
+  local 'last' ('[data:newByteArray]' 0)
+  for i (maximum 1 retry) {
+    local 'ret' ('_planetX_aiLensPro_read_reg' addr len)
+    last = ret
+    if ((size ret) >= len) {
+      return ret
+    }
+    waitMillis 2
+  }
+  return last
+}
+
+to '_planetX_aiLensPro_read_wifi_mailbox' expectedType expectedSeq timeoutMS {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  local 'start' (millisOp)
+  repeatUntil ((millisSince start) >= (maximum 50 timeoutMS)) {
+    local 'head' ('_planetX_aiLensPro_read_reg_retry' 16 8 2)
+    if ('_planetX_aiLensPro_wifi_header_matches' head expectedType expectedSeq) {
+      local 'len' (((at 7 head) << 8) | (at 8 head))
+      local 'text' ('_planetX_aiLensPro_read_reg_bytes' 24 len)
+      if ((size text) >= len) {
+        _planetX_aiLensPro_wifi_mailbox_type = (at 3 head)
+        _planetX_aiLensPro_wifi_state = (at 5 head)
+        _planetX_aiLensPro_wifi_flags = (at 6 head)
+        '_planetX_aiLensPro_send_uart_command' (hexToInt '43') ('[data:makeList]' (at 3 head) (at 4 head))
+        return true
+      }
+    }
+    waitMillis 20
+  }
+  return false
+}
+
+to '_planetX_aiLensPro_ready' {
+  '_planetX_aiLensPro_defaults'
+  if (not _planetX_aiLensPro_init_done) {
+    return false
+  }
+  if _planetX_aiLensPro_online {
+    return true
+  }
+  if ((millisSince _planetX_aiLensPro_last_recovery_probe) < 200) {
+    return false
+  }
+  _planetX_aiLensPro_last_recovery_probe = (millisOp)
+  return ('_planetX_aiLensPro_probe' 3)
+}
+
+to '_planetX_aiLensPro_record_rhythm_task' {
+  '_planetX_aiLensPro_send_uart_command' (hexToInt '38') ('[data:makeList]' 3)
+  waitMillis (_planetX_aiLensPro_recording_seconds * 1000)
+  '_planetX_aiLensPro_send_uart_command' (hexToInt '38') ('[data:makeList]' 2)
+  _planetX_aiLensPro_recording_active = false
+}
+
+to '_planetX_aiLensPro_refresh_ball' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 2 2)
+  if ((size head) < 2) {
+    _planetX_aiLensPro_ball_red = 0
+    _planetX_aiLensPro_ball_blue = 0
+    return false
+  }
+  local 'count' (minimum 16 (minimum (at 1 head) ((at 2 head) & 31)))
+  return ('_planetX_aiLensPro_parse_ball' ('_planetX_aiLensPro_read_reg_bytes' 100 (2 + (count * 10))))
+}
+
+to '_planetX_aiLensPro_refresh_cards' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 2 2)
+  if ((size head) < 2) {
+    return false
+  }
+  local 'count' (minimum 16 (minimum (at 1 head) (at 2 head)))
+  return ('_planetX_aiLensPro_parse_cards' ('_planetX_aiLensPro_read_reg_bytes' 100 (2 + (count * 8))))
+}
+
+to '_planetX_aiLensPro_refresh_code' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 14 2)
+  if ((size head) < 14) {
+    return false
+  }
+  return ('_planetX_aiLensPro_parse_code' ('_planetX_aiLensPro_read_reg_bytes' 100 (14 + (at 13 head))))
+}
+
+to '_planetX_aiLensPro_refresh_color' {
+  return ('_planetX_aiLensPro_parse_color' ('_planetX_aiLensPro_read_reg_bytes' 100 273))
+}
+
+to '_planetX_aiLensPro_refresh_current_result' {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  local 'mode' ('_planetX_aiLensPro_try_read_mode' 2)
+  if (mode < 0) {
+    mode = _planetX_aiLensPro_current_mode
+  }
+  if (mode == (hexToInt '10')) {
+    return ('_planetX_aiLensPro_refresh_face')
+  }
+  if (mode == (hexToInt '11')) {
+    return ('_planetX_aiLensPro_refresh_self')
+  }
+  if (mode == (hexToInt '12')) {
+    return ('_planetX_aiLensPro_refresh_hand')
+  }
+  if (mode == (hexToInt '1B')) {
+    return ('_planetX_aiLensPro_refresh_rhythm')
+  }
+  if (mode == (hexToInt '1E')) {
+    return ('_planetX_aiLensPro_refresh_ball')
+  }
+  if (mode == (hexToInt '1F')) {
+    return ('_planetX_aiLensPro_refresh_objects')
+  }
+  if (mode == (hexToInt '20')) {
+    return ('_planetX_aiLensPro_refresh_ocr')
+  }
+  if (mode == (hexToInt '22')) {
+    return ('_planetX_aiLensPro_refresh_tracking')
+  }
+  if (mode == (hexToInt '23')) {
+    return ('_planetX_aiLensPro_refresh_expression')
+  }
+  if (mode == (hexToInt '24')) {
+    return ('_planetX_aiLensPro_refresh_posture')
+  }
+  if (mode == (hexToInt '25')) {
+    return ('_planetX_aiLensPro_refresh_color')
+  }
+  if (mode == (hexToInt '26')) {
+    return ('_planetX_aiLensPro_refresh_cards')
+  }
+  if (mode == (hexToInt '27')) {
+    return ('_planetX_aiLensPro_refresh_code')
+  }
+  if (mode == (hexToInt '21')) {
+    return ('_planetX_aiLensPro_refresh_line')
+  }
+  return false
+}
+
+to '_planetX_aiLensPro_refresh_expression' {
+  return ('_planetX_aiLensPro_parse_expression' ('_planetX_aiLensPro_read_reg_bytes' 100 242))
+}
+
+to '_planetX_aiLensPro_refresh_face' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 15 2)
+  if ((size head) < 15) {
+    return false
+  }
+  local 'labelLen' (at 15 head)
+  local 'raw' ('_planetX_aiLensPro_read_reg_bytes' 100 (16 + labelLen))
+  if ((size raw) < (16 + labelLen)) {
+    raw = ('_planetX_aiLensPro_read_reg_bytes' 100 (15 + labelLen))
+  }
+  return ('_planetX_aiLensPro_parse_face' raw)
+}
+
+to '_planetX_aiLensPro_refresh_hand' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 13 2)
+  if ((size head) < 13) {
+    return false
+  }
+  local 'raw' ('_planetX_aiLensPro_read_reg_bytes' 100 (13 + (at 13 head)))
+  return ('_planetX_aiLensPro_parse_hand' raw)
+}
+
+to '_planetX_aiLensPro_refresh_line' {
+  local 'raw' ('_planetX_aiLensPro_read_reg_retry' 100 20 2)
+  if ((size raw) < 20) {
+    return false
+  }
+  _planetX_aiLensPro_line_detected = (at 1 raw)
+  _planetX_aiLensPro_line_distance = ('_planetX_aiLensPro_i16le' raw 15)
+  _planetX_aiLensPro_line_angle = ('_planetX_aiLensPro_i16le' raw 17)
+  return true
+}
+
+to '_planetX_aiLensPro_refresh_objects' {
+  return ('_planetX_aiLensPro_parse_objects' ('_planetX_aiLensPro_read_reg_bytes' 100 218))
+}
+
+to '_planetX_aiLensPro_refresh_ocr' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 3 2)
+  if ((size head) < 3) {
+    return false
+  }
+  return ('_planetX_aiLensPro_parse_ocr' ('_planetX_aiLensPro_read_reg_bytes' 100 (3 + (at 3 head))))
+}
+
+to '_planetX_aiLensPro_refresh_posture' {
+  return ('_planetX_aiLensPro_parse_posture' ('_planetX_aiLensPro_read_reg_bytes' 100 108))
+}
+
+to '_planetX_aiLensPro_refresh_rhythm' {
+  local 'raw' ('_planetX_aiLensPro_read_reg_retry' 100 7 2)
+  if ((size raw) < 7) {
+    return false
+  }
+  _planetX_aiLensPro_rhythm_status = (at 1 raw)
+  _planetX_aiLensPro_rhythm_bpm = ('_planetX_aiLensPro_u16le' raw 2)
+  _planetX_aiLensPro_rhythm_beats = ('_planetX_aiLensPro_u16le' raw 4)
+  _planetX_aiLensPro_rhythm_duration_ms = (100 * ('_planetX_aiLensPro_u16le' raw 6))
+  return true
+}
+
+to '_planetX_aiLensPro_refresh_self' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 4 2)
+  if ((size head) < 4) {
+    return false
+  }
+  local 'raw' ('_planetX_aiLensPro_read_reg_bytes' 100 (4 + (at 4 head)))
+  return ('_planetX_aiLensPro_parse_self' raw)
+}
+
+to '_planetX_aiLensPro_refresh_tracking' {
+  local 'head' ('_planetX_aiLensPro_read_reg_retry' 100 2 2)
+  if ((size head) < 2) {
+    '_planetX_aiLensPro_clear_tracking_cache'
+    return false
+  }
+  local 'count' (minimum 1 (at 2 head))
+  if (not ('_planetX_aiLensPro_parse_tracking' ('_planetX_aiLensPro_read_reg_bytes' 100 (2 + (count * 11))))) {
+    '_planetX_aiLensPro_clear_tracking_cache'
+    return false
+  }
+  return true
+}
+
+to '_planetX_aiLensPro_refresh_wifi_status' waitMS {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  local 'seq' ('_planetX_aiLensPro_next_wifi_seq')
+  if (not ('_planetX_aiLensPro_send_uart_command' (hexToInt '42') ('[data:makeList]' seq))) {
+    return false
+  }
+  return ('_planetX_aiLensPro_read_wifi_mailbox' 17 seq waitMS)
+}
+
+to '_planetX_aiLensPro_region_payload' x1 y1 x2 y2 maxX maxY {
+  local 'payload' ('[data:newByteArray]' 9 0)
+  atPut 1 payload 1
+  '_planetX_aiLensPro_put_u16le' payload 2 (minimum maxX (maximum 0 (x1 | 0)))
+  '_planetX_aiLensPro_put_u16le' payload 4 (minimum maxY (maximum 0 (y1 | 0)))
+  '_planetX_aiLensPro_put_u16le' payload 6 (minimum maxX (maximum 0 (x2 | 0)))
+  '_planetX_aiLensPro_put_u16le' payload 8 (minimum maxY (maximum 0 (y2 | 0)))
+  return payload
+}
+
+to '_planetX_aiLensPro_selected_ball_offset' selection {
+  local 'best' -1
+  local 'bestMetric' 0
+  for i _planetX_aiLensPro_ball_records {
+    local 'offset' ((i - 1) * 10)
+    local 'metric' ('_planetX_aiLensPro_ball_metric' offset selection)
+    local 'better' (metric < bestMetric)
+    if (selection == 'largest') {
+      better = (metric > bestMetric)
+    }
+    if (or (best < 0) better) {
+      best = offset
+      bestMetric = metric
+    }
+  }
+  return best
+}
+
+to '_planetX_aiLensPro_send_uart_command' command params {
+  return ('_planetX_aiLensPro_write_uart_frame' ('_planetX_aiLensPro_uart_frame' command params))
+}
+
+to '_planetX_aiLensPro_send_wifi_connect' seq ssid password {
+  local 'ssidBytes' ('[data:asByteArray]' ssid)
+  local 'passBytes' ('[data:asByteArray]' password)
+  local 'ssidLen' (size ssidBytes)
+  local 'passLen' (size passBytes)
+  if (or (ssidLen <= 0) (ssidLen > 127)) {
+    return false
+  }
+  if (or (passLen > 119) ((ssidLen + passLen) > 246)) {
+    return false
+  }
+  local 'payload' ('[data:newByteArray]' (3 + (ssidLen + passLen)) 0)
+  atPut 1 payload (seq & 255)
+  atPut 2 payload ssidLen
+  atPut 3 payload passLen
+  for i ssidLen {
+    atPut (i + 3) payload (at i ssidBytes)
+  }
+  for i passLen {
+    atPut (i + (3 + ssidLen)) payload (at i passBytes)
+  }
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '41') payload)
+}
+
+to '_planetX_aiLensPro_switch_mode' target retryAfterFirst timeoutMSecs {
+  if (not ('_planetX_aiLensPro_ready')) {return (booleanConstant false)}
+  local 'currentId' ('_planetX_aiLensPro_try_read_mode' 2)
+  if (currentId == (target & 255)) {
+    _planetX_aiLensPro_current_mode = target
+    return (booleanConstant true)
+  }
+  if (and (currentId < 0) ((_planetX_aiLensPro_current_mode & 255) == (target & 255))) {
+    return (booleanConstant true)
+  }
+  local 'attempts' (1 + (maximum 0 retryAfterFirst))
+  for attempt attempts {
+    if (not ('_planetX_aiLensPro_send_uart_command' target ('[data:makeList]' 0))) {
+      '_planetX_aiLensPro_offline'
+      return (booleanConstant false)
+    }
+    local 'start' (millisOp)
+    local 'missCount' 0
+    repeatUntil (((millisOp) - start) >= timeoutMSecs) {
+      waitMillis 20
+      local 'id' ('_planetX_aiLensPro_try_read_mode' 1)
+      if (id == (target & 255)) {
+        _planetX_aiLensPro_current_mode = target
+        return (booleanConstant true)
+      }
+      if (id < 0) {
+        missCount += 1
+        if (missCount >= 3) {
+          '_planetX_aiLensPro_offline'
+          return (booleanConstant false)
+        }
+      } else {
+        missCount = 0
+      }
+    }
+    if (attempt < attempts) {
+      waitMillis 120
+    }
+  }
+  return (booleanConstant false)
+}
+
+to '_planetX_aiLensPro_trim_text' text {
+  text = ('[data:convertType]' text 'string')
+  local 'start' 1
+  local 'end' (size text)
+  repeatUntil (start > end) {
+    if (not ('_planetX_aiLensPro_is_space' ('[data:unicodeAt]' start text))) {return ('_planetX_aiLensPro_trim_text_end' text start end)}
+    start += 1
+  }
+  return ''
+}
+
+to '_planetX_aiLensPro_trim_text_end' text start end {
+  repeatUntil (end < start) {
+    if (not ('_planetX_aiLensPro_is_space' ('[data:unicodeAt]' end text))) {return ('[data:copyFromTo]' text start end)}
+    end = (end - 1)
+  }
+  return ''
+}
+
+to '_planetX_aiLensPro_try_read_mode' retry {
+  if (not ('_planetX_aiLensPro_ready')) {return -1}
+  local 'cur' ('_planetX_aiLensPro_read_reg_retry' 0 1 retry)
+  if ((size cur) >= 1) {
+    local 'id' ((at 1 cur) & 255)
+    if ('_planetX_aiLensPro_update_mode' id) {
+      '_planetX_aiLensPro_mark_online'
+      return id
+    }
+  }
+  '_planetX_aiLensPro_offline'
+  return -1
+}
+
+to '_planetX_aiLensPro_u16le' data offset {
+  if ((offset + 1) > (size data)) {return 0}
+  return (((at (offset + 1) data) << 8) | (at offset data))
+}
+
+to '_planetX_aiLensPro_uart_frame' command payload {
+  if (payload == 0) {payload = ('[data:newByteArray]' 0)}
+  payload = ('[data:asByteArray]' payload)
+  local 'len' (size payload)
+  local 'frame' ('[data:newByteArray]' (4 + len) 0)
+  atPut 1 frame (hexToInt 'FF')
+  atPut 2 frame (hexToInt 'F9')
+  atPut 3 frame (command & 255)
+  atPut 4 frame (len & 255)
+  for i len {
+    atPut (i + 4) frame (at i payload)
+  }
+  return frame
+}
+
+to '_planetX_aiLensPro_update_mode' appId {
+  local 'id' (appId & 255)
+  local 'supported' (or (id == 1) (id == (hexToInt '1B')))
+  supported = (or supported (and (id >= (hexToInt '10')) (id <= (hexToInt '16'))))
+  supported = (or supported (and (id >= (hexToInt '1E')) (id <= (hexToInt '27'))))
+  if (not supported) {
+    return false
+  }
+  _planetX_aiLensPro_current_mode = id
+  return true
+}
+
+to '_planetX_aiLensPro_utf8_bytes_match' bytes text {
+  local 'expected' ('[data:asByteArray]' text)
+  if ((size expected) != (size bytes)) {
+    return false
+  }
+  for i (size bytes) {
+    if ((at i bytes) != (at i expected)) {return false}
+  }
+  return true
+}
+
+to '_planetX_aiLensPro_valid_wifi_status' state flags textLen {
+  if (or (state < 0) (state > 5)) {return false}
+  if ((flags & 240) != 0) {return false}
+  if (or (textLen < 0) (textLen > 72)) {return false}
+  if (and (state == 2) ((flags & 4) != 0)) {return false}
+  if (and (state == 3) ((flags & 2) == 0)) {return false}
+  if (and (state == 4) ((flags & 7) != 7)) {return false}
+  if (and (state == 5) ((flags & 4) != 0)) {return false}
+  return true
+}
+
+to '_planetX_aiLensPro_wait_wifi_ready' timeoutMS {
+  local 'start' (millisOp)
+  repeatUntil ((millisSince start) >= (maximum 1000 timeoutMS)) {
+    '_planetX_aiLensPro_refresh_wifi_status' 600
+    if ('_planetX_aiLensPro_wifi_public_ready') {
+      return true
+    }
+    if (_planetX_aiLensPro_wifi_state == 5) {
+      return false
+    }
+    waitMillis 400
+  }
+  return false
+}
+
+to '_planetX_aiLensPro_wait_wifi_receipt' seq {
+  local 'start' (millisOp)
+  repeatUntil ((millisSince start) >= 3500) {
+    if ('_planetX_aiLensPro_read_wifi_mailbox' -1 seq 650) {
+      if (_planetX_aiLensPro_wifi_mailbox_type == 18) {return true}
+      if (_planetX_aiLensPro_wifi_mailbox_type == 19) {return false}
+    } else {
+      waitMillis 80
+    }
+  }
+  return false
+}
+
+to '_planetX_aiLensPro_wifi_header_matches' head expectedType expectedSeq {
+  if ((size head) < 8) {return false}
+  if (or ((at 1 head) != 165) ((at 2 head) != 1)) {return false}
+  local 'type' (at 3 head)
+  if (and (type != 17) (and (type != 18) (type != 19))) {
+    return false
+  }
+  if (and (expectedType >= 0) (type != (expectedType & 255))) {
+    return false
+  }
+  if (and (expectedSeq >= 0) ((at 4 head) != (expectedSeq & 255))) {
+    return false
+  }
+  return ('_planetX_aiLensPro_valid_wifi_status' (at 5 head) (at 6 head) (((at 7 head) << 8) | (at 8 head)))
+}
+
+to '_planetX_aiLensPro_wifi_public_ready' {
+  return (and (_planetX_aiLensPro_wifi_state == 4) ((_planetX_aiLensPro_wifi_flags & 4) != 0))
+}
+
+to '_planetX_aiLensPro_write_uart_frame' frame {
+  if (or (frame == 0) ((size frame) <= 0)) {return (booleanConstant false)}
+  frame = ('[data:asByteArray]' frame)
+  if ((size frame) > 253) {
+    return (booleanConstant false)
+  }
+  local 'params' ('[data:newByteArray]' ((size frame) + 2) 0)
+  atPut 1 params 0
+  atPut 2 params ((size frame) & 255)
+  for i (size frame) {
+    atPut (i + 2) params (at i frame)
+  }
+  for attempt 3 {
+    if ('_planetX_aiLensPro_device_write' (hexToInt '30') params) {return true}
+    waitMillis 2
+  }
+  return false
+}
+
+to planetX_aiLensPro_black_line_value data {
+  if (data == 'angle') {return _planetX_aiLensPro_line_angle}
+  return _planetX_aiLensPro_line_distance
+}
+
+to planetX_aiLensPro_center_expression_name {
+  local 'index' ('_planetX_aiLensPro_nearest_expression_index')
+  if (index < 1) {
+    return ''
+  }
+  return (at index _planetX_aiLensPro_expression_labels)
+}
+
+to planetX_aiLensPro_center_face_value data {
+  if (or (data == 'confidence (%)') (data == 'confidence')) {return _planetX_aiLensPro_face_confidence}
+  if (data == 'blink count') {return _planetX_aiLensPro_face_blink}
+  if (data == 'mouth open count') {return _planetX_aiLensPro_face_mouth}
+  if (_planetX_aiLensPro_face_coord_valid == 0) {return 0}
+  if (data == 'x coordinate') {return ((_planetX_aiLensPro_face_left_x + _planetX_aiLensPro_face_right_x) >> 1)}
+  if (data == 'y coordinate') {return ((_planetX_aiLensPro_face_left_y + _planetX_aiLensPro_face_right_y) >> 1)}
+  if (data == 'width') {return (maximum 0 (_planetX_aiLensPro_face_right_x - _planetX_aiLensPro_face_left_x))}
+  return (maximum 0 (_planetX_aiLensPro_face_right_y - _planetX_aiLensPro_face_left_y))
+}
+
+to planetX_aiLensPro_center_gesture_name {
+  '_planetX_aiLensPro_defaults'
+  return _planetX_aiLensPro_hand_label
+}
+
+to planetX_aiLensPro_center_gesture_value data {
+  if (data == 'x coordinate') {return _planetX_aiLensPro_hand_x}
+  if (data == 'y coordinate') {return _planetX_aiLensPro_hand_y}
+  if (data == 'width') {return _planetX_aiLensPro_hand_width}
+  if (data == 'height') {return _planetX_aiLensPro_hand_height}
+  if (or (data == 'confidence (%)') (data == 'confidence')) {return _planetX_aiLensPro_hand_confidence}
+  return _planetX_aiLensPro_hand_id
+}
+
+to planetX_aiLensPro_center_object_name {
+  local 'offset' ('_planetX_aiLensPro_nearest_object_offset')
+  if (offset < 0) {
+    return ''
+  }
+  return (at (1 + (offset / 10)) _planetX_aiLensPro_object_labels)
+}
+
+to planetX_aiLensPro_center_object_value data {
+  local 'offset' ('_planetX_aiLensPro_nearest_object_offset')
+  if (offset < 0) {
+    return 0
+  }
+  if (data == 'x coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_object_targets (offset + 3))
+  }
+  if (data == 'y coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_object_targets (offset + 5))
+  }
+  if (data == 'width') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_object_targets (offset + 7))
+  }
+  if (data == 'height') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_object_targets (offset + 9))
+  }
+  if (or (data == 'confidence (%)') (data == 'confidence')) {
+    return (minimum 100 (at (offset + 2) _planetX_aiLensPro_object_targets))
+  }
+  return (at (offset + 1) _planetX_aiLensPro_object_targets)
+}
+
+to planetX_aiLensPro_center_posture_is posture {
+  if (not ('_planetX_aiLensPro_posture_center_valid')) {return false}
+  local 'id' ('[data:find]' posture ('[data:split]' 'standing|hand up|both hands up|squatting|bending|sitting|falling|kneeling|running' '|'))
+  return ((at 2 _planetX_aiLensPro_posture_targets) == id)
+}
+
+to planetX_aiLensPro_center_posture_name {
+  if (not ('_planetX_aiLensPro_posture_center_valid')) {return ''}
+  return _planetX_aiLensPro_posture_label
+}
+
+to planetX_aiLensPro_center_posture_value data {
+  if (not ('_planetX_aiLensPro_posture_center_valid')) {return -1}
+  local 'id' ('_planetX_aiLensPro_posture_value_id' data)
+  if (id == 0) {
+    return (at 1 _planetX_aiLensPro_posture_targets)
+  }
+  if (id == 1) {
+    return (minimum 100 (at 3 _planetX_aiLensPro_posture_targets))
+  }
+  if (and (id >= 2) (id <= 5)) {
+    return ('_planetX_aiLensPro_posture_coord' (4 + ((id - 2) * 2)))
+  }
+  if (and (id >= 6) (id <= 39)) {
+    return ('_planetX_aiLensPro_posture_coord' (12 + ((id - 6) * 2)))
+  }
+  return -1
+}
+
+to planetX_aiLensPro_clear_learned_object id {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  id = (id | 0)
+  if (or (id < 0) (id > 30)) {
+    return false
+  }
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '48') ('[data:makeList]' 2 id))
+}
+
+to planetX_aiLensPro_connect_camera_wifi ssid password {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  ssid = ('_planetX_aiLensPro_trim_text' ssid)
+  if ((size ssid) == 0) {
+    _planetX_aiLensPro_wifi_state = 5
+    _planetX_aiLensPro_wifi_flags = 0
+    return false
+  }
+  local 'seq' ('_planetX_aiLensPro_next_wifi_seq')
+  for attempt 5 {
+    if ('_planetX_aiLensPro_send_wifi_connect' seq ssid password) {if ('_planetX_aiLensPro_wait_wifi_receipt' seq) {
+      return ('_planetX_aiLensPro_wait_wifi_ready' 60000)
+    }}
+    waitMillis 120
+  }
+  return false
+}
+
+to planetX_aiLensPro_current_rhythm_value data {
+  if (data == 'bpm') {return _planetX_aiLensPro_rhythm_bpm}
+  if (data == 'beat count') {return _planetX_aiLensPro_rhythm_beats}
+  return _planetX_aiLensPro_rhythm_duration_ms
+}
+
+to planetX_aiLensPro_get_one_frame {
+  '_planetX_aiLensPro_refresh_current_result'
+  waitMillis 1
+}
+
+to planetX_aiLensPro_image_ball_count {
+  return _planetX_aiLensPro_ball_count
+}
+
+to planetX_aiLensPro_image_card_count {
+  return _planetX_aiLensPro_card_count
+}
+
+to planetX_aiLensPro_image_code {
+  if (planetX_aiLensPro_image_contains_code 'any code') {return _planetX_aiLensPro_code_content}
+  return ''
+}
+
+to planetX_aiLensPro_image_code_equals content {
+  if (not (planetX_aiLensPro_image_contains_code 'any code')) {return false}
+  return ('_planetX_aiLensPro_utf8_bytes_match' _planetX_aiLensPro_code_bytes content)
+}
+
+to planetX_aiLensPro_image_color_is color {
+  local 'id' ('[data:find]' color ('[data:split]' 'red|green|blue|white|black|yellow' '|'))
+  return (and (_planetX_aiLensPro_color_mode == 1) (_planetX_aiLensPro_color_center_id == id))
+}
+
+to planetX_aiLensPro_image_contains_ball color {
+  if (color == 'any') {return (_planetX_aiLensPro_ball_count > 0)}
+  if (color == 'red') {return (_planetX_aiLensPro_ball_red != 0)}
+  return (_planetX_aiLensPro_ball_blue != 0)
+}
+
+to planetX_aiLensPro_image_contains_black_line direction centerRange {
+  if (_planetX_aiLensPro_line_detected == 0) {return false}
+  local 'range' (minimum 90 (maximum 0 (centerRange | 0)))
+  if (direction == 'center') {
+    return (and (_planetX_aiLensPro_line_angle >= (0 - range)) (_planetX_aiLensPro_line_angle <= range))
+  }
+  if (direction == 'left') {
+    return (_planetX_aiLensPro_line_angle < (0 - range))
+  }
+  return (_planetX_aiLensPro_line_angle > range)
+}
+
+to planetX_aiLensPro_image_contains_code type {
+  if (or (_planetX_aiLensPro_code_detected == 0) (_planetX_aiLensPro_code_length == 0)) {return false}
+  if (type == 'any code') {return true}
+  local 'id' ('[data:find]' type ('[data:split]' 'QR code|barcode' '|'))
+  return (_planetX_aiLensPro_code_type == id)
+}
+
+to planetX_aiLensPro_image_contains_expression expression {
+  if (expression == 'any') {return (_planetX_aiLensPro_expression_records > 0)}
+  local 'id' ('_planetX_aiLensPro_expression_type_id' expression)
+  for i _planetX_aiLensPro_expression_records {
+    if ((at (2 + ((i - 1) * 11)) _planetX_aiLensPro_expression_targets) == id) {return true}
+  }
+  return false
+}
+
+to planetX_aiLensPro_image_contains_face {
+  return (_planetX_aiLensPro_face_coord_valid != 0)
+}
+
+to planetX_aiLensPro_image_contains_gesture name {
+  if (not (planetX_aiLensPro_image_contains_learned_gesture)) {return false}
+  return (_planetX_aiLensPro_hand_label == name)
+}
+
+to planetX_aiLensPro_image_contains_item_card card {
+  return (('_planetX_aiLensPro_card_offset_by_id' ('_planetX_aiLensPro_card_id' card)) >= 0)
+}
+
+to planetX_aiLensPro_image_contains_learned_color id {
+  return (and (_planetX_aiLensPro_color_mode == 0) (('_planetX_aiLensPro_color_offset_by_id' id) >= 0))
+}
+
+to planetX_aiLensPro_image_contains_learned_gesture {
+  return (and (_planetX_aiLensPro_hand_status != 0) (_planetX_aiLensPro_hand_id > 0))
+}
+
+to planetX_aiLensPro_image_contains_learned_object id {
+  id = (id | 0)
+  if (id == 0) {
+    return (and (_planetX_aiLensPro_self_status != 0) (_planetX_aiLensPro_self_id > 0))
+  }
+  return (and (_planetX_aiLensPro_self_status != 0) (_planetX_aiLensPro_self_id == id))
+}
+
+to planetX_aiLensPro_image_contains_letter_card card {
+  return (('_planetX_aiLensPro_card_offset_by_id' ('_planetX_aiLensPro_card_id' card)) >= 0)
+}
+
+to planetX_aiLensPro_image_contains_number_card card {
+  return (('_planetX_aiLensPro_card_offset_by_id' ('_planetX_aiLensPro_card_id' card)) >= 0)
+}
+
+to planetX_aiLensPro_image_contains_object objectClass {
+  local 'id' ('_planetX_aiLensPro_object_class_id' objectClass)
+  if (id == 255) {
+    return (_planetX_aiLensPro_object_records > 0)
+  }
+  for i _planetX_aiLensPro_object_records {
+    if ((at (1 + ((i - 1) * 10)) _planetX_aiLensPro_object_targets) == id) {return true}
+  }
+  return false
+}
+
+to planetX_aiLensPro_image_contains_posture {
+  return (_planetX_aiLensPro_posture_records > 0)
+}
+
+to planetX_aiLensPro_image_contains_text {
+  '_planetX_aiLensPro_defaults'
+  return (and (_planetX_aiLensPro_ocr_status == 1) ((size _planetX_aiLensPro_ocr_text) > 0))
+}
+
+to planetX_aiLensPro_image_contains_traffic_card card {
+  return (('_planetX_aiLensPro_card_offset_by_id' ('_planetX_aiLensPro_card_id' card)) >= 0)
+}
+
+to planetX_aiLensPro_image_expression_count {
+  return _planetX_aiLensPro_expression_count
+}
+
+to planetX_aiLensPro_image_face_count {
+  return _planetX_aiLensPro_face_count
+}
+
+to planetX_aiLensPro_image_object_count {
+  return _planetX_aiLensPro_object_count
+}
+
+to planetX_aiLensPro_image_rgb_value data {
+  if (data == 'r') {return _planetX_aiLensPro_color_r}
+  if (data == 'g') {return _planetX_aiLensPro_color_g}
+  return _planetX_aiLensPro_color_b
+}
+
+to planetX_aiLensPro_image_text {
+  if (planetX_aiLensPro_image_contains_text) {return _planetX_aiLensPro_ocr_text}
+  return ''
+}
+
+to planetX_aiLensPro_image_text_equals text {
+  if (not (planetX_aiLensPro_image_contains_text)) {return false}
+  return ('_planetX_aiLensPro_utf8_bytes_match' _planetX_aiLensPro_ocr_bytes text)
+}
+
+to planetX_aiLensPro_image_text_value data {
+  if (or (data == 'confidence (%)') (data == 'confidence')) {return _planetX_aiLensPro_ocr_confidence}
+  return _planetX_aiLensPro_ocr_length
+}
+
+to planetX_aiLensPro_init {
+  '_planetX_aiLensPro_defaults'
+  _planetX_aiLensPro_online = false
+  _planetX_aiLensPro_read_fail_count = 0
+  _planetX_aiLensPro_last_recovery_probe = ((millisOp) - 200)
+  _planetX_aiLensPro_init_done = true
+  return ('_planetX_aiLensPro_probe_init')
+}
+
+to planetX_aiLensPro_is_camera_wifi_connected {
+  '_planetX_aiLensPro_refresh_wifi_status' 450
+  return ('_planetX_aiLensPro_wifi_public_ready')
+}
+
+to planetX_aiLensPro_learn_center_object_as id {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  id = (id | 0)
+  if (or (id < 1) (id > 30)) {
+    return false
+  }
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '48') ('[data:makeList]' 1 id))
+}
+
+to planetX_aiLensPro_learned_color_value id data {
+  local 'offset' ('_planetX_aiLensPro_color_offset_by_id' id)
+  if (offset < 0) {
+    return 0
+  }
+  if (data == 'x coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_color_targets (offset + 4))
+  }
+  if (data == 'y coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_color_targets (offset + 6))
+  }
+  if (data == 'id') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_color_targets (offset + 1))
+  }
+  if (or (data == 'confidence (%)') (data == 'confidence')) {
+    return (minimum 100 (at (offset + 3) _planetX_aiLensPro_color_targets))
+  }
+  if (data == 'width') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_color_targets (offset + 8))
+  }
+  if (data == 'height') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_color_targets (offset + 10))
+  }
+  if (data == 'r') {
+    return (at (offset + 12) _planetX_aiLensPro_color_targets)
+  }
+  if (data == 'g') {
+    return (at (offset + 13) _planetX_aiLensPro_color_targets)
+  }
+  return (at (offset + 14) _planetX_aiLensPro_color_targets)
+}
+
+to planetX_aiLensPro_learned_face_confidence {
+  if (and (_planetX_aiLensPro_face_state == 1) (_planetX_aiLensPro_face_id > 0)) {return _planetX_aiLensPro_face_confidence}
+  return 0
+}
+
+to planetX_aiLensPro_learned_face_name {
+  if (and (_planetX_aiLensPro_face_state == 1) (_planetX_aiLensPro_face_id > 0)) {return _planetX_aiLensPro_face_label}
+  return ''
+}
+
+to planetX_aiLensPro_learned_object_value data {
+  if (or (data == 'confidence (%)') (data == 'confidence')) {return _planetX_aiLensPro_self_confidence}
+  return _planetX_aiLensPro_self_id
+}
+
+to planetX_aiLensPro_object_tracking_running {
+  return (_planetX_aiLensPro_tracking_records > 0)
+}
+
+to planetX_aiLensPro_object_tracking_target_lost {
+  if (_planetX_aiLensPro_tracking_records < 1) {return false}
+  return ((at 3 _planetX_aiLensPro_tracking_targets) != 0)
+}
+
+to planetX_aiLensPro_recognize_audio_path path {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  path = ('_planetX_aiLensPro_trim_text' path)
+  if ((size path) == 0) {
+    return false
+  }
+  local 'body' ('[data:asByteArray]' path)
+  local 'len' (minimum 248 (size body))
+  local 'payload' ('[data:newByteArray]' (len + 1) 0)
+  atPut 1 payload len
+  for i len {
+    atPut (i + 1) payload (at i body)
+  }
+  if (not ('_planetX_aiLensPro_send_uart_command' (hexToInt '37') payload)) {
+    return false
+  }
+  waitMillis 30
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '3A') ('[data:makeList]' 1))
+}
+
+to planetX_aiLensPro_record_and_recognize_rhythm seconds {
+  if (or (not ('_planetX_aiLensPro_ready')) _planetX_aiLensPro_recording_active) {return false}
+  seconds = (minimum 25 (maximum 0 (seconds | 0)))
+  if (seconds == 0) {
+    return false
+  }
+  _planetX_aiLensPro_recording_seconds = seconds
+  _planetX_aiLensPro_recording_active = true
+  sendBroadcast '_planetX_aiLensPro_record_rhythm_task'
+}
+
+to planetX_aiLensPro_reset_ocr_region {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '45') ('[data:makeList]' 0))
+}
+
+to planetX_aiLensPro_rhythm_recognition_succeeded {
+  return (_planetX_aiLensPro_rhythm_status == 1)
+}
+
+to planetX_aiLensPro_selected_ball_value selection data {
+  local 'offset' ('_planetX_aiLensPro_selected_ball_offset' selection)
+  if (offset < 0) {
+    return 0
+  }
+  if (data == 'x coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 3))
+  }
+  if (data == 'y coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 5))
+  }
+  if (or (data == 'confidence (%)') (data == 'confidence')) {
+    return (minimum 100 (at (offset + 2) _planetX_aiLensPro_ball_targets))
+  }
+  return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_ball_targets (offset + 9))
+}
+
+to planetX_aiLensPro_selected_card_value card data {
+  local 'id' ('_planetX_aiLensPro_card_id' card)
+  local 'offset' -1
+  if (id == 255) {
+    offset = ('_planetX_aiLensPro_largest_card_offset')
+  } else {
+    offset = ('_planetX_aiLensPro_card_offset_by_id' id)
+  }
+  if (offset < 0) {
+    return 0
+  }
+  if (data == 'x coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_card_targets (offset + 3))
+  }
+  if (data == 'y coordinate') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_card_targets (offset + 5))
+  }
+  if (or (data == 'confidence (%)') (data == 'confidence')) {
+    return (minimum 100 (at (offset + 2) _planetX_aiLensPro_card_targets))
+  }
+  if (data == 'size') {
+    return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_card_targets (offset + 7))
+  }
+  return (at (offset + 1) _planetX_aiLensPro_card_targets)
+}
+
+to planetX_aiLensPro_set_color_recognition_mode mode {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  local 'value' 0
+  if (mode == 'recognize mode') {
+    value = 1
+  }
+  local 'current' ('_planetX_aiLensPro_try_read_mode' 2)
+  if (current < 0) {
+    current = _planetX_aiLensPro_current_mode
+  }
+  if (current != (hexToInt '25')) {
+    if (not ('_planetX_aiLensPro_switch_mode' (hexToInt '25') 2 6000)) {return false}
+  }
+  if (not ('_planetX_aiLensPro_send_uart_command' (hexToInt '44') ('[data:makeList]' value))) {
+    return false
+  }
+  _planetX_aiLensPro_color_mode = value
+  waitMillis 30
+  '_planetX_aiLensPro_refresh_color'
+  return true
+}
+
+to planetX_aiLensPro_set_flashlight state brightness {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  brightness = (brightness | 0)
+  if (or (or (state == 'off') (state == '关闭')) (brightness == 0)) {
+    return ('_planetX_aiLensPro_send_uart_command' (hexToInt '46') ('[data:makeList]' 0 0))
+  }
+  brightness = (minimum 100 (maximum 5 brightness))
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '46') ('[data:makeList]' 1 brightness))
+}
+
+to planetX_aiLensPro_set_ocr_region x1 y1 x2 y2 {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '45') ('_planetX_aiLensPro_region_payload' x1 y1 x2 y2 480 640))
+}
+
+to planetX_aiLensPro_start_object_tracking x1 y1 x2 y2 {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  local 'payload' ('_planetX_aiLensPro_region_payload' x1 y1 x2 y2 640 480)
+  '_planetX_aiLensPro_clear_tracking_cache'
+  return ('_planetX_aiLensPro_send_uart_command' (hexToInt '47') payload)
+}
+
+to planetX_aiLensPro_stop_object_tracking {
+  if (not ('_planetX_aiLensPro_ready')) {return false}
+  local 'result' ('_planetX_aiLensPro_send_uart_command' (hexToInt '47') ('[data:makeList]' 0))
+  '_planetX_aiLensPro_clear_tracking_cache'
+  return result
+}
+
+to planetX_aiLensPro_switch_to mode {
+  if (not ('_planetX_aiLensPro_ready')) {return 0}
+  return ('_planetX_aiLensPro_switch_mode' ('_planetX_aiLensPro_mode_id' mode) 3 6000)
+}
+
+to planetX_aiLensPro_tracking_target_value data {
+  if (_planetX_aiLensPro_tracking_records < 1) {return 0}
+  if (data == 'x coordinate') {return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_tracking_targets 4)}
+  if (data == 'y coordinate') {return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_tracking_targets 6)}
+  if (data == 'width') {return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_tracking_targets 8)}
+  if (data == 'height') {return ('_planetX_aiLensPro_u16le' _planetX_aiLensPro_tracking_targets 10)}
+  return (minimum 100 (at 2 _planetX_aiLensPro_tracking_targets))
+}
+

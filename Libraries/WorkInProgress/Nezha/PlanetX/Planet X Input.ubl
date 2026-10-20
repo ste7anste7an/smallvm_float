@@ -1,307 +1,220 @@
-module Input Control
+module 'Planet X Input' Control
 author 'Elecfreaks Team'
-version 1 10 
-choices planetXRTCReadField year month day weekday hour minute seconds 
-choices planetXRTCField year month day weekday hour minute seconds 
+version 2 1 
+depends '_Planet X Support' 
+choices planetXDHT11State 'temperature (C)' 'humidity (0-100)' 
+choices planetXButton C D 
 choices planetXDistanceUnit cm mm inch 
-choices ioAdcPort J1 J2 J3 J4 
 choices planetXRTCSetField year month day hour minute seconds 
+choices planetXWaterSpeed slow medium fast 
 choices planetXTrackBitChannel '1' '2' '3' '4' 
-choices planetXTrackBitSense '0' '1' 
-choices planetXTrackBitPattern '0000' '0001' '0010' '0011' '0100' '0101' '0110' '0111' '1000' '1001' '1010' '1011' '1100' '1101' '1110' '1111' 
 choices planetXTempUnit Celsius Fahrenheit 
 choices planetXTrackingState '00' '01' '10' '11' 
 choices planetXGas 'carbon monoxide' 'carbon dioxide' smoke alcohol 
+choices planetXTrackBitPattern '0000' '0001' '0010' '0011' '0100' '0101' '0110' '0111' '1000' '1001' '1010' '1011' '1100' '1101' '1110' '1111' 
 choices planetXBME280State 'temperature (°C)' 'humidity (0-100%)' 'pressure (hPa)' 'altitude (m)' 
-choices planetXDHT11State 'temperature (C)' 'humidity (0-100)' 
-choices planetXButton C D 
-choices planetXWaterSpeed slow medium fast 
+choices planetXRTCReadField year month day weekday hour minute seconds 
+choices planetXTrackBitSense '0' '1' 
 description 'button
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05017
 
 crash sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05008
 
 ultrasonic sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05007
 
 pyroelectric sensor
+WIKI (PIR):
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05002
 
 DHT11
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05004
 
 DS18B20
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05041
 
 Line inspection sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05019
 
 Noise sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05003
 
 Light sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05001
 
 Soil moisture sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05005
 
 water level sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05023
 
 UV sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05021
 
 gas sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05030
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05031
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05032
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05033
 
 PM2.5
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05028
 
 dust sensor
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05027
 
 potentiometer
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05018
 
 RFID
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05047
 
 environmental sensor
+WIKI (BME280):
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05022
 
 real-time clock
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05034
 
-Four-channel grayscale line-following sensors'
-variables _gpio_buttonEdges _gpio_dsLastTemp _gpio_sr04_last _gpio_sr04_misses _gpio_dht_temperature _gpio_dht_humidity _gpio_dhtData _gpio_dhtLastReadTime _gpio_dhtRawPulses _gpio_tmClockPin _gpio_tmDataPin _gpio_tmBrightness _gpio_tmDigits _gpio_npPixels _gpio_npPin _gpio_npHasWhite _gpio_npRangeStart _gpio_npRangeLength _gpio_mp3Pin _gpio_wifiConnected _gpio_wifiLastResponse _gpio_wifiTXPin _gpio_wifiRXPin _gpio_wifiBaudRate _gpio_i2cReady _gpio_matrixReady _gpio_matrixBuf _gpio_asrEvents _planetX_rfidReady _planetX_rfidStatus _planetX_rfidRetBits _planetX_rfidRetCount _planetX_rfidAck _planetX_rfidRecv _planetX_rfidUid _planetX_rfidBlock _planetX_rfidWrite _planetX_rfidKey _planetX_extI2CReady _planetX_bmeReady _planetX_bmeAddr _planetX_bmeDigT1 _planetX_bmeDigT2 _planetX_bmeDigT3 _planetX_bmeDigP1 _planetX_bmeDigP2 _planetX_bmeDigP3 _planetX_bmeDigP4 _planetX_bmeDigP5 _planetX_bmeDigP6 _planetX_bmeDigP7 _planetX_bmeDigP8 _planetX_bmeDigP9 _planetX_bmeDigH1 _planetX_bmeDigH2 _planetX_bmeDigH3 _planetX_bmeDigH4 _planetX_bmeDigH5 _planetX_bmeDigH6 _planetX_bmeTemperature _planetX_bmePressure _planetX_bmeHumidity _planetX_gestureReady _planetX_asrReady _planetX_asrData _planetX_asrLastCode _planetX_colorReady _planetX_colorHue _planetX_colorClear _planetX_colorR _planetX_colorG _planetX_colorB _planetX_colorAddr _planetX_colorNewMode _planetX_rtcReady _planetX_trackBitReady _planetX_trackBitStateValue _planetX_trackBitStateValid _planetX_i2cRequestBusy _planetX_rfidStart _planetX_rfidController _planetX_wsResponse _planetX_i2cQueue 
+Four-channel grayscale line-following sensors
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05053'
+variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_dht_temperature _planetX_dht_humidity _planetX_dhtData _planetX_dhtLastReadTime _planetX_dhtRawPulses _planetX_rfidReady _planetX_rfidRetBits _planetX_rfidRetCount _planetX_rfidAck _planetX_rfidRecv _planetX_rfidUid _planetX_rfidBlock _planetX_rfidWrite _planetX_rfidKey _planetX_bmeReady _planetX_bmeAddr _planetX_bmeDigT1 _planetX_bmeDigT2 _planetX_bmeDigT3 _planetX_bmeDigP1 _planetX_bmeDigP2 _planetX_bmeDigP3 _planetX_bmeDigP4 _planetX_bmeDigP5 _planetX_bmeDigP6 _planetX_bmeDigP7 _planetX_bmeDigP8 _planetX_bmeDigP9 _planetX_bmeDigH1 _planetX_bmeDigH2 _planetX_bmeDigH3 _planetX_bmeDigH4 _planetX_bmeDigH5 _planetX_bmeDigH6 _planetX_bmeTemperature _planetX_bmePressure _planetX_bmeHumidity _planetX_rtcReady _planetX_trackBitReady _planetX_trackBitStateValue _planetX_trackBitStateValid _planetX_rfidStart _planetX_rfidController _planetX_wsResponse 
 
-  spec ' ' 'buttonEventBroadcast' 'when button _ key _ is pressed send broadcast _' 'menu.ioAdcPort menu.planetXButton str' 'J1' 'C' ''
-  spec 'r' 'buttonCD' 'button _ key _ is pressed' 'menu.ioAdcPort menu.planetXButton' 'J1' 'C'
+  spec ' ' 'planetX_buttonEventBroadcast' 'when button _ key _ is pressed send broadcast _' 'menu.planetXPort menu.planetXButton str' 'J1' 'C' ''
+  spec 'r' 'planetX_buttonCD' 'button _ key _ is pressed' 'menu.planetXPort menu.planetXButton' 'J1' 'C'
   space
-  spec 'r' 'Crash' 'crash sensor _ pressed?' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_crash' 'crash sensor _ pressed?' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'ultrasoundSensor' 'ultrasonic sensor _ distance, unit _' 'menu.ioAdcPort menu.planetXDistanceUnit' 'J1' 'cm'
+  spec 'r' 'planetX_ultrasoundSensor' 'ultrasonic sensor _ distance, unit _' 'menu.planetXPort menu.planetXDistanceUnit' 'J1' 'cm'
   space
-  spec 'r' 'PIR' 'PIR sensor _ detects motion?' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_pir' 'PIR sensor _ detects motion?' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'dht11Sensor' 'temperature and humidity sensor _ _ value' 'menu.ioAdcPort menu.planetXDHT11State' 'J1' 'temperature (C)'
+  spec 'r' 'planetX_dht11Sensor' 'temperature and humidity sensor _ _ value' 'menu.planetXPort menu.planetXDHT11State' 'J1' 'temperature (C)'
   space
-  spec 'r' 'Ds18b20Temp' 'temperature sensor _ temperature, unit _' 'menu.ioAdcPort menu.planetXTempUnit' 'J1' 'Celsius'
+  spec 'r' 'planetX_ds18b20Temp' 'temperature sensor _ temperature, unit _' 'menu.planetXPort menu.planetXTempUnit' 'J1' 'Celsius'
   space
-  spec 'r' 'trackingSensor' 'line-tracking sensor _ detects _' 'menu.ioAdcPort menu.planetXTrackingState' 'J1' '00'
+  spec 'r' 'planetX_trackingSensor' 'line-tracking sensor _ detects _' 'menu.planetXPort menu.planetXTrackingState' 'J1' '00'
   space
-  spec 'r' 'noiseSensor' 'noise sensor _ level (dB)' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_noiseSensor' 'noise sensor _ level (dB)' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'lightSensor' 'light sensor _ level (lux)' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_lightSensor' 'light sensor _ level (lux)' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'soilHumidity' 'soil moisture sensor _ value (0-100)' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_soilHumidity' 'soil moisture sensor _ value (0-100)' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'waterLevel' 'water level sensor _ speed _ value (0-100)' 'menu.ioAdcPort menu.planetXWaterSpeed' 'J1' 'fast'
+  spec 'r' 'planetX_waterLevel' 'water level sensor _ speed _ value (0-100)' 'menu.planetXPort menu.planetXWaterSpeed' 'J1' 'fast'
   space
-  spec 'r' 'UVLevel' 'UV sensor _ level (0-15)' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_uvLevel' 'UV sensor _ level (0-15)' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'gasValueV2' 'gas sensor _ _ concentration' 'menu.ioAdcPort menu.planetXGas' 'J1' 'carbon monoxide'
+  spec 'r' 'planetX_gasValue' 'gas sensor _ _ concentration' 'menu.planetXPort menu.planetXGas' 'J1' 'carbon monoxide'
   space
-  spec 'r' 'PM25' 'PM2.5 sensor _ concentration' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_pm25' 'PM2.5 sensor _ concentration' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'Dust' 'dust sensor _ value' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_dust' 'dust sensor _ value' 'menu.planetXPort' 'J1'
   space
-  spec 'r' 'trimpot' 'trimpot _ analog value' 'menu.ioAdcPort' 'J1'
+  spec 'r' 'planetX_trimpot' 'trimpot _ analog value' 'menu.planetXPort' 'J1'
   space
+  spec ' ' 'planetX_rfidWriteData' 'RFID sensor write data _ to card' 'str' ''
+  spec 'r' 'planetX_rfidDetectCard' 'RFID sensor detects card?'
+  spec 'r' 'planetX_rfidReadData' 'RFID sensor read data from card'
   space
-  spec ' ' 'rfidWriteData' 'RFID sensor write data _ to card' 'str' ''
-  spec 'r' 'rfidDetectCard' 'RFID sensor detects card?'
-  spec 'r' 'rfidReadData' 'RFID sensor read data from card'
+  spec 'r' 'planetX_bme280Sensor' 'BME280 sensor _ value' 'menu.planetXBME280State' 'temperature (°C)'
   space
-  spec 'r' 'bme280Sensor' 'BME280 sensor _ value' 'menu.planetXBME280State' 'temperature (°C)'
+  spec ' ' 'planetX_rtcSetData' 'real-time clock set to _ _' 'num menu.planetXRTCSetField' 2026 'year'
+  spec 'r' 'planetX_rtcReadData' 'real-time clock get _' 'menu.planetXRTCReadField' 'year'
   space
-  spec ' ' 'rtcSetDataV2' 'real-time clock set to _ _' 'num menu.planetXRTCSetField' 2026 'year'
-  spec 'r' 'rtcReadData' 'real-time clock get _' 'menu.planetXRTCReadField' 'year'
-  space
-  spec 'r' 'trackBitStateValue' 'return four-channel grayscale line sensor state value'
-  spec 'r' 'trackBitChannelState' 'four-channel grayscale line sensor channel _ detects _' 'menu.planetXTrackBitChannel menu.planetXTrackBitSense' '1' '1'
-  spec 'r' 'trackBitState' 'four-channel grayscale line sensor detects state _' 'menu.planetXTrackBitPattern' '0000'
-  spec 'r' 'trackBitGray' 'four-channel grayscale line sensor channel _ gray value' 'menu.planetXTrackBitChannel' '1'
-
-to Crash port {
-  return (not (digitalReadOp ('_gpio_pinForPort' port 'B') 'up'))
-}
-
-to Ds18b20Temp port unit {
-  local 'tempC' (('_gpio_ds18b20Raw' ('_gpio_pinForPort' port 'B')) / 16)
-  if (or (unit == 'Fahrenheit') (unit == '华氏度')) {
-    return ((tempC * 18) / 10) '+' 32
-  }
-  return tempC
-}
-
-to Dust port {
-  local 'voPin' ('_gpio_pinForPort' port 'A')
-  local 'ledPin' ('_gpio_pinForPort' port 'B')
-  local 'raw' ('[elfreaks_dev_sensor:dustRaw]' voPin ledPin)
-  local 'mv' ('[misc:rescale]' raw 0 1023 0 4650)
-  local 'dust' (((mv - 380) * 5) / 29)
-  return (maximum 0 dust)
-}
-
-to PIR port {
-  return (digitalReadOp ('_gpio_pinForPort' port 'B'))
-}
-
-to PM25 port {
-  local 'pin' ('_gpio_pinForPort' port 'B')
-  '[sensors:captureStart]' pin
-  local 'start' (millisOp)
-  repeatUntil (or (('[sensors:captureCount]') >= 3) ((millisSince start) > 1000)) {
-    waitMillis 1
-  }
-  local 'pulses' ('[sensors:captureEnd]')
-  if ((size pulses) < 2) {
-    return 0
-  }
-  local 'pulseWidth' (at 2 pulses)
-  if (pulseWidth < 0) {
-    return 0
-  }
-  return pulseWidth
-}
-
-to UVLevel port {
-  local 'value' (minimum (analogReadOp ('_gpio_pinForPort' port 'A')) 625)
-  return ('[misc:rescale]' value 0 625 0 15)
-}
-
-to '_gpio_buttonNow' port button {
-  local 'pinC' ('_gpio_pinForPort' port 'A')
-  local 'pinD' ('_gpio_pinForPort' port 'B')
-  digitalReadOp pinC 'up'
-  digitalReadOp pinD 'up'
-  waitMillis 1
-  local 'cPressed' (not (digitalReadOp pinC 'up'))
-  local 'dPressed' (not (digitalReadOp pinD 'up'))
-  if (button == 'C') {
-    return cPressed
-  } (button == 'D') {
-    return dPressed
-  }
-  return (and cPressed dPressed)
-}
-
-to '_gpio_dhtCaptureData' pin {
-  '[sensors:captureStart]' pin
-  waitMillis 10
-  local 'pulses' ('[sensors:captureEnd]')
-  local 'pulseCount' (size pulses)
-  if (pulseCount < 80) {
-    return 0
-  }
-  if (pulseCount > 80) {
-    pulses = ('[data:copyFromTo]' pulses (pulseCount - 79))
-  }
-  _gpio_dhtRawPulses = pulses
-  local 'byte' 0
-  for i 40 {
-    if ((at ((2 * i) - 1) pulses) > 40) {byte += 1}
-    if ((i % 8) == 0) {
-      atPut (i / 8) _gpio_dhtData byte
-      byte = 0
-    } else {
-      byte = (byte << 1)
-    }
-  }
-}
-
-to '_gpio_dhtChecksumOkay' {
-  if (not (isType _gpio_dhtData 'list')) {return false}
-  local 'checksum' 0
-  for i 4 {
-    checksum += (at i _gpio_dhtData)
-  }
-  checksum = (checksum & 255)
-  return (checksum == (at 5 _gpio_dhtData))
-}
-
-to '_gpio_dhtReadData' pin {
-  if (_gpio_dhtData == 0) {_gpio_dhtData = (newList 5)}
-  atPut 'all' _gpio_dhtData 1
-  local 'data' ('[elfreaks_dev_sensor:dhtRead]' pin)
-  if (isType data 'list') {
-    _gpio_dhtData = data
-  }
-}
-
-to '_gpio_dhtReady' {
-  local 'elapsed' ((millisOp) - _gpio_dhtLastReadTime)
-  return (or (elapsed < 0) (elapsed > 2000))
-}
-
-to '_gpio_dhtUpdate' pin {
-  if ('_gpio_dhtReady') {
-    '_gpio_dhtReadData' pin
-    _gpio_dhtLastReadTime = (millisOp)
-    if ('_gpio_dhtChecksumOkay') {
-      local 'newTemp' (at 3 _gpio_dhtData)
-      local 'newHum' (at 1 _gpio_dhtData)
-      if (and (newTemp != 0) (newHum != 0)) {
-        _gpio_dht_temperature = newTemp
-        _gpio_dht_humidity = newHum
-      }
-    }
-  }
-}
-
-to '_gpio_ds18b20Address' pin {
-  '[1wire:init]' pin
-  '[1wire:scanStart]'
-  waitMillis 10
-  local 'addr' ('[data:newByteArray]' 8)
-  if (not ('[1wire:scanNext]' addr)) {
-    return 0
-  }
-  local 'family' (at 1 addr)
-  if (not (or (family == 34) (or (family == 40) (family == 66)))) {
-    return 0
-  }
-  return addr
-}
-
-to '_gpio_ds18b20Raw' pin {
-  local 'addr' ('_gpio_ds18b20Address' pin)
-  if (addr == 0) {
-    return 0
-  }
-  '[1wire:select]' addr
-  '[1wire:writeByte]' (hexToInt '44') true
-  waitMillis 750
-  '[1wire:select]' addr
-  '[1wire:writeByte]' (hexToInt 'BE')
-  local 'dataBytes' ('[data:newByteArray]' 9)
-  for i 9 {
-    atPut i dataBytes ('[1wire:readByte]')
-  }
-  if (('[1wire:crc8]' dataBytes) != 0) {
-    return _gpio_dsLastTemp
-  }
-  local 'result' (((at 2 dataBytes) << 8) | (at 1 dataBytes))
-  if (result >= 32768) {
-    result = (result - 65536)
-  }
-  _gpio_dsLastTemp = result
-  return result
-}
-
-to '_gpio_humidityDHT11' pin {
-  '_gpio_dhtUpdate' pin
-  return _gpio_dht_humidity
-}
-
-to '_gpio_pinForPort' port pin {
-  if (pin == 'B') {
-    if (port == 'J2') {
-      return 7
-    } (port == 'J3') {
-      return 16
-    } (port == 'J4') {
-      return 18
-    }
-    return 5
-  }
-  if (port == 'J2') {
-    return 6
-  } (port == 'J3') {
-    return 15
-  } (port == 'J4') {
-    return 17
-  }
-  return 4
-}
-
-to '_gpio_temperatureDHT11' pin {
-  '_gpio_dhtUpdate' pin
-  return _gpio_dht_temperature
-}
+  spec 'r' 'planetX_trackBitStateValue' 'return four-channel grayscale line sensor state value'
+  spec 'r' 'planetX_trackBitChannelState' 'four-channel grayscale line sensor channel _ detects _' 'menu.planetXTrackBitChannel menu.planetXTrackBitSense' '1' '1'
+  spec 'r' 'planetX_trackBitState' 'four-channel grayscale line sensor detects state _' 'menu.planetXTrackBitPattern' '0000'
+  spec 'r' 'planetX_trackBitGray' 'four-channel grayscale line sensor channel _ gray value' 'menu.planetXTrackBitChannel' '1'
+  advanced
+  spec 'r' 'planetX_trackBitOffset' 'four-channel grayscale line sensor offset'
+  spec 'r' '_planetX_buttonNow' '_planetX_buttonNow _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_dhtCaptureData' '_planetX_dhtCaptureData _' 'auto' 0
+  spec 'r' '_planetX_dhtChecksumOkay' '_planetX_dhtChecksumOkay'
+  spec ' ' '_planetX_dhtReadData' '_planetX_dhtReadData _' 'auto' 0
+  spec 'r' '_planetX_dhtReady' '_planetX_dhtReady'
+  spec ' ' '_planetX_dhtUpdate' '_planetX_dhtUpdate _' 'auto' 0
+  spec 'r' '_planetX_ds18b20Address' '_planetX_ds18b20Address _' 'auto' 0
+  spec 'r' '_planetX_ds18b20Raw' '_planetX_ds18b20Raw _' 'auto' 0
+  spec 'r' '_planetX_humidityDHT11' '_planetX_humidityDHT11 _' 'auto' 0
+  spec 'r' '_planetX_pinForPort' '_planetX_pinForPort _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_temperatureDHT11' '_planetX_temperatureDHT11 _' 'auto' 0
+  spec 'r' '_planetX_bmeEnsure' '_planetX_bmeEnsure'
+  spec 'r' '_planetX_bmeReadInt16LE' '_planetX_bmeReadInt16LE _' 'auto' 0
+  spec 'r' '_planetX_bmeReadInt8' '_planetX_bmeReadInt8 _' 'auto' 0
+  spec 'r' '_planetX_bmeReadReg' '_planetX_bmeReadReg _' 'auto' 0
+  spec 'r' '_planetX_bmeReadUInt16LE' '_planetX_bmeReadUInt16LE _' 'auto' 0
+  spec 'r' '_planetX_bmeToInt12' '_planetX_bmeToInt12 _' 'auto' 0
+  spec 'r' '_planetX_bmeToInt16' '_planetX_bmeToInt16 _' 'auto' 0
+  spec 'r' '_planetX_bmeToInt8' '_planetX_bmeToInt8 _' 'auto' 0
+  spec 'r' '_planetX_bmeTryInit' '_planetX_bmeTryInit _' 'auto' 0
+  spec ' ' '_planetX_bmeUpdateValues' '_planetX_bmeUpdateValues'
+  spec ' ' '_planetX_bmeWriteReg' '_planetX_bmeWriteReg _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_divRound' '_planetX_divRound _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_rfidAckOk' '_planetX_rfidAckOk'
+  spec 'r' '_planetX_rfidBlockToText' '_planetX_rfidBlockToText'
+  spec 'r' '_planetX_rfidCheckCard' '_planetX_rfidCheckCard'
+  spec 'r' '_planetX_rfidCheckDcs' '_planetX_rfidCheckDcs _' 'auto' 0
+  spec 'r' '_planetX_rfidEnsure' '_planetX_rfidEnsure'
+  spec 'r' '_planetX_rfidExpired' '_planetX_rfidExpired'
+  spec 'r' '_planetX_rfidPasswdCheck' '_planetX_rfidPasswdCheck'
+  spec 'r' '_planetX_rfidPnOperation' '_planetX_rfidPnOperation _' 'auto' 0
+  spec 'r' '_planetX_rfidReadBlock8' '_planetX_rfidReadBlock8'
+  spec 'r' '_planetX_rfidRun' '_planetX_rfidRun _ _' 'auto str' 0 ''
+  spec 'r' '_planetX_rfidSelectController' '_planetX_rfidSelectController'
+  spec ' ' '_planetX_rfidSetCmdDcs' '_planetX_rfidSetCmdDcs _ _' 'auto auto' 0 0
+  spec ' ' '_planetX_rfidTextToBlock' '_planetX_rfidTextToBlock _' 'str' ''
+  spec 'r' '_planetX_rfidWakeup' '_planetX_rfidWakeup'
+  spec 'r' '_planetX_rfidWriteAndRead' '_planetX_rfidWriteAndRead _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_rfidWriteBlock8' '_planetX_rfidWriteBlock8'
+  spec 'r' '_planetX_rtcDecToHex' '_planetX_rtcDecToHex _' 'auto' 0
+  spec 'r' '_planetX_rtcEnsure' '_planetX_rtcEnsure'
+  spec 'r' '_planetX_rtcGetSecond' '_planetX_rtcGetSecond'
+  spec 'r' '_planetX_rtcHexToDec' '_planetX_rtcHexToDec _' 'auto' 0
+  spec 'r' '_planetX_rtcReadReg' '_planetX_rtcReadReg _' 'auto' 0
+  spec ' ' '_planetX_rtcStart' '_planetX_rtcStart'
+  spec ' ' '_planetX_rtcWriteReg' '_planetX_rtcWriteReg _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_trackBitChannelIndex' '_planetX_trackBitChannelIndex _' 'auto' 0
+  spec 'r' '_planetX_trackBitEnsure' '_planetX_trackBitEnsure'
+  spec 'r' '_planetX_trackBitPatternCode' '_planetX_trackBitPatternCode _' 'auto' 0
+  spec 'r' '_planetX_trackBitReadRaw' '_planetX_trackBitReadRaw _' 'auto' 0
+  spec 'r' '_planetX_wsAck' '_planetX_wsAck _' 'auto' 0
+  spec 'r' '_planetX_wsAttempt' '_planetX_wsAttempt _' 'auto' 0
+  spec 'r' '_planetX_wsAuth' '_planetX_wsAuth'
+  spec 'r' '_planetX_wsBits' '_planetX_wsBits _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_wsInit' '_planetX_wsInit'
+  spec 'r' '_planetX_wsOperation' '_planetX_wsOperation _' 'auto' 0
+  spec 'r' '_planetX_wsPrepare' '_planetX_wsPrepare _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_wsRead' '_planetX_wsRead _' 'auto' 0
+  spec 'r' '_planetX_wsReadBlock' '_planetX_wsReadBlock'
+  spec 'r' '_planetX_wsReadFifo' '_planetX_wsReadFifo'
+  spec 'r' '_planetX_wsRequest' '_planetX_wsRequest'
+  spec 'r' '_planetX_wsSelect' '_planetX_wsSelect'
+  spec 'r' '_planetX_wsToCard' '_planetX_wsToCard _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_wsUid' '_planetX_wsUid'
+  spec 'r' '_planetX_wsWaitIRQ' '_planetX_wsWaitIRQ _ _ _' 'auto auto auto' 0 0 0
+  spec 'r' '_planetX_wsWithCRC' '_planetX_wsWithCRC _' 'auto' 0
+  spec 'r' '_planetX_wsWrite' '_planetX_wsWrite _ _' 'auto auto' 0 0
+  spec 'r' '_planetX_wsWriteBlock' '_planetX_wsWriteBlock'
 
 to '_planetX_bmeEnsure' {
   '_planetX_extI2CInit'
@@ -426,75 +339,154 @@ to '_planetX_bmeWriteReg' reg value {
   '_planetX_i2cWrite' _planetX_bmeAddr ('[data:makeList]' reg value)
 }
 
+to '_planetX_buttonNow' port button {
+  local 'pinC' ('_planetX_pinForPort' port 'A')
+  local 'pinD' ('_planetX_pinForPort' port 'B')
+  digitalReadOp pinC 'up'
+  digitalReadOp pinD 'up'
+  waitMillis 1
+  local 'cPressed' (not (digitalReadOp pinC 'up'))
+  local 'dPressed' (not (digitalReadOp pinD 'up'))
+  if (button == 'C') {
+    return cPressed
+  } (button == 'D') {
+    return dPressed
+  }
+  return (and cPressed dPressed)
+}
+
+to '_planetX_dhtCaptureData' pin {
+  '[sensors:captureStart]' pin
+  waitMillis 10
+  local 'pulses' ('[sensors:captureEnd]')
+  local 'pulseCount' (size pulses)
+  if (pulseCount < 80) {
+    return 0
+  }
+  if (pulseCount > 80) {
+    pulses = ('[data:copyFromTo]' pulses (pulseCount - 79))
+  }
+  _planetX_dhtRawPulses = pulses
+  local 'byte' 0
+  for i 40 {
+    if ((at ((2 * i) - 1) pulses) > 40) {byte += 1}
+    if ((i % 8) == 0) {
+      atPut (i / 8) _planetX_dhtData byte
+      byte = 0
+    } else {
+      byte = (byte << 1)
+    }
+  }
+}
+
+to '_planetX_dhtChecksumOkay' {
+  if (not (isType _planetX_dhtData 'list')) {return false}
+  local 'checksum' 0
+  for i 4 {
+    checksum += (at i _planetX_dhtData)
+  }
+  checksum = (checksum & 255)
+  return (checksum == (at 5 _planetX_dhtData))
+}
+
+to '_planetX_dhtReadData' pin {
+  if (_planetX_dhtData == 0) {_planetX_dhtData = (newList 5)}
+  atPut 'all' _planetX_dhtData 1
+  local 'data' ('[elfreaks_dev_sensor:dhtRead]' pin)
+  if (isType data 'list') {
+    _planetX_dhtData = data
+  }
+}
+
+to '_planetX_dhtReady' {
+  local 'elapsed' ((millisOp) - _planetX_dhtLastReadTime)
+  return (or (elapsed < 0) (elapsed > 2000))
+}
+
+to '_planetX_dhtUpdate' pin {
+  if ('_planetX_dhtReady') {
+    '_planetX_dhtReadData' pin
+    _planetX_dhtLastReadTime = (millisOp)
+    if ('_planetX_dhtChecksumOkay') {
+      local 'newTemp' (at 3 _planetX_dhtData)
+      local 'newHum' (at 1 _planetX_dhtData)
+      if (and (newTemp != 0) (newHum != 0)) {
+        _planetX_dht_temperature = newTemp
+        _planetX_dht_humidity = newHum
+      }
+    }
+  }
+}
+
 to '_planetX_divRound' value scale {
   if (value >= 0) {return ((value + (scale / 2)) / scale)}
   return ((value - (scale / 2)) / scale)
 }
 
-to '_planetX_extI2CInit' {
-  _planetX_extI2CReady = true
-  return true
-}
-
-to '_planetX_i2cExists' addr {
-  if (not ('_planetX_i2cAcquire')) {return false}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'present' ('[sensors:i2cExists]' addr)
-  '_planetX_i2cRelease'
-  return present
-}
-
-to '_planetX_i2cRead' addr bytes {
-  if (or ((size bytes) <= 0) ((size bytes) > 32)) {return false}
-  if (not ('_planetX_i2cAcquire')) {return false}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'read' false
-  if ('[sensors:i2cExists]' addr) {
-    read = (('[sensors:i2cRead]' addr bytes) == (size bytes))
+to '_planetX_ds18b20Address' pin {
+  '[1wire:init]' pin
+  '[1wire:scanStart]'
+  waitMillis 10
+  local 'addr' ('[data:newByteArray]' 8)
+  if (not ('[1wire:scanNext]' addr)) {
+    return 0
   }
-  '_planetX_i2cRelease'
-  return read
+  local 'family' (at 1 addr)
+  if (not (or (family == 34) (or (family == 40) (family == 66)))) {
+    return 0
+  }
+  return addr
 }
 
-to '_planetX_i2cReadReg' addr reg {
-  if (not ('_planetX_i2cAcquire')) {return 0}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'buf' ('[data:newByteArray]' 1 0)
-  local 'value' 0
-  if ('[sensors:i2cExists]' addr) {
-    '[sensors:i2cWrite]' addr ('[data:makeList]' reg) false
-    if (('[sensors:i2cRead]' addr buf) == 1) {
-      value = (at 1 buf)
+to '_planetX_ds18b20Raw' pin {
+  local 'addr' ('_planetX_ds18b20Address' pin)
+  if (addr == 0) {
+    return 0
+  }
+  '[1wire:select]' addr
+  '[1wire:writeByte]' (hexToInt '44') true
+  waitMillis 750
+  '[1wire:select]' addr
+  '[1wire:writeByte]' (hexToInt 'BE')
+  local 'dataBytes' ('[data:newByteArray]' 9)
+  for i 9 {
+    atPut i dataBytes ('[1wire:readByte]')
+  }
+  if (('[1wire:crc8]' dataBytes) != 0) {
+    return _planetX_dsLastTemp
+  }
+  local 'result' (((at 2 dataBytes) << 8) | (at 1 dataBytes))
+  if (result >= 32768) {
+    result = (result - 65536)
+  }
+  _planetX_dsLastTemp = result
+  return result
+}
+
+to '_planetX_humidityDHT11' pin {
+  '_planetX_dhtUpdate' pin
+  return _planetX_dht_humidity
+}
+
+to '_planetX_pinForPort' port pin {
+  if (pin == 'B') {
+    if (port == 'J2') {
+      return 7
+    } (port == 'J3') {
+      return 16
+    } (port == 'J4') {
+      return 18
     }
+    return 5
   }
-  '_planetX_i2cRelease'
-  return value
-}
-
-to '_planetX_i2cReadUInt16LE' addr reg {
-  if (not ('_planetX_i2cAcquire')) {return 0}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'buf' ('[data:newByteArray]' 2 0)
-  local 'value' 0
-  if ('[sensors:i2cExists]' addr) {
-    '[sensors:i2cWrite]' addr ('[data:makeList]' reg) false
-    if (('[sensors:i2cRead]' addr buf) == 2) {
-      value = ((at 1 buf) + ((at 2 buf) << 8))
-    }
+  if (port == 'J2') {
+    return 6
+  } (port == 'J3') {
+    return 15
+  } (port == 'J4') {
+    return 17
   }
-  '_planetX_i2cRelease'
-  return value
-}
-
-to '_planetX_i2cWrite' addr bytes {
-  if (not ('_planetX_i2cAcquire')) {return false}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'present' ('[sensors:i2cExists]' addr)
-  if present {
-    '[sensors:i2cWrite]' addr bytes
-  }
-  '_planetX_i2cRelease'
-  return present
+  return 4
 }
 
 to '_planetX_rfidAckOk' {
@@ -795,10 +787,6 @@ to '_planetX_rtcHexToDec' value {
   return (((value >> 4) * 10) + (value % 16))
 }
 
-to '_planetX_rtcIsField' value {
-  return (or (or (or (value == 'year') (value == '年')) (or (value == 'month') (value == '月'))) (or (or (or (value == 'day') (value == '日')) (or (value == 'weekday') (value == '星期'))) (or (or (or (value == 'hour') (value == '时')) (or (value == 'minute') (value == '分'))) (or (value == 'seconds') (value == '秒')))))
-}
-
 to '_planetX_rtcReadReg' reg {
   return ('_planetX_i2cReadReg' 104 reg)
 }
@@ -810,6 +798,11 @@ to '_planetX_rtcStart' {
 
 to '_planetX_rtcWriteReg' reg value {
   '_planetX_i2cWrite' 104 ('[data:makeList]' reg value)
+}
+
+to '_planetX_temperatureDHT11' pin {
+  '_planetX_dhtUpdate' pin
+  return _planetX_dht_temperature
 }
 
 to '_planetX_trackBitChannelIndex' channel {
@@ -1145,7 +1138,7 @@ to '_planetX_wsWriteBlock' {
   return ('_planetX_wsAck' data)
 }
 
-to bme280Sensor state {
+to planetX_bme280Sensor state {
   if (not ('_planetX_bmeEnsure')) {return 0}
   '_planetX_bmeUpdateValues'
   if (or (state == 'temperature (°C)') (state == '温度(℃)')) {
@@ -1163,41 +1156,53 @@ to bme280Sensor state {
   return 0
 }
 
-to buttonCD port button {
-  return ('_gpio_buttonNow' port button)
+to planetX_buttonCD port button {
+  return ('_planetX_buttonNow' port button)
 }
 
-to buttonEventBroadcast port button message {
+to planetX_buttonEventBroadcast port button message {
   '[elfreaks:Event_RegisterPlanetXButton]' port button message
 }
 
-to dht11Sensor port state {
-  local 'pin' ('_gpio_pinForPort' port 'B')
+to planetX_crash port {
+  return (not (digitalReadOp ('_planetX_pinForPort' port 'B') 'up'))
+}
+
+to planetX_dht11Sensor port state {
+  local 'pin' ('_planetX_pinForPort' port 'B')
   if (or (state == 'humidity (0-100)') (state == '湿度(0-100)')) {
-    return ('_gpio_humidityDHT11' pin)
+    return ('_planetX_humidityDHT11' pin)
   }
-  return ('_gpio_temperatureDHT11' pin)
+  return ('_planetX_temperatureDHT11' pin)
 }
 
-to gasValue gasType port {
-  return (gasValueV2 port gasType)
+to planetX_ds18b20Temp port unit {
+  local 'tempC' (('_planetX_ds18b20Raw' ('_planetX_pinForPort' port 'B')) / 16)
+  if (or (unit == 'Fahrenheit') (unit == '华氏度')) {
+    return ((tempC * 18) / 10) '+' 32
+  }
+  return tempC
 }
 
-to gasValueV2 port gasType {
-  if (not (or (or (port == 'J1') (port == 'J2')) (or (port == 'J3') (port == 'J4')))) {
-    local 'oldGasType' port
-    port = gasType
-    gasType = oldGasType
-  }
-  local 'value' (analogReadOp ('_gpio_pinForPort' port 'A'))
+to planetX_dust port {
+  local 'voPin' ('_planetX_pinForPort' port 'A')
+  local 'ledPin' ('_planetX_pinForPort' port 'B')
+  local 'raw' ('[elfreaks_dev_sensor:dustRaw]' voPin ledPin)
+  local 'mv' ('[misc:rescale]' raw 0 1023 0 4650)
+  local 'dust' (((mv - 380) * 5) / 29)
+  return (maximum 0 dust)
+}
+
+to planetX_gasValue port gasType {
+  local 'value' (analogReadOp ('_planetX_pinForPort' port 'A'))
   if (or (gasType == 'carbon dioxide') (gasType == '二氧化碳')) {
     return (1024 - value)
   }
   return value
 }
 
-to lightSensor port {
-  local 'pin' ('_gpio_pinForPort' port 'A')
+to planetX_lightSensor port {
+  local 'pin' ('_planetX_pinForPort' port 'A')
   local 'value' 0
   for i 100 {
     value += (analogReadOp pin)
@@ -1211,8 +1216,8 @@ to lightSensor port {
   return (maximum 0 value)
 }
 
-to noiseSensor port {
-  local 'pin' ('_gpio_pinForPort' port 'A')
+to planetX_noiseSensor port {
+  local 'pin' ('_planetX_pinForPort' port 'A')
   local 'baseline' 0
   for i 200 {
     baseline += (analogReadOp pin)
@@ -1265,19 +1270,41 @@ to noiseSensor port {
   return noise
 }
 
-to rfidDetectCard {
+to planetX_pir port {
+  return (digitalReadOp ('_planetX_pinForPort' port 'B'))
+}
+
+to planetX_pm25 port {
+  local 'pin' ('_planetX_pinForPort' port 'B')
+  '[sensors:captureStart]' pin
+  local 'start' (millisOp)
+  repeatUntil (or (('[sensors:captureCount]') >= 3) ((millisSince start) > 1000)) {
+    waitMillis 1
+  }
+  local 'pulses' ('[sensors:captureEnd]')
+  if ((size pulses) < 2) {
+    return 0
+  }
+  local 'pulseWidth' (at 2 pulses)
+  if (pulseWidth < 0) {
+    return 0
+  }
+  return pulseWidth
+}
+
+to planetX_rfidDetectCard {
   return ('_planetX_rfidRun' 0 '')
 }
 
-to rfidReadData {
+to planetX_rfidReadData {
   return ('_planetX_rfidRun' 1 '')
 }
 
-to rfidWriteData text {
+to planetX_rfidWriteData text {
   return ('_planetX_rfidRun' 2 text)
 }
 
-to rtcReadData data {
+to planetX_rtcReadData data {
   if (not ('_planetX_rtcEnsure')) {return 0}
   if (or (data == 'year') (data == '年')) {return ((minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 6)) 99) + 2000)}
   if (or (data == 'month') (data == '月')) {return (maximum (minimum ('_planetX_rtcHexToDec' ('_planetX_rtcReadReg' 5)) 12) 1)}
@@ -1289,49 +1316,24 @@ to rtcReadData data {
   return 0
 }
 
-to rtcSetData data num {
-  rtcSetDataV2 num data
-}
-
-to rtcSetDataV2 num data {
-  if ('_planetX_rtcIsField' num) {
-    local 'oldData' num
-    num = data
-    data = oldData
-  }
-  if (not ('_planetX_rtcEnsure')) {
-    return
-  }
-  if (or (data == 'year') (data == '年')) {
-    '_planetX_rtcWriteReg' 6 ('_planetX_rtcDecToHex' (num % 100))
-  }
-  if (or (data == 'month') (data == '月')) {
-    '_planetX_rtcWriteReg' 5 ('_planetX_rtcDecToHex' (num % 13))
-  }
-  if (or (data == 'day') (data == '日')) {
-    '_planetX_rtcWriteReg' 4 ('_planetX_rtcDecToHex' (num % 32))
-  }
-  if (or (data == 'weekday') (data == '星期')) {
-    '_planetX_rtcWriteReg' 3 ('_planetX_rtcDecToHex' (num % 8))
-  }
-  if (or (data == 'hour') (data == '时')) {
-    '_planetX_rtcWriteReg' 2 ('_planetX_rtcDecToHex' (num % 24))
-  }
-  if (or (data == 'minute') (data == '分')) {
-    '_planetX_rtcWriteReg' 1 ('_planetX_rtcDecToHex' (num % 60))
-  }
-  if (or (data == 'seconds') (data == '秒')) {
-    '_planetX_rtcWriteReg' 0 ('_planetX_rtcDecToHex' (num % 60))
-  }
+to planetX_rtcSetData num data {
+  if (not ('_planetX_rtcEnsure')) {return}
+  if (or (data == 'year') (data == '年')) {'_planetX_rtcWriteReg' 6 ('_planetX_rtcDecToHex' (num % 100))}
+  if (or (data == 'month') (data == '月')) {'_planetX_rtcWriteReg' 5 ('_planetX_rtcDecToHex' (num % 13))}
+  if (or (data == 'day') (data == '日')) {'_planetX_rtcWriteReg' 4 ('_planetX_rtcDecToHex' (num % 32))}
+  if (or (data == 'weekday') (data == '星期')) {'_planetX_rtcWriteReg' 3 ('_planetX_rtcDecToHex' (num % 8))}
+  if (or (data == 'hour') (data == '时')) {'_planetX_rtcWriteReg' 2 ('_planetX_rtcDecToHex' (num % 24))}
+  if (or (data == 'minute') (data == '分')) {'_planetX_rtcWriteReg' 1 ('_planetX_rtcDecToHex' (num % 60))}
+  if (or (data == 'seconds') (data == '秒')) {'_planetX_rtcWriteReg' 0 ('_planetX_rtcDecToHex' (num % 60))}
   '_planetX_rtcStart'
 }
 
-to soilHumidity port {
-  local 'value' ('[misc:rescale]' (analogReadOp ('_gpio_pinForPort' port 'A')) 0 1023 0 100)
+to planetX_soilHumidity port {
+  local 'value' ('[misc:rescale]' (analogReadOp ('_planetX_pinForPort' port 'A')) 0 1023 0 100)
   return (maximum 0 (minimum (100 - value) 100))
 }
 
-to trackBitChannelState channel state {
+to planetX_trackBitChannelState channel state {
   if (not ('_planetX_trackBitEnsure')) {return false}
   local 'tempVal' ('_planetX_trackBitReadRaw' 4)
   if (tempVal < 0) {
@@ -1346,7 +1348,7 @@ to trackBitChannelState channel state {
   return ((tempVal & mask) == 0)
 }
 
-to trackBitGray channel {
+to planetX_trackBitGray channel {
   if (not ('_planetX_trackBitEnsure')) {return 0}
   local 'grayValue' ('_planetX_trackBitReadRaw' ('_planetX_trackBitChannelIndex' channel))
   if (grayValue < 0) {
@@ -1357,7 +1359,7 @@ to trackBitGray channel {
   return grayValue
 }
 
-to trackBitOffset {
+to planetX_trackBitOffset {
   if (not ('_planetX_trackBitEnsure')) {return 0}
   local 'offsetHigh' ('_planetX_trackBitReadRaw' 5)
   local 'offsetLow' ('_planetX_trackBitReadRaw' 6)
@@ -1370,12 +1372,12 @@ to trackBitOffset {
   return (offset - 3000)
 }
 
-to trackBitState pattern {
-  local 'stateValue' (trackBitStateValue)
+to planetX_trackBitState pattern {
+  local 'stateValue' (planetX_trackBitStateValue)
   return (and _planetX_trackBitStateValid (stateValue == ('_planetX_trackBitPatternCode' pattern)))
 }
 
-to trackBitStateValue {
+to planetX_trackBitStateValue {
   if (not ('_planetX_trackBitEnsure')) {
     _planetX_trackBitStateValid = false
     return 0
@@ -1392,13 +1394,9 @@ to trackBitStateValue {
   return _planetX_trackBitStateValue
 }
 
-to trackBitUpdateState {
-  return (trackBitStateValue)
-}
-
-to trackingSensor port state {
-  local 'leftPin' ('_gpio_pinForPort' port 'A')
-  local 'rightPin' ('_gpio_pinForPort' port 'B')
+to planetX_trackingSensor port state {
+  local 'leftPin' ('_planetX_pinForPort' port 'A')
+  local 'rightPin' ('_planetX_pinForPort' port 'B')
   local 'leftBlack' (not (digitalReadOp leftPin 'up'))
   local 'rightBlack' (not (digitalReadOp rightPin 'up'))
   if (and leftBlack (and rightBlack (or (state == '00') (state == '● ●')))) {
@@ -1413,13 +1411,13 @@ to trackingSensor port state {
   return false
 }
 
-to trimpot port {
-  return (analogReadOp ('_gpio_pinForPort' port 'A'))
+to planetX_trimpot port {
+  return (analogReadOp ('_planetX_pinForPort' port 'A'))
 }
 
-to ultrasoundSensor port unit {
-  local 'trig' ('_gpio_pinForPort' port 'A')
-  local 'echo' ('_gpio_pinForPort' port 'B')
+to planetX_ultrasoundSensor port unit {
+  local 'trig' ('_planetX_pinForPort' port 'A')
+  local 'echo' ('_planetX_pinForPort' port 'B')
   digitalWriteOp trig false
   waitMicros 2
   digitalWriteOp trig true
@@ -1434,13 +1432,13 @@ to ultrasoundSensor port unit {
   local 'pulses' ('[sensors:captureEnd]')
   local 'distance' 400
   if (and ((size pulses) >= 2) ((at 2 pulses) > 0)) {
-    _gpio_sr04_misses = 0
-    _gpio_sr04_last = ((10 * (at 2 pulses)) / 583)
-    distance = _gpio_sr04_last
+    _planetX_sr04_misses = 0
+    _planetX_sr04_last = ((10 * (at 2 pulses)) / 583)
+    distance = _planetX_sr04_last
   } else {
-    _gpio_sr04_misses += 1
-    if (_gpio_sr04_misses < 10) {
-      distance = _gpio_sr04_last
+    _planetX_sr04_misses += 1
+    if (_planetX_sr04_misses < 10) {
+      distance = _planetX_sr04_last
     }
   }
   if (or (or (unit == 'inch') (unit == '英尺')) (unit == '英寸')) {
@@ -1452,7 +1450,12 @@ to ultrasoundSensor port unit {
   return distance
 }
 
-to waterLevel port optionalSpeed {
+to planetX_uvLevel port {
+  local 'value' (minimum (analogReadOp ('_planetX_pinForPort' port 'A')) 625)
+  return ('[misc:rescale]' value 0 625 0 15)
+}
+
+to planetX_waterLevel port optionalSpeed {
   local 'speed' (argOrDefault 2 'fast')
   local 'sampleCount' 1
   local 'sampleDelay' 0
@@ -1465,7 +1468,7 @@ to waterLevel port optionalSpeed {
   }
   local 'total' 0
   repeat sampleCount {
-    total += (analogReadOp ('_gpio_pinForPort' port 'A'))
+    total += (analogReadOp ('_planetX_pinForPort' port 'A'))
     if (sampleDelay > 0) {
       waitMillis sampleDelay
     }

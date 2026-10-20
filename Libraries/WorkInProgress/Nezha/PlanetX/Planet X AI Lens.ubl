@@ -1,0 +1,358 @@
+module 'Planet X AI Lens' Input
+author 'Elecfreaks Team'
+version 2 1 
+depends '_Planet X Support' 
+choices planetXAILensLearnID ID1 ID2 ID3 ID4 ID5 
+choices planetXAILensCardStatus 'x coordinate' 'y coordinate' size confidence 'card ID' 
+choices planetXAILensFunc 'card recognition' 'face recognition' 'ball recognition' 'line tracking' 'color recognition' 'feature learning' 
+choices planetXAILensBallStatus 'x coordinate' 'y coordinate' size confidence 'ball ID' 
+choices planetXAILensColorStatus 'x coordinate' 'y coordinate' size confidence 'color ID' 
+choices planetXAILensLineStatus 'offset angle' 'offset distance' 'line length' 
+choices planetXAILensTrafficCard forward 'turn around' stop 'turn left' 'turn right' 
+choices planetXAILensBallColor blue red 
+choices planetXAILensLineTrend left right forward none 
+choices planetXAILensFaceStatus 'x coordinate' 'y coordinate' width height confidence 'face ID' 
+choices planetXAILensOtherCard mouse 'micro:bit' ruler cat pear boat apple car pen dog umbrella airplane clock grapes cup 
+description 'Planet X AI Lens camera: cards, faces, balls, color cards, line tracking and feature learning.
+Capture an image before reading recognition results.
+The any-card value block accepts number, letter, traffic, item and color-card results.
+Card count reports number, letter, traffic and item cards; color cards use the color-card count block.
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/ai/'
+variables _planetX_aiLensReady _planetX_aiLensData _planetX_aiLensCmd 
+
+  spec ' ' 'planetXAILensInit' 'initialize AI camera'
+  spec ' ' 'planetXAILensSwitchFunc' 'AI camera switch function to _' 'menu.planetXAILensFunc' 'card recognition'
+  spec ' ' 'planetXAILensCameraImage' 'AI camera capture image'
+  space
+  spec 'r' 'planetXAILensCheckBall' 'AI camera image contains a ball?'
+  spec 'r' 'planetXAILensBallColor' 'AI camera image contains _ ball?' 'menu.planetXAILensBallColor' 'red'
+  spec 'r' 'planetXAILensBallTotalNum' 'AI camera ball count'
+  spec 'r' 'planetXAILensBallData' 'AI camera ball _ value' 'menu.planetXAILensBallStatus' 'x coordinate'
+  space
+  spec 'r' 'planetXAILensCheckFace' 'AI camera image contains a face?'
+  spec 'r' 'planetXAILensFaceTotalNum' 'AI camera face count'
+  spec 'r' 'planetXAILensFaceData' 'AI camera face _ value' 'menu.planetXAILensFaceStatus' 'x coordinate'
+  space
+  spec 'r' 'planetXAILensNumberCard' 'AI camera image contains number card _ ?' 'menu.planetXNumberCard' '1'
+  spec 'r' 'planetXAILensLetterCard' 'AI camera image contains letter card _ ?' 'menu.planetXLetterCard' 'A'
+  spec 'r' 'planetXAILensTrafficCard' 'AI camera image contains traffic sign card _ ?' 'menu.planetXAILensTrafficCard' 'forward'
+  spec 'r' 'planetXAILensOtherCard' 'AI camera image contains _ card?' 'menu.planetXAILensOtherCard' 'mouse'
+  spec 'r' 'planetXAILensCardTotalNum' 'AI camera card count'
+  spec 'r' 'planetXAILensCardData' 'AI camera any card _ value' 'menu.planetXAILensCardStatus' 'x coordinate'
+  space
+  spec 'r' 'planetXAILensColorCheck' 'AI camera image contains _ color card?' 'menu.planetXBasicColor' 'red'
+  spec 'r' 'planetXAILensColorTotalNum' 'AI camera color-card count'
+  spec 'r' 'planetXAILensColorData' 'AI camera color-card _ value' 'menu.planetXAILensColorStatus' 'x coordinate'
+  space
+  spec 'r' 'planetXAILensLineData' 'AI camera black-line _ value' 'menu.planetXAILensLineStatus' 'offset angle'
+  spec 'r' 'planetXAILensLineDirection' 'AI camera image contains black line offset _ ?' 'menu.planetXAILensLineTrend' 'forward'
+  space
+  spec ' ' 'planetXAILensLearnObject' 'AI camera learn object in view as _' 'menu.planetXAILensLearnID' 'ID1'
+  spec ' ' 'planetXAILensClearLearnObject' 'AI camera clear learned objects'
+  spec 'r' 'planetXAILensObjectCheck' 'AI camera image contains object _ ?' 'menu.planetXAILensLearnID' 'ID1'
+  spec 'r' 'planetXAILensObjectConfidence' 'AI camera object _ confidence' 'menu.planetXAILensLearnID' 'ID1'
+  spec 'r' '_planetX_aiLensBallColorCode' '_planetX_aiLensBallColorCode _' 'str' ''
+  spec 'r' '_planetX_aiLensColorCardCode' '_planetX_aiLensColorCardCode _' 'str' ''
+  spec 'r' '_planetX_aiLensEnsure' '_planetX_aiLensEnsure'
+  spec 'r' '_planetX_aiLensFuncCode' '_planetX_aiLensFuncCode _' 'str' ''
+  spec 'r' '_planetX_aiLensLearnIDCode' '_planetX_aiLensLearnIDCode _' 'str' ''
+  spec 'r' '_planetX_aiLensLetterCardCode' '_planetX_aiLensLetterCardCode _' 'str' ''
+  spec 'r' '_planetX_aiLensNumberCardCode' '_planetX_aiLensNumberCardCode _' 'str' ''
+  spec 'r' '_planetX_aiLensOtherCardCode' '_planetX_aiLensOtherCardCode _' 'str' ''
+  spec 'r' '_planetX_aiLensTrafficCardCode' '_planetX_aiLensTrafficCardCode _' 'str' ''
+
+to '_planetX_aiLensBallColorCode' color {
+  if (or (color == 'red') (color == '红色')) {return 2}
+  return 1
+}
+
+to '_planetX_aiLensColorCardCode' color {
+  if (or (color == 'blue') (color == '蓝色')) {return 2}
+  if (or (color == 'green') (color == '绿色')) {return 1}
+  if (or (color == 'red') (color == '红色')) {return 5}
+  if (or (color == 'white') (color == '白色')) {return 6}
+  if (or (color == 'yellow') (color == '黄色')) {return 3}
+  return 4
+}
+
+to '_planetX_aiLensEnsure' {
+  '_planetX_extI2CInit'
+  if (_planetX_aiLensData == 0) {
+    _planetX_aiLensData = ('[data:newByteArray]' 9 0)
+  }
+  if (_planetX_aiLensCmd == 0) {
+    _planetX_aiLensCmd = ('[data:newByteArray]' 9 0)
+  }
+  if _planetX_aiLensReady {
+    return true
+  }
+  if (not ('_planetX_i2cExists' 20)) {
+    return false
+  }
+  local 'probe' ('[data:newByteArray]' 1 0)
+  local 'tries' 0
+  repeatUntil (tries >= 10) {
+    tries += 1
+    atPut 'all' probe 0
+    '_planetX_i2cRead' 20 probe
+    if ((at 1 probe) != 0) {
+      tries = 10
+    } else {
+      waitMillis 50
+    }
+  }
+  _planetX_aiLensReady = true
+  return true
+}
+
+to '_planetX_aiLensFuncCode' fun {
+  if (or (fun == 'card recognition') (fun == '卡片识别')) {return 2}
+  if (or (fun == 'face recognition') (fun == '人脸识别')) {return 6}
+  if (or (fun == 'ball recognition') (fun == '小球识别')) {return 7}
+  if (or (fun == 'line tracking') (fun == '巡线识别')) {return 8}
+  if (or (fun == 'color recognition') (fun == '颜色识别')) {return 9}
+  return 10
+}
+
+to '_planetX_aiLensLearnIDCode' thingsID {
+  if (thingsID == 'ID2') {return 2}
+  if (thingsID == 'ID3') {return 3}
+  if (thingsID == 'ID4') {return 4}
+  if (thingsID == 'ID5') {return 5}
+  return 1
+}
+
+to '_planetX_aiLensLetterCardCode' card {
+  if (card == 'B') {return 2}
+  if (card == 'C') {return 3}
+  if (card == 'D') {return 4}
+  if (card == 'E') {return 5}
+  return 1
+}
+
+to '_planetX_aiLensNumberCardCode' card {
+  if (card == '1') {return 2}
+  if (card == '2') {return 3}
+  if (card == '3') {return 4}
+  if (card == '4') {return 5}
+  if (card == '5') {return 6}
+  if (card == '6') {return 7}
+  if (card == '7') {return 8}
+  if (card == '8') {return 9}
+  if (card == '9') {return 10}
+  return 1
+}
+
+to '_planetX_aiLensOtherCardCode' card {
+  if (card == 'micro:bit') {return 2}
+  if (or (card == 'ruler') (card == '尺子')) {return 3}
+  if (or (card == 'cat') (card == '猫')) {return 4}
+  if (or (card == 'pear') (card == '梨')) {return 5}
+  if (or (card == 'boat') (card == '船')) {return 6}
+  if (or (card == 'apple') (card == '苹果')) {return 7}
+  if (or (card == 'car') (card == '汽车')) {return 8}
+  if (or (card == 'pen') (card == '笔')) {return 9}
+  if (or (card == 'dog') (card == '狗')) {return 10}
+  if (or (card == 'umbrella') (card == '雨伞')) {return 11}
+  if (or (card == 'airplane') (card == '飞机')) {return 12}
+  if (or (card == 'clock') (card == '钟表')) {return 13}
+  if (or (card == 'grapes') (card == '葡萄')) {return 14}
+  if (or (card == 'cup') (card == '杯子')) {return 15}
+  return 1
+}
+
+to '_planetX_aiLensTrafficCardCode' card {
+  if (or (card == 'turn around') (card == '掉头')) {return 20}
+  if (or (card == 'stop') (card == '停止')) {return 19}
+  if (or (card == 'turn left') (card == '向左转')) {return 16}
+  if (or (card == 'turn right') (card == '向右转')) {return 17}
+  return 18
+}
+
+to planetXAILensBallColor color {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 7) {return ((at 2 _planetX_aiLensData) == ('_planetX_aiLensBallColorCode' color))}
+  return false
+}
+
+to planetXAILensBallData status {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) != 7) {return 0}
+  if (or (status == 'x coordinate') (status == 'X坐标')) {return (at 3 _planetX_aiLensData)}
+  if (or (status == 'y coordinate') (status == 'Y坐标')) {return (at 4 _planetX_aiLensData)}
+  if (or (status == 'size') (status == '尺寸')) {return (at 5 _planetX_aiLensData)}
+  if (or (status == 'confidence') (status == '置信度')) {return (100 - (at 7 _planetX_aiLensData))}
+  return (at 9 _planetX_aiLensData)
+}
+
+to planetXAILensBallTotalNum {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) == 7) {return (at 8 _planetX_aiLensData)}
+  return 0
+}
+
+to planetXAILensCameraImage {
+  if (not ('_planetX_aiLensEnsure')) {return}
+  atPut 'all' _planetX_aiLensData 0
+  '_planetX_i2cRead' 20 _planetX_aiLensData
+  waitMillis 30
+}
+
+to planetXAILensCardData status {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if (not (or ((at 1 _planetX_aiLensData) == 2) (or ((at 1 _planetX_aiLensData) == 3) (or ((at 1 _planetX_aiLensData) == 4) ((at 1 _planetX_aiLensData) == 9))))) {return 0}
+  if (or (status == 'x coordinate') (status == 'X坐标')) {return (at 3 _planetX_aiLensData)}
+  if (or (status == 'y coordinate') (status == 'Y坐标')) {return (at 4 _planetX_aiLensData)}
+  if (or (status == 'size') (status == '尺寸')) {return (at 5 _planetX_aiLensData)}
+  if (or (status == 'confidence') (status == '置信度')) {return (100 - (at 7 _planetX_aiLensData))}
+  return (at 9 _planetX_aiLensData)
+}
+
+to planetXAILensCardTotalNum {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if (or ((at 1 _planetX_aiLensData) == 2) (or ((at 1 _planetX_aiLensData) == 3) ((at 1 _planetX_aiLensData) == 4))) {return (at 8 _planetX_aiLensData)}
+  return 0
+}
+
+to planetXAILensCheckBall {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  return ((at 1 _planetX_aiLensData) == 7)
+}
+
+to planetXAILensCheckFace {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  return ((at 1 _planetX_aiLensData) == 6)
+}
+
+to planetXAILensClearLearnObject {
+  if (not ('_planetX_aiLensEnsure')) {return}
+  atPut 'all' _planetX_aiLensCmd 0
+  atPut 1 _planetX_aiLensCmd 10
+  atPut 2 _planetX_aiLensCmd 10
+  '_planetX_i2cWrite' 20 _planetX_aiLensCmd
+}
+
+to planetXAILensColorCheck status {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 9) {return ((at 2 _planetX_aiLensData) == ('_planetX_aiLensColorCardCode' status))}
+  return false
+}
+
+to planetXAILensColorData status {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) != 9) {return 0}
+  if (or (status == 'x coordinate') (status == 'X坐标')) {return (at 3 _planetX_aiLensData)}
+  if (or (status == 'y coordinate') (status == 'Y坐标')) {return (at 4 _planetX_aiLensData)}
+  if (or (status == 'size') (status == '尺寸')) {return (at 5 _planetX_aiLensData)}
+  if (or (status == 'confidence') (status == '置信度')) {return (100 - (at 7 _planetX_aiLensData))}
+  return (at 9 _planetX_aiLensData)
+}
+
+to planetXAILensColorTotalNum {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) == 9) {return (at 8 _planetX_aiLensData)}
+  return 0
+}
+
+to planetXAILensFaceData status {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) != 6) {return 0}
+  if (or (status == 'x coordinate') (status == 'X坐标')) {return (at 3 _planetX_aiLensData)}
+  if (or (status == 'y coordinate') (status == 'Y坐标')) {return (at 4 _planetX_aiLensData)}
+  if (or (status == 'width') (status == '宽')) {return (at 5 _planetX_aiLensData)}
+  if (or (status == 'height') (status == '高')) {return (at 6 _planetX_aiLensData)}
+  if (or (status == 'confidence') (status == '置信度')) {return (100 - (at 7 _planetX_aiLensData))}
+  return (at 9 _planetX_aiLensData)
+}
+
+to planetXAILensFaceTotalNum {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) == 6) {return (at 8 _planetX_aiLensData)}
+  return 0
+}
+
+to planetXAILensInit {
+  if ('_planetX_aiLensEnsure') {planetXAILensCameraImage}
+}
+
+to planetXAILensLearnObject thingsID {
+  if (not ('_planetX_aiLensEnsure')) {return}
+  atPut 'all' _planetX_aiLensCmd 0
+  atPut 1 _planetX_aiLensCmd 10
+  atPut 2 _planetX_aiLensCmd ('_planetX_aiLensLearnIDCode' thingsID)
+  '_planetX_i2cWrite' 20 _planetX_aiLensCmd
+}
+
+to planetXAILensLetterCard status {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 4) {return ((at 2 _planetX_aiLensData) == ('_planetX_aiLensLetterCardCode' status))}
+  return false
+}
+
+to planetXAILensLineData status {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if ((at 1 _planetX_aiLensData) != 8) {return 0}
+  if (or (status == 'offset angle') (status == '偏移角度')) {return (at 2 _planetX_aiLensData)}
+  if (or (status == 'offset distance') (status == '偏移距离')) {return (at 3 _planetX_aiLensData)}
+  return (at 4 _planetX_aiLensData)
+}
+
+to planetXAILensLineDirection status {
+  if (not ('_planetX_aiLensEnsure')) {return (or (status == 'none') (status == '无'))}
+  if ((at 1 _planetX_aiLensData) == 8) {
+    if (or (status == 'none') (status == '无')) {return false}
+    if (or (status == 'left') (status == '左')) {return ((at 3 _planetX_aiLensData) < 90)}
+    if (or (status == 'right') (status == '右')) {return ((at 3 _planetX_aiLensData) > 130)}
+    if (or (or (status == 'forward') (status == '前')) (status == '前进')) {return (and ((at 3 _planetX_aiLensData) > 90) ((at 3 _planetX_aiLensData) < 130))}
+  } else {
+    if (or (status == 'none') (status == '无')) {return true}
+  }
+  return false
+}
+
+to planetXAILensNumberCard status {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 2) {return ((at 2 _planetX_aiLensData) == ('_planetX_aiLensNumberCardCode' status))}
+  return false
+}
+
+to planetXAILensObjectCheck thingsID {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 10) {if ((at 2 _planetX_aiLensData) == ('_planetX_aiLensLearnIDCode' thingsID)) {
+    return ((planetXAILensObjectConfidence thingsID) >= 83)
+  }}
+  return false
+}
+
+to planetXAILensObjectConfidence thingsID {
+  if (not ('_planetX_aiLensEnsure')) {return 0}
+  if (and ((at 1 _planetX_aiLensData) == 10) ((at 3 _planetX_aiLensData) < 30)) {if ((at 2 _planetX_aiLensData) == ('_planetX_aiLensLearnIDCode' thingsID)) {
+    return (100 - (at 3 _planetX_aiLensData))
+  }}
+  return 0
+}
+
+to planetXAILensOtherCard status {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 3) {return ((at 2 _planetX_aiLensData) == ('_planetX_aiLensOtherCardCode' status))}
+  return false
+}
+
+to planetXAILensSwitchFunc fun {
+  if (not ('_planetX_aiLensEnsure')) {return}
+  atPut 'all' _planetX_aiLensCmd 0
+  local 'funcCode' ('_planetX_aiLensFuncCode' fun)
+  atPut 1 _planetX_aiLensCmd 32
+  atPut 2 _planetX_aiLensCmd funcCode
+  '_planetX_i2cWrite' 20 _planetX_aiLensCmd
+  atPut 'all' _planetX_aiLensData 0
+  waitMillis 50
+}
+
+to planetXAILensTrafficCard status {
+  if (not ('_planetX_aiLensEnsure')) {return false}
+  if ((at 1 _planetX_aiLensData) == 3) {return ((at 2 _planetX_aiLensData) == ('_planetX_aiLensTrafficCardCode' status))}
+  return false
+}
+

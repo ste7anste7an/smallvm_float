@@ -1,0 +1,170 @@
+module 'Planet X Gesture' Input
+author 'Elecfreaks Team'
+version 1 0 
+depends '_Planet X Support' 
+choices planetXGestureName none right left up down forward backward clockwise counterclockwise wave 
+description 'Planet X gesture recognition sensor. Use the detected gesture menu for translatable comparisons.
+WIKI:
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05020'
+variables _planetX_gestureReady 
+
+  spec ' ' 'planetXGestureInit' 'initialize gesture sensor'
+  spec 'r' 'planetXGestureDetected' 'gesture sensor detected _ ?' 'menu.planetXGestureName' 'right'
+  spec 'r' '_planetX_gestureEnsure' '_planetX_gestureEnsure'
+  spec 'r' '_planetX_gestureExpectedCode' '_planetX_gestureExpectedCode _' 'str' ''
+  spec ' ' '_planetX_gestureInitPart1' '_planetX_gestureInitPart1'
+  spec ' ' '_planetX_gestureInitPart2' '_planetX_gestureInitPart2'
+  spec ' ' '_planetX_gestureInitPart3' '_planetX_gestureInitPart3'
+  spec ' ' '_planetX_gestureInitPart4' '_planetX_gestureInitPart4'
+  spec 'r' '_planetX_gestureReadCode' '_planetX_gestureReadCode'
+  spec 'r' '_planetX_gestureReadReg' '_planetX_gestureReadReg _' 'auto' 0
+  spec ' ' '_planetX_gestureSelectBank' '_planetX_gestureSelectBank _' 'auto' 0
+  spec 'r' '_planetX_gestureTryInit' '_planetX_gestureTryInit'
+  spec ' ' '_planetX_gestureWriteChunk' '_planetX_gestureWriteChunk _' 'str' ''
+  spec ' ' '_planetX_gestureWriteReg' '_planetX_gestureWriteReg _ _' 'auto auto' 0 0
+
+to '_planetX_gestureEnsure' {
+  if _planetX_gestureReady {return true}
+  return ('_planetX_gestureTryInit')
+}
+
+to '_planetX_gestureExpectedCode' gesture {
+  if (or (gesture == 'right') (gesture == '右')) {return 1}
+  if (or (gesture == 'left') (gesture == '左')) {return 2}
+  if (or (gesture == 'up') (gesture == '上')) {return 3}
+  if (or (gesture == 'down') (gesture == '下')) {return 4}
+  if (or (or (gesture == 'forward') (gesture == '前')) (gesture == '前进')) {return 5}
+  if (or (or (gesture == 'backward') (gesture == '后')) (gesture == '后退')) {return 6}
+  if (or (gesture == 'clockwise') (gesture == '顺时针')) {return 7}
+  if (or (gesture == 'counterclockwise') (gesture == '逆时针')) {return 8}
+  if (or (gesture == 'wave') (gesture == '挥手')) {return 9}
+  return 0
+}
+
+to '_planetX_gestureInitPart1' {
+  '_planetX_gestureWriteChunk' 'EF,00,32,29,33,01,34,00,35,01,36,00,37,07,38,17,39,06,3A,12,3F,00,40,02,41,FF,42,01,46,2D,47,0F,48,3C,49,00,4A,1E,4B,00'
+  '_planetX_gestureWriteChunk' '4C,20,4D,00,4E,1A,4F,14,50,00,51,10,52,00,5C,02,5D,00,5E,10,5F,3F,60,27,61,28,62,00,63,03,64,F7,65,03,66,D9,67,03,68,01'
+  '_planetX_gestureWriteChunk' '69,C8,6A,40,6D,04,6E,00,6F,00,70,80,71,00,72,00,73,00,74,F0,75,00,80,42,81,44,82,04,83,20,84,20,85,00,86,10,87,00,88,05'
+}
+
+to '_planetX_gestureInitPart2' {
+  '_planetX_gestureWriteChunk' '89,18,8A,10,8B,01,8C,37,8D,00,8E,F0,8F,81,90,06,91,06,92,1E,93,0D,94,0A,95,0A,96,0C,97,05,98,0A,99,41,9A,14,9B,0A,9C,3F'
+  '_planetX_gestureWriteChunk' '9D,33,9E,AE,9F,F9,A0,48,A1,13,A2,10,A3,08,A4,30,A5,19,A6,10,A7,08,A8,24,A9,04,AA,1E,AB,1E,CC,19,CD,0B,CE,13,CF,64,D0,21'
+  '_planetX_gestureWriteChunk' 'D1,0F,D2,88,E0,01,E1,04,E2,41,E3,D6,E4,00,E5,0C,E6,0A,E7,00,E8,00,E9,00,EE,07,EF,01,00,1E,01,1E,02,0F,03,10,04,02,05,00'
+}
+
+to '_planetX_gestureInitPart3' {
+  '_planetX_gestureWriteChunk' '06,B0,07,04,08,0D,09,0E,0A,9C,0B,04,0C,05,0D,0F,0E,02,0F,12,10,02,11,02,12,00,13,01,14,05,15,07,16,05,17,07,18,01,19,04'
+  '_planetX_gestureWriteChunk' '1A,05,1B,0C,1C,2A,1D,01,1E,00,21,00,22,00,23,00,25,01,26,00,27,39,28,7F,29,08,30,03,31,00,32,1A,33,1A,34,07,35,07,36,01'
+  '_planetX_gestureWriteChunk' '37,FF,38,36,39,07,3A,00,3E,FF,3F,00,40,77,41,40,42,00,43,30,44,A0,45,5C,46,00,47,00,48,58,4A,1E,4B,1E,4C,00,4D,00,4E,A0'
+}
+
+to '_planetX_gestureInitPart4' {
+  '_planetX_gestureWriteChunk' '4F,80,50,00,51,00,52,00,53,00,54,00,57,80,59,10,5A,08,5B,94,5C,E8,5D,08,5E,3D,5F,99,60,45,61,40,63,2D,64,02,65,96,66,00'
+  '_planetX_gestureWriteChunk' '67,97,68,01,69,CD,6A,01,6B,B0,6C,04,6D,2C,6E,01,6F,32,71,00,72,01,73,35,74,00,75,33,76,31,77,01,7C,84,7D,03,7E,01'
+}
+
+to '_planetX_gestureReadCode' {
+  if (not ('_planetX_gestureEnsure')) {return 0}
+  local 'tries' 0
+  repeatUntil (tries >= 3) {
+    tries += 1
+    local 'data' ('_planetX_gestureReadReg' 67)
+    if (data == 1) {
+      return 1
+    }
+    if (data == 2) {
+      return 2
+    }
+    if (data == 4) {
+      return 3
+    }
+    if (data == 8) {
+      return 4
+    }
+    if (data == 16) {
+      return 5
+    }
+    if (data == 32) {
+      return 6
+    }
+    if (data == 64) {
+      return 7
+    }
+    if (data == 128) {
+      return 8
+    }
+    waitMillis 5
+    if (('_planetX_gestureReadReg' 68) == 1) {
+      return 9
+    }
+    waitMillis 5
+  }
+  return 0
+}
+
+to '_planetX_gestureReadReg' reg {
+  return ('_planetX_i2cReadReg' 115 reg)
+}
+
+to '_planetX_gestureSelectBank' bank {
+  if (bank == 1) {
+    '_planetX_gestureWriteReg' 239 1
+    return
+  }
+  '_planetX_gestureWriteReg' 239 0
+}
+
+to '_planetX_gestureTryInit' {
+  '_planetX_extI2CInit'
+  if _planetX_gestureReady {
+    return true
+  }
+  if (not ('_planetX_i2cExists' 115)) {
+    return false
+  }
+  local 'tries' 0
+  repeatUntil (tries >= 3) {
+    tries += 1
+    '_planetX_gestureSelectBank' 0
+    waitMillis 5
+    if (('_planetX_gestureReadReg' 0) == 32) {
+      '_planetX_gestureInitPart1'
+      '_planetX_gestureInitPart2'
+      '_planetX_gestureInitPart3'
+      '_planetX_gestureInitPart4'
+      '_planetX_gestureSelectBank' 0
+      waitMillis 200
+      if (('_planetX_gestureReadReg' 0) == 32) {
+        _planetX_gestureReady = true
+        return true
+      }
+    }
+    waitMillis 50
+  }
+  return false
+}
+
+to '_planetX_gestureWriteChunk' chunk {
+  local 'items' ('[data:split]' chunk ',')
+  for i ((size items) / 2) {
+    '_planetX_gestureWriteReg' (hexToInt (at ((2 * i) - 1) items)) (hexToInt (at (2 * i) items))
+  }
+}
+
+to '_planetX_gestureWriteReg' reg value {
+  '_planetX_i2cWrite' 115 ('[data:makeList]' reg value)
+}
+
+to planetXGestureDetected gesture {
+  local 'expected' ('_planetX_gestureExpectedCode' gesture)
+  if (expected <= 0) {
+    return false
+  }
+  return (('_planetX_gestureReadCode') == expected)
+}
+
+to planetXGestureInit {
+  '_planetX_gestureEnsure'
+}
+
