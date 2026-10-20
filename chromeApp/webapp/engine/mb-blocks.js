@@ -2724,7 +2724,9 @@ BlockMorph.prototype.expression = function () {
 	let args = this.argInputs().map(input => this.expressionForArg(input));
 	let isReporter = !(this instanceof CommandBlockMorph);
 	let next = (!isReporter && this.nextBlock()) ? this.nextBlock().expression() : null;
-	return { selector: this.selector, args, isReporter, next };
+	const node = { selector: this.selector, args, isReporter, next };
+	if (this.isDefaultColour) node.isDefaultColour = true;
+	return node;
 };
 
 BlockMorph.prototype.expressionForArg = function (arg) {
@@ -5502,6 +5504,7 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		menu.addItem('boolean', 'boolean');
 		menu.addItem('number', 'number');
 		menu.addItem('string', 'string');
+		menu.addItem('list', 'list');
 		menu.addItem('byte array', 'byte array');
 		return menu;
 	}
@@ -7683,8 +7686,8 @@ BlockDrawerMorph.prototype.mouseClickLeft = function (pos) {
 // InputDeclarationMorph ///////////////////////////////////////////////
 
 /*
-	I show the type and default of a declared input, as the slot a call
-	gets for it, followed by a down arrow.
+	I am a declared input's type and default: the slot a call gets for it,
+	holding the default for editing, then a down arrow for the types menu.
 */
 
 InputDeclarationMorph.prototype = new Morph();
@@ -7697,37 +7700,69 @@ function InputDeclarationMorph(type, value) {
 
 InputDeclarationMorph.prototype.init = function (type, value) {
 	InputDeclarationMorph.uber.init.call(this);
-	this.slotImage = this.slotFor(String(type || 'auto').split('.')[0], value).fullImage();
-	const s = blockScale();
-	this.arrowWidth = 12 * s;
-	this.arrowHeight = 9 * s;
-	this.gap = 2 * s;
-	this.bounds.setExtent(new Point(
-		this.slotImage.width + this.gap + this.arrowWidth + (8 * s),
-		Math.max(this.slotImage.height, this.arrowHeight + (8 * s))));
+	this.isCachingImage = false;
+	this.type = type || 'auto';
+	this.default = value;
+	this.buildSlot();
+};
+
+InputDeclarationMorph.prototype.buildSlot = function () {
+	if (this.slot) this.slot.destroy();
+	this.slot = this.slotFor(String(this.type).split('.')[0], this.default);
+	this.slot.scriptChanged = () => this.setDefault(this.slotValue());
+	this.add(this.slot);
+	this.fixLayout();
+};
+
+InputDeclarationMorph.prototype.slotValue = function () {
+	// Read on accept, before the slot's own value has caught up with its text.
+	if (!(this.slot instanceof InputSlotMorph)) return this.slot.evaluate();
+	const text = this.slot.contents().text;
+	if (!this.slot.isNumeric || this.slot.isAlphanumeric) return text;
+	const num = parseFloat(text);
+	return isNaN(num) ? 0 : num;
 };
 
 InputDeclarationMorph.prototype.slotFor = function (type, value) {
-	// The slot a call shows for an input of this type holding this default.
-	let slot;
-	if ('bool' === type) {
-		slot = new BooleanSlotMorph(value !== false);
-	} else if ('color' === type) {
-		slot = new ColorSlotMorph();
+	// The slot a call shows for an input of this type, holding this default.
+	if (!['auto', 'num', 'str', 'bool', 'color'].includes(type)) {
+		// A type the menu does not offer shows its name, and cannot be edited.
+		const slot = SyntaxElementMorph.prototype.labelPart('%auto');
+		slot.setContents(this.type);
+		slot.isReadOnly = true;
+		slot.fixLayout();
+		return slot;
+	}
+	const known = type;
+	const slot = SyntaxElementMorph.prototype.labelPart('%' + known);
+	if ('bool' === known) {
+		slot.setContents(value !== false);
+	} else if ('color' === known) {
+		if (value instanceof Color) slot.setContents(value);
 	} else {
-		slot = new InputSlotMorph(null, 'num' === type);
 		slot.setContents((value == null) ? '' : value);
 	}
 	slot.fixLayout();
 	return slot;
 };
 
-InputDeclarationMorph.prototype.render = function (ctx) {
+InputDeclarationMorph.prototype.fixLayout = function () {
 	const s = blockScale();
-	const h = this.height();
-	ctx.drawImage(this.slotImage, 0, Math.floor((h - this.slotImage.height) / 2));
-	const left = this.slotImage.width + this.gap + (4 * s);
-	const top = Math.floor((h - this.arrowHeight) / 2);
+	this.arrowWidth = 12 * s;
+	this.arrowHeight = 9 * s;
+	const pad = 4 * s;
+	if (!this.slot) return;
+	this.bounds.setExtent(new Point(this.slot.width() + (2 * s) + this.arrowWidth + (2 * pad),
+		Math.max(this.slot.height(), this.arrowHeight + (2 * pad))));
+	this.slot.setPosition(new Point(this.left(), this.top() + Math.floor((this.height() - this.slot.height()) / 2)));
+	if (this.parent instanceof BlockMorph) this.parent.fixLayout();
+};
+
+InputDeclarationMorph.prototype.render = function (ctx) {
+	// The down arrow, right of the slot, which draws itself.
+	const s = blockScale();
+	const left = this.width() - this.arrowWidth - (4 * s);
+	const top = Math.floor((this.height() - this.arrowHeight) / 2);
 	ctx.fillStyle = BLACK.toString();
 	ctx.beginPath();
 	ctx.moveTo(left, top);
@@ -7735,4 +7770,71 @@ InputDeclarationMorph.prototype.render = function (ctx) {
 	ctx.lineTo(left + (this.arrowWidth / 2), top + this.arrowHeight);
 	ctx.closePath();
 	ctx.fill();
+};
+
+InputDeclarationMorph.prototype.mouseClickLeft = function (pos) {
+	// The arrow and its padding, right of the slot, open the menu; after the
+	// click that asked for it, which would otherwise close it.
+	if (this.slot && (pos.x < this.slot.right() + (2 * blockScale()))) return;
+	setTimeout(() => this.typesMenu());
+};
+
+InputDeclarationMorph.prototype.typesMenu = function () {
+	const sample = { auto: '', num: 123, str: 'ABC', bool: true, color: null };
+	const item = (type, tip) => [type, () => this.setType(type), tip,
+		MB_editor.pictureOf(this.slotFor(type, sample[type])), '--input', type === this.baseType()];
+	const items = [item('auto', 'string or number')];
+	if (MB_editor.devMode()) {
+		items.push(item('num', 'number only'), item('str', 'string only'), '-');
+	}
+	items.push(item('bool', 'boolean switch'), item('color', 'color patch'));
+	return chromeMenuFor(this.world() || world, items, '--single-option');
+};
+
+InputDeclarationMorph.prototype.baseType = function () {
+	return String(this.type).split('.')[0];
+};
+
+InputDeclarationMorph.prototype.setType = function (type) {
+	// Keep the default if it suits the new type, else convert it or use the type's own.
+	let value = this.default;
+	const isInteger = (v) => (typeof v === 'number') && Number.isInteger(v);
+	if ('auto' === type) {
+		if (!(isInteger(value) || (typeof value === 'string'))) value = 10;
+	} else if ('num' === type) {
+		// Digits after an optional minus, none at all included, read as an integer.
+		if ((typeof value === 'string') && /^-?\d*$/.test(value)) value = parseInt(value, 10) || 0;
+		if (!isInteger(value)) value = 10;
+	} else if ('str' === type) {
+		if (isInteger(value)) value = String(value);
+		if (typeof value !== 'string') value = 'text';
+	} else if ('bool' === type) {
+		if (typeof value !== 'boolean') value = true;
+	} else if ('color' === type) {
+		if (!(value instanceof Color)) value = null;
+	}
+	this.type = type;
+	this.default = value;
+	this.buildSlot();
+	this.declarationChanged();
+};
+
+InputDeclarationMorph.prototype.setDefault = function (value) {
+	// The user edited the default in my slot. A number typed into an auto
+	// slot is a number.
+	if (('auto' === this.baseType()) && (typeof value === 'string') && /^-?\d+$/.test(value)) {
+		value = Number(value);
+	}
+	if (value === this.default) return; // unchanged: Escape, or Tab's second report
+	this.default = value;
+	this.declarationChanged();
+};
+
+InputDeclarationMorph.prototype.declarationChanged = function () {
+	const v = this.parent;
+	if (!v) return;
+	v.inputType = this.type;
+	v.inputDefault = this.default;
+	const def = v.parentThatIsA(BlockDefinitionMorph);
+	if (def) def.updateBlockDefinition();
 };

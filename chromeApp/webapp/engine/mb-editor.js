@@ -1751,7 +1751,10 @@ console.log('unknown');
 			slots: specSlotInfo(spec).map(([type, value]) => {
 				type = type.split('.')[0];
 				if (('color' === type) && (value == null)) {
-					value = { selector: 'colorSwatch', args: [35, 190, 30, 255], isReporter: true, next: null };
+					// Marked as filled in here, so a later type change replaces it;
+					// a swatch the user wrote stays.
+					value = { selector: 'colorSwatch', args: [35, 190, 30, 255], isReporter: true, next: null,
+						isDefaultColour: true };
 				}
 				if (('auto' === type) && (typeof value === 'string') && /^-?\d+$/.test(value)) {
 					value = Number(value);
@@ -2904,17 +2907,18 @@ function checkChromeAnswers() {
 	}
 }
 
-function chromeMenuFor(aWorld, items) {
-	// Show items, each '-' or [label, action, tip, image, class], in the chrome's menu.
+function chromeMenuFor(aWorld, items, menuClass = null) {
+	// Show items, each '-' or [label, action, tip, image, class, checked], in the chrome's menu.
 	// An item with an image, a PNG data URL, shows the picture in place of its label.
 	const p = chromePoint(aWorld);
 	const descriptors = items.map((item) => {
 		if ('-' === item) return { label: '-' };
 		const d = { label: item[0], tip: item[2] };
 		if (item[3]) Object.assign(d, { image: item[3], class: item[4] });
+		if (item.length > 5) d.checked = !!item[5];
 		return d;
 	});
-	askChrome('menu', { x: p.x, y: p.y, class: null, items: descriptors }, (label) => {
+	askChrome('menu', { x: p.x, y: p.y, class: menuClass, items: descriptors }, (label) => {
 		const chosen = items.find((item) => item[0] === label);
 		if (chosen) chosen[1]();
 	});
@@ -3069,18 +3073,32 @@ function fixedCallArgs(call, rule) {
 	const checked = Math.min(rule.minArgs, args.length, rule.slots.length);
 	for (let i = 0; i < checked; i++) {
 		const arg = args[i];
-		if ((arg != null) && arg.isReporter) continue;
+		if ((arg != null) && arg.isReporter && !arg.isDefaultColour) continue;
 		const [type, value] = rule.slots[i];
+		// A rebuilt colour slot holds its colour as a packed number, and a
+		// number from any other slot is not a colour.
+		const isColour = (('number' === typeof arg) && rule.colourSlots[i]) ||
+			((arg != null) && ((true === arg.isColor) || (true === arg.isDefaultColour)));
+		// Only the green a colour input filled in is retyped; any other colour
+		// stays, as a swatch once its slot no longer takes a colour.
+		if (isColour && !arg.isDefaultColour) {
+			if ('color' !== type) args[i] = colourSwatchNode(arg);
+			continue;
+		}
 		const fits = ('auto' === type) ? ['number', 'string'].includes(typeof arg)
 			: ('bool' === type) ? ('boolean' === typeof arg)
-			// A rebuilt colour slot holds its colour as a packed number, and a
-			// number from any other slot is not a colour.
-			: ('color' === type) ? ((('number' === typeof arg) && rule.colourSlots[i]) ||
-				((arg != null) && (true === arg.isColor)))
+			: ('color' === type) ? isColour
 			: true;
 		if (!fits) args[i] = value;
 	}
 	return JSON.stringify(args) !== before;
+}
+
+function colourSwatchNode(colour) {
+	// A colorSwatch reporter node for a packed or spelled colour.
+	const c = ('number' === typeof colour) ?
+		{ r: (colour >> 16) & 255, g: (colour >> 8) & 255, b: colour & 255 } : colour;
+	return { selector: 'colorSwatch', args: [c.r, c.g, c.b, 255], isReporter: true, next: null };
 }
 
 function varMustBeQuoted(varName) {
