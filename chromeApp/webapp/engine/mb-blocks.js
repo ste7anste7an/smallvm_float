@@ -4216,13 +4216,14 @@ ScriptsMorph.prototype.showCSlotWrapFeedback = function (srcBlock, trgBlock) {
 
 ScriptsMorph.prototype.closestInput = function (reporter) {
 	// Answer the unlocked slot under a point just inside the reporter's top-left,
-	// allowing a few pixels around it, or else the reporter under that point.
+	// allowing 5 screen pixels around it at any block size, or else the reporter
+	// under that point.
 	var point = reporter.position().add(10 * reporter.scale),
 		morphs = this.morphsFrontToBack(reporter);
 
 	return detect(morphs, m =>
 			(m instanceof InputSlotMorph || m instanceof BooleanSlotMorph || m instanceof ColorSlotMorph) &&
-				!m.isLocked() && m.bounds.expandBy(5).containsPoint(point)
+				!m.isLocked() && m.bounds.expandBy(5 / ZOOM).containsPoint(point)
 		) || detect(morphs, m =>
 			(m instanceof ReporterBlockMorph) && (m.parent instanceof BlockMorph) &&
 				!m.isTemplate && !m.isPrototype && !m.isLocked() && m.bounds.containsPoint(point)
