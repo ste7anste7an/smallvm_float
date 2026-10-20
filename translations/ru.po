@@ -4,7 +4,8 @@ msgstr ""
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:36+0200\n"
 "PO-Revision-Date: 2026-10-20 15:02+0000\n"
-"Last-Translator: John Maloney <jhmaloney@users.noreply.hosted.weblate.org>\n"
+"Last-Translator: Konstantin Gorodetskiy "
+"<cirodil@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/microblocks/ide/"
 "ru/>\n"
 "Language: ru\n"
@@ -2523,23 +2524,23 @@ msgstr "функция _ существует"
 
 #. NeoPanel library block
 msgid "NeoPanel fill row _ color _"
-msgstr "NeoPanel заполнить строку _ цветом _"
+msgstr "NeoPanel заполнить строку _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw line from x _ y _ to x _ y _ color _"
-msgstr "NeoPanel нарисовать линию от x _ y _ др x _ y _ цветом _"
+msgstr "NeoPanel нарисовать линию от x _ y _ до x _ y _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw circle at x _ y _ radius _ color _"
-msgstr "NeoPanel нарисовать окружность в x _ y _ с радиусом _ цветом _"
+msgstr "NeoPanel нарисовать окружность в x _ y _ радиус _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw rectangle at x _ y _ width _ height _ color _"
-msgstr "NeoPanel нарисовать прямоугольник в x _ y _ ширина _ высота _ цветом _"
+msgstr "NeoPanel нарисовать прямоугольник в x _ y _ ширина _ высота _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw text _ at x _ y _ color _"
-msgstr "NeoPanel нарисовать текст _ в x _ y _ цветом _"
+msgstr "NeoPanel нарисовать текст _ в x _ y _ цвет _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw BMP file _ at x _ y _"
