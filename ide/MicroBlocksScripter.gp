@@ -1149,10 +1149,7 @@ method updateCallsInScriptingArea MicroBlocksScripter op {
 	for m (parts (morph scriptsPane)) {
 		b = (handler m)
 		if (isClass b 'Block') {
-			if (containsPrim b op) {
-				add affectedScripts b
-			}
-			if ('to' == (primName (expression b))) {
+			if (or (containsPrim b op) ('to' == (primName (expression b)))) {
 				add affectedScripts b
 			}
 		}
