@@ -21,7 +21,49 @@
 
 // I2S Primitives
 
-#if defined(ESP32)
+#if defined(NEZHA_ESP32)
+
+#define HAS_I2S 1
+#define DEFAULT_BUFFER_SIZE 256 // referenced but not actually used
+
+#include <NezhaMicroBlocks.h> // nezha_microblocks library (lib_deps)
+
+static void stopI2S() {} // noop on Nezha
+static void startI2S(
+	int sampleRate, int bufferSize, int isPDM,
+	int bitClockPin, int wordClockPin, int inputPin, int outputPin) {}  // noop on Nezha
+
+static int i2sReadBytes(uint8_t *buffer, int maxBytes) {
+	// Read I2S input data into the given buffer and return the number of bytes read.
+
+	// Note: It might be more efficient to read multiple samples with each call of
+	// nezhaMB_ReadMicrophone(). This initial imlementation reads one sample at a time.
+
+	int maxSamples = maxBytes / 4;
+	if (maxSamples > 128) maxSamples = 128; // intermittent glitches when reading > 128 samples
+	int samplesRead = 0;
+	int16_t *out = (int16_t *) &buffer;
+	while (samplesRead < maxSamples) {
+		int16_t sample;
+		if (nezhaMB_ReadMicrophone(&sample, 1)) {
+			// read a 16-bit mono sample and write a stereo sample to result buffer (4 bytes)
+			*out++ = sample;
+			*out++ = sample;
+			samplesRead++;
+		} else {
+			break;
+		}
+	}
+	return 4 * samplesRead;
+}
+
+static int i2sWriteBytes(const uint8_t *buffer, int byteCount) {
+	// Write the given buffer to the I2S output device and return the number of bytes written.
+
+	return nezhaMB_WriteSpeaker((uint8_t *) buffer, byteCount);
+}
+
+#elif defined(ESP32)
 
 #include <driver/i2s.h>
 
