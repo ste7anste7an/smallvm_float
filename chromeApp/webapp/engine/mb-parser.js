@@ -378,9 +378,11 @@ class MB_Parser {
 			// An empty body, which is not an absent argument: a body slot has to
 			// be built for it either way, and specForArg reads the same name.
 			if (true == arg.isEmptyCommandList) return MB_Specs.emptyCommandList;
-			// A colour the decompiler split into {r, g, b} (fixBooleanAndColorArgs).
-			// The colour slot holds the packed 0xRRGGBB integer the bytes carry.
+			// A colour from a block's expression carries its alpha and stays a Color.
+			// One the decompiler split into {r, g, b} (fixBooleanAndColorArgs) has
+			// none, and the colour slot holds the packed 0xRRGGBB integer the bytes carry.
 			if (true == arg.isColor) {
+				if (arg.alpha != null) return new Color(arg.r, arg.g, arg.b, arg.alpha / 255);
 				return ((arg.r & 255) << 16) | ((arg.g & 255) << 8) | (arg.b & 255);
 			}
 			// A reporter is one node; a command in an argument position is the
