@@ -3139,8 +3139,8 @@ function fixedCallArgs(call, rule) {
 		const arg = args[i];
 		if ((arg != null) && arg.isReporter && !arg.isDefaultColour) continue;
 		const [type, value] = rule.slots[i];
-		// A rebuilt colour slot holds its colour as a packed number, and a
-		// number from any other slot is not a colour.
+		// A colour slot can hold its colour as a packed number, as the bytes
+		// carry it, and a number from any other slot is not a colour.
 		const isColour = (('number' === typeof arg) && rule.colourSlots[i]) ||
 			((arg != null) && ((true === arg.isColor) || (true === arg.isDefaultColour)));
 		// Only the green a colour input filled in is retyped; any other colour

@@ -2761,9 +2761,11 @@ BlockMorph.prototype.expressionForArg = function (arg) {
 	}
 	if (arg instanceof BlockMorph) return arg.expression();
 	let value = arg.evaluate();
-	// A colour goes out spelled, the way the decompiler spells one, so a node
-	// never holds a live Color.
-	if (value instanceof Color) return { isColor: true, r: value.r, g: value.g, b: value.b };
+	// A colour goes out spelled, so a node never holds a live Color. Only a
+	// block's colour has an alpha (0-255, as a colorSwatch writes it); the bytes carry none.
+	if (value instanceof Color) {
+		return { isColor: true, r: value.r, g: value.g, b: value.b, alpha: Math.round(value.a * 255) };
+	}
 	// A slot showing a block or a symbol answers something no node can carry,
 	// and codeString never sees it. Say so rather than put it in the tree.
 	if ((value != null) && ('object' == (typeof value))) {
