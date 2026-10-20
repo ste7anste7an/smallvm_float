@@ -184,7 +184,7 @@ class MB_Editor {
 
 	newPaneResizer() {
 		// A strip over the left edge of the scripting area. Dragging it sets the
-		// palette's width, from 90 to 600 screen px and no closer than 25 to the world's right edge.
+		// palette's width, from 90 to 600 screen px and no closer than 25 scene units to the world's right edge.
 		const resizer = new Morph();
 		resizer.color = new Color(180, 180, 255);
 		resizer.alpha = 0; // drawn only while the pointer is over it
