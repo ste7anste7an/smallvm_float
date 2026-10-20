@@ -7622,7 +7622,14 @@ BlockSectionDefinitionMorph.prototype.reactToEdit = function () {
 	// A label edit is done: the definition takes it unless nothing changed.
 	const def = this.definition();
 	const spec = MB_editor.project.blockSpecs.get(def.op);
-	if (spec && (spec.specString === def.specString())) return;
+	if (spec && (spec.specString === def.specString())) {
+		// The spec stands, but a label may still show a colon or a lone '_' it dropped.
+		const shown = this.elements().filter((m) => m instanceof BlockLabelMorph);
+		if (shown.some((m) => m.text !== this.labelSpec(m.text))) {
+			MB_editor.rebuildDefinitionsOf(MB_editor.project.functionNamed(def.op));
+		}
+		return;
+	}
 	if (!/[^\s:.]/.test(def.specString())) { // a block needs a word, so put the label back
 		MB_editor.rebuildDefinitionsOf(MB_editor.project.functionNamed(def.op));
 		return;
@@ -7630,11 +7637,15 @@ BlockSectionDefinitionMorph.prototype.reactToEdit = function () {
 	def.updateBlockDefinition();
 };
 
+BlockSectionDefinitionMorph.prototype.labelSpec = function (text) {
+	// Colons mark sections in a spec and a lone '_' marks an input, so a label holds neither.
+	return text.replaceAll(':', '').split(' ').filter((w) => w !== '_').join(' ');
+};
+
 BlockSectionDefinitionMorph.prototype.specString = function () {
-	// Colons mark sections in a spec, so a label cannot hold one.
 	return this.elements().map((m) => {
 		if (!(m instanceof BlockLabelMorph)) return '_';
-		return m.text.replaceAll(':', '').trim();
+		return this.labelSpec(m.text).trim();
 	}).filter((w) => w.length > 0).join(' ');
 };
 
