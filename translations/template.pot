@@ -7419,6 +7419,14 @@ msgstr ""
 msgid "Using %1 out of %2 bytes"
 msgstr ""
 
+#. Firmware install by URL dialog
+msgid "ESP32 firmware URL?"
+msgstr ""
+
+#. Firmware install download failure
+msgid "Could not download"
+msgstr ""
+
 #. Firmware install board type confirmation. As in "Use board type micro:bit?"
 msgid "Use board type"
 msgstr ""
@@ -8132,6 +8140,10 @@ msgstr ""
 
 #. String in file picker and library dialogs
 msgid "Add Library"
+msgstr ""
+
+#. Add library error message
+msgid "A library with that name is already in the project. Remove it first to make a new one."
 msgstr ""
 
 #. Placeholder text in the block search box (ctrl-space)
