@@ -5615,6 +5615,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 		arrow = this.arrow(),
 		tp = this.topBlock();
 
+	contents.isNumeric = this.isNumeric && !this.isAlphanumeric;
 	contents.isEditable = (!this.isReadOnly);
 	if (this.isReadOnly) {
 		contents.disableSelecting();
