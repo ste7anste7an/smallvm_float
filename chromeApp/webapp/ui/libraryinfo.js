@@ -23,7 +23,8 @@ class LibraryInfoWindow extends FloatingWindow {
 			width: 350,
 			resizable: true,
 			className: 'library'
-		})
+		});
+		this.cachedLibraryName = library.moduleName;
 		this.library = library;
 		this.fields = {};
 		contents.replaceWith(this.bodyDiv());
@@ -36,6 +37,13 @@ class LibraryInfoWindow extends FloatingWindow {
 			this.library[fieldName] =
 				this.extractInputValue(fieldName, this.fields[fieldName]);
 		});
+		if (this.cachedLibraryName !== this.library.moduleName) {
+			// library name changed, we need to update the library map in the project
+			let map = MB_editor.project.libraries;
+			map.set(this.library.moduleName, map.get(this.cachedLibraryName));
+			map.delete(this.cachedLibraryName);
+			MB_editor.updateLibraryList();
+		}
 	}
 
 	extractInputValue(selector, input) {
