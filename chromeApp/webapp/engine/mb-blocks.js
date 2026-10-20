@@ -3090,6 +3090,10 @@ BlockMorph.prototype.mouseClickLeft = function () {
 		return;
 	}
 	scripts.cancelSelection();
+	if (this.isFunctionDefinition() && this.blockDefinition()) {
+		this.blockDefinition().clicked(); // a click on a definition hat is a click on its prototype
+		return;
+	}
 	MB_editor.toggleRunning(this.topBlock());
 	return;
 
