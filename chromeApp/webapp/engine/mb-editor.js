@@ -2705,7 +2705,7 @@ console.log('unknown');
 		this.clearProject();
 		this.updateLibraryList(); // no libraries left, so cat;Control
 		this.readFromBoard = true;
-		alert(localized('Connect board to proceed.'));
+		this.inform('Connect board to proceed.');
 	}
 
 	async openProjectFromBoard() {

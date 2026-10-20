@@ -61,11 +61,11 @@ class MB_CodeManager {
 		if (MB_connection.vmTooOld()) return;
 		// Refuse before sending anything, as GP's startAll does (MicroBlocksRuntime.gp).
 		if (!MB_connection.isConnected()) {
-			alert(localized('Board not connected'));
+			MB_editor.inform(localized('Board not connected'));
 			return;
 		}
 		if (this.codeStoreFull) {
-			alert(localized('Program is too large to store on board.'));
+			MB_editor.inform(localized('Program is too large to store on board.'));
 			return;
 		}
 		await this.syncScripts();
