@@ -4,7 +4,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:36+0200\n"
 "PO-Revision-Date: 2026-10-20 15:02+0000\n"
-"Last-Translator: John Maloney <jhmaloney@users.noreply.hosted.weblate.org>\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Turkish <https://hosted.weblate.org/projects/microblocks/ide/"
 "tr/>\n"
 "Language: tr\n"
@@ -3431,7 +3431,7 @@ msgstr ""
 
 #. NeoPanel library block
 msgid "NeoPanel draw line from x _ y _ to x _ y _ color _"
-msgstr "NeoPanel çizgi çiz x_y_ noktasından x_y_ noktasına renk _"
+msgstr "NeoPanel çizgi çiz x _ y _ noktasından x _ y _ noktasına renk _"
 
 #. NeoPanel library block
 msgid "NeoPanel draw circle at x _ y _ radius _ color _"
@@ -3626,7 +3626,7 @@ msgstr "kesir _ = _"
 
 #. Fractions library block
 msgid "fract _ < _"
-msgstr "kesir_ < _"
+msgstr "kesir _ < _"
 
 #. Fractions library block
 msgid "fract _ > _"
