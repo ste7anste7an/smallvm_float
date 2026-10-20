@@ -112,9 +112,9 @@ IDE.userPreference = function (pref) {
 
 IDE.isDevMode = function () { return this.userPreference('devMode'); };
 
-// The block size the editor draws at. A fresh profile stores none and draws at 125.
+// The block size the editor draws at. A fresh profile stores none and draws at 100.
 IDE.blockSizePercent = function () {
-	return this.userPreference('blockSizePercent') || 125;
+	return this.userPreference('blockSizePercent') || 100;
 };
 
 IDE.setUserPreference = function (pref, value) {
