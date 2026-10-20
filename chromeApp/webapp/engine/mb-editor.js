@@ -2033,6 +2033,9 @@ console.log('unknown');
 		// Keep script positions in project file units while changing the rendered scale.
 		this.blockSize = percent;
 		world.zoom(Math.max(Math.min(percent, 250), 50) / 100);
+		// A wheel notch scrolls 120 screen pixels, as in GP; morphic scrolls in scene units.
+		// Both settings objects: the first touch event swaps MorphicPreferences to the second.
+		standardSettings.mouseScrollAmount = touchScreenSettings.mouseScrollAmount = 120 / ZOOM;
 		IDE.resize();
 	}
 
