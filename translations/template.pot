@@ -7600,6 +7600,10 @@ msgstr ""
 msgid "rename..."
 msgstr ""
 
+#. Variable rename error message
+msgid "That name is already in use."
+msgstr ""
+
 #. Variable right-click context menu
 msgid "find variable accessors"
 msgstr ""
@@ -7690,6 +7694,14 @@ msgstr ""
 
 #. Block right-click context menu
 msgid "extract block"
+msgstr ""
+
+#. Block right-click context menu
+msgid "delete obsolete block..."
+msgstr ""
+
+#. Block right-click context menu
+msgid "add to library"
 msgstr ""
 
 #. Block right-click context menu tooltip
