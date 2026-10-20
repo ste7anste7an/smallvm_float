@@ -1114,7 +1114,7 @@ console.log('unknown');
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
-		new MB_LibraryInfoDialog(lib, forEditing).open(world);
+		(new LibraryInfoWindow(lib)).popUp();
 	}
 
 	newLibrary(libName) {
