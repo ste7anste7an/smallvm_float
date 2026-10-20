@@ -195,7 +195,7 @@ SyntaxElementMorph.uber = Morph.prototype;
 				rounding	- radius of reporter block rounding
 				edge		- width of 3D-ish shading box
 				hatHeight	- additional top space for hat blocks
-				hatWidth	- minimum width for hat blocks
+				hatWidth	- width of the curve on a hat block
 				rfBorder	- pixel width of reification border (grey outline)
 
 		jigsaw shape:
@@ -205,10 +205,8 @@ SyntaxElementMorph.uber = Morph.prototype;
 
 		paddings:
 
-				bottomPadding	- adds to the height of the bottom most c-slot
 				cSlotPadding	- adds to the height of the open "C" in c-slots
 				typeInPadding	- adds pixels between text and edge in input slots
-				labelPadding	- adds left/right pixels to block labels
 
 		label:
 
@@ -237,6 +235,21 @@ SyntaxElementMorph.uber = Morph.prototype;
 
 SyntaxElementMorph.prototype.contrast = 17;
 
+// The height of a line of block text, on a half-pixel grid.
+function blockTextHeight(fontSize) {
+	var size = Math.round(fontSize * 2);
+	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / 2;
+}
+
+// Operators drawn a little larger than other label words.
+var blockMathOperators = ['=', '+', '/', '\u00D7', '\u2212', '\u2260', '<', '<=', '==', '>=', '>',
+	'&', '|', '^', '~', '<<', '>>'];
+
+// Half of n, rounded down to a half pixel.
+function blockHalf(n) {
+	return Math.floor(n) / 2;
+}
+
 SyntaxElementMorph.prototype.setScale = function (num) {
 	// 0.3 is the smallest size the block size preference offers, 25%: 1.5 * 25/125.
 	var scale = Math.min(Math.max(num, 0.3), 25);
@@ -246,15 +259,12 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.flatEdge = scale; // outline width
 	this.edge = 5 * scale; // determines width of vertical part of C-shaped block
 	this.inset = 5 * scale; // inset from left edge is: this.corner + (2 * this.inset)
-	this.minLineHeight = 20 * scale;
-	this.hatHeight = 12 * scale;
+	this.hatHeight = blockHalf(2 * ((80 * scale / Math.sqrt(2)) - (40 * scale)));
 	this.hatWidth = 70 * scale;
 	this.rfBorder = 3 * scale;
 	this.dent = 8 * scale;
-	this.bottomPadding = 4 * scale;
 	this.cSlotPadding = 0 * scale;
 	this.typeInPadding = scale;
-	this.labelPadding = 2 * scale;
 	this.labelFontName = 'Arial Bold';
 	this.labelFontStyle = 'sans-serif';
 	this.fontSize = 14 * scale;
@@ -836,7 +846,7 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 	} else {
 		part = new BlockLabelMorph(
 			spec, // text
-			this.fontSize, // fontSize
+			this.fontSize + (blockMathOperators.includes(spec) ? 2 * this.scale : 0), // fontSize
 			this.labelFontStyle, // fontStyle
 			true, // bold
 			false, // italic
@@ -859,7 +869,6 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		x = 0,
 		y,
 		lineHeight = 0,
-		maxX = 0,
 		blockWidth = 0,
 		blockHeight,
 		l = [],
@@ -871,16 +880,15 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		breakBeforeInput = ['[display:mbDisplay]', 'setNeoPixelColors10'].includes(this.selector),
 		maxInputsPerLine = ('setNeoPixelColors10' == this.selector) ? 5 : 6,
 		lineInputs = 0,
-		space = this.isPrototype ? 1 : Math.floor(fontHeight(this.fontSize) / 3);
-
-	if (this instanceof ReporterBlockMorph) {
-		blockWidth += (this.rounding * 2) + (this.edge * 2);
-	} else {
-		blockWidth += (this.corner * 4)
-			+ (this.edge * 2)
-			+ (this.inset * 3)
-			+ this.dent;
-	}
+		scale = this.scale,
+		space = this.isPrototype ? 1 : 6 * scale,
+		vSpace = 3 * scale,
+		left = this.left() + (3 * scale),
+		indent = (this instanceof HatBlockMorph) ? 7 * scale
+			: (this instanceof ReporterBlockMorph) ? 6 * scale : 8 * scale,
+		lineHeights = [],
+		lastPart = null,
+		drawer = null;
 
 	if (this.nextBlock) {
 		nb = this.nextBlock();
@@ -927,72 +935,65 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		lines.push(l);
 	}
 
-	// distribute parts on lines
-	y = this.top() + this.corner;
+	// distribute parts on lines, each line centred on its tallest part
+	y = this.top() + (3 * scale);
 	if (this instanceof HatBlockMorph) {
 		y += this.hatHeight;
 	}
-	lines.forEach(line => {
-		x = this.left() + this.edge + this.labelPadding;
-		y += lineHeight;
-		lineHeight = 0;
+	lines.forEach((line, i) => {
+		x = left + indent;
+		lineHeight = (i === 0) ? 21 * scale : 0;
 		line.forEach(part => {
 			if (part instanceof CSlotMorph) {
-				x -= this.labelPadding;
 				part.setColor(this.color);
-				part.setPosition(new Point(x, y));
+				part.setPosition(new Point(this.left() + (9 * scale), y));
 				lineHeight = part.height();
+				blockWidth = Math.max(blockWidth, 56 * scale);
 			} else {
 				part.setPosition(new Point(x, y));
-				if (!part.isBlockLabelBreak) {
-					if (part.slotSpec === '%c') {
-						x += part.width();
-					} else if (part.isVisible) {
-						x += part.fullBounds().width() + space;
-					}
+				if (!part.isBlockLabelBreak && part.isVisible) {
+					x += part.fullBounds().width() + space;
+					blockWidth = Math.max(blockWidth, part.fullBounds().right() - left);
+					lineHeight = Math.max(lineHeight, part.height());
 				}
-				maxX = Math.max(maxX, x);
-				lineHeight = Math.max(lineHeight, part.height());
+				if (part instanceof BlockExpanderMorph) drawer = part;
+			}
+			if (part.isVisible && !part.isBlockLabelBreak && part !== drawer) lastPart = part;
+		});
+		line.forEach(part => {
+			var span = lineHeight + scale;
+			if (part.height() <= span) {
+				part.moveBy(new Point(0, blockHalf(span - part.height())));
 			}
 		});
-		lineHeight = Math.max(lineHeight, this.minLineHeight);
-
-		// center parts vertically on each line:
-		line.forEach(part => {
-			part.moveBy(new Point(
-				0,
-				Math.floor((lineHeight - part.height()) / 2)
-			));
-		});
+		lineHeights.push(lineHeight);
+		y += lineHeight + vSpace;
 	});
 
-	// determine my height:
-	y += lineHeight;
-	if (this.children.some(any => any instanceof CSlotMorph)) {
-		let bottomCorrection = this.bottomPadding;
-		if (this instanceof ReporterBlockMorph) {
-			bottomCorrection = Math.max(
-				this.bottomPadding,
-				this.rounding - this.bottomPadding
-			);
+	// determine my height
+	blockHeight = lineHeights.reduce((a, b) => a + b, 0) + (lines.length * vSpace);
+	if (lastPart instanceof CSlotMorph) {
+		if (drawer) {
+			blockHeight -= 6 * scale;
+			drawer.moveBy(new Point(-2 * scale, -5 * scale));
+		} else {
+			blockHeight += 7 * scale;
 		}
-		y += bottomCorrection;
 	}
-	if (this instanceof CommandBlockMorph) {
-		blockHeight = y - this.top() + (this.corner * 2);
-	} else if (this instanceof ReporterBlockMorph) {
-		blockHeight = y - this.top() + this.corner;
-	}
-
-	// determine my width:
-	blockWidth = Math.max(
-		blockWidth,
-		(maxX - this.left()) + this.labelPadding
-	);
-
-	// adjust width to hat width
 	if (this instanceof HatBlockMorph) {
-		blockWidth = Math.max(blockWidth, this.hatWidth * 1.5);
+		blockHeight += (7 * scale) + this.hatHeight;
+	} else if (this instanceof CommandBlockMorph) {
+		blockHeight += 7 * scale;
+	} else {
+		blockHeight += 4 * scale;
+	}
+
+	// determine my width
+	if (this instanceof ReporterBlockMorph) {
+		blockWidth = Math.max(20 * scale, blockWidth - (4 * scale) + indent + (11 * scale));
+	} else {
+		blockWidth = Math.max((this instanceof HatBlockMorph) ? 100 * scale : 50 * scale,
+			blockWidth + (2 * scale) + indent + (3 * scale));
 	}
 
 	// set my extent (silently, because we'll redraw later anyway):
@@ -1097,6 +1098,13 @@ function BlockLabelMorph(
 		fontName
 	);
 }
+
+BlockLabelMorph.prototype.fixLayout = function (justMe) {
+	BlockLabelMorph.uber.fixLayout.call(this, true);
+	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
+	this.bounds.setHeight(blockTextHeight(this.fontSize));
+	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
+};
 
 BlockLabelMorph.prototype.getRenderColor = function () {
 	var block = this.parentThatIsA(BlockMorph);
@@ -3185,7 +3193,7 @@ CommandBlockMorph.prototype.closestAttachTarget = function (newParent) {
 	// Answer the first block or C slot, front to back, with an edge inside a box
 	// around my top-left corner. A hat attaches only above the top of a stack.
 	var scripts = newParent || this.parent,
-		box = new Point(62.5, 18.75).multiplyBy(this.scale), // 50 by 15 at the default 125% block scale
+		box = new Point(50, 15).multiplyBy(this.scale),
 		x = this.left(),
 		y = this.top(),
 		yb = this.bottomBlock().bottom(),
@@ -3199,7 +3207,7 @@ CommandBlockMorph.prototype.closestAttachTarget = function (newParent) {
 	if (cslot && cslot.nestedBlock()) {cslot = null; }
 	for (const m of scripts.morphsFrontToBack(this)) {
 		if (m instanceof CommandSlotMorph) {
-			if (!isHat && near(x - m.left() - m.inset, y - m.top() - m.corner)) {
+			if (!isHat && near(x - m.left() - (3 * this.scale), y - m.top() - (3 * this.scale))) {
 				return {element: m, loc: 'bottom', type: 'slot', point: m.slotAttachPoint()};
 			}
 		} else if ((m instanceof CommandBlockMorph) && !m.isPrototype && !m.isTemplate) {
@@ -4960,13 +4968,8 @@ CSlotMorph.prototype.getSpec = function () {
 CSlotMorph.prototype.fixLayout = function () {
 	var nb = this.nestedBlock();
 	if (nb) {
-		nb.setPosition(
-			new Point(
-				this.left() + this.inset,
-				this.top() + this.corner
-			)
-		);
-		this.bounds.setHeight(nb.fullBounds().height() + this.corner);
+		nb.setPosition(this.position().add(new Point(blockHalf((10 * this.scale) + 1), this.scale)));
+		this.bounds.setHeight(nb.fullBounds().height() + (3 * this.scale));
 		this.bounds.setWidth(
 			nb.fullBounds().width() + (this.cSlotPadding * 2)
 		);
@@ -5007,7 +5010,10 @@ CSlotMorph.prototype.render = function (ctx) { return; };
 CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	var ox = offset.x,
 		oy = offset.y,
-		radius = Math.max(this.corner - inset, 0);
+		radius = Math.max(this.corner - inset, 0),
+		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
+		// the arm below the slot starts where the last nested block's body ends
+		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height();
 
 	// top corner:
 	ctx.lineTo(this.width() + ox - inset, oy);
@@ -5059,11 +5065,11 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	// bottom:
 	ctx.lineTo(
 		this.inset + ox - inset,
-		this.height() - (this.corner * 2) + oy
+		bottom - (this.corner * 2) + oy
 	);
 	ctx.arc(
 		this.inset + this.corner + ox,
-		this.height() - (this.corner * 2) + oy,
+		bottom - (this.corner * 2) + oy,
 		this.corner + inset,
 		radians(180),
 		radians(90),
@@ -5071,11 +5077,11 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	);
 	ctx.lineTo(
 		this.width() - this.corner + ox,
-		this.height() - this.corner + oy + inset
+		bottom - this.corner + oy + inset
 	);
 	ctx.arc(
 		this.width() - this.corner + ox,
-		this.height() + oy,
+		bottom + oy,
 		radius,
 		radians(-90),
 		radians(-0),
@@ -5133,12 +5139,13 @@ InputSlotMorph.prototype.init = function (
 		arrow = new ArrowMorph(
 			'down',
 			0,
-			Math.max(Math.floor(this.fontSize / 6), 1),
+			0,
 			BLACK,
 			true
 		);
 
-	contents.fontSize = this.fontSize;
+	contents.fontSize = 13 * this.scale;
+	contents.fontName = 'Arial';
 	contents.isShowingBlanks = true;
 
 	this.selectedBlock = null;
@@ -5411,7 +5418,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 	}
 
 	if (this.choices) {
-		arrow.setSize(fontHeight(this.fontSize));
+		arrow.setSize(10 * this.scale);
 		arrow.show();
 	} else {
 		arrow.hide();
@@ -5433,25 +5440,22 @@ InputSlotMorph.prototype.fixLayout = function () {
 			+ arrowWidth
 			+ this.edge * 4
 			+ this.typeInPadding * 2;
-	} else {
+	} else if (this.isComment) {
 		height = contents.height() + this.edge * 2; // + this.typeInPadding * 2
-		if (this.isComment) {
-			width = Math.max(
-				contents.width()
-				+ arrowWidth
-				+ this.edge * 2
-				+ this.typeInPadding * 2,
-				contents.rawHeight ? // single vs. multi-line contents
-				contents.rawHeight() + arrowWidth
-				: fontHeight(contents.fontSize) / 1.3
-				+ arrowWidth
-			);
-		} else {
-			width = contents.width()
-				+ Math.floor(arrowWidth * 0.5)
-				+ height
-				+ this.typeInPadding * 2;
-		}
+		width = Math.max(
+			contents.width()
+			+ arrowWidth
+			+ this.edge * 2
+			+ this.typeInPadding * 2,
+			contents.rawHeight ? // single vs. multi-line contents
+			contents.rawHeight() + arrowWidth
+			: fontHeight(contents.fontSize) / 1.3
+			+ arrowWidth
+		);
+	} else {
+		height = contents.height() + (3 * this.scale);
+		width = Math.max(contents.width(), 10 * this.scale) + (14 * this.scale)
+			+ (arrow.isVisible ? 12 * this.scale : 0);
 	}
 
 	this.bounds.setExtent(new Point(width, height));
@@ -5463,15 +5467,16 @@ InputSlotMorph.prototype.fixLayout = function () {
 		).add(new Point(this.typeInPadding, 0)).add(this.position()));
 	} else {
 		contents.setPosition(new Point(
-			Math.floor(height / 2),
-			this.edge
-		).add(new Point(this.typeInPadding, 0)).add(this.position()));
+			blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
+			2 * this.scale
+		).add(this.position()));
 	}
 
 	if (arrow.isVisible) {
+		// the arrow's triangle fills the lower half of its square
 		arrow.setPosition(new Point(
-			this.right() - arrowWidth - this.edge,
-			contents.top() - arrowWidth / 8
+			this.right() - (14 * this.scale),
+			this.top() + (6 * this.scale) - (arrowWidth / 2)
 		));
 	}
 
@@ -5642,22 +5647,22 @@ InputSlotMorph.prototype.render = function (ctx) {
 		.toString();
 	this.cachedClrDark = borderColor.darker(this.contrast).toString();
 
-	r = Math.max((this.height() - (this.edge * 2)) / 2, 0);
+	r = Math.min(15 * this.scale, this.height() / 2);
 	ctx.beginPath();
 	if (this.isComment) { // a comment slot has square corners
 		ctx.rect(this.edge, this.edge, this.width() - (this.edge * 2), this.height() - (this.edge * 2));
 	} else {
 		ctx.arc(
-			r + this.edge,
-			r + this.edge,
+			r,
+			r,
 			r,
 			radians(90),
 			radians(-90),
 			false
 		);
 		ctx.arc(
-			this.width() - r - this.edge,
-			r + this.edge,
+			this.width() - r,
+			r,
 			r,
 			radians(-90),
 			radians(90),
@@ -5716,6 +5721,13 @@ function InputSlotStringMorph(
 	);
 }
 
+InputSlotStringMorph.prototype.fixLayout = function (justMe) {
+	InputSlotStringMorph.uber.fixLayout.call(this, true);
+	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
+	this.bounds.setHeight(blockTextHeight(this.fontSize));
+	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
+};
+
 InputSlotStringMorph.prototype.getRenderColor = function () {
 	return this.parent.alpha > 0.25 ? this.color : WHITE;
 };
@@ -5760,6 +5772,18 @@ function InputSlotTextMorph(
 		shadowOffset,
 		shadowColor);
 }
+
+InputSlotTextMorph.prototype.fixLayout = function () {
+	// Measure each line without the space parse() leaves at its end.
+	if (this.parent && this.parent.isComment) return TextMorph.prototype.fixLayout.call(this);
+	this.parse();
+	this.measureCtx.font = this.font();
+	const width = Math.max(1, ...this.lines.map(line =>
+		Math.round(this.measureCtx.measureText(line.replace(/ $/, '')).width * 2) / 2));
+	this.bounds = this.bounds.origin.extent(new Point(this.maxWidth || width,
+		this.lines.length * blockTextHeight(this.fontSize)));
+	if (this.parent && this.parent.layoutChanged) this.parent.layoutChanged();
+};
 
 InputSlotTextMorph.prototype.getRenderColor =
 	InputSlotStringMorph.prototype.getRenderColor;
@@ -5836,8 +5860,8 @@ TemplateSlotMorph.prototype.evaluate = function () {
 
 TemplateSlotMorph.prototype.fixLayout = function () {
 	var template = this.template();
-	this.bounds.setExtent(template.extent().add(this.edge * 2 + 2));
-	template.setPosition(this.position().add(this.edge + 1));
+	this.bounds.setExtent(template.extent());
+	template.setPosition(this.position());
 	if (this.parent) {
 		if (this.parent.fixLayout) {
 			this.parent.fixLayout();
@@ -6018,9 +6042,8 @@ BooleanSlotMorph.prototype.mouseLeave = function () {
 // BooleanSlotMorph layout:
 
 BooleanSlotMorph.prototype.fixLayout = function () {
-	// determine my extent
-	this.bounds.setWidth((this.fontSize + this.edge * 2) * 2);
-	this.bounds.setHeight(this.fontSize + this.edge * 2);
+	this.bounds.setWidth(29 * this.scale);
+	this.bounds.setHeight(18 * this.scale);
 };
 
 // BooleanSlotMorph drawing:
@@ -6295,7 +6318,8 @@ TextSlotMorph.prototype.init = function (
 			true
 		);
 
-	contents.fontSize = this.fontSize;
+	contents.fontSize = 13 * this.scale;
+	contents.fontName = 'Arial';
 	contents.fixLayout();
 
 	this.choices = choiceDict || null; // object, function or selector
@@ -6426,7 +6450,7 @@ ColorSlotMorph.prototype.evaluate = function () {
 
 ColorSlotMorph.prototype.fixLayout = function () {
 	// determine my extent
-	var side = this.fontSize + (4 * this.scale);
+	var side = 20 * this.scale;
 	this.bounds.setWidth(side);
 	this.bounds.setHeight(side);
 };
@@ -6753,9 +6777,10 @@ BlockExpanderMorph.prototype.init = function (aBlock) {
 	this.color = new Color(0, 0, 0);
 	this.showLeft = aBlock.canContract();
 	this.showRight = aBlock.canExpand();
-	const w = (this.showLeft && this.showRight) ? 18 : 10;
-	this.bounds.setWidth(w * aBlock.scale);
-	this.bounds.setHeight(14 * aBlock.scale);
+	const size = 18 * aBlock.scale, unit = blockHalf(size);
+	const w = (this.showLeft && this.showRight) ? (2 * unit) + unit + (Math.floor(2 * size / 3) / 2) : 2 * unit;
+	this.bounds.setWidth(w);
+	this.bounds.setHeight(size);
 };
 
 // BlockExpanderMorph drawing:
