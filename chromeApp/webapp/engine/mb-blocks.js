@@ -1814,6 +1814,12 @@ BlockMorph.prototype.showDevView = function (view) {
 	FloatingWindow.workspace(win.title, text);
 };
 
+BlockMorph.prototype.isObsolete = function () {
+	// A library update keeps the spec of a block it dropped, labelled 'obsolete'.
+	var spec = MB_editor.project.blockSpecs.get(this.selector);
+	return !!spec && spec.specString.startsWith('obsolete');
+};
+
 BlockMorph.prototype.chromeMenu = function () {
 	// The items of GP's block menu (Block.gp contextMenu) that the port can act on.
 	var world = this.world(),
@@ -1916,6 +1922,11 @@ BlockMorph.prototype.chromeMenu = function () {
 				() => MB_editor.deleteFunctionWithConfirm(this.selector),
 				'delete the definition of this block']);
 		}
+	} else if (this.isObsolete()) {
+		items.push('-');
+		items.push(['delete obsolete block...',
+			() => MB_editor.deleteObsoleteWithConfirm(this.selector),
+			'delete this obsolete block from the project']);
 	}
 	if (!this.isTemplate) {
 		const alternatives = this.alternateOperators();
@@ -3851,11 +3862,24 @@ HatBlockMorph.prototype.definitionMenu = function () {
 		items.push(['show instructions', () => this.showDevView('showInstructions')]);
 		items.push(['show compiled bytes', () => this.showDevView('showCompiledBytes')]);
 		items.push(['show call tree', () => this.showDevView('showCallTree')]);
+		items.push('-');
+		items.push(['add to library', () => this.addToLibraryMenu()]);
 	}
 	items.push('-');
 	items.push(['delete block definition...',
 		() => MB_editor.deleteFunctionWithConfirm(name),
 		'delete the definition of this block']);
+	return chromeMenuFor(this.world(), items);
+};
+
+HatBlockMorph.prototype.addToLibraryMenu = function () {
+	var name = this.definedFunctionName(),
+		project = MB_editor.project,
+		libs = [...project.libraries.values()].sort((a, b) => (a.moduleName < b.moduleName ? -1 : 1)),
+		items = libs.map((lib) => [lib.moduleName, () => MB_editor.addToLibrary(name, lib)]);
+
+	items.push('-');
+	items.push(['My Blocks', () => MB_editor.addToLibrary(name, project.main)]);
 	return chromeMenuFor(this.world(), items);
 };
 

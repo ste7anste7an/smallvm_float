@@ -1459,6 +1459,53 @@ console.log('unknown');
 		this.updateProjectProperties();
 	}
 
+	addToLibrary(name, lib) {
+		// Move the function to lib, a library or the main module, with its palette
+		// entry and spec, and show lib. The globals it uses go to lib as well, and
+		// leave main only when the function comes from main.
+		this.updateProject();
+		const func = this.project.functionNamed(name);
+		if (func == null) return;
+		const main = this.project.main, spec = this.project.blockSpecs.get(name);
+		const take = (m) => {
+			m.removeFunction(func);
+			m.blockList = m.blockList.filter((op) => op !== name);
+			m.blockSpecs.delete(name);
+		};
+		for (const other of this.project.libraries.values()) {
+			if (other.functions.includes(func)) take(other);
+		}
+		if (!lib.functions.includes(func)) {
+			const globals = func.globalVars();
+			if (main.functions.includes(func)) {
+				take(main);
+				for (const v of globals) main.deleteVariable(v);
+			}
+			lib.addFunction(func);
+			lib.blockList.push(name);
+			if (spec) lib.blockSpecs.set(name, spec);
+			for (const v of globals) lib.addVariable(v);
+		}
+		this.recolourCallsOf(name);
+		if (lib === main) this.selectCategory('cat;My Blocks');
+		else this.selectLibrary(lib.moduleName);
+		this.scriptChanged();
+		this.updateProjectProperties();
+	}
+
+	recolourCallsOf(op) {
+		// Give every call to op in the pane the colour of the category op is in now.
+		const category = MB_Specs.categoryForSelector(op);
+		for (const script of this.scriptsPane().children) {
+			if (!(script instanceof BlockMorph)) continue;
+			for (const m of script.allChildren()) {
+				if (!(m instanceof BlockMorph) || (m.selector !== op)) continue;
+				m.category = category;
+				m.fixBlockColor(null, true);
+			}
+		}
+	}
+
 	usersOf(op) {
 		// How many scripts and function bodies call op, counted the way the
 		// warning before a delete counts them: once each, not once per call.
@@ -1605,6 +1652,23 @@ console.log('unknown');
 		}
 		if (!(await this.confirm(question))) return;
 		this.deleteFunction(name);
+	}
+
+	async deleteObsoleteWithConfirm(op) {
+		// Remove the spec of an obsolete block, one a library update dropped,
+		// asking first while the project still calls it. The calls stay.
+		this.updateProject();
+		const users = this.usersOf(op);
+		if (users > 0) {
+			const question = localized('This block is still being used in') + ' ' + users + ' ' +
+				localized('scripts or functions.') + '\n\n' +
+				localized('Are you sure you want to remove this obsolete block definition?');
+			if (!(await this.confirm(question))) return;
+		}
+		this.project.deleteBlockSpecFor(op);
+		this.updatePalette();
+		this.scriptChanged();
+		this.updateProjectProperties();
 	}
 
 	copyToClipboard(text) {
