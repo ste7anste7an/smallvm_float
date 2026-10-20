@@ -207,3 +207,14 @@
 		cursor: nwse-resize;
 	}
 }
+
+/* MARC, DESTROY THIS */
+
+.window.workspace textarea {
+	width: 100%;
+	height: 100%;
+	resize: none;
+	border: 0;
+	border-radius: 2px;
+	padding: 0.25em 0.5em;
+}

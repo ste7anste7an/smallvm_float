@@ -29,6 +29,7 @@ class FloatingWindow extends HTMLElement {
 		this.target = descriptor.target;
 
 		if (descriptor.id) { this.id = descriptor.id; }
+		if (descriptor.className) { this.classList.add(descriptor.className); }
 
 		// Window Top
 		if (typeof descriptor.title == 'string') {
@@ -142,16 +143,14 @@ class FloatingWindow extends HTMLElement {
 						myself.height + (newY - lastY)
 					);
 
-				myself.style.width = newWidth + 'px';
-				myself.style.height = newHeight + 'px';
-				if (myself.onResize) {
-					myself.onResize.call(myself.target, newWidth, newHeight);
-				}
+				myself.setSize(newWidth, newHeight);
 			}
 
 			function endResize(e) {
-				myself.width = parseInt(myself.style.width);
-				myself.height = parseInt(myself.style.height);
+				myself.setSize(
+					parseInt(myself.style.width),
+					parseInt(myself.style.height),
+					true);
 				document.onpointerup = null;
 				document.onpointermove = null;
 			}
@@ -160,13 +159,25 @@ class FloatingWindow extends HTMLElement {
 		}
 	}
 
+	setSize(newWidth, newHeight, endResize) {
+		this.style.width = newWidth + 'px';
+		this.style.height = newHeight + 'px';
+		if (this.onResize) {
+			this.onResize.call(this.target, newWidth, newHeight);
+		}
+		if (endResize) {
+			this.width = newWidth;
+			this.height = newHeight;
+		}
+	}
 
 	popUp() {
 		document.body.append(this);
-
+		// first button is always the OK button
+		let defaultButton = this.querySelector('.window__buttons button');
 		this.onkeydown = (e) => {
-			if (e.key == 'Enter') {
-				this.querySelector('.window__buttons button').click(); // first button is OK
+			if (e.key == 'Enter' && defaultButton) {
+				defaultButton.click();
 			} else if (e.key == 'Escape') {
 				this.remove();
 			}
@@ -285,7 +296,8 @@ FloatingWindow.inform = function (title, text, onAccept) {
 		body: GetText.localize(text),
 		buttons: [{ label: 'Ok', action: onAccept ?? (()=>{}), closesWindow: true }],
 		width: 320,
-		resizable: false
+		resizable: false,
+		className: 'inform'
 	});
 	win.popUp();
 	return win;
@@ -302,7 +314,8 @@ FloatingWindow.confirm =
 			{ label: noLabel ?? 'No', action: onCancel, closesWindow: true }
 		],
 		width: 320,
-		resizable: false
+		resizable: false,
+		className: 'confirm'
 	});
 	win.popUp();
 	return win;
@@ -326,9 +339,26 @@ FloatingWindow.prompt =
 			{ label: 'Cancel', action: onCancel, closesWindow: true }
 		],
 		input: inputDescriptor,
-		resizable: true
+		resizable: true,
+		className: 'prompt'
 	});
 	win.popUp();
+	return win;
+};
+
+FloatingWindow.workspace = function(title, text) {
+	let textarea = document.createElement('textarea');
+	textarea.textContent = text ?? '';
+	console.log(textarea.scrollHeight);
+	let win = new FloatingWindow({
+		title: title ?? 'Workspace',
+		body: textarea,
+		resizable: true,
+		className: 'workspace'
+	});
+	win.popUp();
+	// we can't know the scroll height until the window has popped up
+	win.setSize(win.width, textarea.scrollHeight + 56, true);
 	return win;
 };
 
@@ -401,5 +431,13 @@ document.addEventListener(
 			descriptor.default,
 			descriptor.editRule
 		);
+	}
+);
+
+document.addEventListener(
+	'window.workspace',
+	(e) => {
+		let descriptor = e.detail.value,
+			win = FloatingWindow.workspace(descriptor.title, descriptor.text);
 	}
 );
