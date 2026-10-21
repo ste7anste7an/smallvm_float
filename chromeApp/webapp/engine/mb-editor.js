@@ -2988,7 +2988,7 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	this.contentsMorph = text;
 	this.add(text);
 	this.bounds.setExtent(new Point(text.width() + 22, text.height() + 21)); // 7 of the height is the tail
-	text.setPosition(this.position().add(new Point(11, 7)));
+	text.setPosition(this.position().add(new Point(14, 6)));
 };
 
 MB_ResultBubbleMorph.prototype.render = function (ctx) {
