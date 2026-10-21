@@ -3291,6 +3291,16 @@ for (const textClass of [StringMorph, TextMorph]) {
 }
 
 CursorMorph.prototype.textMenu = function () {
+	// Paste offers what the browser's clipboard holds, so text copied in another application
+	// can be pasted too. The read is asynchronous and may ask for permission, so the menu
+	// shows once it answers. Without readText, the read would take the keys from the text.
+	const world = this.target.world();
+	const read = (navigator.clipboard && navigator.clipboard.readText) ? readGPClipboard() : Promise.resolve();
+	read.then(() => { if (world.cursor === this) chromeMenuFor(world, this.textMenuItems()); });
+	return chromeDrawnMenu;
+};
+
+CursorMorph.prototype.textMenuItems = function () {
 	const area = this.textarea,
 		selected = () => area.value.slice(area.selectionStart, area.selectionEnd),
 		insert = (s) => {
@@ -3316,7 +3326,7 @@ CursorMorph.prototype.textMenu = function () {
 		area.select();
 		this.processKeyUp({});
 	}]);
-	return chromeMenuFor(this.target.world(), items);
+	return items;
 };
 
 // Global singleton instance
