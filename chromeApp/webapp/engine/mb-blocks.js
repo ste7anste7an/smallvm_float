@@ -4960,7 +4960,7 @@ CSlotMorph.prototype.getSpec = function () {
 CSlotMorph.prototype.fixLayout = function () {
 	var nb = this.nestedBlock();
 	if (nb) {
-		nb.setPosition(this.position().add(new Point(blockHalf((10 * this.scale) + 1), this.scale)));
+		nb.setPosition(this.position().add(new Point(this.nestedLeft(), this.scale)));
 		this.bounds.setHeight(nb.fullBounds().height() + (3 * this.scale));
 		this.bounds.setWidth(
 			nb.fullBounds().width() + (this.cSlotPadding * 2)
@@ -4978,6 +4978,12 @@ CSlotMorph.prototype.fixLayout = function () {
 	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
+};
+
+CSlotMorph.prototype.nestedLeft = function () {
+	// In whole half CSS pixels, one more below 150%: 5.5 at 100%, 5 from 150% up.
+	var s = 2 * ZOOM * this.scale;
+	return (Math.floor(5 * s) + (s < 3 ? 1 : 0)) / (2 * ZOOM);
 };
 
 CSlotMorph.prototype.fixHolesLayout = function () {
@@ -5005,7 +5011,9 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		radius = Math.max(this.corner - inset, 0),
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
-		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height();
+		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height(),
+		// with blocks inside, the inner edge straddles their left side, which covers part of it
+		shift = nb ? this.flatEdge : 0;
 
 	// top corner:
 	ctx.lineTo(this.width() + ox - inset, oy);
@@ -5042,11 +5050,11 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		this.corner + oy - inset
 	);
 	ctx.lineTo(
-		this.inset + this.corner + ox,
+		this.inset + this.corner + shift + ox,
 		this.corner + oy - inset
 	);
 	ctx.arc(
-		this.inset + this.corner + ox,
+		this.inset + this.corner + shift + ox,
 		this.corner * 2 + oy,
 		this.corner + inset,
 		radians(270),
@@ -5056,13 +5064,16 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 
 	// bottom:
 	ctx.lineTo(
-		this.inset + ox - inset,
+		this.inset + shift + ox - inset,
 		bottom - (this.corner * 2) + oy
 	);
-	ctx.arc(
+	// the corner still meets the arm below where it did; only its upper end moves
+	ctx.ellipse(
 		this.inset + this.corner + ox,
 		bottom - (this.corner * 2) + oy,
+		this.corner + inset - shift,
 		this.corner + inset,
+		0,
 		radians(180),
 		radians(90),
 		true
