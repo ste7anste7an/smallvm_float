@@ -237,19 +237,79 @@ SyntaxElementMorph.uber = Morph.prototype;
 
 SyntaxElementMorph.prototype.contrast = 17;
 
-// The height of a line of block text, on a half-pixel grid.
-function blockTextHeight(fontSize) {
-	var size = Math.round(fontSize * 2);
-	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / 2;
+// A block or slot lays out its parent after itself. Off only while a whole
+// script is laid out from the bottom up, where that would lay out each ancestor
+// once per part below it.
+SyntaxElementMorph.prototype.fixesParentLayout = true;
+
+// The height of a line of block text: 0.95 and 0.3 of the font size, each rounded
+// down to half a CSS pixel at the world's zoom.
+function blockTextHeight(fontSize, pixelsPerUnit = 2 * ZOOM) {
+	var size = Math.round(fontSize * pixelsPerUnit);
+	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / pixelsPerUnit;
+}
+
+// Where block text's baseline sits below the top of its line: the font size in
+// device pixels less a tenth of it, rounded down, as GP's browser IDE draws it.
+// Morphic draws at the bottom of a line 1.2 font sizes tall, which puts the
+// glyphs 2 to 3 device pixels lower than GP's at block size 100%.
+function blockTextBaseline(fontSize, pixelsPerUnit = 2 * ZOOM) {
+	var size = Math.round(fontSize * pixelsPerUnit);
+	return (size - Math.floor(size / 10)) / pixelsPerUnit;
+}
+
+// A measured width of block text rounded to a whole device pixel at the world's
+// zoom, as GP's browser IDE rounds a string's width.
+function blockTextWidth(width, pixelsPerUnit = 2 * ZOOM) {
+	return Math.round(width * pixelsPerUnit) / pixelsPerUnit;
+}
+
+// StringMorph's render, drawn on the baseline above. Shared by the label and the
+// slot text morphs.
+function renderBlockString(ctx) {
+	var shadowOffset = this.shadowOffset || ZERO,
+		shadowColor = this.getShadowRenderColor(),
+		txt = this.isPassword ? this.password('*', this.text.length) : this.text,
+		base = blockTextBaseline(this.fontSize, this.pixelsPerUnit),
+		start, stop, i, p, c, x, y;
+
+	ctx.font = this.font();
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	if (shadowColor) {
+		ctx.fillStyle = shadowColor.toString();
+		ctx.fillText(txt, Math.max(shadowOffset.x, 0), base + Math.max(shadowOffset.y, 0));
+	}
+	x = Math.abs(Math.min(shadowOffset.x, 0));
+	y = Math.abs(Math.min(shadowOffset.y, 0));
+	ctx.fillStyle = this.getRenderColor().toString();
+	if (this.isShowingBlanks) {
+		this.renderWithBlanks(ctx, x, base + y);
+	} else {
+		ctx.fillText(txt, x, base + y);
+	}
+
+	// the selection
+	start = Math.min(this.startMark, this.endMark);
+	stop = Math.max(this.startMark, this.endMark);
+	for (i = start; i < stop; i += 1) {
+		p = this.slotPosition(i).subtract(this.position());
+		c = txt.charAt(i);
+		ctx.fillStyle = this.markedBackgoundColor.toString();
+		ctx.fillRect(p.x, p.y, ctx.measureText(c).width + 1 + x, this.height());
+		ctx.fillStyle = this.markedTextColor.toString();
+		ctx.fillText(c, p.x, base + p.y);
+	}
 }
 
 // Operators drawn a little larger than other label words.
 var blockMathOperators = ['=', '+', '/', '\u00D7', '\u2212', '\u2260', '<', '<=', '==', '>=', '>',
 	'&', '|', '^', '~', '<<', '>>'];
 
-// Half of n, rounded down to a half pixel.
-function blockHalf(n) {
-	return Math.floor(n) / 2;
+// Half of n, rounded down to 1 / pixelsPerUnit. Text is centred on half a CSS
+// pixel at the world's zoom; the other callers keep the half-unit grid they had.
+function blockHalf(n, pixelsPerUnit = 2) {
+	return Math.floor(n * pixelsPerUnit / 2) / pixelsPerUnit;
 }
 
 SyntaxElementMorph.prototype.setScale = function (num) {
@@ -267,7 +327,9 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.dent = 8 * scale;
 	this.cSlotPadding = 0 * scale;
 	this.typeInPadding = scale;
-	this.labelFontName = 'Arial Bold';
+	// The family alone: labels are already bold. A family named 'Arial Bold' does
+	// not exist on macOS, so the browser drew labels in its sans-serif instead.
+	this.labelFontName = 'Arial';
 	this.labelFontStyle = 'sans-serif';
 	this.fontSize = 14 * scale;
 	this.labelWidth = 450 * scale;
@@ -966,7 +1028,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		line.forEach(part => {
 			var span = lineHeight + scale;
 			if (part.height() <= span) {
-				part.moveBy(new Point(0, blockHalf(span - part.height())));
+				part.moveBy(new Point(0, blockHalf(span - part.height(), this.pixelsPerUnit || 2 * ZOOM)));
 			}
 		});
 		lineHeights.push(lineHeight);
@@ -1034,8 +1096,11 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 
 	// find out if one of my parents needs to be fixed
 	if (this instanceof BlockMorph && this.parent && this.parent.fixLayout) {
-		this.parent.fixLayout();
-		this.parent.changed();
+		if (this.fixesParentLayout) {
+			this.parent.fixLayout();
+			this.parent.changed();
+		}
+		// The top block redraws the script's highlight once the script is laid out.
 		if (this.parent instanceof SyntaxElementMorph) {
 			return;
 		}
@@ -1104,10 +1169,12 @@ function BlockLabelMorph(
 
 BlockLabelMorph.prototype.fixLayout = function (justMe) {
 	BlockLabelMorph.uber.fixLayout.call(this, true);
-	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
-	this.bounds.setHeight(blockTextHeight(this.fontSize));
+	this.bounds.setWidth(blockTextWidth(this.width(), this.pixelsPerUnit));
+	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
+
+BlockLabelMorph.prototype.render = renderBlockString;
 
 BlockLabelMorph.prototype.getRenderColor = function () {
 	var block = this.parentThatIsA(BlockMorph);
@@ -2561,10 +2628,36 @@ BlockMorph.prototype.expressionForArg = function (arg) {
 
 // BlockMorph drawing
 
+BlockMorph.prototype.outlineColor = function () {
+	// The block's colour at 80% of its HSV value. It goes through HSV in floating
+	// point and truncates, which can land a unit below plain scaling.
+	var r = Math.round(this.color.r), g = Math.round(this.color.g), b = Math.round(this.color.b),
+		max = Math.max(r, g, b), min = Math.min(r, g, b),
+		h = 0, s = 0, v = 0.8 * (max / 255), i, f, p, q, t, rgb;
+	if (max !== min) {
+		if (r === min) {
+			h = (60 * (3 - ((g - b) / (max - min)))) % 360;
+		} else if (g === min) {
+			h = (60 * (5 - ((b - r) / (max - min)))) % 360;
+		} else {
+			h = (60 * (1 - ((r - g) / (max - min)))) % 360;
+		}
+		s = (max - min) / max;
+	}
+	i = Math.trunc(h / 60);
+	f = (h / 60) - i;
+	p = v * (1 - s);
+	q = v * (1 - (s * f));
+	t = v * (1 - (s * (1 - f)));
+	rgb = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i];
+	return new Color(
+		Math.trunc(255 * rgb[0]), Math.trunc(255 * rgb[1]), Math.trunc(255 * rgb[2]), this.color.a);
+};
+
 BlockMorph.prototype.render = function (ctx) {
 	this.cachedClr = this.color.toString();
 	this.cachedClrBright = this.bright();
-	this.cachedClrDark = this.dark();
+	this.cachedClrDark = this.outlineColor().toString();
 
 	// draw the outline
 	ctx.fillStyle = this.cachedClrDark;
@@ -4738,7 +4831,7 @@ CommandSlotMorph.prototype.fixLayout = function () {
 				+ this.dent
 		);
 	}
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
 };
@@ -4878,7 +4971,7 @@ CSlotMorph.prototype.getSpec = function () {
 CSlotMorph.prototype.fixLayout = function () {
 	var nb = this.nestedBlock();
 	if (nb) {
-		nb.setPosition(this.position().add(new Point(blockHalf((10 * this.scale) + 1), this.scale)));
+		nb.setPosition(this.position().add(new Point(this.nestedLeft(), this.scale)));
 		this.bounds.setHeight(nb.fullBounds().height() + (3 * this.scale));
 		this.bounds.setWidth(
 			nb.fullBounds().width() + (this.cSlotPadding * 2)
@@ -4893,9 +4986,15 @@ CSlotMorph.prototype.fixLayout = function () {
 		);
 	}
 
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
+};
+
+CSlotMorph.prototype.nestedLeft = function () {
+	// In whole half CSS pixels, one more below 150%: 5.5 at 100%, 5 from 150% up.
+	var s = 2 * ZOOM * this.scale;
+	return (Math.floor(5 * s) + (s < 3 ? 1 : 0)) / (2 * ZOOM);
 };
 
 CSlotMorph.prototype.fixHolesLayout = function () {
@@ -4923,7 +5022,9 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		radius = Math.max(this.corner - inset, 0),
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
-		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height();
+		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height(),
+		// with blocks inside, the inner edge straddles their left side, which covers part of it
+		shift = nb ? this.flatEdge : 0;
 
 	// top corner:
 	ctx.lineTo(this.width() + ox - inset, oy);
@@ -4945,11 +5046,11 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	);
 	this.bottomTab(ctx, this.inset + ox, this.corner + oy, inset);
 	ctx.lineTo(
-		this.inset + this.corner + ox,
+		this.inset + this.corner + shift + ox,
 		this.corner + oy - inset
 	);
 	ctx.arc(
-		this.inset + this.corner + ox,
+		this.inset + this.corner + shift + ox,
 		this.corner * 2 + oy,
 		this.corner + inset,
 		radians(270),
@@ -4959,13 +5060,16 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 
 	// bottom:
 	ctx.lineTo(
-		this.inset + ox - inset,
+		this.inset + shift + ox - inset,
 		bottom - (this.corner * 2) + oy
 	);
-	ctx.arc(
+	// the corner still meets the arm below where it did; only its upper end moves
+	ctx.ellipse(
 		this.inset + this.corner + ox,
 		bottom - (this.corner * 2) + oy,
+		this.corner + inset - shift,
 		this.corner + inset,
+		0,
 		radians(180),
 		radians(90),
 		true
@@ -5136,8 +5240,9 @@ InputSlotMorph.prototype.setContents = function (data) {
 // InputSlotMorph drop-down menu:
 
 InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
+	// Answer false when mbMenu knows no menu for my choices.
 	let menu = this.mbMenu(this.choices);
-	if (!menu) return;
+	if (!menu) return false;
 	if (menu.items.length > 0) {
 		if (enableKeyboard) {
 			menu.popup(this.world(), this.bottomLeft());
@@ -5146,6 +5251,7 @@ InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
 			menu.popUpAtHand(this.world());
 		}
 	}
+	return true;
 };
 
 InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
@@ -5218,7 +5324,6 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		}
 	}
 
-	console.log('unhandled slot menu:', slotMenuName);
 	return null;
 }
 
@@ -5328,19 +5433,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 			+ arrowWidth
 			+ this.edge * 4
 			+ this.typeInPadding * 2;
-	} else if (this.isComment) {
-		height = contents.height() + this.edge * 2; // + this.typeInPadding * 2
-		width = Math.max(
-			contents.width()
-			+ arrowWidth
-			+ this.edge * 2
-			+ this.typeInPadding * 2,
-			contents.rawHeight ? // single vs. multi-line contents
-			contents.rawHeight() + arrowWidth
-			: fontHeight(contents.fontSize) / 1.3
-			+ arrowWidth
-		);
-	} else {
+	} else { // a comment slot too: only its corners differ
 		height = contents.height() + (3 * this.scale);
 		width = Math.max(contents.width(), 10 * this.scale) + (14 * this.scale)
 			+ (arrow.isVisible ? 12 * this.scale : 0);
@@ -5348,17 +5441,10 @@ InputSlotMorph.prototype.fixLayout = function () {
 
 	this.bounds.setExtent(new Point(width, height));
 
-	if (this.isComment) {
-		contents.setPosition(new Point(
-			this.edge,
-			this.edge
-		).add(new Point(this.typeInPadding, 0)).add(this.position()));
-	} else {
-		contents.setPosition(new Point(
-			blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
-			2 * this.scale
-		).add(this.position()));
-	}
+	contents.setPosition(new Point(
+		blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
+		2 * this.scale
+	).add(this.position()));
 
 	if (arrow.isVisible) {
 		arrow.setPosition(new Point(
@@ -5367,7 +5453,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 		));
 	}
 
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		tp.fullChanged();
 		this.parent.fixLayout();
 		tp.fullChanged();
@@ -5405,9 +5491,10 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 	// the pan carries the slot back under the hand, but its end is not a click
 	if (this.pans() && hand.grabPosition &&
 			hand.grabPosition.distanceTo(hand.position()) > MorphicPreferences.grabThreshold) return;
-	if (this.arrow().bounds.containsPoint(pos)) {
-		this.dropDownMenu();
-	} else if (this.isReadOnly || this.symbol) {
+	if (this.isReadOnly || this.symbol) {
+		// a read-only slot with no menu takes the click as its block does
+		if (!this.dropDownMenu()) this.escalateEvent('mouseClickLeft', pos);
+	} else if (this.arrow().bounds.containsPoint(pos)) {
 		this.dropDownMenu();
 	} else {
 		this.contents().edit();
@@ -5563,7 +5650,7 @@ InputSlotMorph.prototype.render = function (ctx) {
 	r = Math.min(15 * this.scale, h / 2, w / 2);
 	ctx.beginPath();
 	if (this.isComment) { // a comment slot has square corners
-		ctx.rect(this.edge, this.edge, w - (this.edge * 2), h - (this.edge * 2));
+		ctx.rect(0, 0, w, h);
 	} else { // round ends on one line, a rounded rectangle when taller
 		ctx.arc(w - r, r, r, radians(-90), 0, false);
 		ctx.arc(w - r, h - r, r, 0, radians(90), false);
@@ -5624,9 +5711,35 @@ function InputSlotStringMorph(
 
 InputSlotStringMorph.prototype.fixLayout = function (justMe) {
 	InputSlotStringMorph.uber.fixLayout.call(this, true);
-	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
-	this.bounds.setHeight(blockTextHeight(this.fontSize));
+	this.bounds.setWidth(blockTextWidth(this.width(), this.pixelsPerUnit));
+	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
+};
+
+InputSlotStringMorph.prototype.render = renderBlockString;
+
+// A blank's dot stays where StringMorph puts it, centred on the line, now that
+// the text is drawn on its baseline.
+InputSlotStringMorph.prototype.renderWithBlanks = function (ctx, startX, y) {
+	var space = ctx.measureText(' ').width,
+		top = y - blockTextBaseline(this.fontSize, this.pixelsPerUnit)
+			+ fontHeight(this.fontSize) - this.height() / 2,
+		x = startX || 0;
+
+	this.text.split(' ').forEach((word, i) => {
+		if (i > 0) {
+			ctx.fillStyle = this.blanksColor.toString();
+			ctx.beginPath();
+			ctx.arc(x + space / 2, top, space / 2, radians(0), radians(360));
+			ctx.fill();
+			x += space;
+		}
+		if (word !== '') {
+			ctx.fillStyle = this.getRenderColor().toString();
+			ctx.fillText(word, x, y);
+			x += ctx.measureText(word).width;
+		}
+	});
 };
 
 InputSlotStringMorph.prototype.getRenderColor = function () {
@@ -5676,14 +5789,64 @@ function InputSlotTextMorph(
 
 InputSlotTextMorph.prototype.fixLayout = function () {
 	// Measure each line without the space parse() leaves at its end.
-	if (this.parent && this.parent.isComment) return TextMorph.prototype.fixLayout.call(this);
 	this.parse();
 	this.measureCtx.font = this.font();
 	const width = Math.max(1, ...this.lines.map(line =>
-		Math.round(this.measureCtx.measureText(line.replace(/ $/, '')).width * 2) / 2));
+		blockTextWidth(this.measureCtx.measureText(line.replace(/ $/, '')).width, this.pixelsPerUnit)));
 	this.bounds = this.bounds.origin.extent(new Point(this.maxWidth || width,
-		this.lines.length * blockTextHeight(this.fontSize)));
+		this.lines.length * blockTextHeight(this.fontSize, this.pixelsPerUnit)));
 	if (this.parent && this.parent.layoutChanged) this.parent.layoutChanged();
+};
+
+// Each line is drawn on GP's baseline, one blockTextHeight below the last, the
+// pitch fixLayout measures. Morphic's 1.2 font sizes would drift from it a little
+// more on every line.
+InputSlotTextMorph.prototype.render = function (ctx) {
+	if (this.parent && this.parent.isComment) return TextMorph.prototype.render.call(this, ctx);
+	var lineHeight = blockTextHeight(this.fontSize, this.pixelsPerUnit),
+		base = blockTextBaseline(this.fontSize, this.pixelsPerUnit),
+		start, stop, i, p, c, x;
+
+	ctx.font = this.font();
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = this.getRenderColor().toString();
+	this.lines.forEach((line, row) => {
+		x = 0;
+		if (this.alignment === 'right') {
+			x = this.width() - ctx.measureText(line).width;
+		} else if (this.alignment === 'center') {
+			x = (this.width() - ctx.measureText(line).width) / 2;
+		}
+		ctx.fillText(line, x, row * lineHeight + base);
+	});
+
+	// the selection
+	start = Math.min(this.startMark, this.endMark);
+	stop = Math.max(this.startMark, this.endMark);
+	for (i = start; i < stop; i += 1) {
+		p = this.slotPosition(i).subtract(this.position());
+		c = this.text.charAt(i);
+		ctx.fillStyle = this.markedBackgoundColor.toString();
+		ctx.fillRect(p.x, p.y, ctx.measureText(c).width + 1, lineHeight);
+		ctx.fillStyle = this.markedTextColor.toString();
+		ctx.fillText(c, p.x, p.y + base);
+	}
+};
+
+// The cursor and a click find a line on the same pitch.
+InputSlotTextMorph.prototype.slotPosition = function (slot) {
+	var pos = TextMorph.prototype.slotPosition.call(this, slot);
+	if (this.parent && this.parent.isComment) return pos;
+	return new Point(pos.x, this.top()
+		+ this.columnRow(slot).y * blockTextHeight(this.fontSize, this.pixelsPerUnit));
+};
+
+InputSlotTextMorph.prototype.slotAt = function (aPoint) {
+	if (this.parent && this.parent.isComment) return TextMorph.prototype.slotAt.call(this, aPoint);
+	var ratio = fontHeight(this.fontSize) / blockTextHeight(this.fontSize, this.pixelsPerUnit);
+	return TextMorph.prototype.slotAt.call(this,
+		new Point(aPoint.x, this.top() + (aPoint.y - this.top()) * ratio));
 };
 
 InputSlotTextMorph.prototype.getRenderColor =
@@ -5763,7 +5926,7 @@ TemplateSlotMorph.prototype.fixLayout = function () {
 	var template = this.template();
 	this.bounds.setExtent(template.extent());
 	template.setPosition(this.position());
-	if (this.parent) {
+	if (this.fixesParentLayout && this.parent) {
 		if (this.parent.fixLayout) {
 			this.parent.fixLayout();
 		}

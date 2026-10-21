@@ -1271,7 +1271,7 @@ class MB_Module {
 		this.choices = new Map();
 		for (const cmd of cmdList) {
 			if (!Array.isArray(cmd) || cmd[0] !== 'choices') continue;
-			if (cmd.length < 3) continue;
+			if (cmd.length < 2) continue; // a name with no items is an empty menu
 			let args = cmd.slice(1);
 			for (let i = 0; i < args.length; i++) {
 				args[i] = String(stringArg(args[i]));
@@ -1777,9 +1777,15 @@ class MB_ScriptExchange {
 				console.log('fixed args:', args);
 			}
 			if (entry[0] === 'script' && args.length === 3) {
-				const block = blockForBody(args[2], true);
+				let block = blockForBody(args[2], true);
 				if (block == null) continue;
 				this.addGlobalsFor(block);
+				if (block.selector === 'to') {
+					// A function's script is its definition hat, as a loaded project shows it.
+					const nameSlot = block.inputs()[0];
+					const func = nameSlot && this.mbProject.functionNamed(nameSlot.evaluate());
+					if (func) block = scriptForFunction(func, null, this.mbProject);
+				}
 				block.fixBlockColor();
 				const scale = scripter.blockScale(); // pane pixels per script-file unit
 				const blockX = Math.round(dstX + scale * (args[0] - scriptsX));

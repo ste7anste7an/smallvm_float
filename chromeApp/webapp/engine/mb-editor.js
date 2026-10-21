@@ -66,6 +66,12 @@ class MB_Editor {
 		// The scripting pane scrolls itself while a block is dragged near its edge; the palette does not.
 		this.scriptsFrame.enableAutoScrolling = false;
 		this.palette.enableAutoScrolling = false;
+		// The scripting pane's scroll bars show only while it scrolls and while the
+		// pointer is over one. The palette's always show.
+		this.scriptsFrame.stepFrame = () => {
+			ScrollFrameMorph.prototype.stepFrame.call(this.scriptsFrame);
+			this.hideIdleScrollBars();
+		};
 
 		// The panes exist now, so they can take their colours. This is the only
 		// place that gives them one, here and on every later change.
@@ -180,7 +186,8 @@ class MB_Editor {
 		));
 		if (this.paletteResizer) {
 			this.paletteResizer.setPosition(this.palette.topRight());
-			this.paletteResizer.setExtent(new Point(15, this.palette.height()));
+			// 15 screen px wide, whatever the block size.
+			this.paletteResizer.setExtent(new Point(15 / ZOOM, this.palette.height()));
 		}
 		this.placeTrashcan();
 	}
@@ -525,7 +532,10 @@ class MB_Editor {
 		// One definition hat per function, and never a second for the same one.
 		if (func == null) return;
 		if (this.definitionShown(func.functionName)) return;
-		this.addToBottom(scriptForFunction(func));
+		const hat = scriptForFunction(func);
+		// A hidden definition keeps its body at the block size it was made at.
+		this.relayoutScript(hat);
+		this.addToBottom(hat);
 	}
 
 	definitionShown(funcName) {
@@ -659,7 +669,8 @@ class MB_Editor {
 		let contents = this.palette.contents;
 		contents.children.slice().forEach((m) => { m.destroy(); });
 		contents.setPosition(this.palette.position()); // scroll back to the top
-		this.paletteY = contents.top() + 10;
+		// the insets and the gap between blocks are screen pixels, the same at every block size
+		this.paletteY = contents.top() + (16 / ZOOM);
 		if (this.library) {
 			this.addBlocksForLibrary(this.library);
 		} else if ('cat;Variables' == this.category) {
@@ -757,10 +768,10 @@ class MB_Editor {
 	}
 
 	addPaletteBlock(b) {
-		b.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		b.setPosition(new Point(this.palette.contents.left() + (16 / ZOOM), this.paletteY));
 		b.isTemplate = true;
 		this.palette.contents.add(b);
-		this.paletteY += b.height() + 10;
+		this.paletteY += b.height() + (8 / ZOOM);
 	}
 
 	addPaletteLabel(text) {
@@ -773,17 +784,40 @@ class MB_Editor {
 	}
 
 	addPaletteButton(label, action) {
-		// A push button in the palette, in the file picker's button style. The
-		// action is a function or the name of a method on the editor.
+		// A push button in the palette: a pill 26 screen px high with a bold 14 px
+		// Arial label and a one device pixel border, yellow under the pointer, the
+		// same size at every block size.
 
-		const button = new TriggerMorph(this, action, label, 14, null, null, null,
-			new Color(20, 20, 20));
-		button.color = new Color(220, 220, 220);
-		button.highlightColor = new Color(240, 240, 240);
-		button.setExtent(new Point(Math.max(30, button.label.width() + 20), 26));
-		button.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		const dark = this.darkMode();
+		const ink = new Color(38, 41, 56); // blueGray 900
+		const labelColor = dark ? new Color(176, 179, 197) : ink; // blueGray 200
+		const borderColor = dark ? 'rgb(69, 74, 100)' : 'rgb(176, 179, 197)'; // blueGray 700, 200
+		const button = new TriggerMorph(this, action, label, 14 / ZOOM, 'sans-serif', null, null, labelColor, true);
+		button.label.fontName = 'Arial';
+		button.label.fixLayout();
+		button.setExtent(new Point(Math.max(30 / ZOOM, button.label.width() + (25 / ZOOM)), 26 / ZOOM));
+		button.render = (ctx) => {
+			const w = button.width(), h = button.height();
+			ctx.beginPath();
+			if (button.userState !== 'normal') {
+				ctx.roundRect(0, 0, w, h, h / 2);
+				ctx.fillStyle = 'rgb(254, 215, 34)'; // yellow
+				ctx.fill();
+				return;
+			}
+			const line = 1 / (ZOOM * (window.devicePixelRatio || 1));
+			ctx.roundRect(line / 2, line / 2, w - line, h - line, (h - line) / 2);
+			ctx.lineWidth = line;
+			ctx.strokeStyle = borderColor;
+			ctx.stroke();
+		};
+		button.rerender = () => { // the label turns dark on yellow
+			button.label.setColor((button.userState === 'normal') ? labelColor : ink);
+			button.changed();
+		};
+		button.setPosition(new Point(this.palette.contents.left() + (16 / ZOOM), this.paletteY));
 		this.palette.contents.add(button);
-		this.paletteY += button.height() + 7;
+		this.paletteY += button.height() + (7 / ZOOM);
 	}
 
 	addPaletteBlockForSpec(spec, category) {
@@ -796,7 +830,7 @@ class MB_Editor {
 	addBlocksForSpecs(specs, category) {
 		for (const spec of specs) {
 			if ('-' == spec) { // separator
-				this.paletteY += 15;
+				this.paletteY += 20;
 			} else {
 				this.addPaletteBlockForSpec(spec, category);
 			}
@@ -828,8 +862,8 @@ class MB_Editor {
 		let lib = this.project.libraryNamed(libName);
 		if (!lib) return;
 		for (const op of lib.blockList) {
-			if ('-' == op) { // separator
-				this.paletteY += 15;
+			if ('-' == op) { // a library's separator stays the same on screen
+				this.paletteY += 20 / ZOOM;
 			} else if ('advanced' == op) {
 				if (!this.devMode()) return; // the rest is for developer mode
 				this.paletteY += 15;
@@ -1395,7 +1429,7 @@ console.log('unknown');
 		// %name word is an input, or null if it has none. The op is the label
 		// words joined by underscores, or the first free of function1,
 		// function2... if that is empty or taken.
-		const isInput = (w) => /^%[A-Za-z_][A-Za-z0-9_]*$/.test(w);
+		const isInput = (w) => /^%[\p{L}_][\p{L}\p{M}\p{Nd}_]*$/u.test(w);
 		const words = name.split(/\s+/);
 		if (!words.some(isInput)) return null;
 		const labels = [], argNames = [], spec = [];
@@ -1713,6 +1747,25 @@ console.log('unknown');
 		pane.moveBy(new Point(dx, dy));
 		pane.adjustBounds();
 		frame.adjustScrollBars();
+	}
+
+	hideIdleScrollBars() {
+		// Each frame: hide the scripting pane's scroll bars 200 ms after it last
+		// scrolled, unless a block is being dragged. Any move of its contents counts
+		// as a scroll, whatever made it. The pointer over where a bar would be shows it.
+		const frame = this.scriptsFrame, world = frame.world();
+		if (!world) return;
+		const hand = world.hand, now = Date.now(), pos = frame.contents.position();
+		if (frame.lastContentsPosition && !pos.eq(frame.lastContentsPosition)) frame.lastScrollTime = now;
+		frame.lastContentsPosition = pos;
+		const bars = [frame.hBar, frame.vBar];
+		const overflows = (frame.contents.width() > frame.width()) || (frame.contents.height() > frame.height());
+		if (overflows && bars.some(bar => bar.bounds.containsPoint(hand.position()))) {
+			frame.lastScrollTime = now;
+			if (!bars.some(bar => bar.isVisible)) frame.adjustScrollBars();
+		}
+		if (hand.children.length || (now - (frame.lastScrollTime || 0) <= 200)) return;
+		for (const bar of bars) if (bar.isVisible) bar.hide();
 	}
 
 	async deleteFunctionWithConfirm(name) {
@@ -2088,32 +2141,87 @@ console.log('unknown');
 	resizeBlock(block, fontFactor, scale = SyntaxElementMorph.prototype.scale) {
 		// TextMorph includes multi-line input text, which is separate from StringMorph.
 		const parts = block.allChildren();
-		for (const part of parts) {
-			if (part instanceof SyntaxElementMorph) part.setScale(scale);
-			if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
-			if (part instanceof StringMorph || part instanceof TextMorph) {
-				part.setFontSize(part.fontSize * fontFactor);
-				part.fixLayout();
-				part.rerender();
+		// Laid out from the bottom up, as in relayoutScript.
+		SyntaxElementMorph.prototype.fixesParentLayout = false;
+		try {
+			for (const part of parts) {
+				part.pixelsPerUnit = 2; // a picture is not drawn at the world's zoom
+				if (part instanceof SyntaxElementMorph) part.setScale(scale);
+				if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.setFontSize(part.fontSize * fontFactor);
+					part.fixLayout();
+					part.rerender();
+				}
 			}
+			for (const part of parts.reverse()) {
+				if (part instanceof SyntaxElementMorph) part.fixLayout();
+			}
+		} finally {
+			SyntaxElementMorph.prototype.fixesParentLayout = true;
 		}
-		for (const part of parts.reverse()) {
-			if (part instanceof SyntaxElementMorph) part.fixLayout();
+	}
+
+	relayoutBlocks() {
+		for (const block of this.scripts.children) {
+			if (block instanceof BlockMorph) this.relayoutScript(block);
 		}
+		this.updatePalette();
+	}
+
+	relayoutScript(block) {
+		// Block text height is rounded to half a CSS pixel at the world's zoom, so it
+		// changes with the zoom. A definition whose details are hidden holds its
+		// inputs' declarations off the tree, and a prototype's row is laid out only
+		// from below, so both are collected and laid out here as well.
+		const partsOf = (m, out = []) => {
+			out.push(m);
+			m.children.forEach((child) => partsOf(child, out));
+			if (m.declaration && !m.children.includes(m.declaration)) partsOf(m.declaration, out);
+			return out;
+		};
+		const parts = partsOf(block);
+		// Each part is laid out after the parts inside it, so no part needs to lay out
+		// its parent; with that on, each would lay out every block above it.
+		SyntaxElementMorph.prototype.fixesParentLayout = false;
+		try {
+			for (const part of parts) {
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.fixLayout(true);
+					part.rerender();
+				}
+			}
+			for (const part of parts.reverse()) {
+				if ((part instanceof SyntaxElementMorph) || (part instanceof InputDeclarationMorph) ||
+						(part instanceof BlockSectionDefinitionMorph)) {
+					part.fixLayout();
+				}
+			}
+		} finally {
+			SyntaxElementMorph.prototype.fixesParentLayout = true;
+		}
+		block.fullChanged();
 	}
 
 	applyBlockSize(percent) {
 		// Keep script positions in project file units while changing the rendered scale.
 		this.blockSize = percent;
+		const oldZoom = ZOOM;
+		const scrolled = this.palette ? this.palette.topLeft().subtract(this.palette.contents.topLeft()) : null;
 		world.zoom(Math.max(Math.min(percent, 250), 50) / 100);
-		// A running script's outline is drawn for one zoom; redraw it for the new one.
-		for (const m of this.scripts ? this.scripts.children : []) {
-			if (m instanceof BlockMorph && m.getHighlight()) m.addHighlight(m.removeHighlight());
-		}
+		if ((ZOOM !== oldZoom) && this.scripts) this.relayoutBlocks();
 		// A wheel notch scrolls 120 screen pixels, as in GP; morphic scrolls in scene units.
 		// Both settings objects: the first touch event swaps MorphicPreferences to the second.
 		standardSettings.mouseScrollAmount = touchScreenSettings.mouseScrollAmount = 120 / ZOOM;
 		IDE.resize();
+		if (scrolled && (ZOOM !== oldZoom)) {
+			// The palette, rebuilt at the new size, keeps where it was scrolled to as
+			// far as its new contents allow.
+			this.palette.contents.setPosition(this.palette.position());
+			this.palette.scrollX(-scrolled.x);
+			this.palette.scrollY(-scrolled.y);
+			this.palette.adjustScrollBars();
+		}
 	}
 
 	async setBlockScalePercent(percent) {
@@ -3027,14 +3135,39 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	if (lines.length > 30) lines = lines.slice(0, 30).concat(['...']);
 	const text = textMorph(lines.join('\n'), 0);
 	text.color = new Color(0, 0, 0);
+	text.render = renderResultText;
+	text.bounds.setHeight(text.lines.length * resultTextMetrics(text.fontSize).lineHeight);
 	this.contentsMorph = text;
 	this.add(text);
 	// A TextMorph is one space wider than its widest line; the glyphs fill its left part.
 	text.measureCtx.font = text.font();
 	const width = Math.max(...text.lines.map((s) => text.measureCtx.measureText(s.trimEnd()).width));
 	this.bounds.setExtent(new Point(width + 22, text.height() + 21)); // 7 of the height is the tail
-	text.setPosition(this.position().add(new Point(11, 6)));
+	text.setPosition(this.position().add(new Point(11, 7)));
 };
+
+// GP's line height and baseline at the world's zoom: 0.95 and 0.3 of the font
+// size in device pixels, each rounded down, and the font size less a tenth of it.
+// Morphic's lines are 1.2 font sizes, with the glyphs on the bottom of each.
+function resultTextMetrics(fontSize) {
+	const ppu = 2 * ZOOM, px = Math.round(fontSize * ppu);
+	return {
+		lineHeight: (Math.floor(0.95 * px) + Math.floor(0.3 * px)) / ppu,
+		baseline: (px - Math.floor(px / 10)) / ppu
+	};
+}
+
+// TextMorph's centred lines, drawn on GP's metrics above.
+function renderResultText(ctx) {
+	const { lineHeight, baseline } = resultTextMetrics(this.fontSize);
+	ctx.font = this.font();
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = this.getRenderColor().toString();
+	this.lines.forEach((line, i) => {
+		ctx.fillText(line, (this.width() - ctx.measureText(line).width) / 2, (i * lineHeight) + baseline);
+	});
+}
 
 MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	// A rounded box inset 4 from the bounds, with an 8 high tail under one end.

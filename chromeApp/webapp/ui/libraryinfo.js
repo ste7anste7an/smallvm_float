@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with GetText
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// Copyright 2025 John Maloney, Bernat Romagosa, and Jens Mönig
+// Copyright 2026 John Maloney, Bernat Romagosa, and Jens Mönig
 
-// libraryinfo.js - Dialog for library creation and library properties display
+// libraryinfo.js - Dialog for displaying library properties
 
 // Bernat Romagosa, 2026
 
@@ -130,9 +130,76 @@ class LibraryInfoWindow extends FloatingWindow {
 			div.appendChild(text);
 		}
 		if (IDE.isDevMode()) {
-			// TODO buttons to add and remove dependencies
+			let addButton = document.createElement('button');
+			let removeButton = document.createElement('button');
+			addButton.classList.add('button-rounded');
+			addButton.innerText = '+';
+			addButton.onclick = (event) => this.addDependency(event);
+			removeButton.classList.add('button-rounded');
+			removeButton.innerText = '-';
+			removeButton.onclick = (event) => {
+				this.removeDependency(event, removeButton);
+			};
+			div.appendChild(addButton);
+			div.appendChild(removeButton);
 		}
 		return div;
+	}
+
+	addDependency(event) {
+		console.log(event);
+		FloatingWindow.prompt(
+			'Dependency name or URL?',
+			localized(`If you are adding a library that\'s built into MicroBlocks, you
+				can just enter its name.`) +
+				localized(`If the library is hosted online, please input its full URL`),
+			(depName) => {
+				if (depName.startsWith('http')) {
+					FloatingWindow.inform(
+						'Not implemented',
+						'Online dependencies not yet implemented sorry! Come back tomorrow.'
+					);
+				}
+				if (!this.library.dependencies.includes(depName)) {
+					this.library.dependencies.push(depName);
+					this.rebuildDependencyInput();
+				}
+			},
+			() => {}
+		);
+	}
+
+	removeDependency(event, trigger) {
+		Menus.popUpFromDescriptor(
+			{
+				selector: 'removeLibraryDependency',
+				type: 'context',
+				items: this.library.dependencies.map(depName => {
+					return {
+						label: depName,
+						action: () => {
+							this.library.dependencies.splice(
+								this.library.dependencies.indexOf(depName),
+								1
+							);
+							this.rebuildDependencyInput();
+						}
+					}
+				})
+			},
+			trigger, // triggerElement
+			null, // target
+			event
+		);
+	}
+
+	rebuildDependencyInput() {
+		// first build the new dependencies view
+		let newDepInput = this.dependenciesInput();
+		// then replace the current DOM element with the new view
+		this.fields.dependencies.replaceWith(newDepInput);
+		// then store the new view into the fields dictionary
+		this.fields.dependencies = newDepInput;
 	}
 
 	moduleCategoryInput() {
