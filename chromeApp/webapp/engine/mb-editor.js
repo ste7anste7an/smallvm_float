@@ -1337,12 +1337,46 @@ console.log('unknown');
 	uniqueFunctionName(baseSpec) {
 		// Make the first word of baseSpec unlike any block op, built in or the
 		// project's. A spec that starts with an input gets the word 'f' first.
-		MB_Specs.initialize();
-		const taken = [...MB_Specs.selectorToSpec.keys(), ...this.project.blockSpecs.keys()];
+		const taken = this.takenOpNames();
 		let words = String(baseSpec).split(/\s+/).filter((w) => w.length > 0);
 		if ('_' === words[0]) words.unshift('f');
 		words[0] = uniqueNameNotIn(taken, words[0]);
 		return words.join(' ');
+	}
+
+	takenOpNames() {
+		// Every block op, built in or with a spec in the project.
+		MB_Specs.initialize();
+		return [...MB_Specs.selectorToSpec.keys(), ...this.project.blockSpecs.keys()];
+	}
+
+	prototypeFromName(name) {
+		// Answer the op, spec and input names for a block name in which each
+		// %name word is an input, or null if it has none. The op is the label
+		// words joined by underscores, or the first free of function1,
+		// function2... if that is empty or taken.
+		const isInput = (w) => /^%[A-Za-z_][A-Za-z0-9_]*$/.test(w);
+		const words = name.split(/\s+/);
+		if (!words.some(isInput)) return null;
+		const labels = [], argNames = [], spec = [];
+		for (const w of words) {
+			if (isInput(w)) {
+				argNames.push(uniqueNameNotIn(argNames, w.slice(1)));
+				spec.push('_');
+			} else {
+				const label = w.replaceAll(':', ''); // a colon starts a section, a lone '_' is an input
+				if (('' === label) || ('_' === label)) continue;
+				labels.push(label);
+				spec.push(label);
+			}
+		}
+		const taken = this.takenOpNames(); // and a function with no spec, in any module
+		for (const m of [this.project.main, ...this.project.libraries.values()]) {
+			for (const f of m.functions) taken.push(f.functionName);
+		}
+		let opName = labels.join('_');
+		for (let i = 1; ('' === opName) || taken.includes(opName); i++) opName = 'function' + i;
+		return { opName, argNames, specString: spec.join(' ') };
 	}
 
 	uniqueVarName(varName, forScriptVar = false) {
@@ -1414,16 +1448,20 @@ console.log('unknown');
 	}
 
 	createFunction(name, isReporter) {
-		// Define a function with no inputs under a unique form of name and park
-		// its definition below the scripts. Answers the definition hat.
+		// Define a function under a unique form of name and park its definition
+		// below the scripts. Each %name word in name is an input. Answers the
+		// definition hat.
 		name = String(name).trim();
 		if ('' === name) return null;
 		this.updateProject();
-		const opName = this.uniqueFunctionName(name);
-		const func = this.project.main.defineFunction(opName, [], null);
+		const proto = this.prototypeFromName(name);
+		const opName = proto ? proto.opName : this.uniqueFunctionName(name);
+		const argNames = proto ? proto.argNames : [];
+		const func = this.project.main.defineFunction(opName, argNames, null);
 		if (this.hasCallsTo(opName)) recompileNeeded(); // a caller of a deleted function of this name
 		this.project.recordBlockSpec(opName, { blockType: isReporter ? 'r' : ' ',
-			opName, specString: opName, slotTypes: '', defaults: [] });
+			opName, specString: proto ? proto.specString : opName,
+			slotTypes: argNames.map(() => 'auto').join(' '), defaults: argNames.map(() => '10') });
 		const hat = scriptForFunction(func);
 		if (isReporter) hat.nextBlock(MB_Parser.blockForDecompiled(
 			{ selector: 'return', args: [0], isReporter: false, next: null }));
