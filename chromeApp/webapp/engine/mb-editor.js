@@ -2987,8 +2987,11 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	text.color = new Color(0, 0, 0);
 	this.contentsMorph = text;
 	this.add(text);
-	this.bounds.setExtent(new Point(text.width() + 22, text.height() + 21)); // 7 of the height is the tail
-	text.setPosition(this.position().add(new Point(14, 6)));
+	// A TextMorph is one space wider than its widest line; the glyphs fill its left part.
+	text.measureCtx.font = text.font();
+	const width = Math.max(...text.lines.map((s) => text.measureCtx.measureText(s.trimEnd()).width));
+	this.bounds.setExtent(new Point(width + 22, text.height() + 21)); // 7 of the height is the tail
+	text.setPosition(this.position().add(new Point(11, 6)));
 };
 
 MB_ResultBubbleMorph.prototype.render = function (ctx) {
