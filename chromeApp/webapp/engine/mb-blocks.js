@@ -2896,7 +2896,10 @@ BlockMorph.prototype.hasLabels = function () {
 
 BlockMorph.prototype.fullCopy = function () {
 	if (this.isPrototype) { // a prototype is copied as a call of its block
-		return MB_editor.blockForFunction(MB_editor.project.functionNamed(this.topBlock().definedFunctionName()));
+		// placed where I am, so the hand holds the call where it held me
+		const call = MB_editor.blockForFunction(MB_editor.project.functionNamed(this.topBlock().definedFunctionName()));
+		call.setPosition(this.position());
+		return call;
 	}
 	var ans = BlockMorph.uber.fullCopy.call(this);
 	ans.removeHighlight();
