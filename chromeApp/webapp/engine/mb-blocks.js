@@ -2598,7 +2598,7 @@ BlockMorph.prototype.addHighlight = function (oldHighlight) {
 	highlight = this.highlight(
 		oldHighlight ? oldHighlight.color : this.activeHighlight,
 		this.activeBlur,
-		this.activeBorder
+		this.activeBorder / ZOOM // the same width on screen at every block size
 	);
 	this.addBack(highlight);
 	this.fullChanged();
