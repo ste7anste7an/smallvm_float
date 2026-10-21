@@ -3036,12 +3036,35 @@ HandMorph.prototype.processMouseDown = function (event) {
 	this.processMouseDownWithoutShift(event);
 };
 
+HandMorph.prototype.processMouseMoveWithoutCopying = HandMorph.prototype.processMouseMove;
+HandMorph.prototype.processMouseMove = function (event) {
+	var threshold = MorphicPreferences.grabThreshold;
+	// morphic's own test is a straight-line distance in world units, which grow with
+	// the block size; answer it here instead (a touch keeps morphic's test)
+	if (this.grabPosition && (event instanceof MouseEvent)) {
+		MorphicPreferences.grabThreshold = this.movedPastGrabThreshold(event, threshold) ? -1 : Infinity;
+	}
+	try {
+		this.processMouseMoveCopyingWithCtrl(event);
+	} finally {
+		MorphicPreferences.grabThreshold = threshold;
+	}
+};
+
+// A press becomes a drag once the pointer is more than threshold screen pixels
+// from where it went down along either axis, whatever the block size.
+HandMorph.prototype.movedPastGrabThreshold = function (event, threshold) {
+	var canvas = getDocumentPositionOf(this.world.worldCanvas),
+		dx = event.pageX - canvas.x - (this.grabPosition.x * ZOOM),
+		dy = event.pageY - canvas.y - (this.grabPosition.y * ZOOM);
+	return Math.round(Math.max(Math.abs(dx), Math.abs(dy))) > threshold;
+};
+
 // morphic makes a press with Ctrl held a right click, whose menu opens on release.
 // If the pointer moves past the drag threshold first, a block pressed that way is
 // dragged instead: a copy of it and the blocks below, or with Shift of it alone.
 // A block morphic would not grab (not draggable, not a template) stays a right click.
-HandMorph.prototype.processMouseMoveWithoutCopying = HandMorph.prototype.processMouseMove;
-HandMorph.prototype.processMouseMove = function (event) {
+HandMorph.prototype.processMouseMoveCopyingWithCtrl = function (event) {
 	var block = this.morphToGrab, dup, pos;
 	this.processMouseMoveWithoutCopying(event);
 	this.updateCursor();
@@ -4131,17 +4154,18 @@ ScriptsMorph.prototype.step = function () {
 };
 
 ScriptsMorph.prototype.autoScroll = function (hand) {
-	// While a block is held within 80 pixels of an edge of the pane, scroll 15 pixels
-	// that way each frame.
+	// While a block is held within 80 screen pixels of an edge of the pane, whatever
+	// the block size, scroll 15 pixels that way each frame.
 	var frame = this.scrollFrame,
 		pos = hand.bounds.origin,
-		zone = 80, jump = 15, dx = 0, dy = 0;
+		jump = 15, dx = 0, dy = 0,
+		near = (d) => Math.round(d * ZOOM) < 80;
 
 	if (!frame || !frame.bounds.containsPoint(pos) || !this.wantsDropOf(hand.children[0])) return;
-	if (pos.x - frame.left() < zone) dx = jump;
-	if (frame.right() - pos.x < zone) dx = -jump;
-	if (pos.y - frame.top() < zone) dy = jump;
-	if (frame.bottom() - pos.y < zone) dy = -jump;
+	if (near(pos.x - frame.left())) dx = jump;
+	if (near(frame.right() - pos.x)) dx = -jump;
+	if (near(pos.y - frame.top())) dy = jump;
+	if (near(frame.bottom() - pos.y)) dy = -jump;
 	if (dx) frame.scrollX(dx);
 	if (dy) frame.scrollY(dy);
 	if (dx || dy) frame.adjustScrollBars();
