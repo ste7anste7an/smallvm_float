@@ -777,17 +777,40 @@ class MB_Editor {
 	}
 
 	addPaletteButton(label, action) {
-		// A push button in the palette, in the file picker's button style. The
-		// action is a function or the name of a method on the editor.
+		// A push button in the palette: a pill 26 screen px high with a bold 14 px
+		// Arial label and a one device pixel border, yellow under the pointer, the
+		// same size at every block size.
 
-		const button = new TriggerMorph(this, action, label, 14, null, null, null,
-			new Color(20, 20, 20));
-		button.color = new Color(220, 220, 220);
-		button.highlightColor = new Color(240, 240, 240);
-		button.setExtent(new Point(Math.max(30, button.label.width() + 20), 26));
-		button.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		const dark = this.darkMode();
+		const ink = new Color(38, 41, 56); // blueGray 900
+		const labelColor = dark ? new Color(176, 179, 197) : ink; // blueGray 200
+		const borderColor = dark ? 'rgb(69, 74, 100)' : 'rgb(176, 179, 197)'; // blueGray 700, 200
+		const button = new TriggerMorph(this, action, label, 14 / ZOOM, 'sans-serif', null, null, labelColor, true);
+		button.label.fontName = 'Arial';
+		button.label.fixLayout();
+		button.setExtent(new Point(Math.max(30 / ZOOM, button.label.width() + (25 / ZOOM)), 26 / ZOOM));
+		button.render = (ctx) => {
+			const w = button.width(), h = button.height();
+			ctx.beginPath();
+			if (button.userState !== 'normal') {
+				ctx.roundRect(0, 0, w, h, h / 2);
+				ctx.fillStyle = 'rgb(254, 215, 34)'; // yellow
+				ctx.fill();
+				return;
+			}
+			const line = 1 / (ZOOM * (window.devicePixelRatio || 1));
+			ctx.roundRect(line / 2, line / 2, w - line, h - line, (h - line) / 2);
+			ctx.lineWidth = line;
+			ctx.strokeStyle = borderColor;
+			ctx.stroke();
+		};
+		button.rerender = () => { // the label turns dark on yellow
+			button.label.setColor((button.userState === 'normal') ? labelColor : ink);
+			button.changed();
+		};
+		button.setPosition(new Point(this.palette.contents.left() + (16 / ZOOM), this.paletteY));
 		this.palette.contents.add(button);
-		this.paletteY += button.height() + 7;
+		this.paletteY += button.height() + (7 / ZOOM);
 	}
 
 	addPaletteBlockForSpec(spec, category) {
