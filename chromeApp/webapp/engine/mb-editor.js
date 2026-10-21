@@ -2239,6 +2239,11 @@ console.log('unknown');
 		const scrolled = this.palette ? this.palette.topLeft().subtract(this.palette.contents.topLeft()) : null;
 		world.zoom(Math.max(Math.min(percent, 250), 50) / 100);
 		if ((ZOOM !== oldZoom) && this.scripts) this.relayoutBlocks();
+		if (ZOOM !== oldZoom) {
+			// An open picker was sized at the old zoom.
+			const picker = (typeof MB_FilePicker !== 'undefined') && MB_FilePicker.findOpen(world);
+			if (picker) picker.removeFromOwner();
+		}
 		// A wheel notch scrolls 120 screen pixels, as in GP; morphic scrolls in scene units.
 		// Both settings objects: the first touch event swaps MorphicPreferences to the second.
 		standardSettings.mouseScrollAmount = touchScreenSettings.mouseScrollAmount = 120 / ZOOM;
@@ -3239,6 +3244,12 @@ function fireIDEEvent(name, value) {
 	// supply a partial one where document exists and CustomEvent does not.
 	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }
 	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
+}
+
+// n screen pixels in world units. Morphic draws the world ZOOM times its size, so a
+// dialog sized with this keeps one size on screen at every block size, as GP's do.
+function screenPixels(n) {
+	return n / ZOOM;
 }
 
 // The hand's position as the chrome expects GP's: menus.js adds where #canvas

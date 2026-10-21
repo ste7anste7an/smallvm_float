@@ -10,7 +10,7 @@
 // list; the information dialog shows those of a library in the project, and in
 // developer mode lets the user change them.
 
-/* global MB_FilePicker, MB_Files, MB_LibraryEditor, MB_Module, MB_Parser, MB_editor, chromeMenuFor, localized,
+/* global MB_FilePicker, MB_Files, MB_LibraryEditor, MB_Module, MB_Parser, MB_editor, chromeMenuFor, localized, screenPixels,
 	BlockMorph, BoxMorph, Color, FrameMorph, HandleMorph, Morph, Point, ScrollFrameMorph, StringMorph, TextMorph,
 	TriggerMorph */
 
@@ -23,7 +23,7 @@ class MB_LibraryPropertiesFrame {
 		this.morph = new Morph();
 		this.morph.alpha = 0;
 
-		this.descriptionText = new TextMorph('', 16);
+		this.descriptionText = new TextMorph('', screenPixels(16));
 		this.descriptionText.isEditable = true; // editable, as in GP, so a URL in it can be copied
 		this.descriptionFrame = new ScrollFrameMorph();
 		this.descriptionFrame.color = colors.field;
@@ -59,7 +59,7 @@ class MB_LibraryPropertiesFrame {
 		const box = new FrameMorph();
 		box.color = MB_LibraryPropertiesFrame.colors.field;
 		box.acceptsDrops = false;
-		const text = new StringMorph('', 16);
+		const text = new StringMorph('', screenPixels(16));
 		text.rootForGrab = () => this.dialog().rootForGrab();
 		box.add(text);
 		this.morph.add(box);
@@ -169,7 +169,7 @@ class MB_LibraryPropertiesFrame {
 		for (const m of this.depsView.children.slice()) m.destroy();
 		const names = this.edits ? this.edits.dependencyNames() : [];
 		if ((names.length === 0) && !this.editFlag) return;
-		const heading = new StringMorph(localized('Depends:'), 14, null, true);
+		const heading = new StringMorph(localized('Depends:'), screenPixels(14), null, true);
 		heading.rootForGrab = () => this.dialog().rootForGrab();
 		this.depsView.add(heading);
 		for (const name of names) this.depsView.add(this.item(name));
@@ -183,12 +183,12 @@ class MB_LibraryPropertiesFrame {
 		// A grey box with a name. A dependency can be dragged out of the dialog to remove it
 		// when editing; a button darkens under the pointer.
 
-		const colors = MB_LibraryPropertiesFrame.colors;
+		const colors = MB_LibraryPropertiesFrame.colors, px = screenPixels;
 		const item = new Morph();
 		item.color = colors.item;
-		const label = new StringMorph(name, 14);
+		const label = new StringMorph(name, px(14));
 		item.add(label);
-		item.setExtent(new Point(label.width() + 10, label.height() + 6));
+		item.setExtent(new Point(label.width() + px(10), label.height() + px(6)));
 		if (onClick) {
 			item.mouseClickLeft = onClick;
 			item.mouseEnter = () => { item.color = colors.itemHover; item.rerender(); };
@@ -243,7 +243,7 @@ class MB_LibraryPropertiesFrame {
 		// Dependencies along the bottom, version and author above them, when editing
 		// the category and source above those, and the description in the space that is left.
 
-		const margin = 8, box = this.morph;
+		const px = screenPixels, margin = px(8), box = this.morph;
 		let bottom = box.bottom(), descriptionHeight = box.height();
 
 		this.layoutDependencies();
@@ -253,13 +253,13 @@ class MB_LibraryPropertiesFrame {
 			descriptionHeight -= this.depsView.height() + margin;
 		}
 
-		const lineHeight = this.versionText.height() + 6;
-		this.versionFrame.setExtent(new Point(this.versionText.width() + 10, lineHeight));
+		const lineHeight = this.versionText.height() + px(6);
+		this.versionFrame.setExtent(new Point(this.versionText.width() + px(10), lineHeight));
 		this.versionFrame.setPosition(new Point(box.left(), bottom - lineHeight));
 		this.authorFrame.setExtent(new Point(Math.max(0, box.width() - (this.versionFrame.width() + margin)), lineHeight));
 		this.authorFrame.setPosition(new Point(this.versionFrame.right() + margin, this.versionFrame.top()));
-		this.versionText.setPosition(this.versionFrame.position().add(new Point(5, 3)));
-		this.authorText.setPosition(this.authorFrame.position().add(new Point(5, 3)));
+		this.versionText.setPosition(this.versionFrame.position().add(new Point(px(5), px(3))));
+		this.authorText.setPosition(this.authorFrame.position().add(new Point(px(5), px(3))));
 		descriptionHeight -= lineHeight + margin;
 
 		if (this.editFlag) {
@@ -268,23 +268,23 @@ class MB_LibraryPropertiesFrame {
 			this.categoryBox.setPosition(new Point(box.left(), top));
 			this.sourceFrame.setExtent(new Point(Math.max(0, box.width() - (this.categoryBox.width() + margin)), lineHeight));
 			this.sourceFrame.setPosition(new Point(this.categoryBox.right() + margin, top));
-			this.sourceText.setPosition(this.sourceFrame.position().add(new Point(5, 3)));
+			this.sourceText.setPosition(this.sourceFrame.position().add(new Point(px(5), px(3))));
 			descriptionHeight -= lineHeight + margin;
 		}
 
 		this.descriptionFrame.setPosition(box.position());
 		this.descriptionFrame.setExtent(new Point(box.width(), Math.max(0, descriptionHeight)));
-		this.descriptionText.maxWidth = Math.max(10, box.width() - 18);
+		this.descriptionText.maxWidth = Math.max(px(10), box.width() - px(18));
 		this.descriptionText.fixLayout();
 		this.descriptionText.rerender();
-		this.descriptionText.setPosition(this.descriptionFrame.position().add(new Point(5, 5)));
+		this.descriptionText.setPosition(this.descriptionFrame.position().add(new Point(px(5), px(5))));
 		this.descriptionFrame.adjustScrollBars();
 	}
 
 	layoutDependencies() {
 		// Lay the items out left to right, wrapping at the frame's width.
 
-		const margin = 6, width = this.morph.width();
+		const px = screenPixels, margin = px(6), width = this.morph.width();
 		let x = 0, y = 0, rowHeight = 0;
 		for (const m of this.depsView.children) {
 			if ((x > 0) && (x + m.width() > width)) {
@@ -293,7 +293,7 @@ class MB_LibraryPropertiesFrame {
 				rowHeight = 0;
 			}
 			const isItem = m.children.length > 0; // the label has no box around it
-			m.setPosition(this.depsView.position().add(new Point(x, y + (isItem ? 0 : 3))));
+			m.setPosition(this.depsView.position().add(new Point(x, y + (isItem ? 0 : px(3)))));
 			if (isItem) m.children[0].setCenter(m.center());
 			x += m.width() + margin;
 			rowHeight = Math.max(rowHeight, m.height());
@@ -326,10 +326,11 @@ class MB_LibraryImportDialog {
 		const box = picker.morph;
 		box.add(this.propertiesFrame.morph);
 		box.fixLayout = () => this.fixLayout();
-		const width = Math.min(600, Math.round(0.9 * aWorld.width()));
-		const height = Math.min(466, Math.round(0.8 * aWorld.height()));
+		const px = screenPixels; // screen pixels, as in the picker
+		const width = Math.min(px(600), 0.9 * aWorld.width());
+		const height = Math.min(px(466), 0.8 * aWorld.height());
 		box.setExtent(new Point(width, height));
-		box.setPosition(new Point(aWorld.left() + Math.round((aWorld.width() - width) / 2), aWorld.top() + 40));
+		box.setPosition(new Point(aWorld.left() + Math.round((aWorld.width() - width) / 2), aWorld.top() + px(40)));
 		picker.resizer.minExtent = new Point(width, height);
 		this.fixLayout();
 		box.fullChanged();
@@ -370,8 +371,8 @@ class MB_LibraryImportDialog {
 		const picker = this.filePicker, box = picker.morph, list = picker.listPane;
 		picker.fixLayout();
 		if (!list) return;
-		const margin = 10, topInset = 60, bottomInset = 40, leftInset = 110;
-		const rightInset = Math.round(box.width() / 2) - 20;
+		const px = screenPixels, margin = px(10), topInset = px(60), bottomInset = px(40), leftInset = px(110);
+		const rightInset = Math.round(box.width() / 2) - px(20);
 		list.setPosition(new Point(box.left() + leftInset, box.top() + topInset));
 		list.setExtent(new Point(box.width() - (leftInset + rightInset), box.height() - (topInset + bottomInset)));
 		const frame = this.propertiesFrame.morph;
