@@ -5878,7 +5878,7 @@ TemplateSlotMorph.prototype.cSlots = function () {
 	%bool	- Boolean
 
 	I can be directly edited. When the user clicks on me I toggle
-	between <true>, <false> and <null> values.
+	between <true> and <false>.
 
 	evaluate() returns my value.
 
@@ -5893,10 +5893,6 @@ TemplateSlotMorph.prototype.cSlots = function () {
 BooleanSlotMorph.prototype = new ArgMorph();
 BooleanSlotMorph.prototype.constructor = BooleanSlotMorph;
 BooleanSlotMorph.uber = ArgMorph.prototype;
-
-// BooleanSlotMorph preferences settings
-
-BooleanSlotMorph.prototype.isTernary = false;
 
 // BooleanSlotMorph instance creation:
 
@@ -5934,10 +5930,6 @@ BooleanSlotMorph.prototype.isLocked = function () {
 	return this.isStatic || (!!block && (block.selector === 'booleanConstant'));
 };
 
-BooleanSlotMorph.prototype.isBinary = function () {
-	return !this.isTernary && !isNil(this.parentThatIsA(ScriptsMorph));
-};
-
 BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 	this.value = (typeof boolOrNull === 'boolean') ? boolOrNull
 		: (isNil(boolOrNull) ||
@@ -5961,6 +5953,7 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 BooleanSlotMorph.prototype.toggleValue = function () {
 	var block = this.parentThatIsA(BlockMorph);
 	this.value = this.nextValue();
+	this.mbValue = undefined; // a click replaces a kept non-boolean value
 	this.scriptChanged();
 	if (block && (block.isCustomBlock)) {
 		block.fireSlotEditedEvent(this);
@@ -5984,17 +5977,7 @@ BooleanSlotMorph.prototype.toggleValue = function () {
 };
 
 BooleanSlotMorph.prototype.nextValue = function () {
-	if (this.isStatic || this.isBinary()) {
-		return !this.value;
-	}
-	switch (this.value) {
-	case true:
-		return false;
-	case false:
-		return null;
-	default:
-		return true;
-	}
+	return !this.value;
 };
 
 // BooleanSlotMorph events:
