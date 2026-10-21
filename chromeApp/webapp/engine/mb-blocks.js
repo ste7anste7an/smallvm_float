@@ -321,7 +321,9 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.dent = 8 * scale;
 	this.cSlotPadding = 0 * scale;
 	this.typeInPadding = scale;
-	this.labelFontName = 'Arial Bold';
+	// The family alone: labels are already bold. A family named 'Arial Bold' does
+	// not exist on macOS, so the browser drew labels in its sans-serif instead.
+	this.labelFontName = 'Arial';
 	this.labelFontStyle = 'sans-serif';
 	this.fontSize = 14 * scale;
 	this.labelWidth = 450 * scale;
