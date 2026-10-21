@@ -525,7 +525,10 @@ class MB_Editor {
 		// One definition hat per function, and never a second for the same one.
 		if (func == null) return;
 		if (this.definitionShown(func.functionName)) return;
-		this.addToBottom(scriptForFunction(func));
+		const hat = scriptForFunction(func);
+		// A hidden definition keeps its body at the block size it was made at.
+		this.relayoutScript(hat);
+		this.addToBottom(hat);
 	}
 
 	definitionShown(funcName) {
@@ -2050,57 +2053,66 @@ console.log('unknown');
 	resizeBlock(block, fontFactor, scale = SyntaxElementMorph.prototype.scale) {
 		// TextMorph includes multi-line input text, which is separate from StringMorph.
 		const parts = block.allChildren();
-		for (const part of parts) {
-			part.pixelsPerUnit = 2; // a picture is not drawn at the world's zoom
-			if (part instanceof SyntaxElementMorph) part.setScale(scale);
-			if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
-			if (part instanceof StringMorph || part instanceof TextMorph) {
-				part.setFontSize(part.fontSize * fontFactor);
-				part.fixLayout();
-				part.rerender();
+		// Laid out from the bottom up, as in relayoutScript.
+		SyntaxElementMorph.prototype.fixesParentLayout = false;
+		try {
+			for (const part of parts) {
+				part.pixelsPerUnit = 2; // a picture is not drawn at the world's zoom
+				if (part instanceof SyntaxElementMorph) part.setScale(scale);
+				if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.setFontSize(part.fontSize * fontFactor);
+					part.fixLayout();
+					part.rerender();
+				}
 			}
-		}
-		for (const part of parts.reverse()) {
-			if (part instanceof SyntaxElementMorph) part.fixLayout();
+			for (const part of parts.reverse()) {
+				if (part instanceof SyntaxElementMorph) part.fixLayout();
+			}
+		} finally {
+			SyntaxElementMorph.prototype.fixesParentLayout = true;
 		}
 	}
 
 	relayoutBlocks() {
-		// Block text is rounded to whole screen pixels, so its height changes with the zoom.
-		// A definition whose details are hidden holds its inputs' declarations off
-		// the tree, and a prototype's row is laid out only from below, so both are
-		// collected and laid out here as well.
+		for (const block of this.scripts.children) {
+			if (block instanceof BlockMorph) this.relayoutScript(block);
+		}
+		this.updatePalette();
+	}
+
+	relayoutScript(block) {
+		// Block text height is rounded to half a CSS pixel at the world's zoom, so it
+		// changes with the zoom. A definition whose details are hidden holds its
+		// inputs' declarations off the tree, and a prototype's row is laid out only
+		// from below, so both are collected and laid out here as well.
 		const partsOf = (m, out = []) => {
 			out.push(m);
 			m.children.forEach((child) => partsOf(child, out));
 			if (m.declaration && !m.children.includes(m.declaration)) partsOf(m.declaration, out);
 			return out;
 		};
+		const parts = partsOf(block);
 		// Each part is laid out after the parts inside it, so no part needs to lay out
 		// its parent; with that on, each would lay out every block above it.
 		SyntaxElementMorph.prototype.fixesParentLayout = false;
 		try {
-			for (const block of this.scripts.children) {
-				if (!(block instanceof BlockMorph)) continue;
-				const parts = partsOf(block);
-				for (const part of parts) {
-					if (part instanceof StringMorph || part instanceof TextMorph) {
-						part.fixLayout(true);
-						part.rerender();
-					}
+			for (const part of parts) {
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.fixLayout(true);
+					part.rerender();
 				}
-				for (const part of parts.reverse()) {
-					if ((part instanceof SyntaxElementMorph) || (part instanceof InputDeclarationMorph) ||
-							(part instanceof BlockSectionDefinitionMorph)) {
-						part.fixLayout();
-					}
+			}
+			for (const part of parts.reverse()) {
+				if ((part instanceof SyntaxElementMorph) || (part instanceof InputDeclarationMorph) ||
+						(part instanceof BlockSectionDefinitionMorph)) {
+					part.fixLayout();
 				}
-				block.fullChanged();
 			}
 		} finally {
 			SyntaxElementMorph.prototype.fixesParentLayout = true;
 		}
-		this.updatePalette();
+		block.fullChanged();
 	}
 
 	applyBlockSize(percent) {
@@ -2120,6 +2132,7 @@ console.log('unknown');
 			this.palette.contents.setPosition(this.palette.position());
 			this.palette.scrollX(-scrolled.x);
 			this.palette.scrollY(-scrolled.y);
+			this.palette.adjustScrollBars();
 		}
 	}
 

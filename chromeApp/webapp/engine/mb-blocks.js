@@ -243,7 +243,7 @@ SyntaxElementMorph.prototype.contrast = 17;
 SyntaxElementMorph.prototype.fixesParentLayout = true;
 
 // The height of a line of block text: 0.95 and 0.3 of the font size, each rounded
-// down to half a screen pixel at the world's zoom.
+// down to half a CSS pixel at the world's zoom.
 function blockTextHeight(fontSize, pixelsPerUnit = 2 * ZOOM) {
 	var size = Math.round(fontSize * pixelsPerUnit);
 	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / pixelsPerUnit;
@@ -253,7 +253,8 @@ function blockTextHeight(fontSize, pixelsPerUnit = 2 * ZOOM) {
 var blockMathOperators = ['=', '+', '/', '\u00D7', '\u2212', '\u2260', '<', '<=', '==', '>=', '>',
 	'&', '|', '^', '~', '<<', '>>'];
 
-// Half of n, rounded down to a whole pixel at pixelsPerUnit.
+// Half of n, rounded down to 1 / pixelsPerUnit. Text is centred on half a CSS
+// pixel at the world's zoom; the other callers keep the half-unit grid they had.
 function blockHalf(n, pixelsPerUnit = 2) {
 	return Math.floor(n * pixelsPerUnit / 2) / pixelsPerUnit;
 }
@@ -1037,9 +1038,12 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	}
 
 	// find out if one of my parents needs to be fixed
-	if (this instanceof BlockMorph && this.fixesParentLayout && this.parent && this.parent.fixLayout) {
-		this.parent.fixLayout();
-		this.parent.changed();
+	if (this instanceof BlockMorph && this.parent && this.parent.fixLayout) {
+		if (this.fixesParentLayout) {
+			this.parent.fixLayout();
+			this.parent.changed();
+		}
+		// The top block redraws the script's highlight once the script is laid out.
 		if (this.parent instanceof SyntaxElementMorph) {
 			return;
 		}
