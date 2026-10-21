@@ -3199,10 +3199,11 @@ function fixedCallArgs(call, rule) {
 }
 
 function colourSwatchNode(colour) {
-	// A colorSwatch reporter node for a packed or spelled colour.
+	// A colorSwatch reporter node for a packed or spelled colour. Only a spelled
+	// one can carry an alpha.
 	const c = ('number' === typeof colour) ?
 		{ r: (colour >> 16) & 255, g: (colour >> 8) & 255, b: colour & 255 } : colour;
-	return { selector: 'colorSwatch', args: [c.r, c.g, c.b, 255], isReporter: true, next: null };
+	return { selector: 'colorSwatch', args: [c.r, c.g, c.b, c.alpha ?? 255], isReporter: true, next: null };
 }
 
 function varMustBeQuoted(varName) {
