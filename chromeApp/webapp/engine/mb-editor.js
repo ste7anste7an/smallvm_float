@@ -1429,7 +1429,7 @@ console.log('unknown');
 		// %name word is an input, or null if it has none. The op is the label
 		// words joined by underscores, or the first free of function1,
 		// function2... if that is empty or taken.
-		const isInput = (w) => /^%[A-Za-z_][A-Za-z0-9_]*$/.test(w);
+		const isInput = (w) => /^%[\p{L}_][\p{L}\p{M}\p{Nd}_]*$/u.test(w);
 		const words = name.split(/\s+/);
 		if (!words.some(isInput)) return null;
 		const labels = [], argNames = [], spec = [];
