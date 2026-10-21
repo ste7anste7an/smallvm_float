@@ -3395,74 +3395,64 @@ CommandBlockMorph.prototype.extract = function () {
 	}
 };
 
+// The notch in a block's top edge and the tab under its bottom edge are GP's:
+// open from 8 to 24 units along the edge, 10 across the floor and a corner
+// deep. A path inset by n moves each slope n / 2 along the edge, which keeps
+// the outline n wide across the slopes too.
+
+SyntaxElementMorph.prototype.topNotch = function (ctx, left, inset) {
+	var s = this.scale,
+		half = inset / 2;
+
+	ctx.lineTo(left + (8 * s) - half, inset);
+	ctx.lineTo(left + (11 * s) - half, this.corner + inset);
+	ctx.lineTo(left + (21 * s) + half, this.corner + inset);
+	ctx.lineTo(left + (24 * s) + half, inset);
+};
+
+// Drawn right to left, from the bottom edge at y.
+SyntaxElementMorph.prototype.bottomTab = function (ctx, left, y, inset) {
+	var s = this.scale,
+		half = inset / 2;
+
+	ctx.lineTo(left + (24 * s) - half, y - inset);
+	ctx.lineTo(left + (21 * s) - half, y + this.corner - inset);
+	ctx.lineTo(left + (11 * s) + half, y + this.corner - inset);
+	ctx.lineTo(left + (8 * s) + half, y - inset);
+};
+
 // CommandBlockMorph drawing:
 
 CommandBlockMorph.prototype.outlinePath = function(ctx, inset) {
-	var indent = this.corner * 2 + this.inset,
-		bottom = this.height() - this.corner,
-		bottomCorner = this.height() - this.corner * 2,
-		radius = Math.max(this.corner - inset, 0),
-		pos = this.position();
+	var pos = this.position();
 
 	// top left:
-	ctx.arc(
-		this.corner,
-		this.corner,
-		radius,
-		radians(-180),
-		radians(-90),
-		false
-	);
+	ctx.moveTo(inset, this.corner);
+	ctx.quadraticCurveTo(inset, inset, this.corner, inset);
 
-	// top dent:
-	ctx.lineTo(this.corner + this.inset, inset);
-	ctx.lineTo(indent, this.corner + inset);
-	ctx.lineTo(indent + this.dent, this.corner + inset);
-	ctx.lineTo(this.corner * 3 + this.inset + this.dent, inset);
-	ctx.lineTo(this.width() - this.corner, inset);
+	this.topNotch(ctx, 0, inset);
 
 	// top right:
-	ctx.arc(
-		this.width() - this.corner,
-		this.corner,
-		radius,
-		radians(-90),
-		radians(-0),
-		false
-	);
+	ctx.lineTo(this.width() - this.corner, inset);
+	ctx.quadraticCurveTo(this.width() - inset, inset, this.width() - inset, this.corner);
 
 	// C-Slots
 	this.cSlots().forEach(slot => {
 		slot.outlinePath(ctx, inset, slot.position().subtract(pos));
 	});
 
-	// bottom right:
-	ctx.arc(
-		this.width() - this.corner,
-		bottomCorner,
-		radius,
-		radians(0),
-		radians(90),
-		false
-	);
+	this.outlineBottom(ctx, inset);
+};
 
-	if (!this.isStop()) {
-		ctx.lineTo(this.width() - this.corner, bottom - inset);
-		ctx.lineTo(this.corner * 3 + this.inset + this.dent, bottom - inset);
-		ctx.lineTo(indent + this.dent, bottom + this.corner - inset);
-		ctx.lineTo(indent, bottom + this.corner - inset);
-		ctx.lineTo(this.corner + this.inset, bottom - inset);
-	}
+// The bottom right corner, the tab (none under a stop block) and the bottom left corner.
+CommandBlockMorph.prototype.outlineBottom = function (ctx, inset) {
+	var bottom = this.height() - this.corner;
 
-	// bottom left:
-	ctx.arc(
-		this.corner,
-		bottomCorner,
-		radius,
-		radians(90),
-		radians(180),
-		false
-	);
+	ctx.lineTo(this.width() - inset, bottom - this.corner);
+	ctx.quadraticCurveTo(this.width() - inset, bottom - inset, this.width() - this.corner, bottom - inset);
+	if (!this.isStop()) this.bottomTab(ctx, 0, bottom, inset);
+	ctx.lineTo(this.corner, bottom - inset);
+	ctx.quadraticCurveTo(inset, bottom - inset, inset, bottom - this.corner);
 };
 
 // HatBlockMorph ///////////////////////////////////////////////////////
@@ -3670,47 +3660,15 @@ HatBlockMorph.prototype.outlinePath = function(ctx, inset) {
 	);
 
 	// top right:
-	ctx.arc(
-		this.width() - this.corner,
-		h + this.corner,
-		radius,
-		radians(-90),
-		radians(-0),
-		false
-	);
+	ctx.lineTo(this.width() - this.corner, h + inset);
+	ctx.quadraticCurveTo(this.width() - inset, h + inset, this.width() - inset, h + this.corner);
 
 	// C-Slots
 	this.cSlots().forEach(slot => {
 		slot.outlinePath(ctx, inset, slot.position().subtract(pos));
 	});
 
-	// bottom right:
-	ctx.arc(
-		this.width() - this.corner,
-		bottomCorner,
-		radius,
-		radians(0),
-		radians(90),
-		false
-	);
-
-	if (!this.isStop()) {
-		ctx.lineTo(this.width() - this.corner, bottom - inset);
-		ctx.lineTo(this.corner * 3 + this.inset + this.dent, bottom - inset);
-		ctx.lineTo(indent + this.dent, bottom + this.corner - inset);
-		ctx.lineTo(indent, bottom + this.corner - inset);
-		ctx.lineTo(this.corner + this.inset, bottom - inset);
-	}
-
-	// bottom left:
-	ctx.arc(
-		this.corner,
-		bottomCorner,
-		radius,
-		radians(90),
-		radians(180),
-		false
-	);
+	this.outlineBottom(ctx, inset);
 };
 
 // ReporterBlockMorph //////////////////////////////////////////////////
@@ -5015,22 +4973,7 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		this.width() - this.corner + ox,
 		this.corner + oy - inset
 	);
-	ctx.lineTo(
-		(this.inset * 2) + (this.corner * 3) + this.dent + ox,
-		this.corner + oy - inset
-	);
-	ctx.lineTo(
-		(this.inset * 2) + (this.corner * 2) + this.dent + ox,
-		this.corner * 2 + oy - inset
-	);
-	ctx.lineTo(
-		(this.inset * 2) + (this.corner * 2) + ox,
-		this.corner * 2 + oy - inset
-	);
-	ctx.lineTo(
-		(this.inset * 2) + this.corner + ox,
-		this.corner + oy - inset
-	);
+	this.bottomTab(ctx, this.inset + ox, this.corner + oy, inset);
 	ctx.lineTo(
 		this.inset + this.corner + ox,
 		this.corner + oy - inset
