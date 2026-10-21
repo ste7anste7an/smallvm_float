@@ -5420,19 +5420,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 			+ arrowWidth
 			+ this.edge * 4
 			+ this.typeInPadding * 2;
-	} else if (this.isComment) {
-		height = contents.height() + this.edge * 2; // + this.typeInPadding * 2
-		width = Math.max(
-			contents.width()
-			+ arrowWidth
-			+ this.edge * 2
-			+ this.typeInPadding * 2,
-			contents.rawHeight ? // single vs. multi-line contents
-			contents.rawHeight() + arrowWidth
-			: fontHeight(contents.fontSize) / 1.3
-			+ arrowWidth
-		);
-	} else {
+	} else { // a comment slot too: only its corners differ
 		height = contents.height() + (3 * this.scale);
 		width = Math.max(contents.width(), 10 * this.scale) + (14 * this.scale)
 			+ (arrow.isVisible ? 12 * this.scale : 0);
@@ -5440,17 +5428,10 @@ InputSlotMorph.prototype.fixLayout = function () {
 
 	this.bounds.setExtent(new Point(width, height));
 
-	if (this.isComment) {
-		contents.setPosition(new Point(
-			this.edge,
-			this.edge
-		).add(new Point(this.typeInPadding, 0)).add(this.position()));
-	} else {
-		contents.setPosition(new Point(
-			blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
-			2 * this.scale
-		).add(this.position()));
-	}
+	contents.setPosition(new Point(
+		blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
+		2 * this.scale
+	).add(this.position()));
 
 	if (arrow.isVisible) {
 		arrow.setPosition(new Point(
@@ -5631,7 +5612,7 @@ InputSlotMorph.prototype.render = function (ctx) {
 	r = Math.min(15 * this.scale, h / 2, w / 2);
 	ctx.beginPath();
 	if (this.isComment) { // a comment slot has square corners
-		ctx.rect(this.edge, this.edge, w - (this.edge * 2), h - (this.edge * 2));
+		ctx.rect(0, 0, w, h);
 	} else { // round ends on one line, a rounded rectangle when taller
 		ctx.arc(w - r, r, r, radians(-90), 0, false);
 		ctx.arc(w - r, h - r, r, 0, radians(90), false);
@@ -5744,7 +5725,6 @@ function InputSlotTextMorph(
 
 InputSlotTextMorph.prototype.fixLayout = function () {
 	// Measure each line without the space parse() leaves at its end.
-	if (this.parent && this.parent.isComment) return TextMorph.prototype.fixLayout.call(this);
 	this.parse();
 	this.measureCtx.font = this.font();
 	const width = Math.max(1, ...this.lines.map(line =>
