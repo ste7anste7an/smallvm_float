@@ -7,7 +7,7 @@
 // MicroBlocksCompiler.gp - A blocks compiler for microBlocks
 // John Maloney, April, 2017
 
-defineClass SmallCompiler opcodes primsets argNames localVars trueObj falseObj zeroObj stringClassID
+defineClass SmallCompiler opcodes primsets argNames localVars trueObj falseObj zeroObj stringClassID reporterOps
 
 method opcodes SmallCompiler { return opcodes }
 method primsets SmallCompiler { return primsets }
@@ -794,6 +794,10 @@ method instructionsForCmd SmallCompiler cmd {
 		return result
 	} (isFunctionCall this op) {
 		return (instructionsForFunctionCall this op args true)
+	} (and (contains opcodes op) (contains (reporterOps this) op)) {
+		result = (primitive this op args true)
+		add result (array 'pop' 1) // a reporter used as a command; discard its value
+		return result
 	} else {
 		return (primitive this op args true)
 	}
@@ -1133,6 +1137,23 @@ method globalVarIndex SmallCompiler varName {
 
 method isFunctionCall SmallCompiler op {
 	return (notNil (lookupChunkID (smallRuntime) op))
+}
+
+method reporterOps SmallCompiler {
+	// The built-in ops that leave a value on the stack, for the compiler and
+	// the decompiler.
+	if (isNil reporterOps) {
+		reporterOps = (dictionary)
+		add reporterOps 'pushArgCount'
+		add reporterOps 'getArg'
+		for spec (microBlocksSpecs this) {
+			if (and (isClass spec 'Array') ('r' == (first spec))) {
+				op = (at spec 2)
+				if (not (beginsWith op '[')) { add reporterOps op }
+			}
+		}
+	}
+	return reporterOps
 }
 
 method instructionsForFunctionCall SmallCompiler op args isCmd {

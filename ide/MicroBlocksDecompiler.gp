@@ -1023,7 +1023,11 @@ method decodeCmd MicroBlocksDecompiler i {
 	} ('initLocals' == op) {
 		// skip
 	} ('pop' == op) {
-		add code (buildCmdOrReporter this 'pop' cmdArg false)
+		if (and (1 == cmdArg) (notEmpty stack) (isClass (last stack) 'Reporter')) {
+			add code (toCommand (removeLast stack)) // a reporter used as a command
+		} else {
+			add code (buildCmdOrReporter this 'pop' cmdArg false)
+		}
 	} ('returnResult' == op) {
 		add code (buildCmdOrReporter this 'return' 1 false)
 	} ('digitalSet' == op) {
@@ -1140,13 +1144,5 @@ method buildReporterDictionary MicroBlocksDecompiler {
 	// Build a dictionary of the MicroBlocks built-in reporters. This is used to
 	// decide whether a given opcode is a reporter or a command.
 
-	reporters = (dictionary)
-	add reporters 'pushArgCount'
-	add reporters 'getArg'
-	for spec (microBlocksSpecs (new 'SmallCompiler')) {
-		if (and (isClass spec 'Array') ('r' == (first spec))) {
-			op = (at spec 2)
-			if (not (beginsWith op '[')) { add reporters (at spec 2) }
-		}
-	}
+	reporters = (reporterOps (new 'SmallCompiler'))
 }
