@@ -258,6 +258,12 @@ function blockTextBaseline(fontSize, pixelsPerUnit = 2 * ZOOM) {
 	return (size - Math.floor(size / 10)) / pixelsPerUnit;
 }
 
+// A measured width of block text rounded to a whole device pixel at the world's
+// zoom, as GP's browser IDE rounds a string's width.
+function blockTextWidth(width, pixelsPerUnit = 2 * ZOOM) {
+	return Math.round(width * pixelsPerUnit) / pixelsPerUnit;
+}
+
 // StringMorph's render, drawn on the baseline above. Shared by the label and the
 // slot text morphs.
 function renderBlockString(ctx) {
@@ -1161,7 +1167,7 @@ function BlockLabelMorph(
 
 BlockLabelMorph.prototype.fixLayout = function (justMe) {
 	BlockLabelMorph.uber.fixLayout.call(this, true);
-	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
+	this.bounds.setWidth(blockTextWidth(this.width(), this.pixelsPerUnit));
 	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
@@ -5749,7 +5755,7 @@ function InputSlotStringMorph(
 
 InputSlotStringMorph.prototype.fixLayout = function (justMe) {
 	InputSlotStringMorph.uber.fixLayout.call(this, true);
-	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
+	this.bounds.setWidth(blockTextWidth(this.width(), this.pixelsPerUnit));
 	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
@@ -5831,7 +5837,7 @@ InputSlotTextMorph.prototype.fixLayout = function () {
 	this.parse();
 	this.measureCtx.font = this.font();
 	const width = Math.max(1, ...this.lines.map(line =>
-		Math.round(this.measureCtx.measureText(line.replace(/ $/, '')).width * 2) / 2));
+		blockTextWidth(this.measureCtx.measureText(line.replace(/ $/, '')).width, this.pixelsPerUnit)));
 	this.bounds = this.bounds.origin.extent(new Point(this.maxWidth || width,
 		this.lines.length * blockTextHeight(this.fontSize, this.pixelsPerUnit)));
 	if (this.parent && this.parent.layoutChanged) this.parent.layoutChanged();
