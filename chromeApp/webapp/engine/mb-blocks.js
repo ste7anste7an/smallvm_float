@@ -5070,38 +5070,35 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	var ox = offset.x,
 		oy = offset.y,
 		radius = Math.max(this.corner - inset, 0),
+		// the arms end at the block's right edge, not at the slot's, which reaches past it
+		right = this.parent.width(),
+		top = oy + this.scale, // the opening's top edge, level with a nested block's top
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
-		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height(),
+		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height() - (2 * this.scale),
 		// with blocks inside, the inner edge straddles their left side, which covers part of it
 		shift = nb ? this.flatEdge : 0;
 
-	// top corner:
-	ctx.lineTo(this.width() + ox - inset, oy);
-
-	// top right:
+	// upper arm's right end:
+	ctx.lineTo(right - inset, top - this.corner);
 	ctx.arc(
-		this.width() - this.corner + ox,
-		oy,
+		right - this.corner,
+		top - this.corner,
 		radius,
-		radians(90),
 		radians(0),
-		true
+		radians(90),
+		false
 	);
 
 	// jigsaw shape:
-	ctx.lineTo(
-		this.width() - this.corner + ox,
-		this.corner + oy - inset
-	);
-	this.bottomTab(ctx, this.inset + ox, this.corner + oy, inset);
+	this.bottomTab(ctx, this.inset + ox, top, inset);
 	ctx.lineTo(
 		this.inset + this.corner + shift + ox,
-		this.corner + oy - inset
+		top - inset
 	);
 	ctx.arc(
 		this.inset + this.corner + shift + ox,
-		this.corner * 2 + oy,
+		top + this.corner,
 		this.corner + inset,
 		radians(270),
 		radians(180),
@@ -5125,11 +5122,11 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		true
 	);
 	ctx.lineTo(
-		this.width() - this.corner + ox,
+		right - this.corner,
 		bottom - this.corner + oy + inset
 	);
 	ctx.arc(
-		this.width() - this.corner + ox,
+		right - this.corner,
 		bottom + oy,
 		radius,
 		radians(-90),
