@@ -43,6 +43,7 @@
 
 	Morph (from morphic.js)
 		ArrowMorph
+			SlotArrowMorph
 		BlockExpanderMorph
 		BlockHighlightMorph
 		ColorSlotPickerMorph
@@ -87,6 +88,7 @@
 	InputSlotTextMorph
 	BooleanSlotMorph
 	ArrowMorph
+	SlotArrowMorph
 	TextSlotMorph
 	ColorSlotMorph
 	ColorSlotPickerMorph
@@ -161,6 +163,7 @@ var InputSlotStringMorph;
 var InputSlotTextMorph;
 var BooleanSlotMorph;
 var ArrowMorph;
+var SlotArrowMorph;
 var ColorSlotMorph;
 var ColorSlotPickerMorph;
 var HatBlockMorph;
@@ -5137,13 +5140,7 @@ InputSlotMorph.prototype.init = function (
 	isReadOnly
 ) {
 	var contents = new InputSlotStringMorph(''),
-		arrow = new ArrowMorph(
-			'down',
-			0,
-			0,
-			BLACK,
-			true
-		);
+		arrow = new SlotArrowMorph();
 
 	contents.fontSize = 13 * this.scale;
 	contents.fontName = 'Arial';
@@ -5419,7 +5416,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 	}
 
 	if (this.choices) {
-		arrow.setSize(10 * this.scale);
+		arrow.setExtent(new Point(10 * this.scale, 9 * this.scale));
 		arrow.show();
 	} else {
 		arrow.hide();
@@ -5474,10 +5471,9 @@ InputSlotMorph.prototype.fixLayout = function () {
 	}
 
 	if (arrow.isVisible) {
-		// the arrow's triangle fills the lower half of its square
 		arrow.setPosition(new Point(
 			this.right() - (14 * this.scale),
-			this.top() + (6 * this.scale) - (arrowWidth / 2)
+			this.top() + (6 * this.scale)
 		));
 	}
 
@@ -6285,6 +6281,37 @@ ArrowMorph.prototype.getRenderColor = function () {
 	return this.color;
 };
 
+// SlotArrowMorph //////////////////////////////////////////////////////
+
+/*
+	I am the down arrow of an input slot's menu. My triangle fills my
+	whole box, base along the top, and I am slightly transparent.
+*/
+
+// SlotArrowMorph inherits from ArrowMorph:
+
+SlotArrowMorph.prototype = new ArrowMorph();
+SlotArrowMorph.prototype.constructor = SlotArrowMorph;
+SlotArrowMorph.uber = ArrowMorph.prototype;
+
+// SlotArrowMorph instance creation:
+
+function SlotArrowMorph() {
+	this.init('down', 0, 0, new Color(0, 0, 0, 180 / 255), true);
+}
+
+// SlotArrowMorph displaying:
+
+SlotArrowMorph.prototype.render = function (ctx) {
+	ctx.fillStyle = this.getRenderColor().toString();
+	ctx.beginPath();
+	ctx.moveTo(0, 0);
+	ctx.lineTo(this.width(), 0);
+	ctx.lineTo(this.width() / 2, this.height());
+	ctx.closePath();
+	ctx.fill();
+};
+
 // TextSlotMorph //////////////////////////////////////////////////////
 
 /*
@@ -6311,13 +6338,7 @@ TextSlotMorph.prototype.init = function (
 	isReadOnly
 ) {
 	var contents = new InputSlotTextMorph(''),
-		arrow = new ArrowMorph(
-			'down',
-			0,
-			Math.max(Math.floor(this.fontSize / 6), 1),
-			BLACK,
-			true
-		);
+		arrow = new SlotArrowMorph();
 
 	contents.fontSize = 13 * this.scale;
 	contents.fontName = 'Arial';
