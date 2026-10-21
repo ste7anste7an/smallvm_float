@@ -5076,8 +5076,8 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 /*
 	I am an editable text input slot. I can be either rectangular or
 	rounded, and can have an optional drop-down menu. If I'm set to
-	read-only I must have a drop-down menu and will assume a darker
-	shade of my parent's color.
+	read-only I must have a drop-down menu and will assume a light
+	tint of my block's color.
 
 	my most important public attributes and accessors are:
 
@@ -5385,12 +5385,11 @@ InputSlotMorph.prototype.fixLayout = function () {
 
 	contents.isNumeric = this.isNumeric && !this.isAlphanumeric;
 	contents.isEditable = (!this.isReadOnly);
+	contents.color = BLACK;
 	if (this.isReadOnly) {
 		contents.disableSelecting();
-		contents.color = WHITE;
 	} else {
 		contents.enableSelecting();
-		contents.color = BLACK;
 	}
 
 	if (this.choices) {
@@ -5613,7 +5612,10 @@ InputSlotMorph.prototype.render = function (ctx) {
 	}
 	ctx.fillStyle = this.color.toString();
 	if (this.isReadOnly && !this.cachedNormalColor) { // unless flashing
-		ctx.fillStyle = borderColor.darker().toString();
+		// a light tint of the block's category colour, not of its current colour
+		const block = this.parentThatIsA(BlockMorph);
+		const base = (block && block.category) ? block.colorFor(block.category) : borderColor;
+		ctx.fillStyle = base.lighter(75).toString();
 	}
 
 	// cache my border colors
