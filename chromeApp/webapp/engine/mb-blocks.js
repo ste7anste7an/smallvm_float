@@ -5450,7 +5450,23 @@ InputSlotMorph.prototype.fixLayout = function () {
 
 // InputSlotMorph events:
 
+InputSlotMorph.prototype.rootForGrab = function () {
+	// A drag that starts on an input slot picks nothing up, so a click that misses
+	// the text or lands on a menu cannot move the block.
+	return null;
+};
+
+InputSlotMorph.prototype.pans = function () {
+	// a finger or the middle button pans the pane under the slot
+	return MorphicPreferences.isTouchDevice || this.world().hand.middleButton;
+};
+
 InputSlotMorph.prototype.mouseDownLeft = function (pos) {
+	var block = this.parentThatIsA(BlockMorph);
+
+	// A left mouse press on a palette block's slot does nothing, so it cannot scroll the palette.
+	if (this.pans()) return this.escalateEvent('mouseDownLeft', pos);
+	if (block && block.isTemplate) return;
 	if (this.isReadOnly || this.symbol ||
 			this.arrow().bounds.containsPoint(pos)) {
 		this.escalateEvent('mouseDownLeft', pos);
@@ -5458,6 +5474,11 @@ InputSlotMorph.prototype.mouseDownLeft = function (pos) {
 };
 
 InputSlotMorph.prototype.mouseClickLeft = function (pos) {
+	var hand = this.world().hand;
+
+	// the pan carries the slot back under the hand, but its end is not a click
+	if (this.pans() && hand.grabPosition &&
+			hand.grabPosition.distanceTo(hand.position()) > MorphicPreferences.grabThreshold) return;
 	if (this.arrow().bounds.containsPoint(pos)) {
 		this.dropDownMenu();
 	} else if (this.isReadOnly || this.symbol) {
