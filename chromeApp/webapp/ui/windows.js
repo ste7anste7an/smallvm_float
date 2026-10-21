@@ -88,6 +88,7 @@ class FloatingWindow extends HTMLElement {
 			input.onfocus = () => { GP.delegateKeyboardEvents = true; };
 			input.onblur = () => { GP.delegateKeyboardEvents = false; };
 			windowBody.append(input);
+			this.promptInput = input;
 		}
 		this.append(windowBody);
 
@@ -195,6 +196,8 @@ class FloatingWindow extends HTMLElement {
 
 		if (this.querySelector('.window__input')) {
 			this.querySelector('.window__input').focus();
+			// a prompt's default is selected, so typing replaces it
+			if (this.promptInput) { this.promptInput.select(); }
 		} else if (this.querySelector('.window__buttons button')) {
 			this.querySelector('.window__buttons button').focus();
 		}
