@@ -558,8 +558,9 @@ document.addEventListener('context', (e) => {
 	if (descriptor.x) { // this comes from GP
 		// we have to offset it by the GP canvas position
 		let canvas = document.querySelector('#canvas');
-		e.clientX = descriptor.x + canvas.offsetLeft;
-		e.clientY = descriptor.y + canvas.offsetTop;
+		let canvasRect = canvas.getBoundingClientRect();
+		e.clientX = descriptor.x + canvasRect.left;
+		e.clientY = descriptor.y + canvasRect.top;
 	}
 	Menus.popUp(descriptor.selector, null, null, e);
 	e.preventDefault();
@@ -570,8 +571,9 @@ document.addEventListener('menu', (e) => {
 	if (descriptor.x) { // this comes from GP
 		// we have to offset it by the GP canvas position
 		let canvas = document.querySelector('#canvas');
-		e.clientX = descriptor.x + canvas.offsetLeft;
-		e.clientY = descriptor.y + canvas.offsetTop;
+		let canvasRect = canvas.getBoundingClientRect();
+		e.clientX = descriptor.x + canvasRect.left;
+		e.clientY = descriptor.y + canvasRect.top;
 	}
 	descriptor.items.forEach(item => {
 		item.action = () => {
