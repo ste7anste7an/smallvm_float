@@ -1580,16 +1580,7 @@ BlockMorph.prototype.userMenu = function () {
 
 	menu.addItem(
 		'copy to clipboard',
-		() => {
-			let s = 'GP Script\n\n' +
-				'script ' + Math.round(this.left() - 200) + ' ' + Math.round(this.top()) + ' {\n' +
-				this.codeString() +
-				'\n}';
-			// Through the buffer, so the chrome's 'paste script from clipboard' can
-			// see it; that item tests for this text and nothing else produces it.
-			if (typeof setClipboard === 'function') setClipboard(s);
-			else navigator.clipboard.writeText(s);
-		},
+		() => this.copyToClipboard(),
 		'copy this script to the clipboard'
 	);
 	menu.addItem(
