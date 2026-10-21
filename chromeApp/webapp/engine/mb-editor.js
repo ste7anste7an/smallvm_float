@@ -704,12 +704,16 @@ class MB_Editor {
 				palette: new Color(62, 66, 89),
 				scripts: new Color(55, 59, 79),
 				slider: new Color(144, 149, 174),
+				paletteSlider: new Color(158, 163, 188),
+				paletteTrack: new Color(74, 79, 105),
 				label: new Color(144, 149, 174),
 			}
 			: {
 				palette: new Color(235, 237, 241),
 				scripts: new Color(244, 244, 247),
 				slider: new Color(176, 179, 197),
+				paletteSlider: new Color(120, 125, 152),
+				paletteTrack: new Color(222, 224, 231),
 				label: new Color(84, 90, 122),
 			};
 	}
@@ -729,9 +733,13 @@ class MB_Editor {
 		this.palette.setColor(colors.palette);
 		this.scripts.setColor(colors.scripts);
 		this.scriptsFrame.setColor(colors.scripts);
-		for (const frame of [this.palette, this.scriptsFrame]) {
-			frame.hBar.button.setColor(colors.slider);
-			frame.vBar.button.setColor(colors.slider);
+
+		// The palette's bars are opaque on a track, so they show whenever its blocks overflow.
+		for (const bar of [this.palette.hBar, this.palette.vBar]) {
+			bar.alpha = 1;
+			bar.setColor(colors.paletteTrack);
+			bar.button.alpha = 1;
+			bar.button.setColor(colors.paletteSlider);
 		}
 		if (typeof Image !== 'undefined') { // no page to load it from otherwise
 			const image = new Image();
