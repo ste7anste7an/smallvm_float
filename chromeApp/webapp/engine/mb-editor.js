@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Module, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, world */
+/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Module, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, HatBlockMorph, SpeechBubbleMorph, TextMorph, ZOOM, world */
 
 class MB_Editor {
 	constructor() {
@@ -2821,9 +2821,7 @@ console.log('unknown');
 
 		const world = block.world();
 		if (!world) return;
-		const bubble = new SpeechBubbleMorph(
-			String(value),
-			isError ? new Color(255, 190, 190) : null);
+		const bubble = new MB_ResultBubbleMorph(String(value), isError);
 		world.add(bubble);
 		bubble.step = () => this.followBlock(bubble, block);
 		this.placeResultBubble(bubble, block);
@@ -2843,9 +2841,20 @@ console.log('unknown');
 	}
 
 	placeResultBubble(bubble, block) {
-		// Bottom left of the bubble at the block's right edge, where GP puts it.
-		bubble.setPosition(block.rightCenter().add(new Point(2, -bubble.height())));
-		bubble.keepWithin(block.world());
+		// Tail over the block's top right corner, or its top left when the bubble
+		// does not fit on the right. A hat's bubble comes down to its middle.
+		const world = block.world();
+		const overlap = 5;
+		const bottom = (block instanceof HatBlockMorph) ? block.center().y : block.top() + overlap;
+		const right = (world.right() - block.right()) > bubble.width();
+		if (right !== bubble.isPointingRight) {
+			bubble.isPointingRight = right;
+			bubble.rerender();
+		}
+		const left = right ? block.right() - overlap : block.left() + overlap - bubble.width();
+		bubble.setPosition(new Point(left, bottom - bubble.height()));
+		// Keep 3 screen pixels clear of the world's edges.
+		bubble.keepWithin(world.bounds.insetBy(3 / ZOOM));
 		bubble.blockBounds = block.bounds;
 	}
 
@@ -2944,6 +2953,71 @@ console.log('unknown');
 		this.runningChunks = new Map();
 	}
 }
+
+// MB_ResultBubbleMorph: the bubble showing a value or an error from the board on its block
+
+function MB_ResultBubbleMorph(value, isError) {
+	this.init(value, isError);
+}
+
+MB_ResultBubbleMorph.prototype = Object.create(SpeechBubbleMorph.prototype);
+MB_ResultBubbleMorph.prototype.constructor = MB_ResultBubbleMorph;
+MB_ResultBubbleMorph.uber = SpeechBubbleMorph.prototype;
+
+MB_ResultBubbleMorph.prototype.init = function (value, isError) {
+	const fill = isError ? new Color(255, 242, 242) : new Color(250, 250, 250);
+	const border = isError ? new Color(178, 0, 0) : new Color(140, 140, 140);
+	MB_ResultBubbleMorph.uber.init.call(this, value, fill, 5, 2, border, 0, false, true);
+};
+
+MB_ResultBubbleMorph.prototype.fixLayout = function () {
+	// Wrap at 175 screen pixels whatever the block size, and show at most 30 lines.
+	if (this.contentsMorph) this.contentsMorph.destroy();
+	const textMorph = (s, width) => new TextMorph(s, 18, null, false, false, 'center', width, 'Arial');
+	let lines = [];
+	for (const paragraph of String(this.contents).split('\n')) {
+		// A wrapping TextMorph ends each line with a space, and adds an empty
+		// first line when the first word is wider than the bubble.
+		const wrapped = textMorph(paragraph, 175 / ZOOM).lines.map((s) => s.trimEnd());
+		if ((wrapped.length > 1) && ('' === wrapped[0])) wrapped.shift();
+		lines = lines.concat(wrapped);
+	}
+	if (lines.length > 30) lines = lines.slice(0, 30).concat(['...']);
+	const text = textMorph(lines.join('\n'), 0);
+	text.color = new Color(0, 0, 0);
+	this.contentsMorph = text;
+	this.add(text);
+	this.bounds.setExtent(new Point(text.width() + 22, text.height() + 21)); // 7 of the height is the tail
+	text.setPosition(this.position().add(new Point(11, 7)));
+};
+
+MB_ResultBubbleMorph.prototype.render = function (ctx) {
+	// A rounded box inset 4 from the bounds, with an 8 high tail under one end.
+	const l = 4, t = 4, r = this.width() - 4, b = this.height() - 4;
+	const radius = 5, tailH = 8, tailW = 4, indent = 8;
+	const base = b - tailH;
+	ctx.beginPath();
+	ctx.moveTo(l, base - radius);
+	ctx.arcTo(l, t, l + radius, t, radius);
+	ctx.arcTo(r, t, r, t + radius, radius);
+	ctx.arcTo(r, base, r - radius, base, radius);
+	if (this.isPointingRight) {
+		ctx.lineTo(l + radius + indent + tailW, base);
+		ctx.lineTo(l, b);
+		ctx.lineTo(l + indent, base);
+	} else {
+		ctx.lineTo(r - indent, base);
+		ctx.lineTo(r, b);
+		ctx.lineTo(r - (indent + tailW + radius), base);
+	}
+	ctx.arcTo(l, base, l, base - radius, radius);
+	ctx.closePath();
+	ctx.fillStyle = this.color.toString();
+	ctx.fill();
+	ctx.lineWidth = this.border;
+	ctx.strokeStyle = this.borderColor.toString();
+	ctx.stroke();
+};
 
 // Announce something to whatever chrome is listening. Sent on the document
 // rather than through IDE.fireEvent, which is the same dispatch, so that the
