@@ -2901,11 +2901,11 @@ static int readDigitalMicrophone() {
 		}
 	}
 	// scale down the range by a few bits but retain good sensitivity
-	mostRecentMicSample = mostRecentMicSample >> 3;
+	int result = mostRecentMicSample >> 3;
 	// limit result to signed 10-bit value range to match 10-bit analog microphone
-	if (mostRecentMicSample < -512) mostRecentMicSample = -512;
-	if (mostRecentMicSample > 511) mostRecentMicSample = 511;
-	return mostRecentMicSample;
+	if (result < -512) result = -512;
+	if (result > 511) result = 511;
+	return result;
 }
 
 #elif defined(ARDUINO_BBC_MICROBIT_V2) || defined(CALLIOPE_V3)
