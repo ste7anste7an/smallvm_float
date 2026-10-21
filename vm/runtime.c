@@ -242,6 +242,8 @@ void primsInit() {
 
 // Task Ops
 
+int hasStarted = false; // false before the first call to startAll()
+
 void initTasks() {
 	memset(tasks, 0, sizeof(tasks));
 	taskCount = 0;
@@ -311,6 +313,7 @@ void startAll() {
 	stopAllTasks();
 	softReset(true);
 	resetTimer();
+	hasStarted = true;
 
 	for (int i = 0; i < MAX_CHUNKS; i++) {
 		uint8 chunkType = chunks[i].chunkType;
@@ -416,6 +419,8 @@ void checkButtons() {
 	// If button A, button B, or both are pressed, start tasks for all of the relevant
 	// hat blocks (if they are not already running). This check is done at most once
 	// every BUTTON_CHECK_INTERVAL microseconds.
+
+	if (!hasStarted) return;
 
 	uint32 now = microsecs();
 	if (now < lastCheck) lastCheck = 0; // clock wrap
@@ -1234,6 +1239,7 @@ static void processShortMessage() {
 		}
 		return; // message incomplete
 	}
+	hasStarted = true; // received a short message from the IDE
 	int cmd = rcvBuf[1];
 	int chunkIndex = rcvBuf[2];
 	switch (cmd) {

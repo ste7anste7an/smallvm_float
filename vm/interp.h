@@ -322,6 +322,7 @@ void writeInternalI2CReg(int deviceID, int reg, int value);
 
 // I/O Support
 
+extern int hasStarted; // false before the first call to startAll()
 extern int mbDisplayColor;
 extern int resetDoubleTap;
 extern int wifiActive;
