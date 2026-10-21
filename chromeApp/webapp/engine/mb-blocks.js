@@ -237,6 +237,11 @@ SyntaxElementMorph.uber = Morph.prototype;
 
 SyntaxElementMorph.prototype.contrast = 17;
 
+// A block or slot lays out its parent after itself. Off only while a whole
+// script is laid out from the bottom up, where that would lay out each ancestor
+// once per part below it.
+SyntaxElementMorph.prototype.fixesParentLayout = true;
+
 // The height of a line of block text: 0.95 and 0.3 of the font size, each rounded
 // down to half a screen pixel at the world's zoom.
 function blockTextHeight(fontSize, pixelsPerUnit = 2 * ZOOM) {
@@ -1032,7 +1037,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	}
 
 	// find out if one of my parents needs to be fixed
-	if (this instanceof BlockMorph && this.parent && this.parent.fixLayout) {
+	if (this instanceof BlockMorph && this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 		this.parent.changed();
 		if (this.parent instanceof SyntaxElementMorph) {
@@ -4811,7 +4816,7 @@ CommandSlotMorph.prototype.fixLayout = function () {
 				+ this.dent
 		);
 	}
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
 };
@@ -4966,7 +4971,7 @@ CSlotMorph.prototype.fixLayout = function () {
 		);
 	}
 
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
 };
@@ -5456,7 +5461,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 		));
 	}
 
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		tp.fullChanged();
 		this.parent.fixLayout();
 		tp.fullChanged();
@@ -5828,7 +5833,7 @@ TemplateSlotMorph.prototype.fixLayout = function () {
 	var template = this.template();
 	this.bounds.setExtent(template.extent());
 	template.setPosition(this.position());
-	if (this.parent) {
+	if (this.fixesParentLayout && this.parent) {
 		if (this.parent.fixLayout) {
 			this.parent.fixLayout();
 		}
