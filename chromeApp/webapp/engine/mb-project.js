@@ -152,7 +152,10 @@ function blockPrototypeForFunction(func, project) {
 	proto.isDraggable = false;
 	proto.isTemplate = true;
 	const lib = [...project.libraries.values()].find((m) => m.functions.includes(func));
-	proto.setCategory(lib ? lib.moduleCategory : 'My Blocks'); // as the palette colours it
+	// A library's function takes its category colour. A function of the project
+	// has no category, which colours its prototype with the default block
+	// colour, not My Blocks blue (the palette's calls keep that).
+	proto.setCategory(lib ? lib.moduleCategory : null);
 	const def = new BlockDefinitionMorph(op, spec, args, proto);
 	if (builtIn) def.isBuiltIn = true; // its spec is not the user's to change
 	proto.add(def);
