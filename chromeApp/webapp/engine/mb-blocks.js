@@ -2573,10 +2573,10 @@ BlockMorph.prototype.render = function (ctx) {
 	ctx.closePath();
 	ctx.fill();
 
-	// draw the inner filled shaped
+	// the inner shape; in the world the outline stays one screen pixel at every block size
 	ctx.fillStyle = this.cachedClr;
 	ctx.beginPath();
-	this.outlinePath(ctx, this.flatEdge);
+	this.outlinePath(ctx, this.flatEdge / (this.world() ? ZOOM : 1));
 	ctx.closePath();
 	ctx.fill();
 };
