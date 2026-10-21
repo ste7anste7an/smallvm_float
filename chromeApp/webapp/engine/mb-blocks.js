@@ -2557,10 +2557,36 @@ BlockMorph.prototype.expressionForArg = function (arg) {
 
 // BlockMorph drawing
 
+BlockMorph.prototype.outlineColor = function () {
+	// The block's colour at 80% of its HSV value. It goes through HSV in floating
+	// point and truncates, which can land a unit below plain scaling.
+	var r = Math.round(this.color.r), g = Math.round(this.color.g), b = Math.round(this.color.b),
+		max = Math.max(r, g, b), min = Math.min(r, g, b),
+		h = 0, s = 0, v = 0.8 * (max / 255), i, f, p, q, t, rgb;
+	if (max !== min) {
+		if (r === min) {
+			h = (60 * (3 - ((g - b) / (max - min)))) % 360;
+		} else if (g === min) {
+			h = (60 * (5 - ((b - r) / (max - min)))) % 360;
+		} else {
+			h = (60 * (1 - ((r - g) / (max - min)))) % 360;
+		}
+		s = (max - min) / max;
+	}
+	i = Math.trunc(h / 60);
+	f = (h / 60) - i;
+	p = v * (1 - s);
+	q = v * (1 - (s * f));
+	t = v * (1 - (s * (1 - f)));
+	rgb = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i];
+	return new Color(
+		Math.trunc(255 * rgb[0]), Math.trunc(255 * rgb[1]), Math.trunc(255 * rgb[2]), this.color.a);
+};
+
 BlockMorph.prototype.render = function (ctx) {
 	this.cachedClr = this.color.toString();
 	this.cachedClrBright = this.bright();
-	this.cachedClrDark = this.dark();
+	this.cachedClrDark = this.outlineColor().toString();
 
 	// draw the outline
 	ctx.fillStyle = this.cachedClrDark;
