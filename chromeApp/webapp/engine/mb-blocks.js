@@ -134,7 +134,7 @@
 /*global Array, BoxMorph,
 Color, FrameMorph, Function, HandleMorph, Math, MenuMorph,
 Morph, MorphicPreferences, Object, ScrollFrameMorph, ShadowMorph, ZERO, Sound,
-String, StringMorph, TextMorph, contains, degrees, detect, PianoMenuMorph, nop,
+String, StringMorph, TextMorph, contains, detect, PianoMenuMorph, nop,
 document, getDocumentPositionOf, isNaN, isString, newCanvas, parseFloat, isNil,
 radians, useBlurredShadows, SpeechBubbleMorph, modules, StageMorph,
 fontHeight, TableFrameMorph, SpriteMorph, Context, ListWatcherMorph, Rectangle,
@@ -262,7 +262,7 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.edge = 5 * scale; // determines width of vertical part of C-shaped block
 	this.inset = 5 * scale; // inset from left edge is: this.corner + (2 * this.inset)
 	this.hatHeight = blockHalf(2 * ((80 * scale / Math.sqrt(2)) - (40 * scale)));
-	this.hatWidth = 70 * scale;
+	this.hatWidth = 80 * scale;
 	this.rfBorder = 3 * scale;
 	this.dent = 8 * scale;
 	this.cSlotPadding = 0 * scale;
@@ -3642,32 +3642,12 @@ HatBlockMorph.prototype.outlinePath = function(ctx, inset) {
 		bottomCorner = this.height() - this.corner * 2,
 		radius = Math.max(this.corner - inset, 0),
 		s = this.hatWidth,
-		h = this.hatHeight,
-		r = ((4 * h * h) + (s * s)) / (8 * h),
-		a = degrees(4 * Math.atan(2 * h / s)),
-		sa = a / 2,
-		sp = Math.min(s * 1.7, this.width() - this.corner),
+		h = (s / Math.sqrt(2)) - (s / 2), // the flat top; hatHeight is this rounded for the layout
 		pos = this.position();
 
-
-	// top arc:
-	ctx.moveTo(inset, h + this.corner);
-	ctx.arc(
-		s / 2,
-		r,
-		r,
-		radians(-sa - 90),
-		radians(-90),
-		false
-	);
-	ctx.bezierCurveTo(
-		s,
-		0,
-		s,
-		h,
-		sp,
-		h
-	);
+	// top curve: one arch from the left edge to hatWidth, a fifth of hatWidth high
+	ctx.moveTo(inset, h + inset);
+	ctx.quadraticCurveTo(s / 2, h + inset - (0.4 * s), s, h + inset);
 
 	// top right:
 	ctx.arc(
