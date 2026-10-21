@@ -525,7 +525,10 @@ class MB_Editor {
 		// One definition hat per function, and never a second for the same one.
 		if (func == null) return;
 		if (this.definitionShown(func.functionName)) return;
-		this.addToBottom(scriptForFunction(func));
+		const hat = scriptForFunction(func);
+		// A hidden definition keeps its body at the block size it was made at.
+		this.relayoutScript(hat);
+		this.addToBottom(hat);
 	}
 
 	definitionShown(funcName) {
@@ -2088,32 +2091,87 @@ console.log('unknown');
 	resizeBlock(block, fontFactor, scale = SyntaxElementMorph.prototype.scale) {
 		// TextMorph includes multi-line input text, which is separate from StringMorph.
 		const parts = block.allChildren();
-		for (const part of parts) {
-			if (part instanceof SyntaxElementMorph) part.setScale(scale);
-			if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
-			if (part instanceof StringMorph || part instanceof TextMorph) {
-				part.setFontSize(part.fontSize * fontFactor);
-				part.fixLayout();
-				part.rerender();
+		// Laid out from the bottom up, as in relayoutScript.
+		SyntaxElementMorph.prototype.fixesParentLayout = false;
+		try {
+			for (const part of parts) {
+				part.pixelsPerUnit = 2; // a picture is not drawn at the world's zoom
+				if (part instanceof SyntaxElementMorph) part.setScale(scale);
+				if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.setFontSize(part.fontSize * fontFactor);
+					part.fixLayout();
+					part.rerender();
+				}
 			}
+			for (const part of parts.reverse()) {
+				if (part instanceof SyntaxElementMorph) part.fixLayout();
+			}
+		} finally {
+			SyntaxElementMorph.prototype.fixesParentLayout = true;
 		}
-		for (const part of parts.reverse()) {
-			if (part instanceof SyntaxElementMorph) part.fixLayout();
+	}
+
+	relayoutBlocks() {
+		for (const block of this.scripts.children) {
+			if (block instanceof BlockMorph) this.relayoutScript(block);
 		}
+		this.updatePalette();
+	}
+
+	relayoutScript(block) {
+		// Block text height is rounded to half a CSS pixel at the world's zoom, so it
+		// changes with the zoom. A definition whose details are hidden holds its
+		// inputs' declarations off the tree, and a prototype's row is laid out only
+		// from below, so both are collected and laid out here as well.
+		const partsOf = (m, out = []) => {
+			out.push(m);
+			m.children.forEach((child) => partsOf(child, out));
+			if (m.declaration && !m.children.includes(m.declaration)) partsOf(m.declaration, out);
+			return out;
+		};
+		const parts = partsOf(block);
+		// Each part is laid out after the parts inside it, so no part needs to lay out
+		// its parent; with that on, each would lay out every block above it.
+		SyntaxElementMorph.prototype.fixesParentLayout = false;
+		try {
+			for (const part of parts) {
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.fixLayout(true);
+					part.rerender();
+				}
+			}
+			for (const part of parts.reverse()) {
+				if ((part instanceof SyntaxElementMorph) || (part instanceof InputDeclarationMorph) ||
+						(part instanceof BlockSectionDefinitionMorph)) {
+					part.fixLayout();
+				}
+			}
+		} finally {
+			SyntaxElementMorph.prototype.fixesParentLayout = true;
+		}
+		block.fullChanged();
 	}
 
 	applyBlockSize(percent) {
 		// Keep script positions in project file units while changing the rendered scale.
 		this.blockSize = percent;
+		const oldZoom = ZOOM;
+		const scrolled = this.palette ? this.palette.topLeft().subtract(this.palette.contents.topLeft()) : null;
 		world.zoom(Math.max(Math.min(percent, 250), 50) / 100);
-		// A running script's outline is drawn for one zoom; redraw it for the new one.
-		for (const m of this.scripts ? this.scripts.children : []) {
-			if (m instanceof BlockMorph && m.getHighlight()) m.addHighlight(m.removeHighlight());
-		}
+		if ((ZOOM !== oldZoom) && this.scripts) this.relayoutBlocks();
 		// A wheel notch scrolls 120 screen pixels, as in GP; morphic scrolls in scene units.
 		// Both settings objects: the first touch event swaps MorphicPreferences to the second.
 		standardSettings.mouseScrollAmount = touchScreenSettings.mouseScrollAmount = 120 / ZOOM;
 		IDE.resize();
+		if (scrolled && (ZOOM !== oldZoom)) {
+			// The palette, rebuilt at the new size, keeps where it was scrolled to as
+			// far as its new contents allow.
+			this.palette.contents.setPosition(this.palette.position());
+			this.palette.scrollX(-scrolled.x);
+			this.palette.scrollY(-scrolled.y);
+			this.palette.adjustScrollBars();
+		}
 	}
 
 	async setBlockScalePercent(percent) {

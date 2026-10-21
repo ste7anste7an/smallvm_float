@@ -237,19 +237,26 @@ SyntaxElementMorph.uber = Morph.prototype;
 
 SyntaxElementMorph.prototype.contrast = 17;
 
-// The height of a line of block text, on a half-pixel grid.
-function blockTextHeight(fontSize) {
-	var size = Math.round(fontSize * 2);
-	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / 2;
+// A block or slot lays out its parent after itself. Off only while a whole
+// script is laid out from the bottom up, where that would lay out each ancestor
+// once per part below it.
+SyntaxElementMorph.prototype.fixesParentLayout = true;
+
+// The height of a line of block text: 0.95 and 0.3 of the font size, each rounded
+// down to half a CSS pixel at the world's zoom.
+function blockTextHeight(fontSize, pixelsPerUnit = 2 * ZOOM) {
+	var size = Math.round(fontSize * pixelsPerUnit);
+	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / pixelsPerUnit;
 }
 
 // Operators drawn a little larger than other label words.
 var blockMathOperators = ['=', '+', '/', '\u00D7', '\u2212', '\u2260', '<', '<=', '==', '>=', '>',
 	'&', '|', '^', '~', '<<', '>>'];
 
-// Half of n, rounded down to a half pixel.
-function blockHalf(n) {
-	return Math.floor(n) / 2;
+// Half of n, rounded down to 1 / pixelsPerUnit. Text is centred on half a CSS
+// pixel at the world's zoom; the other callers keep the half-unit grid they had.
+function blockHalf(n, pixelsPerUnit = 2) {
+	return Math.floor(n * pixelsPerUnit / 2) / pixelsPerUnit;
 }
 
 SyntaxElementMorph.prototype.setScale = function (num) {
@@ -966,7 +973,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		line.forEach(part => {
 			var span = lineHeight + scale;
 			if (part.height() <= span) {
-				part.moveBy(new Point(0, blockHalf(span - part.height())));
+				part.moveBy(new Point(0, blockHalf(span - part.height(), this.pixelsPerUnit || 2 * ZOOM)));
 			}
 		});
 		lineHeights.push(lineHeight);
@@ -1034,8 +1041,11 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 
 	// find out if one of my parents needs to be fixed
 	if (this instanceof BlockMorph && this.parent && this.parent.fixLayout) {
-		this.parent.fixLayout();
-		this.parent.changed();
+		if (this.fixesParentLayout) {
+			this.parent.fixLayout();
+			this.parent.changed();
+		}
+		// The top block redraws the script's highlight once the script is laid out.
 		if (this.parent instanceof SyntaxElementMorph) {
 			return;
 		}
@@ -1105,7 +1115,7 @@ function BlockLabelMorph(
 BlockLabelMorph.prototype.fixLayout = function (justMe) {
 	BlockLabelMorph.uber.fixLayout.call(this, true);
 	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
-	this.bounds.setHeight(blockTextHeight(this.fontSize));
+	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
 
@@ -4738,7 +4748,7 @@ CommandSlotMorph.prototype.fixLayout = function () {
 				+ this.dent
 		);
 	}
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
 };
@@ -4893,7 +4903,7 @@ CSlotMorph.prototype.fixLayout = function () {
 		);
 	}
 
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		this.parent.fixLayout();
 	}
 };
@@ -5367,7 +5377,7 @@ InputSlotMorph.prototype.fixLayout = function () {
 		));
 	}
 
-	if (this.parent && this.parent.fixLayout) {
+	if (this.fixesParentLayout && this.parent && this.parent.fixLayout) {
 		tp.fullChanged();
 		this.parent.fixLayout();
 		tp.fullChanged();
@@ -5625,7 +5635,7 @@ function InputSlotStringMorph(
 InputSlotStringMorph.prototype.fixLayout = function (justMe) {
 	InputSlotStringMorph.uber.fixLayout.call(this, true);
 	this.bounds.setWidth(Math.round(this.width() * 2) / 2);
-	this.bounds.setHeight(blockTextHeight(this.fontSize));
+	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
 
@@ -5682,7 +5692,7 @@ InputSlotTextMorph.prototype.fixLayout = function () {
 	const width = Math.max(1, ...this.lines.map(line =>
 		Math.round(this.measureCtx.measureText(line.replace(/ $/, '')).width * 2) / 2));
 	this.bounds = this.bounds.origin.extent(new Point(this.maxWidth || width,
-		this.lines.length * blockTextHeight(this.fontSize)));
+		this.lines.length * blockTextHeight(this.fontSize, this.pixelsPerUnit)));
 	if (this.parent && this.parent.layoutChanged) this.parent.layoutChanged();
 };
 
@@ -5763,7 +5773,7 @@ TemplateSlotMorph.prototype.fixLayout = function () {
 	var template = this.template();
 	this.bounds.setExtent(template.extent());
 	template.setPosition(this.position());
-	if (this.parent) {
+	if (this.fixesParentLayout && this.parent) {
 		if (this.parent.fixLayout) {
 			this.parent.fixLayout();
 		}
