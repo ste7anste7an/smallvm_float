@@ -5872,13 +5872,13 @@ TemplateSlotMorph.prototype.cSlots = function () {
 // BooleanSlotMorph ////////////////////////////////////////////////////
 
 /*
-	I am a diamond-shaped argument slot.
-	My block spec is
+	I am a boolean argument slot: a rounded toggle, green with its knob on
+	the right when true, pink with its knob on the left when false. My block
+	spec is
 
 	%bool	- Boolean
 
-	I can be directly edited. When the user clicks on me I toggle
-	between <true> and <false>.
+	Clicking me flips my value between true and false.
 
 	evaluate() returns my value.
 
@@ -5902,7 +5902,6 @@ function BooleanSlotMorph(initialValue) {
 
 BooleanSlotMorph.prototype.init = function (initialValue) {
 	this.value = (typeof initialValue === 'boolean') ? initialValue : null;
-	this.progress = 0; // for animation state, not persisted
 	BooleanSlotMorph.uber.init.call(this);
 	this.alpha = 1;
 	this.setContents(true);
@@ -5952,52 +5951,19 @@ BooleanSlotMorph.prototype.setContents = function (boolOrNull) {
 
 BooleanSlotMorph.prototype.toggleValue = function () {
 	var block = this.parentThatIsA(BlockMorph);
-	this.value = this.nextValue();
+	this.value = !this.value;
 	this.mbValue = undefined; // a click replaces a kept non-boolean value
 	this.scriptChanged();
 	if (block && (block.isCustomBlock)) {
 		block.fireSlotEditedEvent(this);
 	}
-	this.progress = 3;
 	this.rerender();
-	this.nextSteps ([
-		() => {
-			this.progress = 2;
-			this.rerender();
-		},
-		() => {
-			this.progress = 1;
-			this.rerender();
-		},
-		() => {
-			this.progress = 0;
-			this.rerender();
-		},
-	]);
-};
-
-BooleanSlotMorph.prototype.nextValue = function () {
-	return !this.value;
 };
 
 // BooleanSlotMorph events:
 
 BooleanSlotMorph.prototype.mouseClickLeft = function () {
 	this.toggleValue();
-};
-
-BooleanSlotMorph.prototype.mouseEnter = function () {
-	if (this.nextValue() === null) {
-		this.progress = -1; // 'fade'
-	} else {
-		this.progress = 1;
-	}
-	this.rerender();
-};
-
-BooleanSlotMorph.prototype.mouseLeave = function () {
-	this.progress = 0;
-	this.rerender();
 };
 
 // BooleanSlotMorph layout:
@@ -6010,157 +5976,45 @@ BooleanSlotMorph.prototype.fixLayout = function () {
 // BooleanSlotMorph drawing:
 
 BooleanSlotMorph.prototype.render = function (ctx) {
-	if (!(this.cachedNormalColor)) { // unless flashing
-		this.color = this.parent ?
-				this.parent.color : new Color(200, 200, 200);
-	}
-	this.cachedClr = this.color.toString();
-	this.cachedClrBright = this.bright();
-	this.cachedClrDark = this.dark();
-	this.drawDiamond(ctx, this.progress);
-	this.drawLabel(ctx);
-	this.drawKnob(ctx, this.progress);
-};
-
-BooleanSlotMorph.prototype.drawDiamond = function (ctx, progress) {
-	var w = this.width(),
+	// A rounded toggle with a dark gray outline one screen pixel wide, and a knob
+	// 2 block units in from the end that the value names. A slot with no
+	// boolean (null) is drawn as false, the value a click turns it from.
+	var s = this.scale,
+		w = this.width(),
 		h = this.height(),
-		r = h / 2,
-		w2 = w / 2,
-		shift = this.edge / 2,
-		gradient;
+		border = 1 / ZOOM, // the world is drawn ZOOM times its size
+		knob = h - (4 * s),
+		x = (this.value === true) ? (w - knob - (2 * s)) : (2 * s),
+		outline = 'rgb(60, 60, 60)';
 
-	// draw the 'flat' shape:
-	if (this.cachedNormalColor) { // if flashing
-		ctx.fillStyle = this.color.toString();
-	} else if (progress < 0 ) { // 'fade'
-		ctx.fillStyle = this.color.darker(25).toString();
-	} else {
-		switch (this.value) {
-		case true:
-			ctx.fillStyle = 'rgb(0, 200, 0)';
-			break;
-		case false:
-			ctx.fillStyle = 'rgb(200, 0, 0)';
-			break;
-		default:
-			ctx.fillStyle = this.color.darker(25).toString();
-		}
-	}
-
-	if (progress > 0 && !this.isEmptySlot()) {
-		// left half:
-		ctx.fillStyle = 'rgb(0, 200, 0)';
-		ctx.beginPath();
-		ctx.moveTo(0, r);
-		ctx.lineTo(r, 0);
-		ctx.lineTo(w2, 0);
-		ctx.lineTo(w2, h);
-		ctx.lineTo(r, h);
-		ctx.closePath();
-		ctx.fill();
-
-		// right half:
-		ctx.fillStyle = 'rgb(200, 0, 0)';
-		ctx.beginPath();
-		ctx.moveTo(w2, 0);
-		ctx.lineTo(w - r, 0);
-		ctx.lineTo(w, r);
-		ctx.lineTo(w - r, h);
-		ctx.lineTo(w2, h);
-		ctx.closePath();
-		ctx.fill();
-	} else {
-		ctx.beginPath();
-		ctx.moveTo(0, r);
-		ctx.lineTo(r, 0);
-		ctx.lineTo(w - r, 0);
-		ctx.lineTo(w, r);
-		ctx.lineTo(w - r, h);
-		ctx.lineTo(r, h);
-		ctx.closePath();
-		ctx.fill();
-	}
+	this.pill(ctx, 0, 0, w, h, border,
+		(this.value === true) ? 'rgb(0, 200, 0)' : 'rgb(200, 100, 100)', outline);
+	this.pill(ctx, x, 2 * s, knob, knob, border, outline, outline);
 };
 
-BooleanSlotMorph.prototype.drawLabel = function (ctx) {
-	var w = this.width(),
-		r = this.height() / 2 - this.edge,
-		r2 = r / 2,
-		shift = this.edge / 2,
-		text,
-		x,
-		y = this.height() / 2;
+BooleanSlotMorph.prototype.pill = function (ctx, x, y, w, h, border, fill, stroke) {
+	// The outline is stroked on the shape's edge, inset by half its width so
+	// the whole of it stays inside the given rect.
+	var inset = border / 2,
+		r = (Math.min(w, h) - border) / 2;
 
-	if (this.isEmptySlot() || this.progress < 0) {
-		return;
-	}
-
-	// "tick:"
-	x = r + (8 * this.flatEdge);
-	ctx.strokeStyle = 'white';
-	ctx.lineWidth = (2 * this.flatEdge);
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'miter';
+	x += inset;
+	y += inset;
+	w -= border;
+	h -= border;
+	if ((w <= 0) || (h <= 0)) return;
 	ctx.beginPath();
-	ctx.moveTo(x - r2, y);
-	ctx.lineTo(x, y + r2);
-	ctx.lineTo(x + r2, r2 + this.edge);
-	ctx.stroke();
-
-	// "cross:"
-	x = w - y - (3 * this.flatEdge);
-	ctx.strokeStyle = 'white';
-	ctx.lineWidth = (2 * this.flatEdge);
-	ctx.lineCap = 'butt';
-	ctx.beginPath();
-	ctx.moveTo(x - r2, y - r2);
-	ctx.lineTo(x + r2, y + r2);
-	ctx.moveTo(x - r2, y + r2);
-	ctx.lineTo(x + r2, y - r2);
-	ctx.stroke();
-};
-
-BooleanSlotMorph.prototype.drawKnob = function (ctx, progress) {
-	var w = this.width(),
-		r = this.height() / 2,
-		shift = this.edge / 2,
-		slideStep = (this.width() - this.height()) / 4 *
-			Math.max(0, (progress || 0)),
-		gradient,
-		x,
-		y = r,
-		outline = 1,
-		outlineColor = new Color(30, 30, 30),
-		color = new Color(220, 220, 220),
-		contrast = 60,
-		topColor = color.lighter(contrast),
-		bottomColor = color.darker(contrast);
-
-	// draw the 'flat' shape:
-	switch (this.value) {
-	case false:
-		x = r + slideStep;
-		if (progress < 0) {
-			ctx.globalAlpha = 0.6;
-		}
-		break;
-	case true:
-		x = w - r - slideStep;
-		break;
-	default:
-		if (!progress) {return; }
-		x = r;
-		ctx.globalAlpha = 0.6;
-	}
-
-	ctx.fillStyle = color.toString();
-	ctx.beginPath();
-	ctx.arc(x, y, r, radians(0), radians(360));
+	ctx.moveTo(x + r, y);
+	ctx.lineTo(x + w - r, y);
+	ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+	ctx.lineTo(x + r, y + h);
+	ctx.arc(x + r, y + r, r, Math.PI / 2, 3 * Math.PI / 2);
 	ctx.closePath();
+	ctx.fillStyle = fill;
 	ctx.fill();
-
-	ctx.globalAlpha = 1;
+	ctx.lineWidth = border;
+	ctx.strokeStyle = stroke;
+	ctx.stroke();
 };
 
 // ArrowMorph //////////////////////////////////////////////////////////
