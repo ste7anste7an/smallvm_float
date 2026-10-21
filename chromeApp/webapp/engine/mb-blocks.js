@@ -5206,8 +5206,9 @@ InputSlotMorph.prototype.setContents = function (data) {
 // InputSlotMorph drop-down menu:
 
 InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
+	// Answer false when mbMenu knows no menu for my choices.
 	let menu = this.mbMenu(this.choices);
-	if (!menu) return;
+	if (!menu) return false;
 	if (menu.items.length > 0) {
 		if (enableKeyboard) {
 			menu.popup(this.world(), this.bottomLeft());
@@ -5216,6 +5217,7 @@ InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
 			menu.popUpAtHand(this.world());
 		}
 	}
+	return true;
 };
 
 InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
@@ -5288,7 +5290,6 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		}
 	}
 
-	console.log('unhandled slot menu:', slotMenuName);
 	return null;
 }
 
@@ -5475,9 +5476,10 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 	// the pan carries the slot back under the hand, but its end is not a click
 	if (this.pans() && hand.grabPosition &&
 			hand.grabPosition.distanceTo(hand.position()) > MorphicPreferences.grabThreshold) return;
-	if (this.arrow().bounds.containsPoint(pos)) {
-		this.dropDownMenu();
-	} else if (this.isReadOnly || this.symbol) {
+	if (this.isReadOnly || this.symbol) {
+		// a read-only slot with no menu takes the click as its block does
+		if (!this.dropDownMenu()) this.escalateEvent('mouseClickLeft', pos);
+	} else if (this.arrow().bounds.containsPoint(pos)) {
 		this.dropDownMenu();
 	} else {
 		this.contents().edit();

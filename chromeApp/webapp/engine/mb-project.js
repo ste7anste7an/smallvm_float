@@ -1271,7 +1271,7 @@ class MB_Module {
 		this.choices = new Map();
 		for (const cmd of cmdList) {
 			if (!Array.isArray(cmd) || cmd[0] !== 'choices') continue;
-			if (cmd.length < 3) continue;
+			if (cmd.length < 2) continue; // a name with no items is an empty menu
 			let args = cmd.slice(1);
 			for (let i = 0; i < args.length; i++) {
 				args[i] = String(stringArg(args[i]));
