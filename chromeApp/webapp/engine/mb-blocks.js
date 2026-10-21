@@ -3003,6 +3003,8 @@ BlockMorph.prototype.prepareToBeGrabbed = function (hand) {
 
 BlockMorph.prototype.justDropped = function () {
 	delete this.alpha;
+	// a scripts pane puts a wrapping C slot back in snap, once it has chosen the target
+	if (this.setWrapHeight && !(this.parent instanceof ScriptsMorph)) this.setWrapHeight(null);
 };
 
 // A held block casts GP's shadow: black at 60/255, 7 screen pixels down and right, blurred
@@ -3369,6 +3371,7 @@ CommandBlockMorph.prototype.snap = function (hand) {
 		cslot,
 		affected;
 
+	this.setWrapHeight(null);
 	if (target === null) {
 		this.fixBlockColor();
 		return;
@@ -3425,6 +3428,25 @@ CommandBlockMorph.prototype.snap = function (hand) {
 	this.fixBlockColor();
 	if (this.snapSound) {
 		this.snapSound.play();
+	}
+};
+
+CommandBlockMorph.prototype.setWrapHeight = function (h) {
+	// Stretch my first C slot to h while it is empty, or back to its own height for null.
+	// The hand draws a picture taken when it grabbed me, so a held block takes a new one.
+	var cslot = detect(this.inputs(), each => each instanceof CSlotMorph),
+		hand = this.parent instanceof HandMorph ? this.parent : null;
+
+	if (!cslot || (cslot.wrapHeight === h)) return;
+	cslot.wrapHeight = h;
+	cslot.fixLayout();
+	if (hand) {
+		hand.changed();
+		this.removeShadow();
+		this.addShadow();
+		hand.cachedFullImage = this.fullImage();
+		hand.cachedFullBounds = this.fullBounds();
+		hand.changed();
 	}
 };
 
@@ -4226,12 +4248,11 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	var target, element, x, y, w, h;
 
 	target = block.closestAttachTarget(this);
+	// held where it would wrap a stack, the block's C slot stretches to show the stack inside it
+	block.setWrapHeight(target && target.loc === 'wrap' ?
+		target.element.fullBounds().height() + (10 * block.scale) : null);
 	if (!target) {
 		return null;
-	}
-	if (target.loc === 'wrap') {
-		this.showCSlotWrapFeedback(block, target.element);
-		return;
 	}
 	this.add(this.feedbackMorph);
 	this.feedbackMorph.border = 0;
@@ -4242,7 +4263,7 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	h = SyntaxElementMorph.prototype.feedbackMinHeight / ZOOM;
 	x = element.left();
 	w = element.width();
-	if (target.loc === 'top') {
+	if (target.loc === 'top' || target.loc === 'wrap') {
 		y = element.top() - h;
 	} else if (target.type === 'slot') {
 		// a short bar just inside the C, a little lower when the slot is empty
@@ -4255,23 +4276,6 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	}
 	this.feedbackMorph.bounds = new Rectangle(x, y, x + w, y + h);
 	this.feedbackMorph.changed();
-};
-
-ScriptsMorph.prototype.showCSlotWrapFeedback = function (srcBlock, trgBlock) {
-	var clr;
-	this.feedbackMorph.bounds = trgBlock.fullBounds()
-		.expandBy(BlockMorph.prototype.corner);
-	this.feedbackMorph.edge = SyntaxElementMorph.prototype.corner;
-	this.feedbackMorph.border = Math.max(
-		SyntaxElementMorph.prototype.edge,
-		3
-	);
-	this.add(this.feedbackMorph);
-	clr = this.feedbackColor;
-	this.feedbackMorph.color = clr.copy();
-	this.feedbackMorph.color.a = 0.1;
-	this.feedbackMorph.borderColor = clr;
-	this.feedbackMorph.rerender();
 };
 
 ScriptsMorph.prototype.closestInput = function (reporter) {
@@ -5026,6 +5030,8 @@ CSlotMorph.prototype.getSpec = function () {
 
 // CSlotMorph layout:
 
+CSlotMorph.prototype.wrapHeight = null; // set while the held block would wrap a stack
+
 CSlotMorph.prototype.fixLayout = function () {
 	var nb = this.nestedBlock();
 	if (nb) {
@@ -5035,7 +5041,7 @@ CSlotMorph.prototype.fixLayout = function () {
 			nb.fullBounds().width() + (this.cSlotPadding * 2)
 		);
 	} else {
-		this.bounds.setHeight(this.corner * 4 + this.cSlotPadding); // default
+		this.bounds.setHeight(this.wrapHeight || (this.corner * 4 + this.cSlotPadding)); // default, unless wrapping
 		this.bounds.setWidth(
 			this.corner * 4
 				+ (this.inset * 2)
