@@ -1,20 +1,20 @@
 module 'Planet X Input' Control
 author 'Elecfreaks Team'
-version 2 1 
+version 2 2 
 depends '_Planet X Support' 
-choices planetXDHT11State 'temperature (C)' 'humidity (0-100)' 
-choices planetXButton C D 
+choices planetXBME280State 'temperature (°C)' 'humidity (0-100%)' 'pressure (hPa)' 'altitude (m)' 
+choices planetXRTCReadField year month day weekday hour minute seconds 
 choices planetXDistanceUnit cm mm inch 
 choices planetXRTCSetField year month day hour minute seconds 
-choices planetXWaterSpeed slow medium fast 
+choices planetXTrackBitSense '0' '1' 
 choices planetXTrackBitChannel '1' '2' '3' '4' 
 choices planetXTempUnit Celsius Fahrenheit 
 choices planetXTrackingState '00' '01' '10' '11' 
 choices planetXGas 'carbon monoxide' 'carbon dioxide' smoke alcohol 
 choices planetXTrackBitPattern '0000' '0001' '0010' '0011' '0100' '0101' '0110' '0111' '1000' '1001' '1010' '1011' '1100' '1101' '1110' '1111' 
-choices planetXBME280State 'temperature (°C)' 'humidity (0-100%)' 'pressure (hPa)' 'altitude (m)' 
-choices planetXRTCReadField year month day weekday hour minute seconds 
-choices planetXTrackBitSense '0' '1' 
+choices planetXDHT11State 'temperature (C)' 'humidity (0-100)' 
+choices planetXButton C D 
+choices planetXWaterSpeed slow medium fast 
 description 'button
 WIKI:
 https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05017
@@ -96,7 +96,8 @@ https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05034
 
 Four-channel grayscale line-following sensors
 WIKI:
-https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05053'
+https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05053
+'
 variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_dht_temperature _planetX_dht_humidity _planetX_dhtData _planetX_dhtLastReadTime _planetX_dhtRawPulses _planetX_rfidReady _planetX_rfidRetBits _planetX_rfidRetCount _planetX_rfidAck _planetX_rfidRecv _planetX_rfidUid _planetX_rfidBlock _planetX_rfidWrite _planetX_rfidKey _planetX_bmeReady _planetX_bmeAddr _planetX_bmeDigT1 _planetX_bmeDigT2 _planetX_bmeDigT3 _planetX_bmeDigP1 _planetX_bmeDigP2 _planetX_bmeDigP3 _planetX_bmeDigP4 _planetX_bmeDigP5 _planetX_bmeDigP6 _planetX_bmeDigP7 _planetX_bmeDigP8 _planetX_bmeDigP9 _planetX_bmeDigH1 _planetX_bmeDigH2 _planetX_bmeDigH3 _planetX_bmeDigH4 _planetX_bmeDigH5 _planetX_bmeDigH6 _planetX_bmeTemperature _planetX_bmePressure _planetX_bmeHumidity _planetX_rtcReady _planetX_trackBitReady _planetX_trackBitStateValue _planetX_trackBitStateValid _planetX_rfidStart _planetX_rfidController _planetX_wsResponse 
 
   spec ' ' 'planetX_buttonEventBroadcast' 'when button _ key _ is pressed send broadcast _' 'menu.planetXPort menu.planetXButton str' 'J1' 'C' ''
@@ -342,11 +343,11 @@ to '_planetX_bmeWriteReg' reg value {
 to '_planetX_buttonNow' port button {
   local 'pinC' ('_planetX_pinForPort' port 'A')
   local 'pinD' ('_planetX_pinForPort' port 'B')
-  digitalReadOp pinC 'up'
-  digitalReadOp pinD 'up'
-  waitMillis 1
   local 'cPressed' (not (digitalReadOp pinC 'up'))
   local 'dPressed' (not (digitalReadOp pinD 'up'))
+  waitMillis 1
+  cPressed = (not (digitalReadOp pinC 'up'))
+  dPressed = (not (digitalReadOp pinD 'up'))
   if (button == 'C') {
     return cPressed
   } (button == 'D') {
