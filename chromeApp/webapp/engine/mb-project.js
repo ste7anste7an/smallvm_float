@@ -103,12 +103,12 @@ function specDefinitionString(spec) {
 	// Serialize a spec object to a 'spec' declaration line (without newline).
 	// Format: spec 'blockType' 'opName' 'specString' 'slotTypes' default1 default2...
 	let parts = ['spec'];
-	parts.push("'" + (spec.blockType || ' ') + "'");
-	parts.push("'" + spec.opName + "'");
-	parts.push("'" + (spec.specString || spec.opName) + "'");
+	parts.push(printString(spec.blockType || ' '));
+	parts.push(printString(spec.opName));
+	parts.push(printString(spec.specString || spec.opName));
 	let slotInfo = specSlotInfo(spec);
 	if (slotInfo.length > 0) {
-		parts.push("'" + slotInfo.map((slot) => slot[0]).join(' ') + "'");
+		parts.push(printString(slotInfo.map((slot) => slot[0]).join(' ')));
 		let defaults = slotInfo.map((slot) => specDefaultString(slot[0], slot[1]));
 		while (defaults.length > 0 && defaults[defaults.length - 1] === 'nil') {
 			defaults.pop(); // GP trims trailing nils, as they add nothing
