@@ -4154,11 +4154,11 @@ ScriptsMorph.prototype.step = function () {
 };
 
 ScriptsMorph.prototype.autoScroll = function (hand) {
-	// While a block is held within 80 screen pixels of an edge of the pane, whatever
-	// the block size, scroll 15 pixels that way each frame.
+	// While a block is held within 80 screen pixels of an edge of the pane, scroll
+	// 15 screen pixels that way each frame, whatever the block size.
 	var frame = this.scrollFrame,
 		pos = hand.bounds.origin,
-		jump = 15, dx = 0, dy = 0,
+		jump = 15 / ZOOM, dx = 0, dy = 0,
 		near = (d) => Math.round(d * ZOOM) < 80;
 
 	if (!frame || !frame.bounds.containsPoint(pos) || !this.wantsDropOf(hand.children[0])) return;
