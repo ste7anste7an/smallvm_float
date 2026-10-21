@@ -4188,7 +4188,7 @@ ScriptsMorph.prototype.showCSlotWrapFeedback = function (srcBlock, trgBlock) {
 		3
 	);
 	this.add(this.feedbackMorph);
-	clr = srcBlock.color.lighter(40);
+	clr = this.feedbackColor;
 	this.feedbackMorph.color = clr.copy();
 	this.feedbackMorph.color.a = 0.1;
 	this.feedbackMorph.borderColor = clr;
