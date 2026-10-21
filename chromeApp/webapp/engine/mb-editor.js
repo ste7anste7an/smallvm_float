@@ -2051,6 +2051,7 @@ console.log('unknown');
 		// TextMorph includes multi-line input text, which is separate from StringMorph.
 		const parts = block.allChildren();
 		for (const part of parts) {
+			part.pixelsPerUnit = 2; // a picture is not drawn at the world's zoom
 			if (part instanceof SyntaxElementMorph) part.setScale(scale);
 			if (part instanceof BlockExpanderMorph) part.setExtent(part.extent().multiplyBy(fontFactor));
 			if (part instanceof StringMorph || part instanceof TextMorph) {
@@ -2064,10 +2065,30 @@ console.log('unknown');
 		}
 	}
 
+	relayoutBlocks() {
+		// Block text is rounded to whole screen pixels, so its height changes with the zoom.
+		for (const block of this.scripts.children) {
+			if (!(block instanceof BlockMorph)) continue;
+			const parts = block.allChildren();
+			for (const part of parts) {
+				if (part instanceof StringMorph || part instanceof TextMorph) {
+					part.fixLayout(true);
+					part.rerender();
+				}
+			}
+			for (const part of parts.reverse()) {
+				if (part instanceof SyntaxElementMorph) part.fixLayout();
+			}
+		}
+		this.updatePalette();
+	}
+
 	applyBlockSize(percent) {
 		// Keep script positions in project file units while changing the rendered scale.
 		this.blockSize = percent;
+		const oldZoom = ZOOM;
 		world.zoom(Math.max(Math.min(percent, 250), 50) / 100);
+		if ((ZOOM !== oldZoom) && this.scripts) this.relayoutBlocks();
 		// A wheel notch scrolls 120 screen pixels, as in GP; morphic scrolls in scene units.
 		// Both settings objects: the first touch event swaps MorphicPreferences to the second.
 		standardSettings.mouseScrollAmount = touchScreenSettings.mouseScrollAmount = 120 / ZOOM;
