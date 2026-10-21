@@ -3290,6 +3290,11 @@ for (const textClass of [StringMorph, TextMorph]) {
 	};
 }
 
+// A press on the caret is a press on the text under it, so it does not end the edit.
+CursorMorph.prototype.topMorphAt = function () {
+	return null;
+};
+
 CursorMorph.prototype.textMenu = function () {
 	// Paste offers what the browser's clipboard holds, so text copied in another application
 	// can be pasted too. The read is asynchronous and may ask for permission, so the menu
