@@ -222,10 +222,12 @@ to nezhaMotor_MoveRelativeV2 port speed turn_dir value turn_mode wait_mode {
 }
 
 to nezhaMotor_Reset port {
+  local 'count' 0
   local 'port_num' ('_nezhaMotor_ParsePort' port)
   '[elfreaks:MotorReset]' port_num
-  repeatUntil (('_nezhaMotor_RoundDiv10' ('[elfreaks:MotorGetRelativeAngleDeciDeg]' port_num)) <= 1) {
+  repeatUntil (or (('_nezhaMotor_RoundDiv10' ('[elfreaks:MotorGetRelativeAngleDeciDeg]' port_num)) <= 1) (count >= 200)) {
     waitMillis 10
+    count = (count + 1)
   }
   waitMillis 300
 }
