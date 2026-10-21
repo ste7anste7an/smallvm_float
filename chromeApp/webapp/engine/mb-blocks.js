@@ -6455,15 +6455,15 @@ ColorSlotMorph.prototype.fixLayout = function () {
 };
 
 ColorSlotMorph.prototype.render = function (ctx) {
-	let center = this.bounds.center();
-	let radius = Math.floor(this.width() / 2);
+	// A dark gray ring one unit wide, its outer edge on my edge.
+	let radius = this.width() / 2;
 
 	ctx.beginPath();
-	ctx.arc(radius, radius, radius - 1, 0, 2 * Math.PI);
+	ctx.arc(radius, radius, radius - (this.scale / 2), 0, 2 * Math.PI);
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
-	ctx.lineWidth = 1;
-	ctx.strokeStyle = "black";
+	ctx.lineWidth = this.scale;
+	ctx.strokeStyle = 'rgb(56, 56, 56)';
 	ctx.stroke();
 };
 
