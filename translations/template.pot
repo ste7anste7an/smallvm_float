@@ -578,6 +578,18 @@ msgstr ""
 msgid "serial write _"
 msgstr ""
 
+#. Block in Comm category
+msgid "rx pin _ tx pin _"
+msgstr ""
+
+#. Block in Comm category
+msgid "stop _"
+msgstr ""
+
+#. Block in Comm category
+msgid "bit order _"
+msgstr ""
+
 #. Example string. Tells the user this input accepts an integer, a string list or a byte array
 msgid "anIntegerStringListOrByteArray"
 msgstr ""
