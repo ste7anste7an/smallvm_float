@@ -1293,7 +1293,7 @@ BlockMorph.prototype.chunkType = function () {
 // BlockMorph preferences settings:
 
 BlockMorph.prototype.isCachingInputs = true;
-BlockMorph.prototype.zebraContrast = 20; // alternating color brightness
+BlockMorph.prototype.zebraContrast = 17; // alternating color brightness
 
 // BlockMorph sound feedback:
 
@@ -2684,8 +2684,7 @@ BlockMorph.prototype.outline = function (color, border) {
 
 BlockMorph.prototype.fixBlockColor = function (nearestBlock, isForced) {
 	var nearest = nearestBlock,
-		clr,
-		cslot;
+		clr;
 
 	if (!this.zebraContrast && !isForced) {
 		return;
@@ -2700,15 +2699,10 @@ BlockMorph.prototype.fixBlockColor = function (nearestBlock, isForced) {
 				nearest = null; // this.parent; // the PrototypeHatBlockMorph
 			} else if (this instanceof ReporterBlockMorph) {
 				nearest = this.parent.parentThatIsA(BlockMorph);
-			} else { // command
-				cslot = this.parentThatIsA(CommandSlotMorph);
-				if (cslot) {
-					nearest = cslot.parentThatIsA(BlockMorph);
-				}
 			}
 		}
 	}
-	if (!nearest) { // top block
+	if (!nearest) { // a top block or a command: only reporters alternate
 		clr = this.colorFor(this.category);
 		if (!this.color.eq(clr)) {
 			this.alternateBlockColor();
@@ -2761,20 +2755,12 @@ BlockMorph.prototype.ghost = function () {
 };
 
 BlockMorph.prototype.fixLabelColor = function () {
+	// the label stays white on an alternated block too
 	if (this.zebraContrast > 0 && this.category) {
-		var clr = this.colorFor(this.category);
-		if (this.color.eq(clr)) {
-			this.setLabelColor(
-				WHITE,
-				clr.darker(this.labelContrast)
-			);
-		} else {
-			this.setLabelColor(
-				BLACK,
-				clr.lighter(this.zebraContrast)
-					.lighter(this.labelContrast * 2)
-			);
-		}
+		this.setLabelColor(
+			WHITE,
+			this.colorFor(this.category).darker(this.labelContrast)
+		);
 	}
 };
 
