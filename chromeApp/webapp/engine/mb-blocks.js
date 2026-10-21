@@ -6883,11 +6883,10 @@ MicroBitDisplaySlotMorph.prototype.init = function (bits) {
 	MicroBitDisplaySlotMorph.uber.init.call(this);
 	this.display = Array(25).fill(false);
 	this.paintMode = true;
-	this.insetX = 2;
-	this.insetY = 9;
-	this.stride = 18;
-	this.ledWidth = 11;
-	this.ledHeight = 14;
+	this.strideX = 15;
+	this.strideY = 14;
+	this.ledWidth = 9;
+	this.ledHeight = 12;
 	this.setColor(new Color(71, 82, 191));
 	if (bits) this.setContents(bits);
 	this.fixLayout();
@@ -6949,8 +6948,8 @@ MicroBitDisplaySlotMorph.prototype.isLocked = function () {
 // MicroBitDisplaySlotMorph drawing:
 
 MicroBitDisplaySlotMorph.prototype.fixLayout = function () {
-	this.bounds.setWidth(84);
-	this.bounds.setHeight(100);
+	this.bounds.setWidth(69 * this.scale);
+	this.bounds.setHeight(72 * this.scale);
 };
 
 MicroBitDisplaySlotMorph.prototype.render = function (ctx) {
@@ -6967,11 +6966,11 @@ MicroBitDisplaySlotMorph.prototype.render = function (ctx) {
 	let onColor = new Color(229, 0, 0);
 	for (let row = 0; row < 5; row++) {
 		for (let col = 0; col < 5; col++) {
-			let x = this.insetX + (col * this.stride);
-			let y = this.insetY + (row * this.stride);
+			let x = col * this.strideX * this.scale;
+			let y = row * this.strideY * this.scale;
 			let isOn = this.display[(5 * row) + col];
 			ctx.fillStyle = (isOn ? onColor : offColor).toString();
-			ctx.fillRect(x, y, this.ledWidth, this.ledHeight);
+			ctx.fillRect(x, y, this.ledWidth * this.scale, this.ledHeight * this.scale);
 		}
 	}
 };
@@ -7003,15 +7002,15 @@ MicroBitDisplaySlotMorph.prototype.pixelIndex = function (pos) {
 	// Return the display pixel index for the given pointer position or -1
 	// the pointer is not over any pixel.
 
-	let relativePoint = pos.subtract(this.topLeft());
-	let x = relativePoint.x - this.insetX;
-	let y = relativePoint.y - this.insetY;
-	if ((x < 0) || (y < 0)) return -1; // in the margin above or left of the grid
-	if ((x % this.stride) >= this.ledWidth) return -1; // between pixels
-	if ((y % this.stride) >= this.ledHeight) return -1; // between pixels
+	let relativePoint = pos.subtract(this.topLeft()).divideBy(this.scale);
+	let x = relativePoint.x;
+	let y = relativePoint.y;
+	if ((x < 0) || (y < 0)) return -1; // above or left of the grid
+	if ((x % this.strideX) >= this.ledWidth) return -1; // between pixels
+	if ((y % this.strideY) >= this.ledHeight) return -1; // between pixels
 
-	let col = Math.trunc(x / this.stride);
-	let row = Math.trunc(y / this.stride);
+	let col = Math.trunc(x / this.strideX);
+	let row = Math.trunc(y / this.strideY);
 	if ((col > 4) || (row > 4)) return -1;
 	return (row * 5) + col;
 };
