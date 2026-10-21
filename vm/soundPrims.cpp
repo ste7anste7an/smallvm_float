@@ -42,7 +42,7 @@ static int i2sReadBytes(uint8_t *buffer, int maxBytes) {
 	int maxSamples = maxBytes / 4;
 	if (maxSamples > 128) maxSamples = 128; // intermittent glitches when reading > 128 samples
 	int samplesRead = 0;
-	int16_t *out = (int16_t *) &buffer;
+	int16_t *out = (int16_t *) buffer;
 	while (samplesRead < maxSamples) {
 		int16_t sample;
 		if (nezhaMB_ReadMicrophone(&sample, 1)) {
