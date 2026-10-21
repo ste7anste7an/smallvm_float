@@ -1019,7 +1019,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 				if (!part.isBlockLabelBreak && part.isVisible) {
 					x += part.fullBounds().width() + space;
 					blockWidth = Math.max(blockWidth, part.fullBounds().right() - left);
-					lineHeight = Math.max(lineHeight, part.height());
+					lineHeight = Math.max(lineHeight, part.height(), part.isElseLine ? 18 * scale : 0);
 				}
 				if (part instanceof BlockExpanderMorph) drawer = part;
 			}
@@ -1027,8 +1027,10 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		});
 		line.forEach(part => {
 			var span = lineHeight + scale;
-			if (part.height() <= span) {
-				part.moveBy(new Point(0, blockHalf(span - part.height(), this.pixelsPerUnit || 2 * ZOOM)));
+			// the "else" label sits at the top of the 18 unit slot it replaces, and the slot is what is centred
+			var partHeight = part.isElseLine ? 18 * scale : part.height();
+			if (partHeight <= span) {
+				part.moveBy(new Point(0, blockHalf(span - partHeight, this.pixelsPerUnit || 2 * ZOOM)));
 			}
 		});
 		lineHeights.push(lineHeight);
@@ -2151,6 +2153,7 @@ BlockMorph.prototype.fixElseSection = function () {
 		labels.forEach((label, j) => {
 			if (label.isVisible !== (!isElse || (j === 0))) changed = true;
 			label.isVisible = !isElse || (j === 0);
+			label.isElseLine = isElse && (j === 0);
 			const text = (isElse && (j === 0)) ? localized('else') : words[j];
 			if (text && (label.text !== text)) {
 				label.text = text;
