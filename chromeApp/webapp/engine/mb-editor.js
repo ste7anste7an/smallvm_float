@@ -180,7 +180,8 @@ class MB_Editor {
 		));
 		if (this.paletteResizer) {
 			this.paletteResizer.setPosition(this.palette.topRight());
-			this.paletteResizer.setExtent(new Point(15, this.palette.height()));
+			// 15 screen px wide, whatever the block size.
+			this.paletteResizer.setExtent(new Point(15 / ZOOM, this.palette.height()));
 		}
 		this.placeTrashcan();
 	}
