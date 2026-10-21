@@ -662,7 +662,8 @@ class MB_Editor {
 		let contents = this.palette.contents;
 		contents.children.slice().forEach((m) => { m.destroy(); });
 		contents.setPosition(this.palette.position()); // scroll back to the top
-		this.paletteY = contents.top() + 10;
+		// the insets and the gap between blocks are screen pixels, the same at every block size
+		this.paletteY = contents.top() + (16 / ZOOM);
 		if (this.library) {
 			this.addBlocksForLibrary(this.library);
 		} else if ('cat;Variables' == this.category) {
@@ -760,10 +761,10 @@ class MB_Editor {
 	}
 
 	addPaletteBlock(b) {
-		b.setPosition(new Point(this.palette.contents.left() + 15, this.paletteY));
+		b.setPosition(new Point(this.palette.contents.left() + (16 / ZOOM), this.paletteY));
 		b.isTemplate = true;
 		this.palette.contents.add(b);
-		this.paletteY += b.height() + 10;
+		this.paletteY += b.height() + (8 / ZOOM);
 	}
 
 	addPaletteLabel(text) {
@@ -799,7 +800,7 @@ class MB_Editor {
 	addBlocksForSpecs(specs, category) {
 		for (const spec of specs) {
 			if ('-' == spec) { // separator
-				this.paletteY += 15;
+				this.paletteY += 20;
 			} else {
 				this.addPaletteBlockForSpec(spec, category);
 			}
@@ -831,8 +832,8 @@ class MB_Editor {
 		let lib = this.project.libraryNamed(libName);
 		if (!lib) return;
 		for (const op of lib.blockList) {
-			if ('-' == op) { // separator
-				this.paletteY += 15;
+			if ('-' == op) { // a library's separator stays the same on screen
+				this.paletteY += 20 / ZOOM;
 			} else if ('advanced' == op) {
 				if (!this.devMode()) return; // the rest is for developer mode
 				this.paletteY += 15;
