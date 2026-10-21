@@ -249,6 +249,53 @@ function blockTextHeight(fontSize, pixelsPerUnit = 2 * ZOOM) {
 	return (Math.floor(0.95 * size) + Math.floor(0.3 * size)) / pixelsPerUnit;
 }
 
+// Where block text's baseline sits below the top of its line: the font size in
+// device pixels less a tenth of it, rounded down, as GP's browser IDE draws it.
+// Morphic draws at the bottom of a line 1.2 font sizes tall, which puts the
+// glyphs 2 to 3 device pixels lower than GP's at block size 100%.
+function blockTextBaseline(fontSize, pixelsPerUnit = 2 * ZOOM) {
+	var size = Math.round(fontSize * pixelsPerUnit);
+	return (size - Math.floor(size / 10)) / pixelsPerUnit;
+}
+
+// StringMorph's render, drawn on the baseline above. Shared by the label and the
+// slot text morphs.
+function renderBlockString(ctx) {
+	var shadowOffset = this.shadowOffset || ZERO,
+		shadowColor = this.getShadowRenderColor(),
+		txt = this.isPassword ? this.password('*', this.text.length) : this.text,
+		base = blockTextBaseline(this.fontSize, this.pixelsPerUnit),
+		start, stop, i, p, c, x, y;
+
+	ctx.font = this.font();
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	if (shadowColor) {
+		ctx.fillStyle = shadowColor.toString();
+		ctx.fillText(txt, Math.max(shadowOffset.x, 0), base + Math.max(shadowOffset.y, 0));
+	}
+	x = Math.abs(Math.min(shadowOffset.x, 0));
+	y = Math.abs(Math.min(shadowOffset.y, 0));
+	ctx.fillStyle = this.getRenderColor().toString();
+	if (this.isShowingBlanks) {
+		this.renderWithBlanks(ctx, x, base + y);
+	} else {
+		ctx.fillText(txt, x, base + y);
+	}
+
+	// the selection
+	start = Math.min(this.startMark, this.endMark);
+	stop = Math.max(this.startMark, this.endMark);
+	for (i = start; i < stop; i += 1) {
+		p = this.slotPosition(i).subtract(this.position());
+		c = txt.charAt(i);
+		ctx.fillStyle = this.markedBackgoundColor.toString();
+		ctx.fillRect(p.x, p.y, ctx.measureText(c).width + 1 + x, this.height());
+		ctx.fillStyle = this.markedTextColor.toString();
+		ctx.fillText(c, p.x, base + p.y);
+	}
+}
+
 // Operators drawn a little larger than other label words.
 var blockMathOperators = ['=', '+', '/', '\u00D7', '\u2212', '\u2260', '<', '<=', '==', '>=', '>',
 	'&', '|', '^', '~', '<<', '>>'];
@@ -1118,6 +1165,8 @@ BlockLabelMorph.prototype.fixLayout = function (justMe) {
 	this.bounds.setHeight(blockTextHeight(this.fontSize, this.pixelsPerUnit));
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
+
+BlockLabelMorph.prototype.render = renderBlockString;
 
 BlockLabelMorph.prototype.getRenderColor = function () {
 	var block = this.parentThatIsA(BlockMorph);
@@ -5650,6 +5699,32 @@ InputSlotStringMorph.prototype.fixLayout = function (justMe) {
 	if (!justMe && this.parent && this.parent.fixLayout) this.parent.fixLayout();
 };
 
+InputSlotStringMorph.prototype.render = renderBlockString;
+
+// A blank's dot stays where StringMorph puts it, centred on the line, now that
+// the text is drawn on its baseline.
+InputSlotStringMorph.prototype.renderWithBlanks = function (ctx, startX, y) {
+	var space = ctx.measureText(' ').width,
+		top = y - blockTextBaseline(this.fontSize, this.pixelsPerUnit)
+			+ fontHeight(this.fontSize) - this.height() / 2,
+		x = startX || 0;
+
+	this.text.split(' ').forEach((word, i) => {
+		if (i > 0) {
+			ctx.fillStyle = this.blanksColor.toString();
+			ctx.beginPath();
+			ctx.arc(x + space / 2, top, space / 2, radians(0), radians(360));
+			ctx.fill();
+			x += space;
+		}
+		if (word !== '') {
+			ctx.fillStyle = this.getRenderColor().toString();
+			ctx.fillText(word, x, y);
+			x += ctx.measureText(word).width;
+		}
+	});
+};
+
 InputSlotStringMorph.prototype.getRenderColor = function () {
 	return this.parent.alpha > 0.25 ? this.color : WHITE;
 };
@@ -5705,6 +5780,57 @@ InputSlotTextMorph.prototype.fixLayout = function () {
 	this.bounds = this.bounds.origin.extent(new Point(this.maxWidth || width,
 		this.lines.length * blockTextHeight(this.fontSize, this.pixelsPerUnit)));
 	if (this.parent && this.parent.layoutChanged) this.parent.layoutChanged();
+};
+
+// Each line is drawn on GP's baseline, one blockTextHeight below the last, the
+// pitch fixLayout measures. Morphic's 1.2 font sizes would drift from it a little
+// more on every line.
+InputSlotTextMorph.prototype.render = function (ctx) {
+	if (this.parent && this.parent.isComment) return TextMorph.prototype.render.call(this, ctx);
+	var lineHeight = blockTextHeight(this.fontSize, this.pixelsPerUnit),
+		base = blockTextBaseline(this.fontSize, this.pixelsPerUnit),
+		start, stop, i, p, c, x;
+
+	ctx.font = this.font();
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = this.getRenderColor().toString();
+	this.lines.forEach((line, row) => {
+		x = 0;
+		if (this.alignment === 'right') {
+			x = this.width() - ctx.measureText(line).width;
+		} else if (this.alignment === 'center') {
+			x = (this.width() - ctx.measureText(line).width) / 2;
+		}
+		ctx.fillText(line, x, row * lineHeight + base);
+	});
+
+	// the selection
+	start = Math.min(this.startMark, this.endMark);
+	stop = Math.max(this.startMark, this.endMark);
+	for (i = start; i < stop; i += 1) {
+		p = this.slotPosition(i).subtract(this.position());
+		c = this.text.charAt(i);
+		ctx.fillStyle = this.markedBackgoundColor.toString();
+		ctx.fillRect(p.x, p.y, ctx.measureText(c).width + 1, lineHeight);
+		ctx.fillStyle = this.markedTextColor.toString();
+		ctx.fillText(c, p.x, p.y + base);
+	}
+};
+
+// The cursor and a click find a line on the same pitch.
+InputSlotTextMorph.prototype.slotPosition = function (slot) {
+	var pos = TextMorph.prototype.slotPosition.call(this, slot);
+	if (this.parent && this.parent.isComment) return pos;
+	return new Point(pos.x, this.top()
+		+ this.columnRow(slot).y * blockTextHeight(this.fontSize, this.pixelsPerUnit));
+};
+
+InputSlotTextMorph.prototype.slotAt = function (aPoint) {
+	if (this.parent && this.parent.isComment) return TextMorph.prototype.slotAt.call(this, aPoint);
+	var ratio = fontHeight(this.fontSize) / blockTextHeight(this.fontSize, this.pixelsPerUnit);
+	return TextMorph.prototype.slotAt.call(this,
+		new Point(aPoint.x, this.top() + (aPoint.y - this.top()) * ratio));
 };
 
 InputSlotTextMorph.prototype.getRenderColor =
