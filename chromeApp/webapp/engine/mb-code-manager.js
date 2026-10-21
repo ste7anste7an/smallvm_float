@@ -583,7 +583,7 @@ class MB_CodeManager {
 
 		// don't save the chunk if its CRC has not changed unless is a button or broadcast
 		// hat because the CRC does not reflect changes to the button or broadcast name
-		let crcOptimization = false; // xxx disabled for testing
+		let crcOptimization = true;
 		if (aBlockOrFunction instanceof BlockMorph) {
 			const op = aBlockOrFunction.selector;
 			if ((op === 'whenButtonPressed' || op === 'whenBroadcastReceived')) {
@@ -598,8 +598,6 @@ class MB_CodeManager {
 		const restartChunk = (aBlockOrFunction instanceof BlockMorph && this.isRunning(aBlockOrFunction));
 
 		const chunkCRC = this.computeCRC(chunkBytes);
-console.log('saving chunk A', chunkID, 'len', chunkBytes.length, 'type', chunkType, chunkCRC); // xxx
-
 		if (await this.storeChunkOnBoard(chunkID, data, chunkCRC)) {
 			entry[1] = chunkCRC; // remember the CRC of the code we just saved
 		} else {
@@ -633,8 +631,6 @@ console.log('saving chunk A', chunkID, 'len', chunkBytes.length, 'type', chunkTy
 			if (this.codeStoreFull) return false;
 			await waitMSecs(1);
 		}
-console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Date.now() - startT);
-
 		return this.arraysEqual(this.lastCRC, chunkCRC);
 	}
 
@@ -838,7 +834,6 @@ console.log('sent chunk', chunkID, this.arraysEqual(this.lastCRC, chunkCRC), Dat
 		// Received an individual CRC message from board.
 		// Record the CRC for the given chunkID.
 		this.lastRcvMSecs = Date.now();
-console.log('code manager crcReceived', chunkID, chunkCRC);
 		this.lastCRC = chunkCRC;
 		if (this.crcDict != null) {
 			this.crcDict.set(chunkID, chunkCRC);
