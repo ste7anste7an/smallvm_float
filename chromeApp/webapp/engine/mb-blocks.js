@@ -7260,7 +7260,7 @@ BlockSectionDefinitionMorph.prototype.hideDetails = function () {
 
 BlockSectionDefinitionMorph.prototype.fixLayout = function () {
 	// One row, centred vertically; a hidden part takes no room.
-	const gap = 5 * blockScale();
+	const gap = 5 / ZOOM; // 5 screen pixels at every block size
 	this.drawer.fixLayout();
 	const parts = this.elements().concat(this.drawer.isVisible ? [this.drawer] : []);
 	const height = Math.max(0, ...parts.map((m) => m.height()));
