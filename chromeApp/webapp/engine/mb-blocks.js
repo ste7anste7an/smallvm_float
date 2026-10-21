@@ -6768,10 +6768,14 @@ BlockExpanderMorph.prototype.init = function (aBlock) {
 	this.showLeft = aBlock.canContract();
 	this.showRight = aBlock.canExpand();
 	const size = 18 * aBlock.scale, unit = blockHalf(size);
-	this.gap = Math.floor(2 * size / 3) / 2; // between the two arrows
-	const w = (this.showLeft && this.showRight) ? (3 * unit) + this.gap : 2 * unit;
+	const w = (this.showLeft && this.showRight) ? (3 * unit) + this.gapFor(size) : 2 * unit;
 	this.bounds.setWidth(w);
 	this.bounds.setHeight(size);
+};
+
+BlockExpanderMorph.prototype.gapFor = function (size) {
+	// the space between the two arrows of an expander the given size tall
+	return Math.floor(2 * size / 3) / 2;
 };
 
 // BlockExpanderMorph drawing:
@@ -6790,7 +6794,7 @@ BlockExpanderMorph.prototype.render = function (ctx) {
 		ctx.lineTo(x + unit, h - inset);
 		ctx.closePath();
 		ctx.fill();
-		x += unit + this.gap;
+		x += unit + this.gapFor(h);
 	}
 
 	if (this.showRight) {
@@ -7430,7 +7434,7 @@ BlockDrawerMorph.prototype.render = function (ctx) {
 BlockDrawerMorph.prototype.fixLayout = function () {
 	const size = 18 * blockScale(), unit = blockHalf(size);
 	const both = this.target.canCollapse() && this.target.canExpand();
-	this.bounds.setWidth(both ? (3 * unit) + this.gap : 2 * unit);
+	this.bounds.setWidth(both ? (3 * unit) + this.gapFor(size) : 2 * unit);
 };
 
 BlockDrawerMorph.prototype.mouseClickLeft = function (pos) {
