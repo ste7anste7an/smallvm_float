@@ -2726,9 +2726,18 @@ BlockMorph.prototype.highlight = function (color, blur, border) {
 };
 
 BlockMorph.prototype.highlightImage = function (color, border) {
-	var fb, img, hi, ctx, out;
-	fb = this.fullBounds().extent();
-	this.doWithAlpha(1, () => img = this.fullImage());
+	// Drawn at the world's zoom, so the outline's edges stay sharp when the
+	// script's edge falls between canvas pixels at a large block size.
+	var k = this.world() ? ZOOM : 1,
+		bounds = this.fullBounds(),
+		fb = bounds.extent().multiplyBy(k),
+		img, hi, ctx, out;
+	img = newCanvas(fb);
+	ctx = img.getContext('2d');
+	ctx.scale(k, k);
+	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	this.doWithAlpha(1, () => this.fullDrawOn(ctx, bounds));
+	border *= k;
 
 	hi = newCanvas(fb.add(border * 2));
 	ctx = hi.getContext('2d');
@@ -2751,7 +2760,7 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	ctx.globalCompositeOperation = 'source-atop';
 	ctx.fillStyle = color.toString();
 	ctx.fillRect(0, 0, out.width, out.height);
-
+	out.unitsPerPixel = 1 / k;
 	return out;
 };
 
@@ -6788,6 +6797,22 @@ function BlockHighlightMorph() {
 BlockHighlightMorph.prototype.init = function () {
 	BlockHighlightMorph.uber.init.call(this);
 	this.isCachingImage = true;
+};
+
+BlockHighlightMorph.prototype.drawOn = function (ctx, rect) {
+	// The image is drawn at the world's zoom, so it is scaled back to my bounds.
+	var pic = this.cachedImage,
+		k = (pic && pic.unitsPerPixel) || 1,
+		clipped = rect.intersect(this.bounds);
+
+	if (!pic || !clipped.extent().gt(ZERO)) return;
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.drawImage(pic, this.left(), this.top(), pic.width * k, pic.height * k);
+	ctx.restore();
 };
 
 // BlockHighlightMorph thread count readout
