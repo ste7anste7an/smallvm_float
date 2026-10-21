@@ -2430,7 +2430,7 @@ console.log('unknown');
 		if (!MB_Project.isProjectText(contents)) {
 			// Opening it would replace the project, and the board's code, with
 			// whatever part of it could be read.
-			alert(localized('Could not read: ') + name);
+			this.inform(localized('Could not read: ') + name);
 			return;
 		}
 		if (!(await MB_editor.canReplaceCurrentProject())) return;
@@ -2500,14 +2500,14 @@ console.log('unknown');
 				text = await response.text();
 			} catch (error) {
 				console.error('Could not read:', link.url, error);
-				alert(localized('Could not read: ') + link.url);
+				this.inform(localized('Could not read: ') + link.url);
 				return;
 			}
 			return this.openProjectFromString(text, link.name);
 		}
 		if (!MB_ScriptExchange.isCompleteProject(link.text)) {
 			// Half a link loads half a project over the one the user had.
-			alert(localized('This link is incomplete and was not opened.'));
+			this.inform(localized('This link is incomplete and was not opened.'));
 			return;
 		}
 		return this.openProjectFromString(link.text, link.name);
@@ -2519,7 +2519,7 @@ console.log('unknown');
 		this.lastProjectFolder = location.slice(0, location.lastIndexOf('/') + 1);
 		const data = await MB_Files.readFile(location);
 		if (data === undefined) {
-			alert(localized('Could not read: ') + location);
+			this.inform(localized('Could not read: ') + location);
 			return;
 		}
 		await this.openProjectFromString(data, location.slice(location.lastIndexOf('/') + 1));
@@ -2579,7 +2579,7 @@ console.log('unknown');
 				? await response.text() : new Uint8Array(await response.arrayBuffer());
 		} catch (error) {
 			console.error('Could not read:', url, error);
-			alert(localized('Could not read: ') + url);
+			this.inform(localized('Could not read: ') + url);
 			return;
 		}
 		if (fileName.toLowerCase().endsWith('.ubl')) {
@@ -2705,7 +2705,7 @@ console.log('unknown');
 		this.clearProject();
 		this.updateLibraryList(); // no libraries left, so cat;Control
 		this.readFromBoard = true;
-		alert(localized('Connect board to proceed.'));
+		this.inform('Connect board to proceed.');
 	}
 
 	async openProjectFromBoard() {
