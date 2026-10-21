@@ -2985,14 +2985,39 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	if (lines.length > 30) lines = lines.slice(0, 30).concat(['...']);
 	const text = textMorph(lines.join('\n'), 0);
 	text.color = new Color(0, 0, 0);
+	text.render = renderResultText;
+	text.bounds.setHeight(text.lines.length * resultTextMetrics(text.fontSize).lineHeight);
 	this.contentsMorph = text;
 	this.add(text);
 	// A TextMorph is one space wider than its widest line; the glyphs fill its left part.
 	text.measureCtx.font = text.font();
 	const width = Math.max(...text.lines.map((s) => text.measureCtx.measureText(s.trimEnd()).width));
 	this.bounds.setExtent(new Point(width + 22, text.height() + 21)); // 7 of the height is the tail
-	text.setPosition(this.position().add(new Point(11, 6)));
+	text.setPosition(this.position().add(new Point(11, 7)));
 };
+
+// GP's line height and baseline at the world's zoom: 0.95 and 0.3 of the font
+// size in device pixels, each rounded down, and the font size less a tenth of it.
+// Morphic's lines are 1.2 font sizes, with the glyphs on the bottom of each.
+function resultTextMetrics(fontSize) {
+	const ppu = 2 * ZOOM, px = Math.round(fontSize * ppu);
+	return {
+		lineHeight: (Math.floor(0.95 * px) + Math.floor(0.3 * px)) / ppu,
+		baseline: (px - Math.floor(px / 10)) / ppu
+	};
+}
+
+// TextMorph's centred lines, drawn on GP's metrics above.
+function renderResultText(ctx) {
+	const { lineHeight, baseline } = resultTextMetrics(this.fontSize);
+	ctx.font = this.font();
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = this.getRenderColor().toString();
+	this.lines.forEach((line, i) => {
+		ctx.fillText(line, (this.width() - ctx.measureText(line).width) / 2, (i * lineHeight) + baseline);
+	});
+}
 
 MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	// A rounded box inset 4 from the bounds, with an 8 high tail under one end.
