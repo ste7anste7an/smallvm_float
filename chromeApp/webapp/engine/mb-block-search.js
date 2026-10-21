@@ -14,7 +14,7 @@
 // MB_BlockSearch finds the blocks and hands them over; MB_BlockSearchBox is the
 // box drawn on it. A view of another kind needs only MB_BlockSearch.
 
-/* global MB_editor, MB_Files, MB_Parser, MB_Specs, localized, parsedSpecs, stringArg, blockScale,
+/* global MB_editor, MB_Files, MB_Parser, MB_Specs, localized, parsedSpecs, stringArg, blockScale, screenPixels,
 	BoxMorph, Color, CursorMorph, MenuItemMorph, MenuMorph, Morph, Point, StringMorph, GetText, newCanvas,
 	world */
 
@@ -443,11 +443,13 @@ class MB_BlockSearchBox {
 		const textColor = dark ? new Color(230, 230, 230) : new Color(30, 30, 30);
 		const hintColor = dark ? new Color(130, 145, 160) : new Color(150, 150, 150);
 
-		this.morph = new BoxMorph(8, 1, dark ? new Color(100, 115, 130) : new Color(150, 150, 150));
+		// GP's size at every block size: screen pixels, not world units.
+		const px = screenPixels;
+		this.morph = new BoxMorph(px(8), px(1), dark ? new Color(100, 115, 130) : new Color(150, 150, 150));
 		this.morph.color = dark ? new Color(50, 60, 70) : new Color(240, 240, 240);
-		this.morph.setExtent(new Point(Math.min(440, world.width() - 20), 40));
+		this.morph.setExtent(new Point(Math.min(px(440), world.width() - px(20)), px(40)));
 		this.morph.setCenter(new Point(world.center().x, 0));
-		this.morph.setTop(world.top() + 8);
+		this.morph.setTop(world.top() + px(8));
 		this.morph.searchBox = this;
 		this.morph.fps = 10;
 		this.morph.step = () => this.step();
@@ -461,12 +463,12 @@ class MB_BlockSearchBox {
 		this.morph.destroy = () => this.destroyed();
 
 		this.morph.add(this.searchIcon());
-		this.searchText = new StringMorph('', 20);
+		this.searchText = new StringMorph('', px(20));
 		this.searchText.isEditable = true;
 		this.searchText.color = textColor;
-		this.searchText.setPosition(this.morph.position().add(new Point(40, 8)));
+		this.searchText.setPosition(this.morph.position().add(new Point(px(40), px(8))));
 		this.morph.add(this.searchText);
-		this.hintText = new StringMorph(localized('search blocks and variables...'), 20);
+		this.hintText = new StringMorph(localized('search blocks and variables...'), px(20));
 		this.hintText.color = hintColor;
 		this.hintText.setPosition(this.searchText.position());
 		this.morph.add(this.hintText);
@@ -482,9 +484,10 @@ class MB_BlockSearchBox {
 		// A magnifying glass at the left of the box.
 
 		const icon = new Morph();
-		icon.setExtent(new Point(20, 20));
-		icon.setPosition(this.morph.position().add(new Point(12, 10)));
+		icon.setExtent(new Point(screenPixels(20), screenPixels(20)));
+		icon.setPosition(this.morph.position().add(new Point(screenPixels(12), screenPixels(10))));
 		icon.render = (ctx) => {
+			ctx.scale(screenPixels(1), screenPixels(1)); // drawn in screen pixels
 			ctx.strokeStyle = 'rgb(150, 150, 150)';
 			ctx.lineWidth = 2;
 			ctx.beginPath();
@@ -559,8 +562,8 @@ class MB_BlockSearchBox {
 		// name against its right edge, and the names line up in a column.
 		const rows = this.matches.map((m) => [m.kind, this.blockSearch.pictureFor(m),
 			('lib' === m.kind) ? this.libraryLabel(m.libName) : null, () => this.grab(m)]);
-		let rowW = this.morph.width() - 12;
-		for (const row of rows) rowW = Math.max(rowW, row[1].width + (row[2] ? row[2].width + 16 : 0));
+		let rowW = this.morph.width() - screenPixels(12);
+		for (const row of rows) rowW = Math.max(rowW, row[1].width + (row[2] ? row[2].width + screenPixels(16) : 0));
 		let lastKind = null;
 		for (const [kind, image, label, action] of rows) {
 			if (('lib' === kind) && ('block' === lastKind)) this.menu.addLine();
@@ -579,14 +582,14 @@ class MB_BlockSearchBox {
 		menu.createItems();
 		menu.setPosition(this.morph.bottomLeft());
 		if (menu.right() > world.right()) menu.setLeft(Math.max(world.left(), world.right() - menu.width()));
-		const maxHeight = Math.floor(world.bottom() - this.morph.bottom()) - 12;
+		const maxHeight = Math.floor(world.bottom() - this.morph.bottom()) - screenPixels(12);
 		if (menu.height() > maxHeight) {
 			const scroller = menu.scroll();
 			menu.bounds.corner.y = menu.top() + maxHeight;
-			scroller.setHeight(menu.bottom() - scroller.top() - 4);
+			scroller.setHeight(menu.bottom() - scroller.top() - screenPixels(4));
 			scroller.adjustScrollBars();
 		}
-		menu.addShadow(new Point(2, 2), 80);
+		menu.addShadow(new Point(screenPixels(2), screenPixels(2)), 80);
 		// The text keeps the keys while the results show. Morphic gives the next key
 		// to an open menu without the focus, and takes the keys away when a menu
 		// with the focus closes.
@@ -603,7 +606,7 @@ class MB_BlockSearchBox {
 
 	libraryLabel(libName) {
 		// The gray name shown on a block from a library the project does not have yet.
-		const label = new StringMorph(libName, 11, null, false, false, false, null, null, new Color(120, 120, 120));
+		const label = new StringMorph(libName, screenPixels(11), null, false, false, false, null, null, new Color(120, 120, 120));
 		return label.fullImage();
 	}
 
@@ -613,7 +616,7 @@ class MB_BlockSearchBox {
 		const ctx = row.getContext('2d');
 		ctx.drawImage(blockImage, 0, 0);
 		if (labelImage) {
-			ctx.drawImage(labelImage, rowW - (labelImage.width + 4),
+			ctx.drawImage(labelImage, rowW - (labelImage.width + screenPixels(4)),
 				Math.floor(Math.max(0, blockImage.height - labelImage.height) / 2));
 		}
 		return row;
