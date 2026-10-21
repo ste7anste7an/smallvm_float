@@ -221,9 +221,8 @@ SyntaxElementMorph.uber = Morph.prototype;
 
 		snapping:
 
-				feedbackMinHeight	- height of white line for command block snaps
+				feedbackMinHeight	- height in screen pixels of the line for command block snaps
 				minSnapDistance		- threshold when commands start snapping
-				reporterDropFeedbackPadding	 - increases reporter drop feedback
 
 		color gradients:
 
@@ -275,7 +274,6 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.labelWordWrap = true;
 	this.feedbackMinHeight = 5;
 	this.minSnapDistance = 20;
-	this.reporterDropFeedbackPadding = 10 * scale;
 	this.labelContrast = 25;
 	this.activeHighlight = new Color(254, 215, 34, 1);
 	this.errorHighlight = new Color(173, 15, 0);
@@ -4011,7 +4009,7 @@ ScriptsMorph.uber = FrameMorph.prototype;
 ScriptsMorph.prototype.cleanUpMargin = 20;
 ScriptsMorph.prototype.cleanUpSpacing = 15;
 ScriptsMorph.prototype.enableKeyboard = true;
-ScriptsMorph.prototype.feedbackColor = WHITE;
+ScriptsMorph.prototype.feedbackColor = new Color(254, 215, 34);
 
 // ScriptsMorph instance creation:
 
@@ -4134,25 +4132,19 @@ ScriptsMorph.prototype.showReporterDropFeedback = function (block, hand) {
 	if (target === null) {
 		return null;
 	}
-	this.feedbackMorph.edge = SyntaxElementMorph.prototype.rounding;
-	this.feedbackMorph.border = Math.max(
-		SyntaxElementMorph.prototype.edge,
-		3
-	);
+	// Sized in screen pixels, so the ring does not grow with the block size.
+	this.feedbackMorph.edge = 10 / ZOOM;
+	this.feedbackMorph.border = 3 / ZOOM;
 	this.feedbackMorph.color = this.feedbackColor.copy();
 	this.feedbackMorph.borderColor = this.feedbackColor;
-	this.feedbackMorph.bounds = target.fullBounds()
-		.expandBy(Math.max(
-			block.edge * 2,
-			block.reporterDropFeedbackPadding
-		));
-	this.feedbackMorph.color.a = 0.5;
+	this.feedbackMorph.bounds = target.fullBounds().expandBy(12 / ZOOM);
+	this.feedbackMorph.color.a = 150 / 255;
 	this.feedbackMorph.rerender();
 	this.add(this.feedbackMorph);
 };
 
 ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
-	var y, target;
+	var target, element, x, y, w, h;
 
 	target = block.closestAttachTarget(this);
 	if (!target) {
@@ -4166,29 +4158,24 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	this.feedbackMorph.border = 0;
 	this.feedbackMorph.edge = 0;
 	this.feedbackMorph.alpha = 1;
-	this.feedbackMorph.bounds.setWidth(target.element.width());
-	this.feedbackMorph.bounds.setHeight(Math.max(
-			SyntaxElementMorph.prototype.corner,
-			SyntaxElementMorph.prototype.feedbackMinHeight
-		)
-	);
 	this.feedbackMorph.color = this.feedbackColor;
-	y = target.point.y;
-	if (target.loc === 'bottom') {
-		if (target.type === 'block') {
-			if (target.element.nextBlock()) {
-				y -= SyntaxElementMorph.prototype.corner;
-			}
-		} else if (target.type === 'slot') {
-			if (target.element.nestedBlock()) {
-				y -= SyntaxElementMorph.prototype.corner;
-			}
-		}
+	element = target.element;
+	h = SyntaxElementMorph.prototype.feedbackMinHeight / ZOOM;
+	x = element.left();
+	w = element.width();
+	if (target.loc === 'top') {
+		y = element.top() - h;
+	} else if (target.type === 'slot') {
+		// a short bar just inside the C, a little lower when the slot is empty
+		x += 3;
+		y = element.top() + (element.nestedBlock() ? 3 : 6);
+		w = 30;
+	} else {
+		// just below the top of the block that follows, if any
+		y = element.nextBlock() ? element.bottom() - 3 : element.bottom();
 	}
-	this.feedbackMorph.setPosition(new Point(
-		target.element.left(),
-		y
-	));
+	this.feedbackMorph.bounds = new Rectangle(x, y, x + w, y + h);
+	this.feedbackMorph.changed();
 };
 
 ScriptsMorph.prototype.showCSlotWrapFeedback = function (srcBlock, trgBlock) {
