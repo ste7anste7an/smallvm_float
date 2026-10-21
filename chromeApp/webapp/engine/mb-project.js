@@ -1777,9 +1777,15 @@ class MB_ScriptExchange {
 				console.log('fixed args:', args);
 			}
 			if (entry[0] === 'script' && args.length === 3) {
-				const block = blockForBody(args[2], true);
+				let block = blockForBody(args[2], true);
 				if (block == null) continue;
 				this.addGlobalsFor(block);
+				if (block.selector === 'to') {
+					// A function's script is its definition hat, as a loaded project shows it.
+					const nameSlot = block.inputs()[0];
+					const func = nameSlot && this.mbProject.functionNamed(nameSlot.evaluate());
+					if (func) block = scriptForFunction(func, null, this.mbProject);
+				}
 				block.fixBlockColor();
 				const scale = scripter.blockScale(); // pane pixels per script-file unit
 				const blockX = Math.round(dstX + scale * (args[0] - scriptsX));
