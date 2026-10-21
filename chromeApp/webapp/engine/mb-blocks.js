@@ -5627,7 +5627,7 @@ InputSlotMorph.prototype.isVarOrBroadcastSlot = function () {
 // InputSlotMorph drawing:
 
 InputSlotMorph.prototype.render = function (ctx) {
-	var borderColor, r;
+	var borderColor, r, w, h;
 
 	// initialize my surface property
 	if (this.cachedNormalColor) { // if flashing
@@ -5648,27 +5648,17 @@ InputSlotMorph.prototype.render = function (ctx) {
 		.toString();
 	this.cachedClrDark = borderColor.darker(this.contrast).toString();
 
-	r = Math.min(15 * this.scale, this.height() / 2);
+	w = this.width();
+	h = this.height();
+	r = Math.min(15 * this.scale, h / 2, w / 2);
 	ctx.beginPath();
 	if (this.isComment) { // a comment slot has square corners
-		ctx.rect(this.edge, this.edge, this.width() - (this.edge * 2), this.height() - (this.edge * 2));
-	} else {
-		ctx.arc(
-			r,
-			r,
-			r,
-			radians(90),
-			radians(-90),
-			false
-		);
-		ctx.arc(
-			this.width() - r,
-			r,
-			r,
-			radians(-90),
-			radians(90),
-			false
-		);
+		ctx.rect(this.edge, this.edge, w - (this.edge * 2), h - (this.edge * 2));
+	} else { // round ends on one line, a rounded rectangle when taller
+		ctx.arc(w - r, r, r, radians(-90), 0, false);
+		ctx.arc(w - r, h - r, r, 0, radians(90), false);
+		ctx.arc(r, h - r, r, radians(90), radians(180), false);
+		ctx.arc(r, r, r, radians(180), radians(270), false);
 	}
 	ctx.closePath();
 	ctx.fill();
