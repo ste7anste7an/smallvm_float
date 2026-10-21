@@ -684,6 +684,8 @@ SyntaxElementMorph.prototype.setLabelColor = function (
 	shadowColor,
 	shadowOffset
 ) {
+	// a comment's pale block takes dark gray where other blocks take white
+	if (('comment' === this.selector) && WHITE.eq(textColor)) textColor = new Color(80, 80, 80);
 	this.children.forEach(morph => {
 		if (morph instanceof StringMorph) {
 			morph.shadowOffset = shadowOffset || morph.shadowOffset;
@@ -1250,6 +1252,8 @@ BlockMorph.prototype.constructor = BlockMorph;
 BlockMorph.uber = SyntaxElementMorph.prototype;
 
 BlockMorph.prototype.colorFor = function (category) {
+	// A comment has its own colour, whatever its palette category.
+	if ('comment' === this.selector) return new Color(242, 238, 191);
 	let result = {
 		Output : new Color(72, 82, 191),
 		Input : new Color(159, 66, 165),
