@@ -66,6 +66,12 @@ class MB_Editor {
 		// The scripting pane scrolls itself while a block is dragged near its edge; the palette does not.
 		this.scriptsFrame.enableAutoScrolling = false;
 		this.palette.enableAutoScrolling = false;
+		// The scripting pane's scroll bars show only while it scrolls and while the
+		// pointer is over one. The palette's always show.
+		this.scriptsFrame.stepFrame = () => {
+			ScrollFrameMorph.prototype.stepFrame.call(this.scriptsFrame);
+			this.hideIdleScrollBars();
+		};
 
 		// The panes exist now, so they can take their colours. This is the only
 		// place that gives them one, here and on every later change.
@@ -1741,6 +1747,25 @@ console.log('unknown');
 		pane.moveBy(new Point(dx, dy));
 		pane.adjustBounds();
 		frame.adjustScrollBars();
+	}
+
+	hideIdleScrollBars() {
+		// Each frame: hide the scripting pane's scroll bars 200 ms after it last
+		// scrolled, unless a block is being dragged. Any move of its contents counts
+		// as a scroll, whatever made it. The pointer over where a bar would be shows it.
+		const frame = this.scriptsFrame, world = frame.world();
+		if (!world) return;
+		const hand = world.hand, now = Date.now(), pos = frame.contents.position();
+		if (frame.lastContentsPosition && !pos.eq(frame.lastContentsPosition)) frame.lastScrollTime = now;
+		frame.lastContentsPosition = pos;
+		const bars = [frame.hBar, frame.vBar];
+		const overflows = (frame.contents.width() > frame.width()) || (frame.contents.height() > frame.height());
+		if (overflows && bars.some(bar => bar.bounds.containsPoint(hand.position()))) {
+			frame.lastScrollTime = now;
+			if (!bars.some(bar => bar.isVisible)) frame.adjustScrollBars();
+		}
+		if (hand.children.length || (now - (frame.lastScrollTime || 0) <= 200)) return;
+		for (const bar of bars) if (bar.isVisible) bar.hide();
 	}
 
 	async deleteFunctionWithConfirm(name) {
