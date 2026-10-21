@@ -3078,16 +3078,16 @@ function fireIDEEvent(name, value) {
 	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
 }
 
-// The hand's position as the chrome expects GP's: menus.js adds the offset of
-// #canvas, while the hand is in world units on the world's own canvas,
+// The hand's position as the chrome expects GP's: menus.js adds where #canvas
+// is on the page, while the hand is in world units on the world's own canvas,
 // which morphic draws ZOOM times larger.
 function chromePoint(aWorld) {
 	const page = aWorld.worldCanvas.getBoundingClientRect();
-	const canvas = document.querySelector('#canvas');
+	const canvas = document.querySelector('#canvas').getBoundingClientRect();
 	const hand = aWorld.hand.position();
 	return {
-		x: (hand.x * ZOOM) + page.left - canvas.offsetLeft,
-		y: (hand.y * ZOOM) + page.top - canvas.offsetTop
+		x: (hand.x * ZOOM) + page.left - canvas.left,
+		y: (hand.y * ZOOM) + page.top - canvas.top
 	};
 }
 
