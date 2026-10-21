@@ -976,7 +976,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	if (lastPart instanceof CSlotMorph) {
 		if (drawer) {
 			blockHeight -= 6 * scale;
-			drawer.moveBy(new Point(-2 * scale, -5 * scale));
+			drawer.moveBy(new Point(-6 * scale, -5 * scale));
 		} else {
 			blockHeight += 7 * scale;
 		}
@@ -6764,13 +6764,13 @@ function BlockExpanderMorph(aBlock) {
 
 BlockExpanderMorph.prototype.init = function (aBlock) {
 	BlockExpanderMorph.uber.init.call(this);
-	this.color = new Color(0, 0, 0);
+	this.color = aBlock.color ? aBlock.color.lighter(80) : WHITE;
 	this.showLeft = aBlock.canContract();
 	this.showRight = aBlock.canExpand();
 	const size = 18 * aBlock.scale, unit = blockHalf(size);
-	const w = (this.showLeft && this.showRight) ? (2 * unit) + unit + (Math.floor(2 * size / 3) / 2) : 2 * unit;
+	const w = (this.showLeft && this.showRight) ? (2 * unit) + (Math.floor(2 * size / 3) / 2) : 2 * unit;
 	this.bounds.setWidth(w);
-	this.bounds.setHeight(size);
+	this.bounds.setHeight(size - aBlock.scale);
 };
 
 // BlockExpanderMorph drawing:
