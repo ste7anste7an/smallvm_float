@@ -976,7 +976,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	if (lastPart instanceof CSlotMorph) {
 		if (drawer) {
 			blockHeight -= 6 * scale;
-			drawer.moveBy(new Point(-6 * scale, -5 * scale));
+			drawer.moveBy(new Point(-2 * scale, -5 * scale));
 		} else {
 			blockHeight += 7 * scale;
 		}
@@ -6764,42 +6764,40 @@ function BlockExpanderMorph(aBlock) {
 
 BlockExpanderMorph.prototype.init = function (aBlock) {
 	BlockExpanderMorph.uber.init.call(this);
-	this.color = aBlock.color ? aBlock.color.lighter(80) : WHITE;
+	this.color = new Color(255, 255, 255, 220 / 255); // lets the block's colour show through
 	this.showLeft = aBlock.canContract();
 	this.showRight = aBlock.canExpand();
 	const size = 18 * aBlock.scale, unit = blockHalf(size);
-	const w = (this.showLeft && this.showRight) ? (2 * unit) + (Math.floor(2 * size / 3) / 2) : 2 * unit;
+	this.gap = Math.floor(2 * size / 3) / 2; // between the two arrows
+	const w = (this.showLeft && this.showRight) ? (3 * unit) + this.gap : 2 * unit;
 	this.bounds.setWidth(w);
-	this.bounds.setHeight(size - aBlock.scale);
+	this.bounds.setHeight(size);
 };
 
 // BlockExpanderMorph drawing:
 
 BlockExpanderMorph.prototype.render = function (ctx) {
-
-	const w = this.width();
-	const h = this.height();
+	// Each arrow fills a box a unit wide, a block scale in from my top and
+	// bottom; the first starts half a unit in from my left.
+	const h = this.height(), unit = blockHalf(h), inset = h / 18;
+	let x = unit / 2;
 	ctx.fillStyle = this.color.toString();
 
-// this.showLeft = false;
-// this.showRight = true;
-
 	if (this.showLeft) {
-		const right = h / 2;
 		ctx.beginPath();
-		ctx.moveTo(right, 0);
-		ctx.lineTo(0, (h / 2));
-		ctx.lineTo(right, h);
+		ctx.moveTo(x + unit, inset);
+		ctx.lineTo(x, h / 2);
+		ctx.lineTo(x + unit, h - inset);
 		ctx.closePath();
 		ctx.fill();
+		x += unit + this.gap;
 	}
 
 	if (this.showRight) {
-		const left = w - (h / 2);
 		ctx.beginPath();
-		ctx.moveTo(left, 0);
-		ctx.lineTo(w, (h / 2));
-		ctx.lineTo(left, h);
+		ctx.moveTo(x, inset);
+		ctx.lineTo(x + unit, h / 2);
+		ctx.lineTo(x, h - inset);
 		ctx.closePath();
 		ctx.fill();
 	}
@@ -7430,8 +7428,9 @@ BlockDrawerMorph.prototype.render = function (ctx) {
 };
 
 BlockDrawerMorph.prototype.fixLayout = function () {
+	const size = 18 * blockScale(), unit = blockHalf(size);
 	const both = this.target.canCollapse() && this.target.canExpand();
-	this.bounds.setWidth((both ? 18 : 10) * blockScale());
+	this.bounds.setWidth(both ? (3 * unit) + this.gap : 2 * unit);
 };
 
 BlockDrawerMorph.prototype.mouseClickLeft = function (pos) {
