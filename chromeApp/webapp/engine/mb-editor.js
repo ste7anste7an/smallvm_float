@@ -53,6 +53,8 @@ class MB_Editor {
 				this.scriptChanged(); // its chunk is deleted at the next step
 			}
 		};
+		this.trashcan = this.newTrashcan();
+		this.palette.add(this.trashcan);
 
 		// The scripting pane scrolls, so a script taller than the window can
 		// be reached without dragging it off the pane.
@@ -180,6 +182,29 @@ class MB_Editor {
 			this.paletteResizer.setPosition(this.palette.topRight());
 			this.paletteResizer.setExtent(new Point(15, this.palette.height()));
 		}
+		this.placeTrashcan();
+	}
+
+	newTrashcan() {
+		// A picture at the palette's bottom right saying that a block dropped on the
+		// palette is deleted. Clicks, drops and the wheel go to the palette under it.
+		const trashcan = new Morph();
+		trashcan.image = null;
+		trashcan.topMorphAt = () => null;
+		trashcan.render = (ctx) => {
+			if (trashcan.image && trashcan.image.naturalWidth) ctx.drawImage(trashcan.image, 0, 0, trashcan.width(), trashcan.height());
+		};
+		return trashcan;
+	}
+
+	placeTrashcan() {
+		// 32 screen px square, 8 in from the right and bottom edges or from a scrollbar there.
+		const palette = this.palette, size = 32 / ZOOM, inset = 8 / ZOOM;
+		let right = palette.right() - inset, bottom = palette.bottom() - inset;
+		if (palette.vBar.isVisible) right -= palette.vBar.width();
+		if (palette.hBar.isVisible) bottom -= palette.hBar.height();
+		this.trashcan.setExtent(new Point(size, size));
+		this.trashcan.setPosition(new Point(right - size, bottom - size));
 	}
 
 	newPaneResizer() {
@@ -646,6 +671,7 @@ class MB_Editor {
 			this.addBlocksForCategory(this.category);
 		}
 		contents.adjustBounds();
+		this.placeTrashcan(); // the scrollbars may have come or gone
 		this.palette.changed();
 	}
 
@@ -706,6 +732,12 @@ class MB_Editor {
 		for (const frame of [this.palette, this.scriptsFrame]) {
 			frame.hBar.button.setColor(colors.slider);
 			frame.vBar.button.setColor(colors.slider);
+		}
+		if (typeof Image !== 'undefined') { // no page to load it from otherwise
+			const image = new Image();
+			image.onload = () => this.trashcan.rerender();
+			image.src = 'img/trashcan-' + (this.darkMode() ? 'dark' : 'light') + '.svg';
+			this.trashcan.image = image;
 		}
 	}
 
