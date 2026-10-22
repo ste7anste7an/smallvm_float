@@ -795,6 +795,20 @@ class MB_Editor {
 		const button = new TriggerMorph(this, action, label, 14 / ZOOM, 'sans-serif', null, null, labelColor, true);
 		button.label.fontName = 'Arial';
 		button.label.fixLayout();
+		// GP centres the label's line on its own text metrics, not Morphic's
+		// 1.2 font sizes, then insets it one device pixel right and down, at
+		// GP's 2 device pixels per screen pixel, as resultTextMetrics assumes.
+		const { lineHeight, baseline } = resultTextMetrics(button.label.fontSize);
+		const inset = 1 / (2 * ZOOM);
+		button.label.render = function (ctx) {
+			ctx.font = this.font();
+			ctx.textBaseline = 'alphabetic';
+			ctx.fillStyle = this.getRenderColor().toString();
+			ctx.fillText(this.text, 0, baseline);
+		};
+		button.fixLayout = () => button.label.setPosition(button.position().add(new Point(
+			((button.width() - button.label.width()) / 2) + inset,
+			((button.height() - lineHeight) / 2) + inset)));
 		button.setExtent(new Point(Math.max(30 / ZOOM, button.label.width() + (25 / ZOOM)), 26 / ZOOM));
 		button.render = (ctx) => {
 			const w = button.width(), h = button.height();
