@@ -177,3 +177,13 @@
 		border-color: var(--color-blue-grey-100);
 	}
 }
+
+/* MARC: DESTROY THIS */
+.menu__button .category--color-item {
+	display: flex;
+	gap: 1em;
+	.color--rectangle {
+		width: 42px;
+		height: 20px;
+	}
+}

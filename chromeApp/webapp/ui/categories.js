@@ -40,6 +40,9 @@ const Categories = {
 	]
 };
 
+Categories.categoryNames = function () {
+	return this.descriptors.map(d => d.label.substr(4)).concat(['Generic']);
+};
 
 Categories.colorFor = function (categoryName) {
 	let descriptor = this.descriptors.find(descriptor => {

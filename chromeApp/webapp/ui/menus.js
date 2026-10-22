@@ -426,16 +426,21 @@ Menus.elementFor = function (descriptor, target) {
 					}
 
 				} else {
-					// Create a span element with a <l-> inside
-					text = document.createElement('span');
-					text.classList.add('menu__button-text');
-					textLocalization = document.createElement('l-');
-					text.appendChild(textLocalization);
+					if (typeof item.label == 'object') {
+						// Assume a DOM element
+						text = item.label;
+					} else {
+						// Create a span element with a <l-> inside
+						text = document.createElement('span');
+						text.classList.add('menu__button-text');
+						textLocalization = document.createElement('l-');
+						text.appendChild(textLocalization);
 
-					if (typeof item.label == 'string') {
-						textLocalization.innerText = item.label;
-					} else if (typeof item.label == 'function') {
-						textLocalization.innerText = item.label();
+						if (typeof item.label == 'string') {
+							textLocalization.innerText = item.label;
+						} else if (typeof item.label == 'function') {
+							textLocalization.innerText = item.label();
+						}
 					}
 				}
 

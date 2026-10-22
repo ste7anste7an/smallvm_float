@@ -207,12 +207,45 @@ class LibraryInfoWindow extends FloatingWindow {
 		button.style.backgroundColor =
 			Categories.colorFor(this.library.moduleCategory);
 		button.setAttribute('data-value', this.library.moduleCategory);
-		button.onclick = () => {
-			// TODO click action when in devmode to open category picker
-			console.log('Opening category picker');
+		button.onclick = (event) => {
+			Menus.popUpFromDescriptor(
+				{
+					selector: 'categoryColor',
+					type: 'context',
+					items: Categories.categoryNames().map(catName => {
+						let item = document.createElement('div'),
+							color = document.createElement('div'),
+							label = document.createElement('span');
+						item.classList.add('category--color-item');
+						color.classList.add('color--rectangle');
+						color.style.backgroundColor = Categories.colorFor(catName);
+						label.innerText = catName;
+						item.appendChild(color);
+						item.appendChild(label);
+						return {
+							label: item,
+							action: () => {
+								this.library.moduleCategory = catName;
+								this.rebuildModuleCategoryInput();
+							}
+						}
+					})
+				},
+				button,
+				null, // target
+				event
+			);
 		};
 		return button;
 	}
+
+	rebuildModuleCategoryInput() {
+		// see rebuildDependencyInput
+		let newModuleInput = this.moduleCategoryInput();
+		this.fields.moduleCategory.replaceWith(newModuleInput);
+		this.fields.moduleCategory = newModuleInput;
+	}
+
 
 	labelFor(selector) {
 		return {
