@@ -111,7 +111,10 @@ MB_Tips.chromeTipKey = function (morph) {
 		if (m instanceof BlockExpanderMorph) return ['BlockDrawer', m];
 		if (m instanceof ArgMorph) return [null, m]; // a C-slot or the LED display
 		if (m instanceof BlockMorph) return ['Block', m];
-		if ((m instanceof TriggerMorph) && !(m instanceof MenuItemMorph)) return ['Button', m];
+		// GP's palette buttons are Triggers, for which its tip bar has no tip.
+		if ((m instanceof TriggerMorph) && !(m instanceof MenuItemMorph)) {
+			return [(m.parent === MB_editor.palette.contents) ? null : 'Button', m];
+		}
 		if (m === MB_editor.palette) return ['BlocksPalette', m];
 		if (m === MB_editor.scriptsFrame) return ['ScriptEditor', m];
 	}
