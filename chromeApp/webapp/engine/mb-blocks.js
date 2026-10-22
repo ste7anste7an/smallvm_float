@@ -4518,6 +4518,26 @@ ScriptsMorph.prototype.doGPCall = function (apiCall, params) {
 		function(value) { console.log("return value:", value) });
 }
 
+// ScriptsMorph sizing:
+
+ScriptsMorph.prototype.adjustBounds = function () {
+	// Script positions are saved from the pane's top left, so only scrolling moves it.
+	// A script placed above or left of it is moved inside, and the pane keeps its top
+	// and left edges when the scripts move away from them.
+	var origin = this.topLeft(),
+		scripts = this.children.filter(m => m instanceof BlockMorph);
+
+	scripts.forEach(m => m.moveBy(new Point(
+		Math.max(0, origin.x - m.left()), Math.max(0, origin.y - m.top()))));
+	ScriptsMorph.uber.adjustBounds.call(this);
+	if (!scripts.length || !this.scrollFrame) return;
+	var left = Math.min(this.left(), origin.x), top = Math.min(this.top(), origin.y);
+	if ((left !== this.left()) || (top !== this.top())) {
+		this.bounds = new Rectangle(left, top, this.right(), this.bottom());
+		this.scrollFrame.adjustScrollBars();
+	}
+};
+
 // ScriptsMorph drag & drop:
 
 ScriptsMorph.prototype.wantsDropOf = function (aMorph) {
