@@ -5391,18 +5391,19 @@ InputSlotMorph.prototype.setContents = function (data) {
 
 // InputSlotMorph drop-down menu:
 
-InputSlotMorph.prototype.dropDownMenu = function (enableKeyboard) {
-	// Answer false when mbMenu knows no menu for my choices.
-	let menu = this.mbMenu(this.choices);
+InputSlotMorph.prototype.dropDownMenu = function () {
+	// Answer false when mbMenu knows no menu for my choices. The chrome draws
+	// the menu. Each item does what choosing it in the Morphic menu would do.
+	const menu = this.mbMenu(this.choices), world = this.world();
 	if (!menu) return false;
-	if (menu.items.length > 0) {
-		if (enableKeyboard) {
-			menu.popup(this.world(), this.bottomLeft());
-			menu.getFocus();
-		} else {
-			menu.popUpAtHand(this.world());
-		}
-	}
+	if (menu.items.length === 0) return true; // a known menu that is empty opens nothing
+	const items = menu.items.map((item) => {
+		if (item[0] === 0) return '-'; // a line
+		const [label, choice] = item;
+		return [label, () => menu.target(('function' === typeof choice) ? choice() : choice)];
+	});
+	// After the click that asked for it, which would otherwise close it.
+	setTimeout(() => chromeMenuFor(world, items));
 	return true;
 };
 
