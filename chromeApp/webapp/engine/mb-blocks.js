@@ -5802,7 +5802,6 @@ InputSlotTextMorph.prototype.fixLayout = function () {
 // pitch fixLayout measures. Morphic's 1.2 font sizes would drift from it a little
 // more on every line.
 InputSlotTextMorph.prototype.render = function (ctx) {
-	if (this.parent && this.parent.isComment) return TextMorph.prototype.render.call(this, ctx);
 	var lineHeight = blockTextHeight(this.fontSize, this.pixelsPerUnit),
 		base = blockTextBaseline(this.fontSize, this.pixelsPerUnit),
 		start, stop, i, p, c, x;
@@ -5837,13 +5836,11 @@ InputSlotTextMorph.prototype.render = function (ctx) {
 // The cursor and a click find a line on the same pitch.
 InputSlotTextMorph.prototype.slotPosition = function (slot) {
 	var pos = TextMorph.prototype.slotPosition.call(this, slot);
-	if (this.parent && this.parent.isComment) return pos;
 	return new Point(pos.x, this.top()
 		+ this.columnRow(slot).y * blockTextHeight(this.fontSize, this.pixelsPerUnit));
 };
 
 InputSlotTextMorph.prototype.slotAt = function (aPoint) {
-	if (this.parent && this.parent.isComment) return TextMorph.prototype.slotAt.call(this, aPoint);
 	var ratio = fontHeight(this.fontSize) / blockTextHeight(this.fontSize, this.pixelsPerUnit);
 	return TextMorph.prototype.slotAt.call(this,
 		new Point(aPoint.x, this.top() + (aPoint.y - this.top()) * ratio));
