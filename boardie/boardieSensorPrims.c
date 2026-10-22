@@ -37,24 +37,15 @@ static OBJ primTouchRead(int argCount, OBJ *args) {
 
 void initMicrophone() {
 	EM_ASM_({
-		if (!window.micRecorder) {
+		if (!window.lastMicSamples) {
 			navigator.mediaDevices.getUserMedia(
 				{ audio: true, video: false }
 			).then(function (stream) {
-				window.micRecorder = new MediaRecorder(stream);
-				window.lastMicSample = 0;
-				window.micRecorder.ondataavailable = function (e) {
-					if (e.data.size) {
-						e.data['bytes']().then(
-							function(bytes) {
-								window.lastMicSample =
-									bytes.reduce(function(a,b) { return a + b; }) / e.data.size;
-							}
-						);
-					}
+				window.audioProcessor.onaudioprocess = function (event) {
+					// getChannelData returns a Float32Array with all zeroes.
+					// Investigating...
+					window.lastMicSamples = event.inputBuffer.getChannelData(0);
 				};
-				window.micRecorder.start(1);
-				window.micRecorder.requestData();
 			});
 		}
 	});
@@ -64,9 +55,11 @@ static OBJ primMicrophone(int argCount, OBJ *args) {
 	initMicrophone();
 	return int2obj(
 		EM_ASM_INT({
-			let sample = window.lastMicSample;
-			window.lastMicSample /= 2;
-			return sample;
+			if (window.lastMicSamples) {
+				return window.lastMicSamples.reduce((a,b) => a + b) / window.lastMicSamples.size;
+			} else {
+				return 0;
+			}
 		})
 	);
 }

@@ -159,6 +159,8 @@ void initSound() {
 		window.oscillator.type = 'square';
 		window.oscillator.start();
 		window.gainNode.connect(window.audioContext.destination);
+		window.audioProcessor = window.audioContext.createScriptProcessor(1024);
+		window.audioProcessor.connect(this.audioContext.destination);
 	});
 };
 
