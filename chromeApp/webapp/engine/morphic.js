@@ -11532,8 +11532,9 @@ HandMorph.prototype.processMouseDown = function (event) {
 };
 
 HandMorph.prototype.touchPoint = function (touch) {
-    // With a menu up, aim 12 units above the finger so it does not hide the item.
-    var offset = this.world.activeMenu ? 12 * ZOOM : 0;
+    // With a menu up, aim 12 screen pixels above the finger so it does not hide
+    // the item. Menus keep one size on screen, so the offset does too.
+    var offset = this.world.activeMenu ? 12 : 0;
     return {pageX: touch.pageX, pageY: touch.pageY - offset};
 };
 
