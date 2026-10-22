@@ -422,6 +422,7 @@ class MB_BlockSearchBox {
 		}
 		const box = new MB_BlockSearchBox();
 		world.add(box.morph);
+		box.morph.fullChanged(); // nothing else paints it until the pointer passes over
 		box.startEditing();
 		box.showRecents();
 		// Reading every shipped library takes a while, so start while the box opens.
@@ -440,13 +441,15 @@ class MB_BlockSearchBox {
 
 	constructor() {
 		const dark = MB_editor.darkMode();
+		// GP's colours: blueGray 700 with a blueGray 500 outline and a blueGray 400 hint
+		// in dark mode.
 		const textColor = dark ? new Color(230, 230, 230) : new Color(30, 30, 30);
-		const hintColor = dark ? new Color(130, 145, 160) : new Color(150, 150, 150);
+		const hintColor = dark ? new Color(120, 126, 156) : new Color(150, 150, 150);
 
 		// GP's size at every block size: screen pixels, not world units.
 		const px = screenPixels;
-		this.morph = new BoxMorph(px(8), px(1), dark ? new Color(100, 115, 130) : new Color(150, 150, 150));
-		this.morph.color = dark ? new Color(50, 60, 70) : new Color(240, 240, 240);
+		this.morph = new BoxMorph(px(8), px(1), dark ? new Color(96, 103, 139) : new Color(150, 150, 150));
+		this.morph.color = dark ? new Color(69, 74, 100) : new Color(240, 240, 240);
 		this.morph.setExtent(new Point(Math.min(px(440), world.width() - px(20)), px(40)));
 		this.morph.setCenter(new Point(world.center().x, 0));
 		this.morph.setTop(world.top() + px(8));
@@ -580,6 +583,23 @@ class MB_BlockSearchBox {
 		const menu = this.menu;
 		if (world.activeMenu && (world.activeMenu !== menu)) world.activeMenu.destroy();
 		menu.createItems();
+		// GP's menu: blueGray 50 with a blueGray 100 border, the row under the
+		// pointer or the arrow keys yellow.
+		const yellow = new Color(254, 215, 34);
+		menu.color = new Color(236, 237, 241);
+		menu.borderColor = new Color(207, 209, 220);
+		menu.edge = screenPixels(2);
+		for (const item of menu.children) {
+			if (item instanceof MenuItemMorph) {
+				item.color = menu.color;
+				item.highlightColor = yellow;
+				item.pressColor = yellow;
+			} else {
+				item.color = menu.borderColor; // the line above the library blocks
+			}
+			item.rerender();
+		}
+		menu.rerender();
 		menu.setPosition(this.morph.bottomLeft());
 		if (menu.right() > world.right()) menu.setLeft(Math.max(world.left(), world.right() - menu.width()));
 		const maxHeight = Math.floor(world.bottom() - this.morph.bottom()) - screenPixels(12);
