@@ -625,8 +625,10 @@ class MB_BlockSearchBox {
 	}
 
 	libraryLabel(libName) {
-		// The gray name shown on a block from a library the project does not have yet.
-		const label = new StringMorph(libName, screenPixels(11), null, false, false, false, null, null, new Color(120, 120, 120));
+		// The gray name shown on a block from a library the project does not have yet,
+		// in GP's Arial rather than the menu's sans-serif.
+		const label = new StringMorph(libName, screenPixels(11), null, false, false, false, null, null,
+			new Color(120, 120, 120), 'Arial');
 		return label.fullImage();
 	}
 
