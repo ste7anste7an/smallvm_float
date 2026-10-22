@@ -914,17 +914,19 @@ class MB_Editor {
 		this.paletteY += 20 / ZOOM;
 		let defaultVar = (varNames.length > 0) ? varNames[0] : '';
 		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
-			if ('-' == spec) { // separator
-				this.paletteY += 15 / ZOOM;
-			} else if (('local' == spec[1]) && !this.devMode()) {
-				continue; // initialize local is offered only in developer mode
+			if ('-' == spec) {
+				continue; // GP sets this palette's gaps itself, before initialize local and the reporters
+			} else if ('local' == spec[1]) {
+				if (!this.devMode()) continue; // initialize local is offered only in developer mode
+				this.paletteY += 10 / ZOOM;
+				this.addPaletteBlock(MB_Specs.blockForSpec(spec, 'Variables'));
 			} else if ('v' != spec[1]) { // one reporter per variable follows instead
 				let s = spec.slice();
 				if (('=' == s[1]) || ('+=' == s[1])) s[4] = defaultVar;
 				this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
 			}
 		}
-		this.paletteY += 15 / ZOOM;
+		this.paletteY += 20 / ZOOM;
 		let varSpec = MB_Specs.specArrayForSelector('v');
 		let upper = (v) => v.toUpperCase();
 		varNames.sort((a, b) => (upper(a) < upper(b)) ? -1 : ((upper(a) > upper(b)) ? 1 : 0));
