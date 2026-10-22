@@ -3015,10 +3015,10 @@ BlockMorph.prototype.justDropped = function () {
 // offset (a relabel menu's picture) keeps morphic's.
 BlockMorph.prototype.addShadow = function (off, a, color) {
 	if (off) return BlockMorph.uber.addShadow.call(this, off, a, color);
-	this.shadowBlur = screenPixels(1);
+	this.shadowBlur = 1 / ZOOM;
 	try {
 		return BlockMorph.uber.addShadow.call(
-			this, new Point(screenPixels(7), screenPixels(7)), 60 / 255);
+			this, new Point(7 / ZOOM, 7 / ZOOM), 60 / 255);
 	} finally {
 		delete this.shadowBlur;
 	}
