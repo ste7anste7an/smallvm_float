@@ -3005,6 +3005,20 @@ BlockMorph.prototype.justDropped = function () {
 	delete this.alpha;
 };
 
+// A held block casts GP's shadow: black at 60/255, 7 screen pixels down and right, blurred
+// by 1, so it reads as a hard-edged copy of the block's shape. A shadow asked for with an
+// offset (a relabel menu's picture) keeps morphic's.
+BlockMorph.prototype.addShadow = function (off, a, color) {
+	if (off) return BlockMorph.uber.addShadow.call(this, off, a, color);
+	this.shadowBlur = screenPixels(1);
+	try {
+		return BlockMorph.uber.addShadow.call(
+			this, new Point(screenPixels(7), screenPixels(7)), 60 / 255);
+	} finally {
+		delete this.shadowBlur;
+	}
+};
+
 // The chrome lets a dragged block pass over its panels between the 'dragstart' and 'dragend'
 // that GP's Block aboutToBeGrabbed and justDropped send. Hooked on the hand, because a block
 // also prepares to be grabbed when it is deleted, and would leave the chrome dragging.
