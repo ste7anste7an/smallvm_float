@@ -10,8 +10,8 @@
 // user's own computer comes through the browser's file chooser instead,
 // which the Computer button opens.
 
-/* global MB_editor, MB_Files, localized, isString, BoxMorph, Color, HandleMorph, ListMorph, Morph, Point,
-	StringMorph, TriggerMorph */
+/* global MB_editor, MB_Files, localized, isString, screenPixels, BoxMorph, Color, HandleMorph, ListMorph, Morph,
+	Point, StringMorph, TriggerMorph */
 
 class MB_FilePicker {
 	constructor(anAction, defaultPath, extensionList) {
@@ -185,13 +185,14 @@ class MB_FilePicker {
 	// drawing
 
 	open(aWorld) {
-		// Draw the dialog and put it on aWorld, centred near the top.
+		// Draw the dialog and put it on aWorld, centred near the top. Its sizes are
+		// screen pixels, so it does not grow with the block size.
 
-		const colors = MB_FilePicker.colors;
-		const width = Math.min(520, Math.round(0.9 * aWorld.width()));
-		const height = Math.min(465, Math.round(0.8 * aWorld.height()));
+		const colors = MB_FilePicker.colors, px = screenPixels;
+		const width = Math.min(px(520), 0.9 * aWorld.width());
+		const height = Math.min(px(465), 0.8 * aWorld.height());
 
-		const box = new BoxMorph(4, 0);
+		const box = new BoxMorph(px(4), 0);
 		box.color = colors.frame;
 		box.isDraggable = true;
 		box.picker = this;
@@ -201,7 +202,7 @@ class MB_FilePicker {
 		this.client = new Morph();
 		this.client.color = colors.client;
 		box.add(this.client);
-		this.titleLabel = new StringMorph(localized('File Open'), 12, null, true, false, false, null, null, colors.client);
+		this.titleLabel = new StringMorph(localized('File Open'), px(12), null, true, false, false, null, null, colors.client);
 		box.add(this.titleLabel);
 		this.closeButton = this.textButton('X', 'removeFromOwner');
 		this.closeButton.color = colors.frame;
@@ -209,15 +210,15 @@ class MB_FilePicker {
 		this.closeButton.label.rerender();
 
 		this.shortcutButtons = this.shortcuts().map((name) => this.shortcutButton(name));
-		this.folderReadout = new StringMorph('', 16);
+		this.folderReadout = new StringMorph('', px(16));
 		box.add(this.folderReadout);
 		this.parentButton = this.textButton('<', 'parentFolder');
 		this.okayButton = this.textButton(localized('Open'), 'okay', true);
 		this.cancelButton = this.textButton(localized('Cancel'), 'removeFromOwner');
 
 		box.setExtent(new Point(width, height));
-		box.setPosition(new Point(aWorld.left() + Math.round((aWorld.width() - width) / 2), aWorld.top() + 40));
-		this.resizer = new HandleMorph(box, width, height, 6, 6);
+		box.setPosition(new Point(aWorld.left() + Math.round((aWorld.width() - width) / 2), aWorld.top() + px(40)));
+		this.resizer = new HandleMorph(box, width, height, px(6), px(6));
 		this.updateView();
 		aWorld.add(box);
 		box.fullChanged(); // its parts were laid out off the world, so none of them is damaged yet
@@ -225,12 +226,12 @@ class MB_FilePicker {
 	}
 
 	textButton(label, selector, isDefault) {
-		const colors = MB_FilePicker.colors;
-		const button = new TriggerMorph(this, selector, label, 14, null, null, null,
+		const colors = MB_FilePicker.colors, px = screenPixels;
+		const button = new TriggerMorph(this, selector, label, px(14), null, null, null,
 			isDefault ? colors.client : colors.frame);
 		button.color = isDefault ? colors.frame : colors.button;
 		button.highlightColor = colors.highlight;
-		button.setExtent(new Point(Math.max(30, button.label.width() + 20), 26));
+		button.setExtent(new Point(Math.max(px(30), button.label.width() + px(20)), px(26)));
 		this.morph.add(button);
 		return button;
 	}
@@ -238,7 +239,8 @@ class MB_FilePicker {
 	shortcutButton(name) {
 		const selector = { Examples: 'setExamples', Libraries: 'setLibraries',
 			Computer: 'setComputer', Cloud: 'cloudAction', New: 'newLibrary' }[name];
-		const button = new TriggerMorph(this, selector, localized(name), 9, null, null, null, null, true);
+		const px = screenPixels;
+		const button = new TriggerMorph(this, selector, localized(name), px(9), null, null, null, null, true);
 		button.color = MB_FilePicker.colors.client;
 		button.highlightColor = MB_FilePicker.colors.highlight;
 
@@ -247,14 +249,14 @@ class MB_FilePicker {
 		const image = new Image();
 		image.onload = () => icon.rerender();
 		image.src = MB_FilePicker.icons[name];
-		icon.render = (ctx) => { if (image.complete) ctx.drawImage(image, 0, 0, 32, 32); };
-		icon.setExtent(new Point(32, 32));
+		icon.render = (ctx) => { if (image.complete) ctx.drawImage(image, 0, 0, px(32), px(32)); };
+		icon.setExtent(new Point(px(32), px(32)));
 		button.add(icon);
 		button.fixLayout = function () {
-			icon.setPosition(new Point(this.left() + 19, this.top()));
+			icon.setPosition(new Point(this.left() + px(19), this.top()));
 			this.label.setPosition(new Point(this.center().x - (this.label.width() / 2), this.bottom() - this.label.height()));
 		};
-		button.setExtent(new Point(70, 50));
+		button.setExtent(new Point(px(70), px(50)));
 		this.morph.add(button);
 		return button;
 	}
@@ -319,30 +321,30 @@ class MB_FilePicker {
 		// Place the parts for the dialog's current size.
 
 		if (!this.listPane) return;
-		const box = this.morph, left = box.left(), top = box.top();
-		const inset = 6, titleHeight = 24;
+		const box = this.morph, left = box.left(), top = box.top(), px = screenPixels;
+		const inset = px(6), titleHeight = px(24);
 		this.client.setPosition(new Point(left + inset, top + titleHeight));
 		this.client.setExtent(new Point(box.width() - (2 * inset), box.height() - (titleHeight + inset)));
-		this.titleLabel.setPosition(new Point(left + 10, top + 5));
-		this.closeButton.setExtent(new Point(30, 20));
-		this.closeButton.setPosition(new Point(box.right() - (inset + 30), top + 2));
+		this.titleLabel.setPosition(new Point(left + px(10), top + px(5)));
+		this.closeButton.setExtent(new Point(px(30), px(20)));
+		this.closeButton.setPosition(new Point(box.right() - (inset + px(30)), top + px(2)));
 
-		const leftInset = 113, topInset = 60, rightInset = 20, bottomInset = 48;
+		const leftInset = px(113), topInset = px(60), rightInset = px(20), bottomInset = px(48);
 		this.listPane.setPosition(new Point(left + leftInset, top + topInset));
 		this.listPane.setExtent(new Point(box.width() - (leftInset + rightInset), box.height() - (topInset + bottomInset)));
-		this.folderReadout.setPosition(new Point(this.listPane.left(), top + 32));
-		this.parentButton.setPosition(new Point(this.listPane.left() - (this.parentButton.width() + 13), top + 28));
+		this.folderReadout.setPosition(new Point(this.listPane.left(), top + px(32)));
+		this.parentButton.setPosition(new Point(this.listPane.left() - (this.parentButton.width() + px(13)), top + px(28)));
 
-		let y = top + 60;
+		let y = top + px(60);
 		for (const button of this.shortcutButtons) {
-			button.setPosition(new Point(left + 17, y));
-			y += 66;
+			button.setPosition(new Point(left + px(17), y));
+			y += px(66);
 		}
 
-		y = box.bottom() - 35;
-		let x = box.right() - (this.okayButton.width() + 20);
+		y = box.bottom() - px(35);
+		let x = box.right() - (this.okayButton.width() + px(20));
 		this.okayButton.setPosition(new Point(x, y));
-		x -= this.cancelButton.width() + 10;
+		x -= this.cancelButton.width() + px(10);
 		this.cancelButton.setPosition(new Point(x, y));
 		if (this.resizer) this.resizer.fixLayout();
 	}

@@ -8037,6 +8037,11 @@ function MenuMorph(target, title, environment, fontSize) {
     */
 }
 
+// MicroBlocks: ZOOM is the block size, and a menu keeps one size on screen
+// at every block size, as GP's do. So the font, padding, border and insets in
+// addSectionLabel, createLabel, createItems, maxWidth, popup and MenuItemMorph's
+// createLabel, fixLayout and createLabelPart are screen pixels: n / ZOOM.
+
 MenuMorph.prototype.init = function (target, title, environment, fontSize) {
     // additional properties:
     this.target = target;
@@ -8132,7 +8137,7 @@ MenuMorph.prototype.addLine = function (width) {
 MenuMorph.prototype.addSectionLabel = function (labelText) {
     this.items.push(new StringMorph(
         localize(labelText),
-        (this.fontSize || MorphicPreferences.menuFontSize) * 0.85,
+        (this.fontSize || MorphicPreferences.menuFontSize) * 0.85 / ZOOM,
         null, // fontStyle
         true, // bold
         null, // italic
@@ -8151,7 +8156,7 @@ MenuMorph.prototype.createLabel = function () {
     }
     text = new TextMorph(
         localize(this.title),
-        this.fontSize || MorphicPreferences.menuFontSize,
+        (this.fontSize || MorphicPreferences.menuFontSize) / ZOOM,
         MorphicPreferences.menuFontName,
         true,
         false,
@@ -8161,13 +8166,13 @@ MenuMorph.prototype.createLabel = function () {
     text.color = WHITE;
     text.backgroundColor = this.borderColor;
     text.fixLayout();
-    this.label = new BoxMorph(3, 0);
+    this.label = new BoxMorph(3 / ZOOM, 0);
     if (MorphicPreferences.isFlat) {
         this.label.edge = 0;
     }
     this.label.color = this.borderColor;
     this.label.borderColor = this.borderColor;
-    this.label.setExtent(text.extent().add(4));
+    this.label.setExtent(text.extent().add(4 / ZOOM));
     this.label.add(text);
     this.label.text = text;
 };
@@ -8182,26 +8187,26 @@ MenuMorph.prototype.createItems = function () {
     this.children.forEach(m => m.destroy());
     this.children = [];
     if (!this.isListContents) {
-        this.edge = MorphicPreferences.isFlat ? 3 : 5;
-        this.border = MorphicPreferences.isFlat ? 1 : 2;
+        this.edge = (MorphicPreferences.isFlat ? 3 : 5) / ZOOM;
+        this.border = (MorphicPreferences.isFlat ? 1 : 2) / ZOOM;
     }
     this.color = WHITE;
     this.borderColor = new Color(60, 60, 60);
     this.setExtent(new Point(0, 0));
 
-    y = 2;
-    x = this.left() + 4;
+    y = 2 / ZOOM;
+    x = this.left() + (4 / ZOOM);
     if (!this.isListContents) {
         if (this.title) {
             this.createLabel();
-            this.label.setPosition(this.bounds.origin.add(4));
+            this.label.setPosition(this.bounds.origin.add(4 / ZOOM));
             this.add(this.label);
             y = this.label.bottom();
         } else {
-            y = this.top() + 4;
+            y = this.top() + (4 / ZOOM);
         }
     }
-    y += 1;
+    y += 1 / ZOOM;
     this.items.forEach(tuple => {
         isLine = false;
         if (tuple instanceof StringFieldMorph ||
@@ -8214,13 +8219,13 @@ MenuMorph.prototype.createItems = function () {
             isLine = true;
             item = new Morph();
             item.color = this.borderColor;
-            item.setHeight(tuple[1]);
+            item.setHeight(tuple[1] / ZOOM);
         } else {
             item = new MenuItemMorph(
                 this.target,
                 tuple[1],
                 tuple[0],
-                this.fontSize || MorphicPreferences.menuFontSize,
+                (this.fontSize || MorphicPreferences.menuFontSize) / ZOOM,
                 MorphicPreferences.menuFontName,
                 this.environment,
                 tuple[2], // bubble help hint
@@ -8232,23 +8237,23 @@ MenuMorph.prototype.createItems = function () {
             );
         }
         if (isLine) {
-            y += 1;
+            y += 1 / ZOOM;
         } else if (item instanceof StringMorph) {
             y += item.height() / 4;
         }
         item.setPosition(new Point(
-            item instanceof StringMorph ? x + 4 : x,
+            item instanceof StringMorph ? x + (4 / ZOOM) : x,
             y
         ));
         this.add(item);
         y = y + item.height();
         if (isLine) {
-            y += 1;
+            y += 1 / ZOOM;
         }
     });
 
     fb = this.fullBounds();
-    this.setExtent(fb.extent().add(4));
+    this.setExtent(fb.extent().add(4 / ZOOM));
     this.adjustWidths();
 };
 
@@ -8264,8 +8269,8 @@ MenuMorph.prototype.maxWidth = function () {
         if (item instanceof MenuItemMorph) {
             w = Math.max(
                 w,
-                item.label.width() + 8 +
-                    (item.shortcut ? item.shortcut.width() + 4 : 0)
+                item.label.width() + (8 / ZOOM) +
+                    (item.shortcut ? item.shortcut.width() + (4 / ZOOM) : 0)
             );
         } else if ((item instanceof StringFieldMorph) ||
                 (item instanceof StringMorph) ||
@@ -8324,16 +8329,14 @@ MenuMorph.prototype.popup = function (world, pos) {
 
     this.createItems();
     this.setPosition(pos);
-    this.addShadow(new Point(2, 2), 80);
+    // MicroBlocks: no drop shadow, as GP's menus have none.
     this.keepWithin(world);
 
     if (this.bottom() > world.bottom()) {
     	// scroll menu items if the menu is taller than the world
-    	this.removeShadow();
         scroller = this.scroll();
-        this.bounds.corner.y = world.bottom() - 2;
-        this.addShadow(new Point(2, 2), 80);
-        scroller.setHeight(world.bottom() - scroller.top() - 6);
+        this.bounds.corner.y = world.bottom() - (2 / ZOOM);
+        scroller.setHeight(world.bottom() - scroller.top() - (6 / ZOOM));
         scroller.adjustScrollBars(); // ?
      }
 
@@ -10139,20 +10142,20 @@ MenuItemMorph.prototype.createLabel = function () {
     }
     if (this.shortcutString) {
         this.shortcut = this.createLabelPart(this.shortcutString);
-        w += this.shortcut.width() + 4;
+        w += this.shortcut.width() + (4 / ZOOM);
         h = Math.max(h, this.shortcut.height());
         this.add(this.shortcut);
     }
-    this.setExtent(new Point(w + 8, h));
+    this.setExtent(new Point(w + (8 / ZOOM), h));
 };
 
 MenuItemMorph.prototype.fixLayout = function () {
     var cntr = this.center();
     this.label.setCenter(cntr);
-    this.label.setLeft(this.left() + 4);
+    this.label.setLeft(this.left() + (4 / ZOOM));
     if (this.shortcut) {
         this.shortcut.setCenter(cntr);
-        this.shortcut.setRight(this.right() - 4);
+        this.shortcut.setRight(this.right() - (4 / ZOOM));
     }
 };
 
@@ -10170,7 +10173,7 @@ MenuItemMorph.prototype.createLabelPart = function (source) {
         lbl = this.createLabelString(source[1]);
         part.add(lbl);
         lbl.setCenter(icon.center());
-        lbl.setLeft(icon.right() + 4);
+        lbl.setLeft(icon.right() + (4 / ZOOM));
         part.bounds = (icon.bounds.merge(lbl.bounds));
         part.rerender();
         return part;
@@ -11527,8 +11530,9 @@ HandMorph.prototype.processMouseDown = function (event) {
 };
 
 HandMorph.prototype.touchPoint = function (touch) {
-    // With a menu up, aim 12 units above the finger so it does not hide the item.
-    var offset = this.world.activeMenu ? 12 * ZOOM : 0;
+    // With a menu up, aim 12 screen pixels above the finger so it does not hide
+    // the item. Menus keep one size on screen, so the offset does too.
+    var offset = this.world.activeMenu ? 12 : 0;
     return {pageX: touch.pageX, pageY: touch.pageY - offset};
 };
 
