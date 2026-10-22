@@ -57,7 +57,6 @@ static OBJ primMicrophone(int argCount, OBJ *args) {
 	return int2obj(
 		EM_ASM_INT({
 			if (window.lastMicSamples) {
-				console.log(window.lastMicSamples);
 				// scale up and average last recorded samples
 				return window.lastMicSamples.reduce(
 						(acc, sample) => acc + (sample * 2000)
