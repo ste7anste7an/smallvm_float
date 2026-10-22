@@ -640,7 +640,7 @@ class MB_Decompiler {
 					this.code.push(this.newCmd('waitUntil', this.codeForSequence(innerCmd[2], innerCmd[3])));
 				}
 				i = next;
-			} else if (op === 'callCustomCommand' || op === 'callCustomReporter') {
+			} else if (op === 'callCustomCommand') { // a callCustomReporter's pop is decoded on its own
 				const nextIdx    = this.opcodeAfter(i);
 				const isReporter = !this.cmdIs(this.opcodes[nextIdx], 'pop', 1);
 				this.decodeCmd(i);

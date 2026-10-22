@@ -405,9 +405,7 @@ class MB_Compiler {
 				result.push(...this.instructionsForExpression(this.exprArg(inputs, i)));
 			}
 			result.push([op, inputs.length]);
-			if (op === 'callCustomCommand') {
-				result.push(['pop', 1]); // discard return value
-			}
+			result.push(['pop', 1]); // discard return value, a reporter's too when used as a command
 			return result;
 		} else if (this.isFunctionCall(op)) {
 			return this.instructionsForFunctionCall(op, inputs, true);

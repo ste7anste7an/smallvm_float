@@ -916,7 +916,7 @@ method codeForSequence MicroBlocksDecompiler start end {
 				add code (newCommand 'waitUntil' condition)
 			}
 			i = next
-		} (isOneOf op 'callCustomCommand' 'callCustomReporter') {
+		} ('callCustomCommand' == op) { // a callCustomReporter's pop is decoded on its own
 			isReporter = (not (cmdIs this (at opcodes (opcodeAfter this i)) 'pop' 1))
 			decodeCmd this i
 			if isReporter {

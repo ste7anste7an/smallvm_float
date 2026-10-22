@@ -788,9 +788,7 @@ method instructionsForCmd SmallCompiler cmd {
 			addAll result (instructionsForExpression this arg)
 		}
 		add result (array op (count args))
-		if ('callCustomCommand' == op) {
-			add result (array 'pop' 1) // discard the return value
-		}
+		add result (array 'pop' 1) // discard the return value, a reporter's too when used as a command
 		return result
 	} (isFunctionCall this op) {
 		return (instructionsForFunctionCall this op args true)
