@@ -7254,7 +7254,7 @@ BlockSectionDefinitionMorph.prototype.fixLayout = function () {
 	const height = Math.max(0, ...parts.map((m) => m.height()));
 	let x = this.left();
 	parts.forEach((m) => {
-		m.setPosition(new Point(x, this.top() + Math.floor((height - m.height()) / 2)));
+		m.setPosition(new Point(x, this.top() + (height - m.height()) / 2));
 		x += m.width() + gap;
 	});
 	this.bounds.setExtent(new Point(Math.max(0, x - gap - this.left()), height));
