@@ -809,7 +809,10 @@ class MB_Editor {
 		button.fixLayout = () => button.label.setPosition(button.position().add(new Point(
 			((button.width() - button.label.width()) / 2) + inset,
 			((button.height() - lineHeight) / 2) + inset)));
-		button.setExtent(new Point(Math.max(30 / ZOOM, button.label.width() + (25 / ZOOM)), 26 / ZOOM));
+		// GP's pill is its label's width plus 25, the width rounded to a whole
+		// device pixel at GP's 2 per screen pixel.
+		const labelWidth = Math.round(button.label.width() * 2 * ZOOM) / (2 * ZOOM);
+		button.setExtent(new Point(Math.max(30 / ZOOM, labelWidth + (25 / ZOOM)), 26 / ZOOM));
 		button.render = (ctx) => {
 			const w = button.width(), h = button.height();
 			ctx.beginPath();
