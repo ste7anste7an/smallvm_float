@@ -829,6 +829,13 @@ class MB_Editor {
 			button.label.setColor((button.userState === 'normal') ? labelColor : ink);
 			button.changed();
 		};
+		button.mouseClickLeft = () => {
+			// Back to normal before the action, as GP's buttons do: a click that opens
+			// a dialog leaves the pointer here, and nothing would clear the yellow.
+			button.userState = 'normal';
+			button.rerender();
+			button.trigger();
+		};
 		button.setPosition(new Point(this.palette.contents.left() + (16 / ZOOM), this.paletteY));
 		this.palette.contents.add(button);
 		this.paletteY += button.height() + (7 / ZOOM);
