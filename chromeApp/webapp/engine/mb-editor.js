@@ -1108,7 +1108,6 @@ class MB_Editor {
 	updateRunning(chunkID, isRunning) {
 		let runningBlock = this.codeManager.blockForChunkID(chunkID);
 		if (!(runningBlock instanceof BlockMorph)) {
-console.log('unknown');
 			return; // unknown chunk
 		}
 
