@@ -5139,7 +5139,6 @@ InputSlotMorph.prototype.init = function (
 
 	contents.fontSize = 13 * this.scale;
 	contents.fontName = 'Arial';
-	contents.isShowingBlanks = true;
 
 	this.selectedBlock = null;
 	this.symbol = null;
