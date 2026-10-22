@@ -499,19 +499,22 @@ class MB_BlockSearchBox {
 	}
 
 	searchIcon() {
-		// A magnifying glass at the left of the box.
+		// A magnifying glass at the left of the box, GP's: a 15 pixel glass in gray
+		// 150, drawn at a little over half opacity.
 
 		const icon = new Morph();
-		icon.setExtent(new Point(screenPixels(20), screenPixels(20)));
-		icon.setPosition(this.morph.position().add(new Point(screenPixels(12), screenPixels(10))));
+		icon.setExtent(new Point(screenPixels(15), screenPixels(15)));
+		icon.setPosition(this.morph.position().add(new Point(screenPixels(12), screenPixels(12))));
 		icon.render = (ctx) => {
 			ctx.scale(screenPixels(1), screenPixels(1)); // drawn in screen pixels
+			ctx.globalAlpha = 130 / 255;
 			ctx.strokeStyle = 'rgb(150, 150, 150)';
-			ctx.lineWidth = 2;
+			ctx.lineWidth = 1.5;
+			ctx.lineCap = 'round';
 			ctx.beginPath();
-			ctx.arc(8, 8, 6, 0, 2 * Math.PI);
-			ctx.moveTo(12.5, 12.5);
-			ctx.lineTo(18, 18);
+			ctx.arc(6, 6, 4.5, 0, 2 * Math.PI);
+			ctx.moveTo(9.5, 9);
+			ctx.lineTo(9.5 + (6.5 * Math.SQRT1_2), 9 + (6.5 * Math.SQRT1_2));
 			ctx.stroke();
 		};
 		return icon;
