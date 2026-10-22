@@ -618,6 +618,25 @@ void BLE_UART_Send(uint8 *data, int byteCount) {
 
 #endif
 
+#if (CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3) && ARDUINO_USB_MODE && ARDUINO_USB_CDC_ON_BOOT
+
+#include "hal/usb_serial_jtag_ll.h"
+
+static int serialWrite(uint8 *buf, int count) {
+	// Serial (HWCDC) in arduino-esp32 2.0.17 can miss the interrupt that drains its send buffer,
+	// leaving a reply unsent until the next write. Flushing the FIFO commits a packet (zero-length
+	// if the FIFO is empty) and the host's pickup of that packet raises the interrupt again.
+	int sent = Serial.write(buf, count);
+	if (sent > 0) usb_serial_jtag_ll_txfifo_flush();
+	return sent;
+}
+
+#else
+
+static int serialWrite(uint8 *buf, int count) { return Serial.write(buf, count); }
+
+#endif
+
 #if defined(BLE_IDE) || defined(BLE_PICO)
 
 // IDE receive and send (same for both version of BLE)
@@ -659,7 +678,7 @@ int sendBytes(uint8 *buf, int start, int end) {
 		if ((now - lastSendTime) < 15) return 0;
 		lastSendTime = now;
 
-		return Serial.write(&buf[start], end - start);
+		return serialWrite(&buf[start], end - start);
 	}
 
 	// use BLE connection
@@ -679,7 +698,7 @@ int recvBytes(uint8 *buf, int count) {
 int sendBytes(uint8 *buf, int start, int end) {
 	// Send bytes buf[start] through buf[end - 1] and return the number of bytes sent.
 
-	return Serial.write(&buf[start], end - start);
+	return serialWrite(&buf[start], end - start);
 }
 
 // stubs for non-BLE:
