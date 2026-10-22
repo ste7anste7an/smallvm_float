@@ -2090,11 +2090,11 @@ BlockMorph.prototype.restoreInputs = function (oldInputs, offset = 0) {
 // BlockMorph expand/collapse
 
 BlockMorph.prototype.canExpand = function () {
-	return (this.inputs().length < this.maxInputCount());
+	return (!this.isTemplate && (this.inputs().length < this.maxInputCount()));
 }
 
 BlockMorph.prototype.canContract = function () {
-	return (this.inputs().length > this.minInputCount());
+	return (!this.isTemplate && (this.inputs().length > this.minInputCount()));
 }
 
 BlockMorph.prototype.expand = function () {
