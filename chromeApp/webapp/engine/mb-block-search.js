@@ -632,7 +632,6 @@ class MB_BlockSearchBox {
 			scroller.setHeight(menu.bottom() - scroller.top() - screenPixels(4));
 			scroller.adjustScrollBars();
 		}
-		menu.addShadow(new Point(screenPixels(2), screenPixels(2)), 80);
 		// The text keeps the keys while the results show. Morphic gives the next key
 		// to an open menu without the focus, and takes the keys away when a menu
 		// with the focus closes.

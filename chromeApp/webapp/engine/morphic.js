@@ -8038,7 +8038,7 @@ function MenuMorph(target, title, environment, fontSize) {
 }
 
 // MicroBlocks: ZOOM is the block size, and a menu keeps one size on screen
-// at every block size, as GP's do. So the font, padding, border and shadow in
+// at every block size, as GP's do. So the font, padding, border and insets in
 // addSectionLabel, createLabel, createItems, maxWidth, popup and MenuItemMorph's
 // createLabel, fixLayout and createLabelPart are screen pixels: n / ZOOM.
 
@@ -8329,15 +8329,13 @@ MenuMorph.prototype.popup = function (world, pos) {
 
     this.createItems();
     this.setPosition(pos);
-    this.addShadow(new Point(2, 2).divideBy(ZOOM), 80);
+    // MicroBlocks: no drop shadow, as GP's menus have none.
     this.keepWithin(world);
 
     if (this.bottom() > world.bottom()) {
     	// scroll menu items if the menu is taller than the world
-    	this.removeShadow();
         scroller = this.scroll();
         this.bounds.corner.y = world.bottom() - (2 / ZOOM);
-        this.addShadow(new Point(2, 2).divideBy(ZOOM), 80);
         scroller.setHeight(world.bottom() - scroller.top() - (6 / ZOOM));
         scroller.adjustScrollBars(); // ?
      }
