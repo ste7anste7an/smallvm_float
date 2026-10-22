@@ -348,6 +348,23 @@ MB_Specs.specsForCategory = function (cat, specs) {
 	return result;
 }
 
+// ***** Built-in reporters *****
+
+MB_Specs.builtInReporters = function () {
+	// The built-in ops that leave a value on the stack, for the compiler and
+	// the decompiler. Cached, since mbBlockSpecs rebuilds its literal.
+
+	if (!this.cachedReporters) {
+		this.cachedReporters = new Set(['pushArgCount', 'getArg']);
+		for (const spec of this.mbBlockSpecs()) {
+			if (Array.isArray(spec) && (spec[0] === 'r') && !spec[1].startsWith('[')) {
+				this.cachedReporters.add(spec[1]);
+			}
+		}
+	}
+	return this.cachedReporters;
+}
+
 // ***** MicroBlocks built-in block specs *****
 
 MB_Specs.mbBlockSpecs = function () {

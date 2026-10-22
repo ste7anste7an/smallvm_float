@@ -6,7 +6,7 @@
 
 // mb-compiler.js - MicroBlocks compiler.
 
-/* globals BlockMorph, CommandBlockMorph, CommandSlotMorph, MB_Function, ReporterBlockMorph */
+/* globals BlockMorph, CommandBlockMorph, CommandSlotMorph, MB_Function, MB_Specs, ReporterBlockMorph */
 
 // Built once at load and shared by every compiler instance. Both tables are
 // read-only after construction; if a future change ever needs to extend them
@@ -411,6 +411,10 @@ class MB_Compiler {
 			return result;
 		} else if (this.isFunctionCall(op)) {
 			return this.instructionsForFunctionCall(op, inputs, true);
+		} else if (this.opcodes.has(op) && MB_Specs.builtInReporters().has(op)) {
+			result.push(...this.primitive(op, inputs, true));
+			result.push(['pop', 1]); // a reporter used as a command; discard its value
+			return result;
 		} else {
 			return this.primitive(op, inputs, true);
 		}

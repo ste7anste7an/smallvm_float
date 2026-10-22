@@ -389,7 +389,9 @@ class MB_Parser {
 			// first block of a body, so take its whole chain.
 			return arg.isReporter ? this.blockFromDecompiled(arg) : this.makeBlockChain(arg);
 		});
-		const block = this.blockWithArgs(node.selector, args, node.isReporter);
+		// A node that is not a reporter stands where a command goes, so it is
+		// built as a command block even when its selector names a reporter.
+		const block = this.blockWithArgs(node.selector, args, node.isReporter, !node.isReporter);
 		if (node.isDefaultColour) block.isDefaultColour = true; // see updateCallsOf
 		return block;
 	}
