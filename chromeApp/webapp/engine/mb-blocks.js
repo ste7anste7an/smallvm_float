@@ -264,6 +264,16 @@ function blockTextWidth(width, pixelsPerUnit = 2 * ZOOM) {
 	return Math.round(width * pixelsPerUnit) / pixelsPerUnit;
 }
 
+// StringMorph's font with its size rounded to a whole device pixel at the world's
+// zoom, as GP's browser IDE sets a font: 32.5 px, a slot's text at block size
+// 125%, is drawn at 33. Shared by the label and the slot text morphs.
+function blockTextFont() {
+	var ppu = this.pixelsPerUnit || 2 * ZOOM;
+	return (this.isBold ? 'bold ' : '') + (this.isItalic ? 'italic ' : '')
+		+ (Math.round(this.fontSize * ppu) / ppu) + 'px '
+		+ (this.fontName ? this.fontName + ', ' : '') + this.fontStyle;
+}
+
 // StringMorph's render, drawn on the baseline above. Shared by the label and the
 // slot text morphs.
 function renderBlockString(ctx) {
@@ -1175,6 +1185,7 @@ BlockLabelMorph.prototype.fixLayout = function (justMe) {
 };
 
 BlockLabelMorph.prototype.render = renderBlockString;
+BlockLabelMorph.prototype.font = blockTextFont;
 
 BlockLabelMorph.prototype.getRenderColor = function () {
 	var block = this.parentThatIsA(BlockMorph);
@@ -5716,6 +5727,7 @@ InputSlotStringMorph.prototype.fixLayout = function (justMe) {
 };
 
 InputSlotStringMorph.prototype.render = renderBlockString;
+InputSlotStringMorph.prototype.font = blockTextFont;
 
 // A blank's dot stays where StringMorph puts it, centred on the line, now that
 // the text is drawn on its baseline.
@@ -5785,6 +5797,8 @@ function InputSlotTextMorph(
 		shadowOffset,
 		shadowColor);
 }
+
+InputSlotTextMorph.prototype.font = blockTextFont;
 
 InputSlotTextMorph.prototype.fixLayout = function () {
 	// Measure each line without the space parse() leaves at its end.
