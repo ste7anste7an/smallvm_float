@@ -28,7 +28,9 @@ function zoomedImage(aMorph) {
 	const ctx = image.getContext('2d');
 	ctx.scale(ZOOM, ZOOM);
 	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	aMorph.drawnAtZoom = true;
 	aMorph.fullDrawOn(ctx, bounds);
+	delete aMorph.drawnAtZoom;
 	return image;
 }
 
