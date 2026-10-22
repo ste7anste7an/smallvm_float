@@ -2657,9 +2657,15 @@ BlockMorph.prototype.outlineColor = function () {
 		Math.trunc(255 * rgb[0]), Math.trunc(255 * rgb[1]), Math.trunc(255 * rgb[2]), this.color.a);
 };
 
+BlockMorph.prototype.isDrawnAtZoom = function () {
+	// The world draws me at its zoom, and so does a picture of me that sets
+	// drawnAtZoom on my top block. An exported picture is drawn at scale 1.
+	return !!(this.world() || this.root().drawnAtZoom);
+};
+
 BlockMorph.prototype.render = function (ctx) {
-	// in the world the outline stays one screen pixel wide at every block size
-	var width = this.flatEdge / (this.world() ? ZOOM : 1),
+	// drawn at the world's zoom the outline stays one screen pixel wide at every block size
+	var width = this.flatEdge / (this.isDrawnAtZoom() ? ZOOM : 1),
 		out = this.outlineOutset();
 
 	this.cachedClr = this.color.toString();
@@ -3556,7 +3562,7 @@ SyntaxElementMorph.prototype.bottomTab = function (ctx, left, y, inset) {
 CommandBlockMorph.prototype.outlineOutset = function () {
 	// Half the outline's width: GP strokes a command or hat block's outline
 	// centred on its edge, so half of it lies outside my bounds.
-	return this.flatEdge / (this.world() ? 2 * ZOOM : 2);
+	return this.flatEdge / (this.isDrawnAtZoom() ? 2 * ZOOM : 2);
 };
 
 CommandBlockMorph.prototype.outlinePath = function(ctx, inset) {
