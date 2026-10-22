@@ -5451,8 +5451,10 @@ InputSlotMorph.prototype.fixLayout = function () {
 
 	this.bounds.setExtent(new Point(width, height));
 
+	// GP halves the spare width in device pixels, so the text is centred to one of them.
 	contents.setPosition(new Point(
-		blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
+		blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width(),
+			contents.pixelsPerUnit || 2 * ZOOM) + (7 * this.scale),
 		2 * this.scale
 	).add(this.position()));
 
