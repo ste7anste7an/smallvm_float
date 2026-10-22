@@ -775,12 +775,16 @@ class MB_Editor {
 	}
 
 	addPaletteLabel(text) {
-		let label = new StringMorph(text, 14);
+		// A heading in screen pixels, as GP sets it at every block size: bold
+		// 14 px text on GP's line height, 12 px above and below, 6 px in.
+
+		let label = new StringMorph(text, 14 / ZOOM);
 		label.setColor(this.paneColors().label); // labels are rebuilt, not recoloured
 		label.toggleWeight();
-		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
+		this.paletteY += 12 / ZOOM;
+		label.setPosition(new Point(this.palette.contents.left() + (6 / ZOOM), this.paletteY));
 		this.palette.contents.add(label);
-		this.paletteY += label.height() + 15;
+		this.paletteY += resultTextMetrics(label.fontSize).lineHeight + (12 / ZOOM);
 	}
 
 	addPaletteButton(label, action) {
@@ -795,7 +799,24 @@ class MB_Editor {
 		const button = new TriggerMorph(this, action, label, 14 / ZOOM, 'sans-serif', null, null, labelColor, true);
 		button.label.fontName = 'Arial';
 		button.label.fixLayout();
-		button.setExtent(new Point(Math.max(30 / ZOOM, button.label.width() + (25 / ZOOM)), 26 / ZOOM));
+		// GP centres the label's line on its own text metrics, not Morphic's
+		// 1.2 font sizes, then insets it one device pixel right and down, at
+		// GP's 2 device pixels per screen pixel, as resultTextMetrics assumes.
+		const { lineHeight, baseline } = resultTextMetrics(button.label.fontSize);
+		const inset = 1 / (2 * ZOOM);
+		button.label.render = function (ctx) {
+			ctx.font = this.font();
+			ctx.textBaseline = 'alphabetic';
+			ctx.fillStyle = this.getRenderColor().toString();
+			ctx.fillText(this.text, 0, baseline);
+		};
+		button.fixLayout = () => button.label.setPosition(button.position().add(new Point(
+			((button.width() - button.label.width()) / 2) + inset,
+			((button.height() - lineHeight) / 2) + inset)));
+		// GP's pill is its label's width plus 25, the width rounded to a whole
+		// device pixel at GP's 2 per screen pixel.
+		const labelWidth = Math.round(button.label.width() * 2 * ZOOM) / (2 * ZOOM);
+		button.setExtent(new Point(Math.max(30 / ZOOM, labelWidth + (25 / ZOOM)), 26 / ZOOM));
 		button.render = (ctx) => {
 			const w = button.width(), h = button.height();
 			ctx.beginPath();
@@ -814,6 +835,13 @@ class MB_Editor {
 		button.rerender = () => { // the label turns dark on yellow
 			button.label.setColor((button.userState === 'normal') ? labelColor : ink);
 			button.changed();
+		};
+		button.mouseClickLeft = () => {
+			// Back to normal before the action, as GP's buttons do: a click that opens
+			// a dialog leaves the pointer here, and nothing would clear the yellow.
+			button.userState = 'normal';
+			button.rerender();
+			button.trigger();
 		};
 		button.setPosition(new Point(this.palette.contents.left() + (16 / ZOOM), this.paletteY));
 		this.palette.contents.add(button);
@@ -866,7 +894,6 @@ class MB_Editor {
 				this.paletteY += 20 / ZOOM;
 			} else if ('advanced' == op) {
 				if (!this.devMode()) return; // the rest is for developer mode
-				this.paletteY += 15;
 				this.addPaletteLabel('Advanced:');
 			} else if (this.showHiddenBlocks() || !op.startsWith('_')) {
 				let spec = MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(op))
@@ -886,20 +913,23 @@ class MB_Editor {
 		if (varNames.length > 0) {
 			this.addPaletteButton(localized('Delete a variable'), () => this.deleteVariableMenu());
 		}
-		this.paletteY += 20;
+		// GP's gaps around the buttons are screen pixels, the same at every block size.
+		this.paletteY += 20 / ZOOM;
 		let defaultVar = (varNames.length > 0) ? varNames[0] : '';
 		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
-			if ('-' == spec) { // separator
-				this.paletteY += 15;
-			} else if (('local' == spec[1]) && !this.devMode()) {
-				continue; // initialize local is offered only in developer mode
+			if ('-' == spec) {
+				continue; // GP sets this palette's gaps itself, before initialize local and the reporters
+			} else if ('local' == spec[1]) {
+				if (!this.devMode()) continue; // initialize local is offered only in developer mode
+				this.paletteY += 10 / ZOOM;
+				this.addPaletteBlock(MB_Specs.blockForSpec(spec, 'Variables'));
 			} else if ('v' != spec[1]) { // one reporter per variable follows instead
 				let s = spec.slice();
 				if (('=' == s[1]) || ('+=' == s[1])) s[4] = defaultVar;
 				this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
 			}
 		}
-		this.paletteY += 15;
+		this.paletteY += 20 / ZOOM;
 		let varSpec = MB_Specs.specArrayForSelector('v');
 		let upper = (v) => v.toUpperCase();
 		varNames.sort((a, b) => (upper(a) < upper(b)) ? -1 : ((upper(a) > upper(b)) ? 1 : 0));
@@ -916,7 +946,7 @@ class MB_Editor {
 
 		this.addPaletteButton(localized('Add a command block'), () => this.promptForFunction(false));
 		this.addPaletteButton(localized('Add a reporter block'), () => this.promptForFunction(true));
-		this.paletteY += 8;
+		this.paletteY += 8 / ZOOM;
 		for (const func of this.project.main.functions) {
 			if (func.functionName.startsWith('_') && !this.showHiddenBlocks()) continue;
 			this.addPaletteBlockForSpec(this.paletteSpecForFunction(func), 'My Blocks');
@@ -934,7 +964,6 @@ class MB_Editor {
 		if (!this.devMode()) return;
 		let specs = MB_Specs.specsForCategory(cat + '-Advanced');
 		if (specs.length == 0) return;
-		this.paletteY += 15;
 		this.addPaletteLabel('Advanced:');
 		this.addBlocksForSpecs(specs, cat.substring(4));
 	}
