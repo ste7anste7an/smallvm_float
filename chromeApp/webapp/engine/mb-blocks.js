@@ -6431,12 +6431,31 @@ ColorSlotMorph.prototype.fixLayout = function () {
 	this.bounds.setHeight(side);
 };
 
+ColorSlotMorph.prototype.drawOn = function (ctx, rect) {
+	// As Morph's drawOn, but the clip runs half a unit past my edge so the
+	// ring render strokes there is not cut off. My block is drawn first, so
+	// the margin lands on it.
+	var clipped = rect.intersect(this.bounds.expandBy(this.scale / 2)),
+		pos = this.position();
+
+	if (!clipped.extent().gt(ZERO)) {return; }
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.translate(pos.x, pos.y);
+	this.render(ctx);
+	ctx.restore();
+};
+
 ColorSlotMorph.prototype.render = function (ctx) {
-	// A dark gray ring one unit wide, its outer edge on my edge.
+	// A dark gray ring one unit wide, centred on a circle as wide as me, as
+	// GP strokes it, so it reaches half a unit past my edge (see drawOn).
 	let radius = this.width() / 2;
 
 	ctx.beginPath();
-	ctx.arc(radius, radius, radius - (this.scale / 2), 0, 2 * Math.PI);
+	ctx.arc(radius, radius, radius, 0, 2 * Math.PI);
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
 	ctx.lineWidth = this.scale;
