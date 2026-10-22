@@ -5153,6 +5153,17 @@ CSlotMorph.prototype.nestedLeft = function () {
 	return (Math.floor(5 * s) + (s < 3 ? 1 : 0)) / (2 * ZOOM);
 };
 
+CSlotMorph.prototype.armTop = function (nb) {
+	// The nested block's body ends on a fraction of a screen pixel at some block
+	// sizes (125%: 2.5 device pixels a unit). If the arm began there too, both
+	// edges would cover only part of that pixel row and the pane would show
+	// between them as a light line, so the arm starts at the top of the row,
+	// under the nested block.
+	var end = nb.bottom() - nb.corner,
+		pixels = ZOOM * (window.devicePixelRatio || 1);
+	return Math.floor(end * pixels + 1e-6) / pixels;
+};
+
 CSlotMorph.prototype.fixHolesLayout = function () {
 	this.holes = [
 		new Rectangle(
@@ -5181,7 +5192,7 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		top = oy + this.scale, // the opening's top edge, level with a nested block's top
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
-		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height() - (2 * this.scale),
+		bottom = nb ? this.armTop(nb) - this.top() + this.corner : this.height(),
 		// with blocks inside, the inner edge straddles their left side, which covers part of it
 		shift = nb ? this.flatEdge : 0;
 
