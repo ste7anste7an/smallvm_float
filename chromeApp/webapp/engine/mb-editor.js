@@ -2193,7 +2193,7 @@ console.log('unknown');
 			}
 			for (const part of parts.reverse()) {
 				if ((part instanceof SyntaxElementMorph) || (part instanceof InputDeclarationMorph) ||
-						(part instanceof BlockSectionDefinitionMorph)) {
+						(part instanceof BlockSectionDefinitionMorph) || (part instanceof BlockExpanderMorph)) {
 					part.fixLayout();
 				}
 			}

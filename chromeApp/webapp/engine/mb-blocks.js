@@ -6715,10 +6715,15 @@ BlockExpanderMorph.prototype.init = function (aBlock) {
 	this.color = new Color(255, 255, 255, 220 / 255); // lets the block's colour show through
 	this.showLeft = aBlock.canContract();
 	this.showRight = aBlock.canExpand();
-	const size = 18 * aBlock.scale, unit = blockHalf(size);
-	const w = (this.showLeft && this.showRight) ? (3 * unit) + this.gapFor(size) : 2 * unit;
-	this.bounds.setWidth(w);
-	this.bounds.setHeight(size);
+	this.bounds.setHeight(18 * aBlock.scale);
+	this.fixLayout();
+};
+
+BlockExpanderMorph.prototype.fixLayout = function () {
+	// A unit is half my height in device pixels, rounded down as GP's is, so it
+	// changes with the world's zoom. At 125% my 45 pixels make a unit of 22.
+	const size = this.height(), unit = blockHalf(size, this.pixelsPerUnit || 2 * ZOOM);
+	this.bounds.setWidth((this.showLeft && this.showRight) ? (3 * unit) + this.gapFor(size) : 2 * unit);
 };
 
 BlockExpanderMorph.prototype.gapFor = function (size) {
@@ -6731,8 +6736,9 @@ BlockExpanderMorph.prototype.gapFor = function (size) {
 BlockExpanderMorph.prototype.render = function (ctx) {
 	// Each arrow fills a box a unit wide, a block scale in from my top and
 	// bottom; the first starts half a unit in from my left.
-	const h = this.height(), unit = blockHalf(h), inset = h / 18;
-	let x = unit / 2;
+	const h = this.height(), ppu = this.pixelsPerUnit || 2 * ZOOM,
+		unit = blockHalf(h, ppu), inset = h / 18;
+	let x = blockHalf(unit, ppu);
 	ctx.fillStyle = this.color.toString();
 
 	if (this.showLeft) {
@@ -7380,7 +7386,7 @@ BlockDrawerMorph.prototype.render = function (ctx) {
 };
 
 BlockDrawerMorph.prototype.fixLayout = function () {
-	const size = 18 * blockScale(), unit = blockHalf(size);
+	const size = 18 * blockScale(), unit = blockHalf(size, this.pixelsPerUnit || 2 * ZOOM);
 	const both = this.target.canCollapse() && this.target.canExpand();
 	this.bounds.setWidth(both ? (3 * unit) + this.gapFor(size) : 2 * unit);
 };
