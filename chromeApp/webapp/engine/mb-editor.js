@@ -900,11 +900,12 @@ class MB_Editor {
 		if (varNames.length > 0) {
 			this.addPaletteButton(localized('Delete a variable'), () => this.deleteVariableMenu());
 		}
-		this.paletteY += 20;
+		// GP's gaps around the buttons are screen pixels, the same at every block size.
+		this.paletteY += 20 / ZOOM;
 		let defaultVar = (varNames.length > 0) ? varNames[0] : '';
 		for (const spec of MB_Specs.specsForCategory('cat;Variables')) {
 			if ('-' == spec) { // separator
-				this.paletteY += 15;
+				this.paletteY += 15 / ZOOM;
 			} else if (('local' == spec[1]) && !this.devMode()) {
 				continue; // initialize local is offered only in developer mode
 			} else if ('v' != spec[1]) { // one reporter per variable follows instead
@@ -913,7 +914,7 @@ class MB_Editor {
 				this.addPaletteBlock(MB_Specs.blockForSpec(s, 'Variables'));
 			}
 		}
-		this.paletteY += 15;
+		this.paletteY += 15 / ZOOM;
 		let varSpec = MB_Specs.specArrayForSelector('v');
 		let upper = (v) => v.toUpperCase();
 		varNames.sort((a, b) => (upper(a) < upper(b)) ? -1 : ((upper(a) > upper(b)) ? 1 : 0));
@@ -930,7 +931,7 @@ class MB_Editor {
 
 		this.addPaletteButton(localized('Add a command block'), () => this.promptForFunction(false));
 		this.addPaletteButton(localized('Add a reporter block'), () => this.promptForFunction(true));
-		this.paletteY += 8;
+		this.paletteY += 8 / ZOOM;
 		for (const func of this.project.main.functions) {
 			if (func.functionName.startsWith('_') && !this.showHiddenBlocks()) continue;
 			this.addPaletteBlockForSpec(this.paletteSpecForFunction(func), 'My Blocks');
