@@ -6105,6 +6105,9 @@ TemplateSlotMorph.prototype.render = function (ctx) {
 TemplateSlotMorph.prototype.outlinePath =
 	ReporterBlockMorph.prototype.outlinePathOval;
 
+TemplateSlotMorph.prototype.outlineColor =
+	BlockMorph.prototype.outlineColor;
+
 TemplateSlotMorph.prototype.cSlots = function () {
 	return [];
 };
