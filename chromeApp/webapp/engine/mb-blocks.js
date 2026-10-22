@@ -264,6 +264,16 @@ function blockTextWidth(width, pixelsPerUnit = 2 * ZOOM) {
 	return Math.round(width * pixelsPerUnit) / pixelsPerUnit;
 }
 
+// StringMorph's font with its size rounded to a whole device pixel at the world's
+// zoom, as GP's browser IDE sets a font: 32.5 px, a slot's text at block size
+// 125%, is drawn at 33. Shared by the label and the slot text morphs.
+function blockTextFont() {
+	var ppu = this.pixelsPerUnit || 2 * ZOOM;
+	return (this.isBold ? 'bold ' : '') + (this.isItalic ? 'italic ' : '')
+		+ (Math.round(this.fontSize * ppu) / ppu) + 'px '
+		+ (this.fontName ? this.fontName + ', ' : '') + this.fontStyle;
+}
+
 // StringMorph's render, drawn on the baseline above. Shared by the label and the
 // slot text morphs.
 function renderBlockString(ctx) {
@@ -1175,6 +1185,7 @@ BlockLabelMorph.prototype.fixLayout = function (justMe) {
 };
 
 BlockLabelMorph.prototype.render = renderBlockString;
+BlockLabelMorph.prototype.font = blockTextFont;
 
 BlockLabelMorph.prototype.getRenderColor = function () {
 	var block = this.parentThatIsA(BlockMorph);
@@ -5225,7 +5236,6 @@ InputSlotMorph.prototype.init = function (
 
 	contents.fontSize = 13 * this.scale;
 	contents.fontName = 'Arial';
-	contents.isShowingBlanks = true;
 
 	this.selectedBlock = null;
 	this.symbol = null;
@@ -5527,8 +5537,10 @@ InputSlotMorph.prototype.fixLayout = function () {
 
 	this.bounds.setExtent(new Point(width, height));
 
+	// GP halves the spare width in device pixels, so the text is centred to one of them.
 	contents.setPosition(new Point(
-		blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width()) + (7 * this.scale),
+		blockHalf(Math.max(contents.width(), 10 * this.scale) - contents.width(),
+			contents.pixelsPerUnit || 2 * ZOOM) + (7 * this.scale),
 		2 * this.scale
 	).add(this.position()));
 
@@ -5803,6 +5815,7 @@ InputSlotStringMorph.prototype.fixLayout = function (justMe) {
 };
 
 InputSlotStringMorph.prototype.render = renderBlockString;
+InputSlotStringMorph.prototype.font = blockTextFont;
 
 // A blank's dot stays where StringMorph puts it, centred on the line, now that
 // the text is drawn on its baseline.
@@ -5873,6 +5886,8 @@ function InputSlotTextMorph(
 		shadowColor);
 }
 
+InputSlotTextMorph.prototype.font = blockTextFont;
+
 InputSlotTextMorph.prototype.fixLayout = function () {
 	// Measure each line without the space parse() leaves at its end.
 	this.parse();
@@ -5888,7 +5903,6 @@ InputSlotTextMorph.prototype.fixLayout = function () {
 // pitch fixLayout measures. Morphic's 1.2 font sizes would drift from it a little
 // more on every line.
 InputSlotTextMorph.prototype.render = function (ctx) {
-	if (this.parent && this.parent.isComment) return TextMorph.prototype.render.call(this, ctx);
 	var lineHeight = blockTextHeight(this.fontSize, this.pixelsPerUnit),
 		base = blockTextBaseline(this.fontSize, this.pixelsPerUnit),
 		start, stop, i, p, c, x;
@@ -5923,13 +5937,11 @@ InputSlotTextMorph.prototype.render = function (ctx) {
 // The cursor and a click find a line on the same pitch.
 InputSlotTextMorph.prototype.slotPosition = function (slot) {
 	var pos = TextMorph.prototype.slotPosition.call(this, slot);
-	if (this.parent && this.parent.isComment) return pos;
 	return new Point(pos.x, this.top()
 		+ this.columnRow(slot).y * blockTextHeight(this.fontSize, this.pixelsPerUnit));
 };
 
 InputSlotTextMorph.prototype.slotAt = function (aPoint) {
-	if (this.parent && this.parent.isComment) return TextMorph.prototype.slotAt.call(this, aPoint);
 	var ratio = fontHeight(this.fontSize) / blockTextHeight(this.fontSize, this.pixelsPerUnit);
 	return TextMorph.prototype.slotAt.call(this,
 		new Point(aPoint.x, this.top() + (aPoint.y - this.top()) * ratio));
@@ -6789,10 +6801,15 @@ BlockExpanderMorph.prototype.init = function (aBlock) {
 	this.color = new Color(255, 255, 255, 220 / 255); // lets the block's colour show through
 	this.showLeft = aBlock.canContract();
 	this.showRight = aBlock.canExpand();
-	const size = 18 * aBlock.scale, unit = blockHalf(size);
-	const w = (this.showLeft && this.showRight) ? (3 * unit) + this.gapFor(size) : 2 * unit;
-	this.bounds.setWidth(w);
-	this.bounds.setHeight(size);
+	this.bounds.setHeight(18 * aBlock.scale);
+	this.fixLayout();
+};
+
+BlockExpanderMorph.prototype.fixLayout = function () {
+	// A unit is half my height in device pixels, rounded down as GP's is, so it
+	// changes with the world's zoom. At 125% my 45 pixels make a unit of 22.
+	const size = this.height(), unit = blockHalf(size, this.pixelsPerUnit || 2 * ZOOM);
+	this.bounds.setWidth((this.showLeft && this.showRight) ? (3 * unit) + this.gapFor(size) : 2 * unit);
 };
 
 BlockExpanderMorph.prototype.gapFor = function (size) {
@@ -6805,8 +6822,9 @@ BlockExpanderMorph.prototype.gapFor = function (size) {
 BlockExpanderMorph.prototype.render = function (ctx) {
 	// Each arrow fills a box a unit wide, a block scale in from my top and
 	// bottom; the first starts half a unit in from my left.
-	const h = this.height(), unit = blockHalf(h), inset = h / 18;
-	let x = unit / 2;
+	const h = this.height(), ppu = this.pixelsPerUnit || 2 * ZOOM,
+		unit = blockHalf(h, ppu), inset = h / 18;
+	let x = blockHalf(unit, ppu);
 	ctx.fillStyle = this.color.toString();
 
 	if (this.showLeft) {
@@ -7350,13 +7368,13 @@ BlockSectionDefinitionMorph.prototype.hideDetails = function () {
 
 BlockSectionDefinitionMorph.prototype.fixLayout = function () {
 	// One row, centred vertically; a hidden part takes no room.
-	const gap = 5 * blockScale();
+	const gap = 5 / ZOOM; // 5 screen pixels at every block size
 	this.drawer.fixLayout();
 	const parts = this.elements().concat(this.drawer.isVisible ? [this.drawer] : []);
 	const height = Math.max(0, ...parts.map((m) => m.height()));
 	let x = this.left();
 	parts.forEach((m) => {
-		m.setPosition(new Point(x, this.top() + Math.floor((height - m.height()) / 2)));
+		m.setPosition(new Point(x, this.top() + (height - m.height()) / 2));
 		x += m.width() + gap;
 	});
 	this.bounds.setExtent(new Point(Math.max(0, x - gap - this.left()), height));
@@ -7470,7 +7488,7 @@ BlockDrawerMorph.prototype.render = function (ctx) {
 };
 
 BlockDrawerMorph.prototype.fixLayout = function () {
-	const size = 18 * blockScale(), unit = blockHalf(size);
+	const size = 18 * blockScale(), unit = blockHalf(size, this.pixelsPerUnit || 2 * ZOOM);
 	const both = this.target.canCollapse() && this.target.canExpand();
 	this.bounds.setWidth(both ? (3 * unit) + this.gapFor(size) : 2 * unit);
 };
