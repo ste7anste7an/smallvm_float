@@ -16,7 +16,21 @@
 
 /* global MB_editor, MB_Files, MB_Parser, MB_Specs, localized, parsedSpecs, stringArg, blockScale, screenPixels,
 	BoxMorph, Color, CursorMorph, MenuItemMorph, MenuMorph, Morph, Point, StringMorph, GetText, newCanvas,
-	world */
+	world, ZOOM */
+
+function zoomedImage(aMorph) {
+	// A morph's full image drawn at the world's zoom. The world draws a cached image
+	// under its zoom, so a picture at world units would be scaled up and blurred at
+	// any block size above 100%; this one is drawn back at 1 / ZOOM of its size.
+
+	const bounds = aMorph.fullBounds();
+	const image = newCanvas(bounds.extent().multiplyBy(ZOOM));
+	const ctx = image.getContext('2d');
+	ctx.scale(ZOOM, ZOOM);
+	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	aMorph.fullDrawOn(ctx, bounds);
+	return image;
+}
 
 class MB_BlockSearch {
 	// A search of the open project's blocks. search() and recents() answer entries,
@@ -280,23 +294,24 @@ class MB_BlockSearch {
 	}
 
 	pictureFor(entry) {
-		// A canvas of the entry's block, redrawn smaller when it is taller than two
-		// rows, so that a few tall blocks cannot crowd out the rest of a list.
+		// A canvas of the entry's block at the world's zoom (see zoomedImage), redrawn
+		// smaller when it is taller than two rows, so that a few tall blocks cannot
+		// crowd out the rest of a list.
 
 		const aBlock = ('lib' === entry.kind) ? MB_Specs.blockForSpec(entry.spec, entry.category) : entry.block;
 		aBlock.fixLayout();
-		const image = aBlock.fullImage();
+		const height = aBlock.fullBounds().height();
 		const maxHeight = 62 * blockScale();
-		if (image.height <= maxHeight) return image;
-		const factor = maxHeight / image.height;
+		if (height <= maxHeight) return zoomedImage(aBlock);
+		const factor = maxHeight / height;
 		const smaller = aBlock.fullCopy();
 		MB_editor.resizeBlock(smaller, factor, blockScale() * factor);
-		const smallImage = smaller.fullImage();
-		if (smallImage.height <= maxHeight) return smallImage;
+		const small = smaller.fullBounds().extent();
+		if (small.y <= maxHeight) return zoomedImage(smaller);
 		// Block layout does not scale quite linearly, so trim what is left over.
-		const w = Math.floor((smallImage.width * maxHeight) / smallImage.height);
-		const result = newCanvas(new Point(w, maxHeight));
-		result.getContext('2d').drawImage(smallImage, 0, 0, w, maxHeight);
+		const w = Math.floor((small.x * maxHeight) / small.y);
+		const result = newCanvas(new Point(w, maxHeight).multiplyBy(ZOOM));
+		result.getContext('2d').drawImage(zoomedImage(smaller), 0, 0, w * ZOOM, maxHeight * ZOOM);
 		return result;
 	}
 
@@ -566,7 +581,7 @@ class MB_BlockSearchBox {
 		const rows = this.matches.map((m) => [m.kind, this.blockSearch.pictureFor(m),
 			('lib' === m.kind) ? this.libraryLabel(m.libName) : null, () => this.grab(m)]);
 		let rowW = this.morph.width() - screenPixels(12);
-		for (const row of rows) rowW = Math.max(rowW, row[1].width + (row[2] ? row[2].width + screenPixels(16) : 0));
+		for (const row of rows) rowW = Math.max(rowW, (row[1].width + (row[2] ? row[2].width + 16 : 0)) / ZOOM);
 		let lastKind = null;
 		for (const [kind, image, label, action] of rows) {
 			if (('lib' === kind) && ('block' === lastKind)) this.menu.addLine();
@@ -629,19 +644,27 @@ class MB_BlockSearchBox {
 		// in GP's Arial rather than the menu's sans-serif.
 		const label = new StringMorph(libName, screenPixels(11), null, false, false, false, null, null,
 			new Color(120, 120, 120), 'Arial');
-		return label.fullImage();
+		return zoomedImage(label);
 	}
 
 	rowImage(blockImage, labelImage, rowW) {
-		if (!labelImage && (blockImage.width >= rowW)) return blockImage;
-		const row = newCanvas(new Point(rowW, blockImage.height));
-		const ctx = row.getContext('2d');
-		ctx.drawImage(blockImage, 0, 0);
-		if (labelImage) {
-			ctx.drawImage(labelImage, rowW - (labelImage.width + screenPixels(4)),
-				Math.floor(Math.max(0, blockImage.height - labelImage.height) / 2));
+		// One result row as a morph: the block, and any library name against the right
+		// edge. The pictures are at the world's zoom, as is the row.
+
+		let row = blockImage;
+		if (labelImage || (blockImage.width < (rowW * ZOOM))) {
+			row = newCanvas(new Point(rowW * ZOOM, blockImage.height));
+			const ctx = row.getContext('2d');
+			ctx.drawImage(blockImage, 0, 0);
+			if (labelImage) {
+				ctx.drawImage(labelImage, row.width - (labelImage.width + 4),
+					Math.floor(Math.max(0, blockImage.height - labelImage.height) / 2));
+			}
 		}
-		return row;
+		const morph = new Morph();
+		morph.bounds.setExtent(new Point(row.width, row.height).divideBy(ZOOM));
+		morph.render = (ctx) => ctx.drawImage(row, 0, 0, morph.width(), morph.height());
+		return morph;
 	}
 
 	menuIsOpen() {
