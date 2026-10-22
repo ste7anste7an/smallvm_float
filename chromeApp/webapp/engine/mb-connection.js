@@ -1000,7 +1000,7 @@ class MB_Connection {
 			'Citilab ED1', 'CoCube', 'M5Stack-Core', 'M5StickC+', 'M5StickC', 'M5Atom-Matrix',
 			'ESP32', 'ESP8266', 'RP2040', 'Pico W', 'Pico:ed', 'Wukong2040', 'TTGO RP2040',
 			'Boardie', 'Databot', 'Databot v3', 'Mbits', 'RP2040 XRP',
-			'ESP32 STEAMakers' 'STEAMakers AI' 'micro:STEAMakers'
+			'ESP32 STEAMakers', 'STEAMakers AI', 'micro:STEAMakers',
 			'CodingBox', 'Foxbit', 'KidsIOT', 'IOT-BUS',
 			'M5AtomS3-Lite', 'M5Atom-Lite'];
 		return fsBoards.includes(type);
