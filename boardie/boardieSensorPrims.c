@@ -41,9 +41,10 @@ void initMicrophone() {
 			navigator.mediaDevices.getUserMedia(
 				{ audio: true, video: false }
 			).then(function (stream) {
+				let mic = window.audioContext.createMediaStreamSource(stream);
+				mic.connect(window.audioProcessor);
 				window.audioProcessor.onaudioprocess = function (event) {
-					// getChannelData returns a Float32Array with all zeroes.
-					// Investigating...
+					// store current mic samples to average them later when asked
 					window.lastMicSamples = event.inputBuffer.getChannelData(0);
 				};
 			});
@@ -56,13 +57,17 @@ static OBJ primMicrophone(int argCount, OBJ *args) {
 	return int2obj(
 		EM_ASM_INT({
 			if (window.lastMicSamples) {
-				return window.lastMicSamples.reduce((a,b) => a + b) / window.lastMicSamples.size;
+				console.log(window.lastMicSamples);
+				// scale up and average last recorded samples
+				return window.lastMicSamples.reduce(
+						(acc, sample) => acc + (sample * 2000)
+					) / window.lastMicSamples.length;
 			} else {
 				return 0;
 			}
 		})
 	);
-}
+};
 
 // Stubs
 
