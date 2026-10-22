@@ -6106,6 +6106,8 @@ TemplateSlotMorph.prototype.isLocked = function () {
 };
 
 // TemplateSlotMorph drawing:
+TemplateSlotMorph.prototype.isDrawnAtZoom =
+	BlockMorph.prototype.isDrawnAtZoom;
 
 TemplateSlotMorph.prototype.render = function (ctx) {
 	if (this.parent instanceof Morph) {
