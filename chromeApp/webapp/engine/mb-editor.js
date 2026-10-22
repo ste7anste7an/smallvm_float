@@ -775,12 +775,16 @@ class MB_Editor {
 	}
 
 	addPaletteLabel(text) {
-		let label = new StringMorph(text, 14);
+		// A heading in screen pixels, as GP sets it at every block size: bold
+		// 14 px text on GP's line height, 12 px above and below, 6 px in.
+
+		let label = new StringMorph(text, 14 / ZOOM);
 		label.setColor(this.paneColors().label); // labels are rebuilt, not recoloured
 		label.toggleWeight();
-		label.setPosition(new Point(this.palette.contents.left() + 5, this.paletteY));
+		this.paletteY += 12 / ZOOM;
+		label.setPosition(new Point(this.palette.contents.left() + (6 / ZOOM), this.paletteY));
 		this.palette.contents.add(label);
-		this.paletteY += label.height() + 15;
+		this.paletteY += resultTextMetrics(label.fontSize).lineHeight + (12 / ZOOM);
 	}
 
 	addPaletteButton(label, action) {
@@ -890,7 +894,6 @@ class MB_Editor {
 				this.paletteY += 20 / ZOOM;
 			} else if ('advanced' == op) {
 				if (!this.devMode()) return; // the rest is for developer mode
-				this.paletteY += 15;
 				this.addPaletteLabel('Advanced:');
 			} else if (this.showHiddenBlocks() || !op.startsWith('_')) {
 				let spec = MB_Specs.specArrayForProjectSpec(this.project.blockSpecs.get(op))
@@ -961,7 +964,6 @@ class MB_Editor {
 		if (!this.devMode()) return;
 		let specs = MB_Specs.specsForCategory(cat + '-Advanced');
 		if (specs.length == 0) return;
-		this.paletteY += 15;
 		this.addPaletteLabel('Advanced:');
 		this.addBlocksForSpecs(specs, cat.substring(4));
 	}
