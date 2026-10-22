@@ -3040,25 +3040,28 @@ HandMorph.prototype.grab = function (aMorph) {
 	this.grabWithoutTellingChrome(aMorph);
 	if (inset && (aMorph.parent === this)) this.grabOrigin = origin; // slide back to where it lay
 	if (wasEmpty && isScripts && (aMorph.parent === this)) {
-		this.cachedFullImage = zoomedFullImage(aMorph);
+		this.takePicture(aMorph);
 		fireIDEEvent('dragstart');
 	}
 };
 
 // The hand's picture of what it holds, taken at the world's zoom, as a running script's
 // outline is: morphic's fullImage has the retina ratio only, so at 200% a held block
-// was drawn at half the screen's resolution and scaled up.
-function zoomedFullImage(aMorph) {
+// was drawn at half the screen's resolution and scaled up. A command block's outline
+// reaches half its width past its bounds, so the picture takes in a screen pixel more
+// all round, or its top and left edges would be cut to half their width.
+HandMorph.prototype.takePicture = function (aMorph) {
 	var k = ZOOM,
-		bounds = aMorph.fullBounds(),
+		bounds = aMorph.fullBounds().expandBy(1 / k),
 		img = newCanvas(bounds.extent().multiplyBy(k)),
 		ctx = img.getContext('2d');
 	ctx.scale(k, k);
 	ctx.translate(-bounds.origin.x, -bounds.origin.y);
 	aMorph.fullDrawOn(ctx, bounds);
 	img.unitsPerPixel = 1 / k;
-	return img;
-}
+	this.cachedFullImage = img;
+	this.cachedFullBounds = bounds;
+};
 
 HandMorph.prototype.fullDrawOnUnzoomed = HandMorph.prototype.fullDrawOn;
 HandMorph.prototype.fullDrawOn = function (ctx, rect) {
@@ -3448,8 +3451,7 @@ CommandBlockMorph.prototype.setWrapHeight = function (h) {
 		hand.changed();
 		this.removeShadow();
 		this.addShadow();
-		hand.cachedFullImage = zoomedFullImage(this);
-		hand.cachedFullBounds = this.fullBounds();
+		hand.takePicture(this);
 		hand.changed();
 	}
 };
