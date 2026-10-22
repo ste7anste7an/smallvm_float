@@ -16,7 +16,7 @@
 
 /* global MB_editor, MB_Files, MB_Parser, MB_Specs, localized, parsedSpecs, stringArg, blockScale, screenPixels,
 	BoxMorph, Color, CursorMorph, MenuItemMorph, MenuMorph, Morph, Point, StringMorph, GetText, newCanvas,
-	world, ZOOM */
+	renderBlockString, world, ZOOM */
 
 function zoomedImage(aMorph) {
 	// A morph's full image drawn at the world's zoom. The world draws a cached image
@@ -481,13 +481,15 @@ class MB_BlockSearchBox {
 		this.morph.destroy = () => this.destroyed();
 
 		this.morph.add(this.searchIcon());
-		this.searchText = new StringMorph('', px(20));
+		// GP's Text: Arial, on the baseline GP's block text is drawn on.
+		this.searchText = new StringMorph('', px(20), null, false, false, false, null, null, textColor, 'Arial');
+		this.searchText.render = renderBlockString;
 		this.searchText.isEditable = true;
-		this.searchText.color = textColor;
 		this.searchText.setPosition(this.morph.position().add(new Point(px(40), px(8))));
 		this.morph.add(this.searchText);
-		this.hintText = new StringMorph(localized('search blocks and variables...'), px(20));
-		this.hintText.color = hintColor;
+		this.hintText = new StringMorph(localized('search blocks and variables...'), px(20), null, false, false,
+			false, null, null, hintColor, 'Arial');
+		this.hintText.render = renderBlockString;
 		this.hintText.setPosition(this.searchText.position());
 		this.morph.add(this.hintText);
 
