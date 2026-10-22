@@ -3035,8 +3035,43 @@ HandMorph.prototype.grab = function (aMorph) {
 	this.grabWithoutTellingChrome(aMorph);
 	if (inset && (aMorph.parent === this)) this.grabOrigin = origin; // slide back to where it lay
 	if (wasEmpty && isScripts && (aMorph.parent === this)) {
+		this.cachedFullImage = zoomedFullImage(aMorph);
 		fireIDEEvent('dragstart');
 	}
+};
+
+// The hand's picture of what it holds, taken at the world's zoom, as a running script's
+// outline is: morphic's fullImage has the retina ratio only, so at 200% a held block
+// was drawn at half the screen's resolution and scaled up.
+function zoomedFullImage(aMorph) {
+	var k = ZOOM,
+		bounds = aMorph.fullBounds(),
+		img = newCanvas(bounds.extent().multiplyBy(k)),
+		ctx = img.getContext('2d');
+	ctx.scale(k, k);
+	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	aMorph.fullDrawOn(ctx, bounds);
+	img.unitsPerPixel = 1 / k;
+	return img;
+}
+
+HandMorph.prototype.fullDrawOnUnzoomed = HandMorph.prototype.fullDrawOn;
+HandMorph.prototype.fullDrawOn = function (ctx, rect) {
+	// A picture taken at the zoom is scaled back to the bounds it was taken from.
+	var pic = this.cachedFullImage,
+		k = pic && pic.unitsPerPixel,
+		fb = this.cachedFullBounds,
+		clipped = fb && rect.intersect(fb);
+
+	if (!k || !fb) return this.fullDrawOnUnzoomed(ctx, rect);
+	if (!clipped.extent().gt(ZERO)) return;
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.drawImage(pic, fb.left(), fb.top(), pic.width * k, pic.height * k);
+	ctx.restore();
 };
 
 HandMorph.prototype.dropWithoutTellingChrome = HandMorph.prototype.drop;
