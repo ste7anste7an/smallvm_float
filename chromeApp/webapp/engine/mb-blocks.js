@@ -1068,12 +1068,12 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	// adjust CSlots and collect holes
 	this.holes = [];
 	parts.forEach(part => {
-		var adjustMultiWidth = 0;
 		if (part instanceof CSlotMorph ||
 			(part.slotSpec && part.slotSpec.includes('%cmd'))
 		) {
-			part.bounds.setWidth(blockWidth - this.edge);
-			adjustMultiWidth = this.corner + this.edge;
+			// end the slot at my right edge (it starts 9 units in, so my width less
+			// that offset), or it catches clicks beside my arms where nothing is drawn
+			part.bounds.setWidth(blockWidth - (part.left() - this.left()));
 		}
 		part.fixHolesLayout();
 		this.holes.push.apply(
