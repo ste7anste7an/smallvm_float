@@ -3049,15 +3049,31 @@ HandMorph.prototype.grab = function (aMorph) {
 // outline is: morphic's fullImage has the retina ratio only, so at 200% a held block
 // was drawn at half the screen's resolution and scaled up. A command block's outline
 // reaches half its width past its bounds, so the picture takes in a screen pixel more
-// all round, or its top and left edges would be cut to half their width.
+// all round, or its top and left edges would be cut to half their width. The shadow is
+// cast here too, from the picture, as GP casts it from the block's texture: morphic's
+// shadow is an image at the retina ratio only, which at 200% blurs its edges.
 HandMorph.prototype.takePicture = function (aMorph) {
 	var k = ZOOM,
+		shadow = aMorph.getShadow(),
 		bounds = aMorph.fullBounds().expandBy(1 / k),
 		img = newCanvas(bounds.extent().multiplyBy(k)),
-		ctx = img.getContext('2d');
+		ctx = img.getContext('2d'),
+		pic;
 	ctx.scale(k, k);
 	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	if (shadow) shadow.isVisible = false;
 	aMorph.fullDrawOn(ctx, bounds);
+	if (shadow) {
+		shadow.isVisible = true;
+		// GP's numbers, as BlockMorph.addShadow's; a canvas shadow is in screen pixels
+		pic = newCanvas(bounds.extent().multiplyBy(k));
+		ctx = pic.getContext('2d');
+		ctx.shadowColor = 'rgba(0,0,0,' + (60 / 255) + ')';
+		ctx.shadowOffsetX = ctx.shadowOffsetY = 7;
+		ctx.shadowBlur = 1;
+		ctx.drawImage(img, 0, 0, img.width, img.height);
+		img = pic;
+	}
 	img.unitsPerPixel = 1 / k;
 	this.cachedFullImage = img;
 	this.cachedFullBounds = bounds;
