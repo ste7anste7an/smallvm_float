@@ -3248,7 +3248,14 @@ HandMorph.prototype.cursorFor = function (morph) {
 	if (morph === MB_editor.paletteResizer) return 'ew-resize';
 	for (let m = morph; m; m = m.parent) {
 		if (m instanceof MicroBitDisplaySlotMorph) return 'crosshair'; // drawn on with the pointer
-		if (m instanceof BlockExpanderMorph) return 'pointer';
+		if (
+			(m instanceof TriggerMorph) ||
+			(m instanceof SlotArrowMorph) ||
+			(m instanceof BooleanSlotMorph) ||
+			(m instanceof BlockExpanderMorph)
+		) {
+			return 'pointer';
+		}
 		if (((m instanceof StringMorph) || (m instanceof TextMorph)) && m.isEditable) return 'text';
 		if (m instanceof SliderMorph) return 'move';
 		if ((m instanceof HandleMorph) && ('resize' === m.type)) return 'nwse-resize';
