@@ -3193,6 +3193,7 @@ MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
 	ctx.lineWidth = this.border;
+	ctx.lineJoin = 'round'; // GP strokes the screen's paths round, which blunts the tail's tip
 	ctx.strokeStyle = this.borderColor.toString();
 	ctx.stroke();
 };
