@@ -3436,7 +3436,8 @@ CommandBlockMorph.prototype.snap = function (hand) {
 
 CommandBlockMorph.prototype.setWrapHeight = function (h) {
 	// Stretch my first C slot to h while it is empty, or back to its own height for null.
-	// The hand draws a picture taken when it grabbed me, so a held block takes a new one.
+	// The hand draws a picture taken when it grabbed me, so a held block takes a new one,
+	// at the zoom as the grab's was.
 	var cslot = detect(this.inputs(), each => each instanceof CSlotMorph),
 		hand = this.parent instanceof HandMorph ? this.parent : null;
 
@@ -3447,7 +3448,7 @@ CommandBlockMorph.prototype.setWrapHeight = function (h) {
 		hand.changed();
 		this.removeShadow();
 		this.addShadow();
-		hand.cachedFullImage = this.fullImage();
+		hand.cachedFullImage = zoomedFullImage(this);
 		hand.cachedFullBounds = this.fullBounds();
 		hand.changed();
 	}
