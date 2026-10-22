@@ -2655,6 +2655,10 @@ BlockMorph.prototype.outlineColor = function () {
 };
 
 BlockMorph.prototype.render = function (ctx) {
+	// in the world the outline stays one screen pixel wide at every block size
+	var width = this.flatEdge / (this.world() ? ZOOM : 1),
+		out = this.outlineOutset();
+
 	this.cachedClr = this.color.toString();
 	this.cachedClrBright = this.bright();
 	this.cachedClrDark = this.outlineColor().toString();
@@ -2662,16 +2666,56 @@ BlockMorph.prototype.render = function (ctx) {
 	// draw the outline
 	ctx.fillStyle = this.cachedClrDark;
 	ctx.beginPath();
-	this.outlinePath(ctx, 0);
+	this.outlinePath(ctx, -out);
 	ctx.closePath();
 	ctx.fill();
 
-	// the inner shape; in the world the outline stays one screen pixel at every block size
+	// the inner shape
 	ctx.fillStyle = this.cachedClr;
 	ctx.beginPath();
-	this.outlinePath(ctx, this.flatEdge / (this.world() ? ZOOM : 1));
+	this.outlinePath(ctx, width - out);
 	ctx.closePath();
 	ctx.fill();
+};
+
+BlockMorph.prototype.outlineOutset = function () {
+	// How far my outline reaches past my bounds. A reporter's lies inside them,
+	// as GP draws it; command and hat blocks override this.
+	return 0;
+};
+
+// A command block's outline reaches past my bounds: draw it, and redraw it when I change.
+
+BlockMorph.prototype.drawOn = function (ctx, rect) {
+	var clipped = rect.intersect(this.bounds.expandBy(this.outlineOutset())),
+		pos = this.position();
+
+	if (!clipped.extent().gt(ZERO)) {return; }
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.translate(pos.x, pos.y);
+	this.render(ctx);
+	ctx.restore();
+};
+
+BlockMorph.prototype.changed = function () {
+	var w = this.root();
+	if (w instanceof WorldMorph) {
+		w.broken.push(this.visibleBounds().expandBy(this.outlineOutset()).spread());
+	}
+	if (this.parent) {
+		this.parent.childChanged(this);
+	}
+};
+
+BlockMorph.prototype.fullChanged = function () {
+	var w = this.root();
+	if (w instanceof WorldMorph) {
+		w.broken.push(this.fullBounds().expandBy(this.outlineOutset()).spread());
+	}
 };
 
 BlockMorph.prototype.cSlots = function () {
@@ -3505,6 +3549,12 @@ SyntaxElementMorph.prototype.bottomTab = function (ctx, left, y, inset) {
 };
 
 // CommandBlockMorph drawing:
+
+CommandBlockMorph.prototype.outlineOutset = function () {
+	// Half the outline's width: GP strokes a command or hat block's outline
+	// centred on its edge, so half of it lies outside my bounds.
+	return this.flatEdge / (this.world() ? 2 * ZOOM : 2);
+};
 
 CommandBlockMorph.prototype.outlinePath = function(ctx, inset) {
 	var pos = this.position();
@@ -5954,6 +6004,9 @@ TemplateSlotMorph.prototype.outlinePath =
 TemplateSlotMorph.prototype.cSlots = function () {
 	return [];
 };
+
+TemplateSlotMorph.prototype.outlineOutset =
+	BlockMorph.prototype.outlineOutset;
 
 // BooleanSlotMorph ////////////////////////////////////////////////////
 
