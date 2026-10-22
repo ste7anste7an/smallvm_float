@@ -2726,9 +2726,18 @@ BlockMorph.prototype.highlight = function (color, blur, border) {
 };
 
 BlockMorph.prototype.highlightImage = function (color, border) {
-	var fb, img, hi, ctx, out;
-	fb = this.fullBounds().extent();
-	this.doWithAlpha(1, () => img = this.fullImage());
+	// Drawn at the world's zoom, so the outline's edges stay sharp when the
+	// script's edge falls between canvas pixels at a large block size.
+	var k = this.world() ? ZOOM : 1,
+		bounds = this.fullBounds(),
+		fb = bounds.extent().multiplyBy(k),
+		img, hi, ctx, out;
+	img = newCanvas(fb);
+	ctx = img.getContext('2d');
+	ctx.scale(k, k);
+	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	this.doWithAlpha(1, () => this.fullDrawOn(ctx, bounds));
+	border *= k;
 
 	hi = newCanvas(fb.add(border * 2));
 	ctx = hi.getContext('2d');
@@ -2751,7 +2760,7 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	ctx.globalCompositeOperation = 'source-atop';
 	ctx.fillStyle = color.toString();
 	ctx.fillRect(0, 0, out.width, out.height);
-
+	out.unitsPerPixel = 1 / k;
 	return out;
 };
 
@@ -2887,7 +2896,10 @@ BlockMorph.prototype.hasLabels = function () {
 
 BlockMorph.prototype.fullCopy = function () {
 	if (this.isPrototype) { // a prototype is copied as a call of its block
-		return MB_editor.blockForFunction(MB_editor.project.functionNamed(this.topBlock().definedFunctionName()));
+		// placed where I am, so the hand holds the call where it held me
+		const call = MB_editor.blockForFunction(MB_editor.project.functionNamed(this.topBlock().definedFunctionName()));
+		call.setPosition(this.position());
+		return call;
 	}
 	var ans = BlockMorph.uber.fullCopy.call(this);
 	ans.removeHighlight();
@@ -2994,6 +3006,22 @@ BlockMorph.prototype.prepareToBeGrabbed = function (hand) {
 
 BlockMorph.prototype.justDropped = function () {
 	delete this.alpha;
+	// a scripts pane puts a wrapping C slot back in snap, once it has chosen the target
+	if (this.setWrapHeight && !(this.parent instanceof ScriptsMorph)) this.setWrapHeight(null);
+};
+
+// A held block casts GP's shadow: black at 60/255, 7 screen pixels down and right, blurred
+// by 1, so it reads as a hard-edged copy of the block's shape. A shadow asked for with an
+// offset (a relabel menu's picture) keeps morphic's.
+BlockMorph.prototype.addShadow = function (off, a, color) {
+	if (off) return BlockMorph.uber.addShadow.call(this, off, a, color);
+	this.shadowBlur = 1 / ZOOM;
+	try {
+		return BlockMorph.uber.addShadow.call(
+			this, new Point(7 / ZOOM, 7 / ZOOM), 60 / 255);
+	} finally {
+		delete this.shadowBlur;
+	}
 };
 
 // The chrome lets a dragged block pass over its panels between the 'dragstart' and 'dragend'
@@ -3012,8 +3040,62 @@ HandMorph.prototype.grab = function (aMorph) {
 	this.grabWithoutTellingChrome(aMorph);
 	if (inset && (aMorph.parent === this)) this.grabOrigin = origin; // slide back to where it lay
 	if (wasEmpty && isScripts && (aMorph.parent === this)) {
+		this.takePicture(aMorph);
 		fireIDEEvent('dragstart');
 	}
+};
+
+// The hand's picture of what it holds, taken at the world's zoom, as a running script's
+// outline is: morphic's fullImage has the retina ratio only, so at 200% a held block
+// was drawn at half the screen's resolution and scaled up. A command block's outline
+// reaches half its width past its bounds, so the picture takes in a screen pixel more
+// all round, or its top and left edges would be cut to half their width. The shadow is
+// cast here too, from the picture, as GP casts it from the block's texture: morphic's
+// shadow is an image at the retina ratio only, which at 200% blurs its edges.
+HandMorph.prototype.takePicture = function (aMorph) {
+	var k = ZOOM,
+		shadow = aMorph.getShadow(),
+		bounds = aMorph.fullBounds().expandBy(1 / k),
+		img = newCanvas(bounds.extent().multiplyBy(k)),
+		ctx = img.getContext('2d'),
+		pic;
+	ctx.scale(k, k);
+	ctx.translate(-bounds.origin.x, -bounds.origin.y);
+	if (shadow) shadow.isVisible = false;
+	aMorph.fullDrawOn(ctx, bounds);
+	if (shadow) {
+		shadow.isVisible = true;
+		// GP's numbers, as BlockMorph.addShadow's; a canvas shadow is in screen pixels
+		pic = newCanvas(bounds.extent().multiplyBy(k));
+		ctx = pic.getContext('2d');
+		ctx.shadowColor = 'rgba(0,0,0,' + (60 / 255) + ')';
+		ctx.shadowOffsetX = ctx.shadowOffsetY = 7;
+		ctx.shadowBlur = 1;
+		ctx.drawImage(img, 0, 0, img.width, img.height);
+		img = pic;
+	}
+	img.unitsPerPixel = 1 / k;
+	this.cachedFullImage = img;
+	this.cachedFullBounds = bounds;
+};
+
+HandMorph.prototype.fullDrawOnUnzoomed = HandMorph.prototype.fullDrawOn;
+HandMorph.prototype.fullDrawOn = function (ctx, rect) {
+	// A picture taken at the zoom is scaled back to the bounds it was taken from.
+	var pic = this.cachedFullImage,
+		k = pic && pic.unitsPerPixel,
+		fb = this.cachedFullBounds,
+		clipped = fb && rect.intersect(fb);
+
+	if (!k || !fb) return this.fullDrawOnUnzoomed(ctx, rect);
+	if (!clipped.extent().gt(ZERO)) return;
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.drawImage(pic, fb.left(), fb.top(), pic.width * k, pic.height * k);
+	ctx.restore();
 };
 
 HandMorph.prototype.dropWithoutTellingChrome = HandMorph.prototype.drop;
@@ -3311,6 +3393,7 @@ CommandBlockMorph.prototype.snap = function (hand) {
 		cslot,
 		affected;
 
+	this.setWrapHeight(null);
 	if (target === null) {
 		this.fixBlockColor();
 		return;
@@ -3367,6 +3450,25 @@ CommandBlockMorph.prototype.snap = function (hand) {
 	this.fixBlockColor();
 	if (this.snapSound) {
 		this.snapSound.play();
+	}
+};
+
+CommandBlockMorph.prototype.setWrapHeight = function (h) {
+	// Stretch my first C slot to h while it is empty, or back to its own height for null.
+	// The hand draws a picture taken when it grabbed me, so a held block takes a new one,
+	// at the zoom as the grab's was.
+	var cslot = detect(this.inputs(), each => each instanceof CSlotMorph),
+		hand = this.parent instanceof HandMorph ? this.parent : null;
+
+	if (!cslot || (cslot.wrapHeight === h)) return;
+	cslot.wrapHeight = h;
+	cslot.fixLayout();
+	if (hand) {
+		hand.changed();
+		this.removeShadow();
+		this.addShadow();
+		hand.takePicture(this);
+		hand.changed();
 	}
 };
 
@@ -4168,12 +4270,11 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	var target, element, x, y, w, h;
 
 	target = block.closestAttachTarget(this);
+	// held where it would wrap a stack, the block's C slot stretches to show the stack inside it
+	block.setWrapHeight(target && target.loc === 'wrap' ?
+		target.element.fullBounds().height() + (10 * block.scale) : null);
 	if (!target) {
 		return null;
-	}
-	if (target.loc === 'wrap') {
-		this.showCSlotWrapFeedback(block, target.element);
-		return;
 	}
 	this.add(this.feedbackMorph);
 	this.feedbackMorph.border = 0;
@@ -4184,7 +4285,7 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	h = SyntaxElementMorph.prototype.feedbackMinHeight / ZOOM;
 	x = element.left();
 	w = element.width();
-	if (target.loc === 'top') {
+	if (target.loc === 'top' || target.loc === 'wrap') {
 		y = element.top() - h;
 	} else if (target.type === 'slot') {
 		// a short bar just inside the C, a little lower when the slot is empty
@@ -4197,23 +4298,6 @@ ScriptsMorph.prototype.showCommandDropFeedback = function (block) {
 	}
 	this.feedbackMorph.bounds = new Rectangle(x, y, x + w, y + h);
 	this.feedbackMorph.changed();
-};
-
-ScriptsMorph.prototype.showCSlotWrapFeedback = function (srcBlock, trgBlock) {
-	var clr;
-	this.feedbackMorph.bounds = trgBlock.fullBounds()
-		.expandBy(BlockMorph.prototype.corner);
-	this.feedbackMorph.edge = SyntaxElementMorph.prototype.corner;
-	this.feedbackMorph.border = Math.max(
-		SyntaxElementMorph.prototype.edge,
-		3
-	);
-	this.add(this.feedbackMorph);
-	clr = this.feedbackColor;
-	this.feedbackMorph.color = clr.copy();
-	this.feedbackMorph.color.a = 0.1;
-	this.feedbackMorph.borderColor = clr;
-	this.feedbackMorph.rerender();
 };
 
 ScriptsMorph.prototype.closestInput = function (reporter) {
@@ -4968,6 +5052,8 @@ CSlotMorph.prototype.getSpec = function () {
 
 // CSlotMorph layout:
 
+CSlotMorph.prototype.wrapHeight = null; // set while the held block would wrap a stack
+
 CSlotMorph.prototype.fixLayout = function () {
 	var nb = this.nestedBlock();
 	if (nb) {
@@ -4977,7 +5063,7 @@ CSlotMorph.prototype.fixLayout = function () {
 			nb.fullBounds().width() + (this.cSlotPadding * 2)
 		);
 	} else {
-		this.bounds.setHeight(this.corner * 4 + this.cSlotPadding); // default
+		this.bounds.setHeight(this.wrapHeight || (this.corner * 4 + this.cSlotPadding)); // default, unless wrapping
 		this.bounds.setWidth(
 			this.corner * 4
 				+ (this.inset * 2)
@@ -6788,6 +6874,22 @@ function BlockHighlightMorph() {
 BlockHighlightMorph.prototype.init = function () {
 	BlockHighlightMorph.uber.init.call(this);
 	this.isCachingImage = true;
+};
+
+BlockHighlightMorph.prototype.drawOn = function (ctx, rect) {
+	// The image is drawn at the world's zoom, so it is scaled back to my bounds.
+	var pic = this.cachedImage,
+		k = (pic && pic.unitsPerPixel) || 1,
+		clipped = rect.intersect(this.bounds);
+
+	if (!pic || !clipped.extent().gt(ZERO)) return;
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.drawImage(pic, this.left(), this.top(), pic.width * k, pic.height * k);
+	ctx.restore();
 };
 
 // BlockHighlightMorph thread count readout
