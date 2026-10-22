@@ -614,6 +614,7 @@ class MB_BlockSearchBox {
 			}
 			item.rerender();
 		}
+		if (this.matches.length > 0) this.layOutRows(menu);
 		menu.rerender();
 		menu.setPosition(this.morph.bottomLeft());
 		if (menu.right() > world.right()) menu.setLeft(Math.max(world.left(), world.right() - menu.width()));
@@ -637,6 +638,25 @@ class MB_BlockSearchBox {
 		world.activeMenu = menu;
 		menu.world = world;
 		menu.fullChanged();
+	}
+
+	layOutRows(menu) {
+		// GP's menu of pictures (Menu's buildMorph): every row the menu's full width one
+		// pixel inside its border, with no gap above the first, and its picture 6 pixels
+		// in and 1 down. Morphic insets its rows by 4 and its labels by 4 more.
+
+		const px = screenPixels;
+		const items = menu.children;
+		const w = Math.max(...items.map((m) => (m instanceof MenuItemMorph) ? m.label.width() : 0)) + px(12);
+		let y = menu.top() + px(1);
+		for (const item of items) {
+			const isRow = item instanceof MenuItemMorph;
+			item.setPosition(new Point(menu.left() + px(1), y));
+			item.setExtent(new Point(w, isRow ? item.label.height() + px(2) : px(1)));
+			if (isRow) item.label.setPosition(item.position().add(new Point(px(6), px(1))));
+			y = item.bottom();
+		}
+		menu.setExtent(new Point(w + px(2), y + px(1) - menu.top()));
 	}
 
 	libraryLabel(libName) {
