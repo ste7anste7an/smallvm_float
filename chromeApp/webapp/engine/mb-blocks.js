@@ -1029,7 +1029,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 				if (!part.isBlockLabelBreak && part.isVisible) {
 					x += part.fullBounds().width() + space;
 					blockWidth = Math.max(blockWidth, part.fullBounds().right() - left);
-					lineHeight = Math.max(lineHeight, part.height());
+					lineHeight = Math.max(lineHeight, part.height(), part.isElseLine ? 18 * scale : 0);
 				}
 				if (part instanceof BlockExpanderMorph) drawer = part;
 			}
@@ -1037,8 +1037,10 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		});
 		line.forEach(part => {
 			var span = lineHeight + scale;
-			if (part.height() <= span) {
-				part.moveBy(new Point(0, blockHalf(span - part.height(), this.pixelsPerUnit || 2 * ZOOM)));
+			// the "else" label sits at the top of the 18 unit slot it replaces, and the slot is what is centred
+			var partHeight = part.isElseLine ? 18 * scale : part.height();
+			if (partHeight <= span) {
+				part.moveBy(new Point(0, blockHalf(span - partHeight, this.pixelsPerUnit || 2 * ZOOM)));
 			}
 		});
 		lineHeights.push(lineHeight);
@@ -1078,12 +1080,12 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	// adjust CSlots and collect holes
 	this.holes = [];
 	parts.forEach(part => {
-		var adjustMultiWidth = 0;
 		if (part instanceof CSlotMorph ||
 			(part.slotSpec && part.slotSpec.includes('%cmd'))
 		) {
-			part.bounds.setWidth(blockWidth - this.edge);
-			adjustMultiWidth = this.corner + this.edge;
+			// end the slot at my right edge (it starts 9 units in, so my width less
+			// that offset), or it catches clicks beside my arms where nothing is drawn
+			part.bounds.setWidth(blockWidth - (part.left() - this.left()));
 		}
 		part.fixHolesLayout();
 		this.holes.push.apply(
@@ -2162,6 +2164,7 @@ BlockMorph.prototype.fixElseSection = function () {
 		labels.forEach((label, j) => {
 			if (label.isVisible !== (!isElse || (j === 0))) changed = true;
 			label.isVisible = !isElse || (j === 0);
+			label.isElseLine = isElse && (j === 0);
 			const text = (isElse && (j === 0)) ? localized('else') : words[j];
 			if (text && (label.text !== text)) {
 				label.text = text;
@@ -2665,7 +2668,17 @@ BlockMorph.prototype.outlineColor = function () {
 		Math.trunc(255 * rgb[0]), Math.trunc(255 * rgb[1]), Math.trunc(255 * rgb[2]), this.color.a);
 };
 
+BlockMorph.prototype.isDrawnAtZoom = function () {
+	// The world draws me at its zoom, and so does a picture of me that sets
+	// drawnAtZoom on my top block. An exported picture is drawn at scale 1.
+	return !!(this.world() || this.root().drawnAtZoom);
+};
+
 BlockMorph.prototype.render = function (ctx) {
+	// drawn at the world's zoom the outline stays one screen pixel wide at every block size
+	var width = this.flatEdge / (this.isDrawnAtZoom() ? ZOOM : 1),
+		out = this.outlineOutset();
+
 	this.cachedClr = this.color.toString();
 	this.cachedClrBright = this.bright();
 	this.cachedClrDark = this.outlineColor().toString();
@@ -2673,16 +2686,56 @@ BlockMorph.prototype.render = function (ctx) {
 	// draw the outline
 	ctx.fillStyle = this.cachedClrDark;
 	ctx.beginPath();
-	this.outlinePath(ctx, 0);
+	this.outlinePath(ctx, -out);
 	ctx.closePath();
 	ctx.fill();
 
-	// the inner shape; in the world the outline stays one screen pixel at every block size
+	// the inner shape
 	ctx.fillStyle = this.cachedClr;
 	ctx.beginPath();
-	this.outlinePath(ctx, this.flatEdge / (this.world() ? ZOOM : 1));
+	this.outlinePath(ctx, width - out);
 	ctx.closePath();
 	ctx.fill();
+};
+
+BlockMorph.prototype.outlineOutset = function () {
+	// How far my outline reaches past my bounds. A reporter's lies inside them,
+	// as GP draws it; command and hat blocks override this.
+	return 0;
+};
+
+// A command block's outline reaches past my bounds: draw it, and redraw it when I change.
+
+BlockMorph.prototype.drawOn = function (ctx, rect) {
+	var clipped = rect.intersect(this.bounds.expandBy(this.outlineOutset())),
+		pos = this.position();
+
+	if (!clipped.extent().gt(ZERO)) {return; }
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.translate(pos.x, pos.y);
+	this.render(ctx);
+	ctx.restore();
+};
+
+BlockMorph.prototype.changed = function () {
+	var w = this.root();
+	if (w instanceof WorldMorph) {
+		w.broken.push(this.visibleBounds().expandBy(this.outlineOutset()).spread());
+	}
+	if (this.parent) {
+		this.parent.childChanged(this);
+	}
+};
+
+BlockMorph.prototype.fullChanged = function () {
+	var w = this.root();
+	if (w instanceof WorldMorph) {
+		w.broken.push(this.fullBounds().expandBy(this.outlineOutset()).spread());
+	}
 };
 
 BlockMorph.prototype.cSlots = function () {
@@ -3618,6 +3671,12 @@ SyntaxElementMorph.prototype.bottomTab = function (ctx, left, y, inset) {
 };
 
 // CommandBlockMorph drawing:
+
+CommandBlockMorph.prototype.outlineOutset = function () {
+	// Half the outline's width: GP strokes a command or hat block's outline
+	// centred on its edge, so half of it lies outside my bounds.
+	return this.flatEdge / (this.isDrawnAtZoom() ? 2 * ZOOM : 2);
+};
 
 CommandBlockMorph.prototype.outlinePath = function(ctx, inset) {
 	var pos = this.position();
@@ -5117,38 +5176,35 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	var ox = offset.x,
 		oy = offset.y,
 		radius = Math.max(this.corner - inset, 0),
+		// the arms end at the block's right edge, not at the slot's, which reaches past it
+		right = this.parent.width(),
+		top = oy + this.scale, // the opening's top edge, level with a nested block's top
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
-		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height(),
+		bottom = nb ? nb.bottom() - nb.corner - this.top() + this.corner : this.height() - (2 * this.scale),
 		// with blocks inside, the inner edge straddles their left side, which covers part of it
 		shift = nb ? this.flatEdge : 0;
 
-	// top corner:
-	ctx.lineTo(this.width() + ox - inset, oy);
-
-	// top right:
+	// upper arm's right end:
+	ctx.lineTo(right - inset, top - this.corner);
 	ctx.arc(
-		this.width() - this.corner + ox,
-		oy,
+		right - this.corner,
+		top - this.corner,
 		radius,
-		radians(90),
 		radians(0),
-		true
+		radians(90),
+		false
 	);
 
 	// jigsaw shape:
-	ctx.lineTo(
-		this.width() - this.corner + ox,
-		this.corner + oy - inset
-	);
-	this.bottomTab(ctx, this.inset + ox, this.corner + oy, inset);
+	this.bottomTab(ctx, this.inset + ox, top, inset);
 	ctx.lineTo(
 		this.inset + this.corner + shift + ox,
-		this.corner + oy - inset
+		top - inset
 	);
 	ctx.arc(
 		this.inset + this.corner + shift + ox,
-		this.corner * 2 + oy,
+		top + this.corner,
 		this.corner + inset,
 		radians(270),
 		radians(180),
@@ -5172,11 +5228,11 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		true
 	);
 	ctx.lineTo(
-		this.width() - this.corner + ox,
+		right - this.corner,
 		bottom - this.corner + oy + inset
 	);
 	ctx.arc(
-		this.width() - this.corner + ox,
+		right - this.corner,
 		bottom + oy,
 		radius,
 		radians(-90),
@@ -6053,6 +6109,9 @@ TemplateSlotMorph.prototype.cSlots = function () {
 	return [];
 };
 
+TemplateSlotMorph.prototype.outlineOutset =
+	BlockMorph.prototype.outlineOutset;
+
 // BooleanSlotMorph ////////////////////////////////////////////////////
 
 /*
@@ -6479,12 +6538,31 @@ ColorSlotMorph.prototype.fixLayout = function () {
 	this.bounds.setHeight(side);
 };
 
+ColorSlotMorph.prototype.drawOn = function (ctx, rect) {
+	// As Morph's drawOn, but the clip runs half a unit past my edge so the
+	// ring render strokes there is not cut off. My block is drawn first, so
+	// the margin lands on it.
+	var clipped = rect.intersect(this.bounds.expandBy(this.scale / 2)),
+		pos = this.position();
+
+	if (!clipped.extent().gt(ZERO)) {return; }
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.translate(pos.x, pos.y);
+	this.render(ctx);
+	ctx.restore();
+};
+
 ColorSlotMorph.prototype.render = function (ctx) {
-	// A dark gray ring one unit wide, its outer edge on my edge.
+	// A dark gray ring one unit wide, centred on a circle as wide as me, as
+	// GP strokes it, so it reaches half a unit past my edge (see drawOn).
 	let radius = this.width() / 2;
 
 	ctx.beginPath();
-	ctx.arc(radius, radius, radius - (this.scale / 2), 0, 2 * Math.PI);
+	ctx.arc(radius, radius, radius, 0, 2 * Math.PI);
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
 	ctx.lineWidth = this.scale;
