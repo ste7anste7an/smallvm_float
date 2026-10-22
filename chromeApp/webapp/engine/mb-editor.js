@@ -1525,9 +1525,10 @@ console.log('unknown');
 
 		const names = this.visibleVars();
 		if (0 === names.length) return;
-		const menu = new MenuMorph((choice) => this.deleteVariable(choice));
-		for (const name of names) menu.addItem(name, name);
-		menu.popUpAtHand(this.palette.world());
+		const world = this.palette.world();
+		const items = names.map((name) => [name, () => this.deleteVariable(name)]);
+		// After the click that asked for it, which would otherwise close it.
+		setTimeout(() => chromeMenuFor(world, items));
 	}
 
 	createVariable(name) {
