@@ -4148,10 +4148,12 @@ ReporterBlockMorph.prototype.outlinePath = function (ctx, inset) {
 
 ReporterBlockMorph.prototype.outlinePathOval = function (ctx, inset) {
 	// draw the 'flat' shape
+	// A block narrower than it is tall (a one-letter variable) rounds to half
+	// its width, or the corner arcs cross and leave a point top and bottom.
 	var h = this.height(),
-		r = Math.min(this.rounding, h / 2),
-		radius = Math.max(r - inset, 0),
 		w = this.width(),
+		r = Math.min(this.rounding, h / 2, w / 2),
+		radius = Math.max(r - inset, 0),
 		pos = this.position();
 
 	// top left:
