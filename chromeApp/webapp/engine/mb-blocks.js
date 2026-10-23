@@ -331,7 +331,7 @@ SyntaxElementMorph.prototype.setScale = function (num) {
 	this.flatEdge = scale; // outline width
 	this.edge = 5 * scale; // determines width of vertical part of C-shaped block
 	this.inset = 5 * scale; // inset from left edge is: this.corner + (2 * this.inset)
-	this.hatHeight = blockHalf(2 * ((80 * scale / Math.sqrt(2)) - (40 * scale)));
+	this.hatHeight = (80 * scale / Math.sqrt(2)) - (40 * scale);
 	this.hatWidth = 80 * scale;
 	this.rfBorder = 3 * scale;
 	this.dent = 8 * scale;
@@ -962,6 +962,8 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		indent = (this instanceof HatBlockMorph) ? 7 * scale
 			: (this instanceof ReporterBlockMorph) ? 6 * scale : 8 * scale,
 		lineHeights = [],
+		// the hat's rise, in whole device pixels at the current zoom
+		hatHeight = blockHalf(2 * this.hatHeight, this.pixelsPerUnit || 2 * ZOOM),
 		lastPart = null,
 		drawer = null;
 
@@ -1013,7 +1015,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	// distribute parts on lines, each line centred on its tallest part
 	y = this.top() + (3 * scale);
 	if (this instanceof HatBlockMorph) {
-		y += this.hatHeight;
+		y += hatHeight;
 	}
 	lines.forEach((line, i) => {
 		x = left + indent;
@@ -1058,7 +1060,7 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 		}
 	}
 	if (this instanceof HatBlockMorph) {
-		blockHeight += (7 * scale) + this.hatHeight;
+		blockHeight += (7 * scale) + hatHeight;
 	} else if (this instanceof CommandBlockMorph) {
 		blockHeight += 7 * scale;
 	} else {
@@ -3917,7 +3919,7 @@ HatBlockMorph.prototype.outlinePath = function(ctx, inset) {
 		bottomCorner = this.height() - this.corner * 2,
 		radius = Math.max(this.corner - inset, 0),
 		s = this.hatWidth,
-		h = (s / Math.sqrt(2)) - (s / 2), // the flat top; hatHeight is this rounded for the layout
+		h = (s / Math.sqrt(2)) - (s / 2), // the flat top; the layout rounds it to whole device pixels
 		pos = this.position();
 
 	// top curve: one arch from the left edge to hatWidth, a fifth of hatWidth high
