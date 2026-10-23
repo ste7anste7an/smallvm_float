@@ -5225,7 +5225,7 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		top = oy + this.scale, // the opening's top edge, level with a nested block's top
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
-		bottom = nb ? this.armTop(nb) - this.top() + this.corner : this.height(),
+		bottom = nb ? this.armTop(nb) - this.top() + this.corner : this.height() - (2 * this.scale),
 		// with blocks inside, the inner edge straddles their left side, which covers part of it
 		shift = nb ? this.flatEdge : 0;
 
