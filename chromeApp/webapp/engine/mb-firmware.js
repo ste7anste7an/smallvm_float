@@ -227,9 +227,7 @@ MB_Firmware.installDFUFirmware = function (boardName) {
 // ESP boards
 
 MB_Firmware.installFirmwareFile = function (fileName, data) {
-	// Install a firmware file the user dropped on an ESP32 board, without erasing Flash.
-	// ESP8266 firmware is named after its board, and is not installed yet.
-	if (/8266|nodemcu|d1mini/i.test(fileName)) return this.notSupportedYet(fileName);
+	// Install a firmware file the user dropped on an ESP board, without erasing Flash.
 	return this.flashVM(fileName, false, data);
 }
 

@@ -4,7 +4,7 @@
 //
 // Copyright 2026 John Maloney, Bernat Romagosa, and Jens Mönig
 
-// mb-esptool.js - Installing the firmware on ESP32 boards through the chip's ROM boot loader
+// mb-esptool.js - Installing the firmware on ESP8266 and ESP32 boards through the chip's ROM boot loader
 // Sam McHardy, October 2026
 
 // About SLIP:
@@ -248,7 +248,9 @@ class MB_ESPTool {
 			console.log('Could not fetch or read VM');
 			return this.done(false);
 		}
-		const ok = await this.uploadESP32VM(vmData, eraseFlag, boardName);
+		const ok = ('ESP8266' == MB_ESPTool.imageChip(vmData)) ?
+			await this.uploadESP8266VM(vmData, eraseFlag) :
+			await this.uploadESP32VM(vmData, eraseFlag, boardName);
 		if (!ok) return this.done(false);
 		this.status = localized('Done');
 		fireIDEEvent('spinner.hide');
@@ -267,6 +269,17 @@ class MB_ESPTool {
 	}
 
 	// --- Uploading data to the board ---
+
+	async uploadESP8266VM(vmData, eraseFlag) {
+		if (!(await this.connect())) {
+			this.failure = 'noResponse';
+			return false;
+		}
+		if (!(await this.uploadStub())) return false;
+		if (eraseFlag) await this.eraseFlash();
+		// the image starts with its own boot loader and loads at address 0
+		return this.uploadCompressed(0, vmData);
+	}
 
 	async uploadESP32VM(vmData, eraseFlag, boardName) {
 		if (!(await this.connect())) {
@@ -408,6 +421,21 @@ class MB_ESPTool {
 	}
 
 	// --- Data ---
+
+	static imageChip(data) {
+		// Answer the chip a firmware image was built for, or null if data is not an image.
+		// A merged ESP32 image is blank up to its boot loader at 0x1000.
+		if (0xea == data[0]) return 'ESP8266'; // the ESP8266's second image format
+		const start = (0xff == data[0]) ? 0x1000 : 0;
+		if ((data.length < (start + 24)) || (0xe9 != data[start])) return null;
+		const entry = (data[start + 4] | (data[start + 5] << 8) | (data[start + 6] << 16) | (data[start + 7] << 24)) >>> 0;
+		if (0x4010 == (entry >>> 16)) return 'ESP8266'; // its images have no chip id; this is its IRAM
+		const chipID = data[start + 12] | (data[start + 13] << 8);
+		return {
+			0: 'ESP32', 2: 'ESP32-S2', 5: 'ESP32-C3', 9: 'ESP32-S3', 12: 'ESP32-C2',
+			13: 'ESP32-C6', 16: 'ESP32-H2', 18: 'ESP32-P4', 23: 'ESP32-C5',
+		}[chipID] || null;
+	}
 
 	static vmNameForBoard(boardName) {
 		return {
