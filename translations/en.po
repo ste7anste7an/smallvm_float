@@ -578,6 +578,18 @@ msgstr "serial read"
 msgid "serial write _"
 msgstr "serial write _"
 
+#. Block in Comm category
+msgid "rx pin _ tx pin _"
+msgstr "rx pin _ tx pin _"
+
+#. Block in Comm category
+msgid "stop _"
+msgstr "stop _"
+
+#. Block in Comm category
+msgid "bit order _"
+msgstr "bit order _"
+
 #. Example string. Tells the user this input accepts an integer, a string list or a byte array
 msgid "anIntegerStringListOrByteArray"
 msgstr "anIntegerStringListOrByteArray"
@@ -7419,6 +7431,14 @@ msgstr "snapshot code on board"
 msgid "Using %1 out of %2 bytes"
 msgstr "Using %1 out of %2 bytes"
 
+#. Firmware install by URL dialog
+msgid "ESP32 firmware URL?"
+msgstr "ESP32 firmware URL?"
+
+#. Firmware install download failure
+msgid "Could not download"
+msgstr "Could not download"
+
 #. Firmware install board type confirmation. As in "Use board type micro:bit?"
 msgid "Use board type"
 msgstr "Use board type"
@@ -7592,6 +7612,10 @@ msgstr "collapse"
 msgid "rename..."
 msgstr "rename..."
 
+#. Variable rename error message
+msgid "That name is already in use."
+msgstr "That name is already in use."
+
 #. Variable right-click context menu
 msgid "find variable accessors"
 msgstr "find variable accessors"
@@ -7683,6 +7707,14 @@ msgstr "duplicate these blocks"
 #. Block right-click context menu
 msgid "extract block"
 msgstr "extract block"
+
+#. Block right-click context menu
+msgid "delete obsolete block..."
+msgstr "delete obsolete block..."
+
+#. Block right-click context menu
+msgid "add to library"
+msgstr "add to library"
 
 #. Block right-click context menu tooltip
 msgid "pull out this block"
@@ -8133,6 +8165,10 @@ msgstr "user library"
 #. String in file picker and library dialogs
 msgid "Add Library"
 msgstr "Add Library"
+
+#. Add library error message
+msgid "A library with that name is already in the project. Remove it first to make a new one."
+msgstr "A library with that name is already in the project. Remove it first to make a new one."
 
 #. Placeholder text in the block search box (ctrl-space)
 msgid "search blocks and variables..."
