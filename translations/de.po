@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:43+0200\n"
-"PO-Revision-Date: 2026-10-23 07:32+0000\n"
+"PO-Revision-Date: 2026-10-24 12:51+0000\n"
 "Last-Translator: Ralf Krause <ralf.krause@users.noreply.hosted.weblate.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/microblocks/ide/"
 "de/>\n"
@@ -4070,8 +4070,7 @@ msgstr "zeigt (-o), wenn das Board mit der IDE verbunden ist."
 #. Tip Bar text for a block (at the bottom of the IDE, gives info on the currently hovered block or input)
 msgid "Set the SPI clock speed, mode, channel (Raspberry Pi only), and bit order."
 msgstr ""
-"Setzt SPI-Taktfrequenz, -Modus, -Kanal (nur Raspberry Pi) und Bit-"
-"Reihenfolge."
+"Setzt SPI-Taktfrequenz, -Modus, -Kanal (nur Raspberry Pi) und Bitreihenfolge."
 
 #. Cutebot Pro library block
 msgid "CBPro stop external motor"
@@ -9144,3 +9143,41 @@ msgstr "beide gegenläufig"
 #. CoCube library block
 msgid "wheels brake"
 msgstr "stoppe Räder hart"
+
+#. Block in Comm category
+msgid "rx pin _ tx pin _"
+msgstr "RX-Pin _ TX-Pin _"
+
+#. Block in Comm category
+msgid "stop _"
+msgstr "Stopp _"
+
+#. Block in Comm category
+msgid "bit order _"
+msgstr "Bitreihenfolge _"
+
+#. Firmware install by URL dialog
+msgid "ESP32 firmware URL?"
+msgstr "ESP32-Firmware-URL?"
+
+#. Firmware install download failure
+msgid "Could not download"
+msgstr "konnte nicht geladen werden"
+
+#. Variable rename error message
+msgid "That name is already in use."
+msgstr "Dieser Name wird bereits genutzt."
+
+#. Block right-click context menu
+msgid "delete obsolete block..."
+msgstr "lösche veralteten Block …"
+
+#. Block right-click context menu
+msgid "add to library"
+msgstr "füge zur Bibliothek hinzu"
+
+#. Add library error message
+msgid "A library with that name is already in the project. Remove it first to make a new one."
+msgstr ""
+"Eine Bibliothek mit diesem Namen ist bereits im Projekt vorhanden. Entferne "
+"sie zuerst, um eine neue zu erstellen."
