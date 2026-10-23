@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:43+0200\n"
-"PO-Revision-Date: 2026-10-19 08:42+0000\n"
+"PO-Revision-Date: 2026-10-23 07:32+0000\n"
 "Last-Translator: Ralf Krause <ralf.krause@users.noreply.hosted.weblate.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/microblocks/ide/"
 "de/>\n"
@@ -8736,7 +8736,7 @@ msgstr "Lautstärke _ (0-10)"
 
 #. MP3 Player library block
 msgid "rx pin _"
-msgstr "rx-Pin _"
+msgstr "RX-Pin _"
 
 #. Analog Synthesis library block
 msgid "set attack _ release _ for gate _"
