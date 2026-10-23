@@ -369,8 +369,12 @@ FloatingWindow.workspace = function(title, text) {
 		className: 'workspace'
 	});
 	win.popUp();
-	// we can't know the scroll height until the window has popped up
-	win.setSize(win.width, textarea.scrollHeight + 56, true);
+	// we can't know the scroll height until the window has popped up.
+	// A text taller than the page scrolls inside a window that fits on it.
+	let height = Math.min(textarea.scrollHeight + 56, window.innerHeight - 20);
+	win.setSize(win.width, height, true);
+	win.y = Math.min(win.y, window.innerHeight - height - 10);
+	win.style.top = win.y + 'px';
 	return win;
 };
 

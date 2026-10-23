@@ -9,12 +9,13 @@
 // Bernat Romagosa, 2026
 
 class LibraryInfoWindow extends FloatingWindow {
-	constructor(library) {
+	constructor(library, forEditing = IDE.isDevMode()) {
 		const contents = document.createElement('div');
-		const buttons = [{ label: 'Cancel', action: ()=>{}, closesWindow: true }];
-		if (IDE.isDevMode()) {
-			buttons.unshift({ label: 'Save', action: onSave, closesWindow: true });
-		}
+		// a read-only window is closed from its title bar
+		const buttons = forEditing ? [
+			{ label: 'Save', action: onSave, closesWindow: true },
+			{ label: 'Cancel', action: ()=>{}, closesWindow: true }
+		] : null;
 		super({
 			title: library.moduleName,
 			body: contents,
@@ -26,6 +27,7 @@ class LibraryInfoWindow extends FloatingWindow {
 		});
 		this.cachedLibraryName = library.moduleName;
 		this.library = library;
+		this.forEditing = forEditing;
 		this.fields = {};
 		contents.replaceWith(this.bodyDiv());
 
@@ -99,14 +101,14 @@ class LibraryInfoWindow extends FloatingWindow {
 		input.classList.add('window__input');
 		input.type = 'text';
 		input.value = value ?? this.library[selector];
-		input.readOnly = !IDE.isDevMode();
+		input.readOnly = !this.forEditing;
 		return input;
 	}
 
 	descriptionInput() {
 		let textarea = document.createElement('textarea');
 		textarea.textContent = this.library.description;
-		textarea.readOnly = !IDE.isDevMode();
+		textarea.readOnly = !this.forEditing;
 		return textarea;
 	}
 
@@ -129,7 +131,7 @@ class LibraryInfoWindow extends FloatingWindow {
 			text.innerText = 'None';
 			div.appendChild(text);
 		}
-		if (IDE.isDevMode()) {
+		if (this.forEditing) {
 			let addButton = document.createElement('button');
 			let removeButton = document.createElement('button');
 			addButton.classList.add('button-rounded');
