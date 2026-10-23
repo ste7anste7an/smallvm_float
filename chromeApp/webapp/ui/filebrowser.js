@@ -11,18 +11,17 @@
 class FileBrowser extends FloatingWindow {
 	constructor(purpose) {
 		const contents = document.createElement('div'),
-			sidebar = document.createElement('div'),
 			buttons = [
 				{ label: 'Open', action: onOpen, closesWindow: true },
 				{ label: 'Cancel', action: ()=>{}, closesWindow: true }
 			];
+
 		super({
 			title: { library: 'Load Library', project: 'Load Project' }[purpose],
 			body: contents,
-			sidebar: sidebar,
 			buttons: buttons,
-			height: 470,
-			width: 600,
+			minHeight: 470,
+			minWidth: 600,
 			resizable: true,
 			className: purpose
 		});
@@ -30,20 +29,32 @@ class FileBrowser extends FloatingWindow {
 		this.purpose = purpose;
 
 		contents.replaceWith(this.bodyDiv());
-		sidebar.replaceWith(this.sideDiv());
 
 		function onOpen() { this.loadSelectedFile(); }
+		function createLibrary() { this.createLibrary(); }
 	}
 
 	loadSelectedFile() {
 	}
 
+	createLibrary() {
+	}
+
 	bodyDiv() {
 		let div = document.createElement('div');
+		div.appendChild(this.sideDiv());
 		return div;
 	}
 	sideDiv() {
 		let div = document.createElement('div');
+		div.classList = 'sidebar';
+		if (this.purpose == 'library') {
+			let button = document.createElement('button');
+			button.innerHTML = '<l->New Library</l->';
+			button.classList.add('button-rounded');
+			button.onclick = this.createLibrary;
+			div.appendChild(button);
+		}
 		return div;
 	}
 }
