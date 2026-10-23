@@ -4,7 +4,7 @@
 //
 // Copyright 2026 John Maloney, Bernat Romagosa, and Jens Mönig
 
-// mb-esptool.js - Installing the firmware on ESP32 boards through the chip's ROM boot loader
+// mb-esptool.js - Installing the firmware on ESP8266 and ESP32 boards through the chip's ROM boot loader
 // Sam McHardy, October 2026
 
 // About SLIP:
@@ -19,7 +19,8 @@ class MB_ESPTool {
 		this.success = false;
 		this.allInOneBinary = false;
 		this.chipType = null;
-		this.failure = null; // after a failed install: 'noResponse' or 'failed'
+		this.fileChip = null; // the chip the firmware image was built for
+		this.failure = null; // after a failed install: 'noResponse', 'notFirmware', 'unsupportedChip', 'wrongChip' or 'failed'
 	}
 
 	// --- Connecting ---
@@ -248,7 +249,18 @@ class MB_ESPTool {
 			console.log('Could not fetch or read VM');
 			return this.done(false);
 		}
-		const ok = await this.uploadESP32VM(vmData, eraseFlag, boardName);
+		this.fileChip = MB_ESPTool.imageChip(vmData);
+		if (!this.fileChip) {
+			this.failure = 'notFirmware';
+			return this.done(false);
+		}
+		if (!MB_ESPToolStubs[this.fileChip]) {
+			this.failure = 'unsupportedChip';
+			return this.done(false);
+		}
+		const ok = ('ESP8266' == this.fileChip) ?
+			await this.uploadESP8266VM(vmData, eraseFlag) :
+			await this.uploadESP32VM(vmData, eraseFlag, boardName);
 		if (!ok) return this.done(false);
 		this.status = localized('Done');
 		fireIDEEvent('spinner.hide');
@@ -266,13 +278,35 @@ class MB_ESPTool {
 		return ok;
 	}
 
+	async checkChip() {
+		// Refuse firmware built for another chip before anything is written.
+		this.chipType = await this.readChipType();
+		if (!this.chipType || (this.chipType == this.fileChip)) return true;
+		this.failure = 'wrongChip';
+		await this.exitBootMode();
+		return false;
+	}
+
 	// --- Uploading data to the board ---
+
+	async uploadESP8266VM(vmData, eraseFlag) {
+		if (!(await this.connect())) {
+			this.failure = 'noResponse';
+			return false;
+		}
+		if (!(await this.checkChip())) return false;
+		if (!(await this.uploadStub())) return false;
+		if (eraseFlag) await this.eraseFlash();
+		// the image starts with its own boot loader and loads at address 0
+		return this.uploadCompressed(0, vmData);
+	}
 
 	async uploadESP32VM(vmData, eraseFlag, boardName) {
 		if (!(await this.connect())) {
 			this.failure = 'noResponse';
 			return false;
 		}
+		if (!(await this.checkChip())) return false;
 		if (!(await this.uploadStub())) return false;
 		if (boardName.toLowerCase().includes('nezha')) {
 			if (!(await this.setFlashParameters(16))) return false;
@@ -373,7 +407,7 @@ class MB_ESPTool {
 
 	async uploadStub() {
 		// Upload and start the RAM loader stub, which adds compressed uploads and Flash erase.
-		this.chipType = await this.readChipType();
+		if (!this.chipType) this.chipType = await this.readChipType();
 		const stub = MB_ESPToolStubs[this.chipType];
 		if (!stub) {
 			console.log('Error: Unknown chip type:', this.chipType);
@@ -408,6 +442,22 @@ class MB_ESPTool {
 	}
 
 	// --- Data ---
+
+	static imageChip(data) {
+		// Answer the chip a firmware image was built for, or null if data is not an image.
+		// A merged image is blank up to its boot loader: 0x1000 on an ESP32, 0x2000 on a P4 or C5.
+		if (0xea == data[0]) return 'ESP8266'; // the ESP8266's second image format
+		let start = 0;
+		while ((start < 0x2000) && (0xff == data[start])) start += 0x1000;
+		if ((data.length < (start + 24)) || (0xe9 != data[start])) return null;
+		const entry = (data[start + 4] | (data[start + 5] << 8) | (data[start + 6] << 16) | (data[start + 7] << 24)) >>> 0;
+		if (0x4010 == (entry >>> 16)) return 'ESP8266'; // its images have no chip id; this is its IRAM
+		const chipID = data[start + 12] | (data[start + 13] << 8);
+		return {
+			0: 'ESP32', 2: 'ESP32-S2', 5: 'ESP32-C3', 9: 'ESP32-S3', 12: 'ESP32-C2',
+			13: 'ESP32-C6', 16: 'ESP32-H2', 18: 'ESP32-P4', 23: 'ESP32-C5',
+		}[chipID] || null;
+	}
 
 	static vmNameForBoard(boardName) {
 		return {
