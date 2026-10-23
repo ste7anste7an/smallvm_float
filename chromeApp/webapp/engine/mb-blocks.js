@@ -3938,6 +3938,26 @@ HatBlockMorph.prototype.outlinePath = function(ctx, inset) {
 	this.outlineBottom(ctx, inset);
 };
 
+HatBlockMorph.prototype.render = function (ctx) {
+	// Fill the shape, then stroke the outline centred on its edge. Filling it
+	// in two layers, as other blocks do, moves the arch straight up and down,
+	// which thins the outline where the arch slopes.
+	var width = this.flatEdge / (this.isDrawnAtZoom() ? ZOOM : 1);
+
+	this.cachedClr = this.color.toString();
+	this.cachedClrBright = this.bright();
+	this.cachedClrDark = this.outlineColor().toString();
+
+	ctx.fillStyle = this.cachedClr;
+	ctx.beginPath();
+	this.outlinePath(ctx, 0);
+	ctx.closePath();
+	ctx.fill();
+	ctx.strokeStyle = this.cachedClrDark;
+	ctx.lineWidth = width;
+	ctx.stroke();
+};
+
 // ReporterBlockMorph //////////////////////////////////////////////////
 
 /*
