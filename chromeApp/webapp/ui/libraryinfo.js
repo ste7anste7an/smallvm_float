@@ -259,7 +259,6 @@ class LibraryInfoWindow extends FloatingWindow {
 		this.fields.moduleCategory = newModuleInput;
 	}
 
-
 	labelFor(selector) {
 		return {
 			moduleName: 'Library Name',
