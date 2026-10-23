@@ -2404,14 +2404,53 @@ class MB_Editor {
 		storeIDEProperty('project.hasCustomBlocks', this.project.main.functions.length > 0);
 	}
 
-	saveProject() {
-		// Write the project to a file the browser downloads.
+	async saveProject() {
+		// Write the project to a file the user names in the browser's save dialog, or
+		// to a download where there is no dialog. A .ubp name becomes the project's name.
 
 		this.updateProject();
 		let name = this.projectName || 'Untitled';
 		if (!name.endsWith('.ubp')) name += '.ubp';
-		this.saveTextAsFile(this.project.codeString(), name);
-		this.unsavedEdits = false; // the file holds what the pane holds
+		const wasUnsaved = this.unsavedEdits;
+		this.unsavedEdits = false; // an edit made while the dialog is open sets it again
+		let savedName = null;
+		try {
+			savedName = await this.saveFileWithDialog(this.project.codeString(), name, 'project', 'text/plain');
+		} catch (e) {
+			this.reportError(e); // e.g. a folder the browser may not write to
+		}
+		if (savedName == null) {
+			this.unsavedEdits = this.unsavedEdits || wasUnsaved;
+			return;
+		}
+		if (savedName.endsWith('.ubp')) {
+			this.projectName = savedName;
+			this.updateProjectProperties();
+		}
+	}
+
+	async saveFileWithDialog(data, fileName, id, mimeType) {
+		// Answer the name the user saved under, or null if they cancelled. id lets the
+		// browser remember the last folder used for each kind of file.
+		if ((typeof window !== 'undefined') && (typeof window.showSaveFilePicker === 'function')) {
+			const ext = fileName.slice(fileName.lastIndexOf('.'));
+			let handle = null;
+			try {
+				handle = await window.showSaveFilePicker({
+					suggestedName: fileName, id: id, types: [{ accept: { [mimeType]: [ext] } }] });
+			} catch (error) {
+				if ('AbortError' == error.name) return null;
+				// otherwise the dialog was refused, e.g. for want of a user gesture: download instead
+			}
+			if (handle) {
+				const writable = await handle.createWritable();
+				await writable.write(new Blob([data]));
+				await writable.close(); // the file is written only once close succeeds
+				return handle.name;
+			}
+		}
+		this.saveDataAsFile(data, fileName, mimeType);
+		return fileName;
 	}
 
 	saveTextAsFile(text, fileName) {

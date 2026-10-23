@@ -81,7 +81,7 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		case 'project.save':
-			// As saveProjectToFile (MicroBlocksEditor.gp): no prompt, the file is a download.
+			// The browser's save dialog where there is one, otherwise a download.
 			MB_editor.saveProject();
 			callback(0);
 			break;
