@@ -139,8 +139,9 @@ class MB_CommPort {
 			while (true) {
 				const { value, done } = await this.serialReader.read();
 				if (value) this.inputBuffers.push(value);
-				if (done) { // happens when serialReader.cancel() is called by disconnect
+				if (done) { // happens when disconnect cancels serialReader, or when Firefox loses the board
 					this.serialReader.releaseLock();
+					this.serialReader = null; // isConnected() is now false, so updateConnection closes the port
 					return;
 				}
 			}
