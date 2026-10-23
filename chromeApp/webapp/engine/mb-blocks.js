@@ -5160,7 +5160,7 @@ CSlotMorph.prototype.wrapHeight = null; // set while the held block would wrap a
 CSlotMorph.prototype.fixLayout = function () {
 	var nb = this.nestedBlock();
 	if (nb) {
-		nb.setPosition(this.position().add(new Point(this.nestedLeft(), this.scale)));
+		nb.setPosition(this.position().add(new Point(this.nestedLeft(), this.nestedTop())));
 		this.bounds.setHeight(nb.fullBounds().height() + (3 * this.scale));
 		this.bounds.setWidth(
 			nb.fullBounds().width() + (this.cSlotPadding * 2)
@@ -5184,6 +5184,13 @@ CSlotMorph.prototype.nestedLeft = function () {
 	// In whole half CSS pixels, one more below 150%: 5.5 at 100%, 5 from 150% up.
 	var s = 2 * ZOOM * this.scale;
 	return (Math.floor(5 * s) + (s < 3 ? 1 : 0)) / (2 * ZOOM);
+};
+
+CSlotMorph.prototype.nestedTop = function () {
+	// A unit down, cut to whole half CSS pixels as nestedLeft is: half a CSS pixel
+	// at 75%, one at 100% and 125%, so on a 2x screen it is a whole device pixel.
+	var s = 2 * ZOOM * this.scale;
+	return Math.floor(s) / (2 * ZOOM);
 };
 
 CSlotMorph.prototype.armTop = function (nb) {
@@ -5222,12 +5229,12 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 		radius = Math.max(this.corner - inset, 0),
 		// the arms end at the block's right edge, not at the slot's, which reaches past it
 		right = this.parent.width(),
-		top = oy + this.scale, // the opening's top edge, level with a nested block's top
+		top = oy + this.scale, // the opening's top edge, within a device pixel of a nested block's top
 		nb = this.nestedBlock() && this.nestedBlock().bottomBlock(),
 		// the arm below the slot starts where the last nested block's body ends
 		bottom = nb ? this.armTop(nb) - this.top() + this.corner : this.height(),
 		// with blocks inside, the inner edge straddles their left side, which covers part of it
-		shift = nb ? this.flatEdge : 0;
+		edge = this.inset + ox;
 
 	// upper arm's right end:
 	ctx.lineTo(right - inset, top - this.corner);
@@ -5241,13 +5248,13 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 	);
 
 	// jigsaw shape:
-	this.bottomTab(ctx, this.inset + ox, top, inset);
+	this.bottomTab(ctx, edge, top, inset);
 	ctx.lineTo(
-		this.inset + this.corner + shift + ox,
+		edge + this.corner,
 		top - inset
 	);
 	ctx.arc(
-		this.inset + this.corner + shift + ox,
+		edge + this.corner,
 		top + this.corner,
 		this.corner + inset,
 		radians(270),
@@ -5257,16 +5264,13 @@ CSlotMorph.prototype.outlinePath = function (ctx, inset, offset) {
 
 	// bottom:
 	ctx.lineTo(
-		this.inset + shift + ox - inset,
+		edge - inset,
 		bottom - (this.corner * 2) + oy
 	);
-	// the corner still meets the arm below where it did; only its upper end moves
-	ctx.ellipse(
-		this.inset + this.corner + ox,
+	ctx.arc(
+		edge + this.corner,
 		bottom - (this.corner * 2) + oy,
-		this.corner + inset - shift,
 		this.corner + inset,
-		0,
 		radians(180),
 		radians(90),
 		true
