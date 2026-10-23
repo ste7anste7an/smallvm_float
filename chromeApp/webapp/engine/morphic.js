@@ -12499,6 +12499,28 @@ WorldMorph.prototype.initEventListeners = function () {
         false
     );
 
+    // MicroBlocks port: a press on the canvas released over HTML on or beside it, or
+    // outside the window, never reaches the canvas. A held morph is dropped where the
+    // button came up (off the canvas, on the world); a press that never became a drag
+    // just ends, with no grab and no click.
+    window.addEventListener(
+        "mouseup",
+        event => {
+            // the canvas listener has already cleared mouseButton, unless it threw
+            if (event.target === canvas || !this.hand.mouseButton) return;
+            if (this.hand.children.length) {
+                this.hand.processMouseMove(event);
+                this.hand.processMouseUp(event);
+            } else {
+                this.hand.mouseButton = null;
+                this.hand.morphToGrab = null;
+                this.hand.inputTarget = null;
+                this.hand.clickTarget = null;
+            }
+        },
+        false
+    );
+
     canvas.addEventListener(
         "dblclick",
         event => {
