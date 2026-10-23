@@ -120,7 +120,7 @@ class LibraryInfoWindow extends FloatingWindow {
 		if (this.library.dependencies.length) {
 			this.library.dependencies.forEach(dep => {
 				let span = document.createElement('span');
-				span.innerText = dep[0] == '_' ? dep.substr(1) : dep;
+				span.innerText = this.parseLibName(dep);
 				span.setAttribute('data-value', dep);
 				div.appendChild(span);
 			});
@@ -146,20 +146,26 @@ class LibraryInfoWindow extends FloatingWindow {
 		return div;
 	}
 
+	parseLibName(libPath) {
+		if (libPath[0] == '_') {
+			// if it's an implementation library, remove the underscore first
+			return libPath.substr(1);
+		} else if (libPath.match(/http.*\/.*.ubl/)) {
+			// if it's a URL, keep only the file name without extension
+			return unescape(libPath.replace(/http.*\/(.*)\.ubl/, '$1'));
+		} else {
+			// otherwise it must be a built-in library
+			return libPath;
+		}
+	}
+
 	addDependency(event) {
-		console.log(event);
 		FloatingWindow.prompt(
 			'Dependency name or URL?',
 			localized(`If you are adding a library that\'s built into MicroBlocks, you
 				can just enter its name.`) +
 				localized(`If the library is hosted online, please input its full URL`),
 			(depName) => {
-				if (depName.startsWith('http')) {
-					FloatingWindow.inform(
-						'Not implemented',
-						'Online dependencies not yet implemented sorry! Come back tomorrow.'
-					);
-				}
 				if (!this.library.dependencies.includes(depName)) {
 					this.library.dependencies.push(depName);
 					this.rebuildDependencyInput();
