@@ -2014,7 +2014,7 @@ method serialDelayMenu SmallRuntime {
 	for i (range 1 5) { add items (array i (action 'setSerialDelay' this i)) }
 	for i (range 6 20 2) { add items (array i (action 'setSerialDelay' this i)) }
 	add items (array '-')
-	add items (array 'reset to default (10)' (action 'setDefaultSerialDelay' this))
+	add items (array 'reset to default (5)' (action 'setDefaultSerialDelay' this))
 	menuFor api items
 }
 
