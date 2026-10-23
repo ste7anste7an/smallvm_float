@@ -1216,7 +1216,7 @@ class MB_Editor {
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
-		(new LibraryInfoWindow(lib)).popUp();
+		(new LibraryInfoWindow(lib, forEditing)).popUp();
 	}
 
 	newLibrary(libName) {
