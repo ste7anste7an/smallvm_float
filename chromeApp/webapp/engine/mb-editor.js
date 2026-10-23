@@ -63,6 +63,9 @@ class MB_Editor {
 		// What FrameMorph's constructor would have set; ScriptsMorph takes no
 		// scroll frame, and adjustBounds does nothing without one.
 		this.scripts.scrollFrame = this.scriptsFrame;
+		// The area reaches 50 screen pixels past its scripts on the right and below only.
+		// Script positions are saved from its top left, so that corner must not move.
+		Object.defineProperty(this.scriptsFrame, 'growth', { get: () => 50 / ZOOM });
 		// The scripting pane scrolls itself while a block is dragged near its edge; the palette does not.
 		this.scriptsFrame.enableAutoScrolling = false;
 		this.palette.enableAutoScrolling = false;
