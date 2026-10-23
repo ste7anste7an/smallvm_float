@@ -621,7 +621,7 @@ class MB_CodeManager {
 		// This can take several seconds if the board does a Flash compaction.
 
 		this.lastCRC = null;
-		MB_connection.sendMsg('chunkCode16Msg', chunkID, data);
+		await MB_connection.sendMsg('chunkCode16Msg', chunkID, data); // start the clock once it is sent
 
 		// wait for CRC to be reported
 		const timeout = 3000; // must be less than ping timeout

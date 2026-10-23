@@ -3417,7 +3417,34 @@ function fixEmbeddedQuotes(s) {
 	return s.replaceAll('\'', '\'\''); // double embedded single quotes
 }
 
+let waitWorker = null; // times waitMSecs while the tab is hidden; false if none can be made
+
 async function waitMSecs(msecs) {
+	// A hidden tab runs timers at most once a second, which stretches every short
+	// wait while talking to the board, such as the 3 msec pause between serial
+	// writes, to a second. Timers in a worker are slowed far less, so time it there.
+	if (document.hidden && (waitWorker === null)) {
+		try {
+			const src = 'onmessage = (e) => setTimeout(() => e.ports[0].postMessage(0), e.data);';
+			waitWorker = new Worker(URL.createObjectURL(new Blob([src])));
+		} catch (e) {
+			waitWorker = false; // no worker in this browser; use setTimeout below
+		}
+	}
+	if (document.hidden && waitWorker) {
+		// Race the worker against a plain setTimeout. A worker refused by the page's
+		// CSP, or whose script fails, is made without an error and never answers.
+		const channel = new MessageChannel();
+		let timer;
+		await new Promise(resolve => {
+			channel.port1.onmessage = resolve;
+			timer = setTimeout(resolve, msecs);
+			waitWorker.postMessage(msecs, [channel.port2]);
+		});
+		clearTimeout(timer);
+		channel.port1.close();
+		return;
+	}
 	const sleep = function (msecs) {
 		return (new Promise( resolve => setTimeout(resolve, msecs) ));
 	}
