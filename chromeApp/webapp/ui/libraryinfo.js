@@ -37,20 +37,21 @@ class LibraryInfoWindow extends FloatingWindow {
 			this.library[fieldName] =
 				this.extractInputValue(fieldName, this.fields[fieldName]);
 		});
+		// library may have changed, we should update the library map in the project
+		let map = MB_editor.project.libraries;
+		map.set(this.library.moduleName, map.get(this.cachedLibraryName));
 		if (this.cachedLibraryName !== this.library.moduleName) {
-			// library name changed, we need to update the library map in the project
-			let map = MB_editor.project.libraries;
-			map.set(this.library.moduleName, map.get(this.cachedLibraryName));
+			// if lib name has changed, we need to remove the old library from the map
 			map.delete(this.cachedLibraryName);
-			MB_editor.updateLibraryList();
 		}
+		MB_editor.updateLibraryList();
 	}
 
 	extractInputValue(selector, input) {
 		if (['moduleName', 'author', 'description'].includes(selector)) {
 			return input.value;
 		} else if (selector == 'version') {
-			return input.value.split('.');
+			return input.value.split('.').map(part => parseInt(part));
 		} else if (selector == 'dependencies') {
 			return Array.from(input).map(div => div.getAttribute('data-value'));
 		} else if (selector == 'moduleCategory') {
