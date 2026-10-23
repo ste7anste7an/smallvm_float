@@ -19,7 +19,8 @@ class MB_ESPTool {
 		this.success = false;
 		this.allInOneBinary = false;
 		this.chipType = null;
-		this.failure = null; // after a failed install: 'noResponse' or 'failed'
+		this.fileChip = null; // the chip the firmware image was built for
+		this.failure = null; // after a failed install: 'noResponse', 'notFirmware', 'unsupportedChip', 'wrongChip' or 'failed'
 	}
 
 	// --- Connecting ---
@@ -248,7 +249,16 @@ class MB_ESPTool {
 			console.log('Could not fetch or read VM');
 			return this.done(false);
 		}
-		const ok = ('ESP8266' == MB_ESPTool.imageChip(vmData)) ?
+		this.fileChip = MB_ESPTool.imageChip(vmData);
+		if (!this.fileChip) {
+			this.failure = 'notFirmware';
+			return this.done(false);
+		}
+		if (!MB_ESPToolStubs[this.fileChip]) {
+			this.failure = 'unsupportedChip';
+			return this.done(false);
+		}
+		const ok = ('ESP8266' == this.fileChip) ?
 			await this.uploadESP8266VM(vmData, eraseFlag) :
 			await this.uploadESP32VM(vmData, eraseFlag, boardName);
 		if (!ok) return this.done(false);
@@ -268,6 +278,15 @@ class MB_ESPTool {
 		return ok;
 	}
 
+	async checkChip() {
+		// Refuse firmware built for another chip before anything is written.
+		this.chipType = await this.readChipType();
+		if (!this.chipType || (this.chipType == this.fileChip)) return true;
+		this.failure = 'wrongChip';
+		await this.exitBootMode();
+		return false;
+	}
+
 	// --- Uploading data to the board ---
 
 	async uploadESP8266VM(vmData, eraseFlag) {
@@ -275,6 +294,7 @@ class MB_ESPTool {
 			this.failure = 'noResponse';
 			return false;
 		}
+		if (!(await this.checkChip())) return false;
 		if (!(await this.uploadStub())) return false;
 		if (eraseFlag) await this.eraseFlash();
 		// the image starts with its own boot loader and loads at address 0
@@ -286,6 +306,7 @@ class MB_ESPTool {
 			this.failure = 'noResponse';
 			return false;
 		}
+		if (!(await this.checkChip())) return false;
 		if (!(await this.uploadStub())) return false;
 		if (boardName.toLowerCase().includes('nezha')) {
 			if (!(await this.setFlashParameters(16))) return false;
@@ -386,7 +407,7 @@ class MB_ESPTool {
 
 	async uploadStub() {
 		// Upload and start the RAM loader stub, which adds compressed uploads and Flash erase.
-		this.chipType = await this.readChipType();
+		if (!this.chipType) this.chipType = await this.readChipType();
 		const stub = MB_ESPToolStubs[this.chipType];
 		if (!stub) {
 			console.log('Error: Unknown chip type:', this.chipType);
@@ -424,9 +445,10 @@ class MB_ESPTool {
 
 	static imageChip(data) {
 		// Answer the chip a firmware image was built for, or null if data is not an image.
-		// A merged ESP32 image is blank up to its boot loader at 0x1000.
+		// A merged image is blank up to its boot loader: 0x1000 on an ESP32, 0x2000 on a P4 or C5.
 		if (0xea == data[0]) return 'ESP8266'; // the ESP8266's second image format
-		const start = (0xff == data[0]) ? 0x1000 : 0;
+		let start = 0;
+		while ((start < 0x2000) && (0xff == data[start])) start += 0x1000;
 		if ((data.length < (start + 24)) || (0xe9 != data[start])) return null;
 		const entry = (data[start + 4] | (data[start + 5] << 8) | (data[start + 6] << 16) | (data[start + 7] << 24)) >>> 0;
 		if (0x4010 == (entry >>> 16)) return 'ESP8266'; // its images have no chip id; this is its IRAM
