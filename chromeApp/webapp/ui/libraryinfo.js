@@ -55,7 +55,11 @@ class LibraryInfoWindow extends FloatingWindow {
 		} else if (selector == 'version') {
 			return input.value.split('.').map(part => parseInt(part));
 		} else if (selector == 'dependencies') {
-			return Array.from(input).map(div => div.getAttribute('data-value'));
+			return (
+				Array.from(input.children)
+					.filter(element => element.hasAttribute('data-value'))
+					.map(element => element.getAttribute('data-value'))
+			);
 		} else if (selector == 'moduleCategory') {
 			return input.getAttribute('data-value');
 		}
