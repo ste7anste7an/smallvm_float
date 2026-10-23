@@ -2051,6 +2051,7 @@ class MB_Editor {
 		}
 		this.updateProject();
 		this.scriptChanged();
+		aBlock.fixLayout();
 	}
 
 	rehangDefinitionsOf(func) {
