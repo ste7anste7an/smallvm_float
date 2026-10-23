@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:23+0200\n"
-"PO-Revision-Date: 2026-10-20 00:44+0000\n"
+"PO-Revision-Date: 2026-10-24 12:51+0000\n"
 "Last-Translator: Josep Ferràndiz <josep.ferrandiz@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/microblocks/ide/"
 "es/>\n"
@@ -4951,7 +4951,7 @@ msgstr "pon la rueda izquierda a _ y la derecha a _ (-100 a 100)"
 
 #. Cutebot library block
 msgid "Cutebot stop wheels"
-msgstr "detén las ruedas"
+msgstr "Cutebot detén las ruedas"
 
 #. Cutebot library block
 msgid "Cutebot set servo _ to _ degrees (-90 to 90)"
@@ -9067,3 +9067,41 @@ msgstr "ambos, invertidos"
 #. String in file picker and library dialogs
 msgid "That URL does not return a MicroBlocks library."
 msgstr "Esta URL no devuelve una biblioteca de MicroBlocks."
+
+#. Block in Comm category
+msgid "rx pin _ tx pin _"
+msgstr "pin rx _ pin tx _"
+
+#. Block in Comm category
+msgid "stop _"
+msgstr "detén _"
+
+#. Block in Comm category
+msgid "bit order _"
+msgstr "orden de bits _"
+
+#. Firmware install by URL dialog
+msgid "ESP32 firmware URL?"
+msgstr "¿URL del firmware de la ESP32?"
+
+#. Firmware install download failure
+msgid "Could not download"
+msgstr "No se ha podido descargar"
+
+#. Variable rename error message
+msgid "That name is already in use."
+msgstr "Ese nombre ya está en uso."
+
+#. Block right-click context menu
+msgid "delete obsolete block..."
+msgstr "Elimina el bloque obsoleto..."
+
+#. Block right-click context menu
+msgid "add to library"
+msgstr "añadir a la biblioteca"
+
+#. Add library error message
+msgid "A library with that name is already in the project. Remove it first to make a new one."
+msgstr ""
+"Ya hay una biblioteca con ese nombre en el proyecto. Elimínala primero para "
+"crear una nueva."
