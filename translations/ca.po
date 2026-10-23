@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-30 07:10+0200\n"
-"PO-Revision-Date: 2026-10-20 00:44+0000\n"
+"PO-Revision-Date: 2026-10-24 12:51+0000\n"
 "Last-Translator: Josep Ferràndiz <josep.ferrandiz@gmail.com>\n"
 "Language-Team: Catalan <https://hosted.weblate.org/projects/microblocks/ide/"
 "ca/>\n"
@@ -3390,7 +3390,7 @@ msgstr "reseteja"
 
 #. micro:STEAMakers library block
 msgid "ms;down"
-msgstr "baix"
+msgstr "avall"
 
 #. DrawBot Library block
 msgid "plotter move X _ Y _"
@@ -9007,3 +9007,41 @@ msgstr "ambdós, invertits"
 #. String in file picker and library dialogs
 msgid "That URL does not return a MicroBlocks library."
 msgstr "Aquesta URL no retorna una biblioteca de MicroBlocks."
+
+#. Add library error message
+msgid "A library with that name is already in the project. Remove it first to make a new one."
+msgstr ""
+"Una biblioteca amb aquest nom ja forma part del projecte. Elimineu-la primer "
+"per crear-ne una de nova."
+
+#. Block in Comm category
+msgid "bit order _"
+msgstr "ordre dels bits _"
+
+#. Firmware install by URL dialog
+msgid "ESP32 firmware URL?"
+msgstr "URL del firmware de l'ESP32?"
+
+#. Firmware install download failure
+msgid "Could not download"
+msgstr "No s'ha pogut descarregar"
+
+#. Variable rename error message
+msgid "That name is already in use."
+msgstr "Aquest nom ja està en ús."
+
+#. Block right-click context menu
+msgid "delete obsolete block..."
+msgstr "esborra el bloc obsolet..."
+
+#. Block right-click context menu
+msgid "add to library"
+msgstr "Afegeix a la biblioteca"
+
+#. Block in Comm category
+msgid "rx pin _ tx pin _"
+msgstr "pin rx _ pin tx _"
+
+#. Block in Comm category
+msgid "stop _"
+msgstr "atura _"
