@@ -40,6 +40,7 @@ class MB_Editor {
 		this.redoStack = [];
 		this.watchProjectVariables();
 		this.blockSize = 125; // a fresh profile draws at GP's default block size
+		this.autosave = (typeof MB_Autosave === 'function') ? new MB_Autosave(this) : null;
 	}
 
 	open(world) {
@@ -1136,6 +1137,7 @@ class MB_Editor {
 		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
 		this.saveNeeded = true;
 		this.unsavedEdits = true; // until the project is written to a file
+		if (this.autosave) this.autosave.edited();
 	}
 
 	async step() {
@@ -2312,7 +2314,7 @@ class MB_Editor {
 		// pane is not in the project yet and does not count as work.
 		this.updateProject();
 		if (!this.project.hasUserCode()) return true;
-		return this.confirm(localized('Discard current project?'));
+		return this.confirm(localized('Discard current project?'), false);
 	}
 
 	hasUnsavedEdits() {
@@ -2324,12 +2326,14 @@ class MB_Editor {
 		return this.unsavedEdits && this.project.hasUserCode();
 	}
 
-	confirm(question) {
+	confirm(question, closedAnswer) {
 		// Answer a promise of true or false from the chrome's dialog, as GP's Page confirm
-		// does, or from the browser's own on a page without the chrome.
+		// does, or from the browser's own on a page without the chrome. A window closed
+		// unanswered answers closedAnswer if one is given, and otherwise never.
 		if (typeof FloatingWindow === 'undefined') return Promise.resolve(confirm(question));
 		return new Promise((resolve) => askChrome('window.confirm',
-			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve));
+			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve,
+			(closedAnswer === undefined) ? null : () => resolve(closedAnswer)));
 	}
 
 	informAndWait(msg, title) {
@@ -2428,6 +2432,7 @@ class MB_Editor {
 			this.projectName = savedName;
 			this.updateProjectProperties();
 		}
+		if (this.autosave) this.autosave.saved();
 	}
 
 	async saveFileWithDialog(data, fileName, id, mimeType) {
@@ -2940,6 +2945,8 @@ class MB_Editor {
 	// Connect/Disconnect
 
 	async justConnected() {
+		// A blank project erases the board below, so a restore is answered first.
+		if (this.autosave) await this.autosave.offer;
 		try {
 			if (this.readFromBoard) {
 				this.readFromBoard = false;
@@ -3316,12 +3323,13 @@ const chromeDrawnMenu = { popUpAtHand() {} };
 const chromeQuestions = new Map();
 let chromeQuestionsPolled = false;
 
-function askChrome(eventName, options, callback) {
-	// Fire a menu or dialog event and call back with the chrome's answer.
+function askChrome(eventName, options, callback, closed = null) {
+	// Fire a menu or dialog event and call back with the chrome's answer, or call
+	// closed if the menu or window goes away without one.
 	const id = nextCallId();
 	fireIDEEvent(eventName, Object.assign({ id: id }, options));
 	const shown = ('menu' === eventName) ? Menus.current() : [...document.querySelectorAll('win-')].pop();
-	chromeQuestions.set(id, { shown: shown, callback: callback });
+	chromeQuestions.set(id, { shown: shown, callback: callback, closed: closed });
 	if (!chromeQuestionsPolled) {
 		chromeQuestionsPolled = true;
 		requestAnimationFrame(checkChromeAnswers);
@@ -3339,6 +3347,7 @@ function checkChromeAnswers() {
 				question.callback(JSON.parse(json));
 			} else if (!(question.shown && question.shown.isConnected)) {
 				chromeQuestions.delete(id);
+				if (question.closed) question.closed();
 			}
 		}
 	} finally { // an answer whose action throws must not stop the answers after it
