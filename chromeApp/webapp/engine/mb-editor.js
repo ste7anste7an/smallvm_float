@@ -2704,15 +2704,34 @@ class MB_Editor {
 		// Asked before anything is cleared, so the open project and the board stay as
 		// they are until every question is answered.
 		const libraryUpdates = await new MB_Project().checkForNewerLibraryVersions(contents);
+		// Loaded before anything is cleared, so a file that fails to load leaves the
+		// open project and the board alone. A block takes its label from the
+		// editor's project, so the new one stands in for it while it loads. With no
+		// code manager, loading cannot mark the open project's code for recompiling.
+		const openProject = MB_editor.project, openCodeManager = MB_editor.codeManager;
+		const project = new MB_Project();
+		MB_editor.project = project;
+		MB_editor.codeManager = null;
+		try {
+			project.loadFromString(contents, libraryUpdates);
+		} catch (e) {
+			console.error('Could not read:', name, e);
+			this.inform(localized('Could not read: ') + name);
+			return;
+		} finally {
+			MB_editor.project = openProject;
+			MB_editor.codeManager = openCodeManager;
+		}
+		// A script line with no body has nothing to show.
+		project.main.scripts = project.main.scripts.filter((entry) => entry[2] != null);
 		// clearFirst decides whether the empty project becomes an undo state before
-		// the new one loads, because clearProject stores one. Clearing therefore
+		// the new one is shown, because clearProject stores one. Clearing therefore
 		// adds a step for undo to stop at. A dropped file passes false and skips it.
 		const cleared = clearFirst ? MB_editor.clearProject() : null;
 		// Without clearProject the old scripts stay on screen, and the next save keeps them.
 		if (!clearFirst) MB_editor.removeAllScripts();
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
-		MB_editor.project.onVariableChange = null;
-		MB_editor.project.loadFromString(contents, libraryUpdates);
+		MB_editor.project = project;
 		MB_editor.watchProjectVariables();
 		MB_editor.project.main.scripts.forEach( (entry) => {
 			let x = entry[0], y = entry[1], script = entry[2];
