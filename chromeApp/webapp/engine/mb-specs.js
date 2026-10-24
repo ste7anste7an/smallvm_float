@@ -107,6 +107,11 @@ MB_Specs.blockTypeForSelector = function (selector, isReporter, argCount) {
 	return spec ? spec[0] : ' ';
 }
 
+// A colon that is part of a label, not a section break. A block spec holds it as
+// U+2236 (ratio) so that splitting the spec on ':' finds only the sections, and
+// labelPart shows it as a colon again.
+MB_Specs.labelColon = '\u2236';
+
 MB_Specs.specFor = function (selector, args, isReporter) {
 	// Return a block spec for the command or reporter the given selector and arguments.
 	// Use the MicroBlocks spec for the given selector, if possible.
@@ -133,7 +138,7 @@ MB_Specs.specFor = function (selector, args, isReporter) {
 			}
 		}
 	} else { // unknown selector; generate a spec based on its arguments
-		spec = selector;
+		spec = selector.replaceAll(':', this.labelColon); // the whole name is the label
 		for (let i = 0; i < args.length; i++) {
 			spec += ' ' + this.specForArg(args[i]);
 		}
