@@ -70,6 +70,7 @@ class MB_CodeManager {
 			MB_editor.inform(localized('Program is too large to store on board.'));
 			return;
 		}
+		if (!(await MB_editor.saveBeforeRun())) return; // a store still running could stop or restart a script after the start
 		await this.syncScripts();
 		MB_connection.sendMsg('startAllMsg', 1); // chunk type 1 means 16-bit instructions
 	}
@@ -78,6 +79,9 @@ class MB_CodeManager {
 		// Stop, then a soft reset, then sync, as GP's stopAndSyncScripts does. The VM
 		// clears its memory and variables on the reset, which stopAllMsg alone does not.
 		if (MB_connection.isConnected() && (alreadyStopped !== true)) {
+			// A store in progress restarts its script if it was running, which would undo
+			// the stop, so let it finish first. Stop goes out even if that wait gives up.
+			await MB_editor.saveBeforeRun();
 			MB_connection.sendMsg('stopAllMsg');
 			MB_connection.sendMsg('systemResetMsg');
 		}
