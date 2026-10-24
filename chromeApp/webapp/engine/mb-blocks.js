@@ -1678,7 +1678,7 @@ BlockMorph.prototype.userMenu = function () {
 	menu.addItem(
 		'compile test',
 		() => {
-			// Compiled against the editor's project and code manager, as compileAndRun
+			// Compiled against the editor's project and code manager, as chunkBytesFor
 			// is, so globals and calls to user functions resolve. Both logs take the top
 			// block, so a click anywhere in a stack shows the whole stack.
 			const compiler = new MB_Compiler(MB_editor.project, MB_editor.codeManager);
