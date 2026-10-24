@@ -2418,26 +2418,28 @@ class MB_Editor {
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		const wasUnsaved = this.unsavedEdits;
 		this.unsavedEdits = false; // an edit made while the dialog is open sets it again
-		let savedName = null;
+		let saved = null;
 		try {
-			savedName = await this.saveFileWithDialog(this.project.codeString(), name, 'project', 'text/plain');
+			saved = await this.saveFileWithDialog(this.project.codeString(), name, 'project', 'text/plain');
 		} catch (e) {
 			this.reportError(e); // e.g. a folder the browser may not write to
 		}
-		if (savedName == null) {
+		if (saved == null) {
 			this.unsavedEdits = this.unsavedEdits || wasUnsaved;
 			return;
 		}
-		if (savedName.endsWith('.ubp')) {
-			this.projectName = savedName;
+		if (saved.name.endsWith('.ubp')) {
+			this.projectName = saved.name;
 			this.updateProjectProperties();
 		}
-		if (this.autosave) this.autosave.saved();
+		// The page cannot tell whether a download worked, so the autosaved copy is kept.
+		if (this.autosave && !saved.downloaded) this.autosave.saved();
 	}
 
 	async saveFileWithDialog(data, fileName, id, mimeType) {
-		// Answer the name the user saved under, or null if they cancelled. id lets the
-		// browser remember the last folder used for each kind of file.
+		// Answer the name the user saved under and whether it went to a download, or
+		// null if they cancelled. id lets the browser remember the last folder used for
+		// each kind of file.
 		if ((typeof window !== 'undefined') && (typeof window.showSaveFilePicker === 'function')) {
 			const ext = fileName.slice(fileName.lastIndexOf('.'));
 			let handle = null;
@@ -2452,11 +2454,11 @@ class MB_Editor {
 				const writable = await handle.createWritable();
 				await writable.write(new Blob([data]));
 				await writable.close(); // the file is written only once close succeeds
-				return handle.name;
+				return { name: handle.name, downloaded: false };
 			}
 		}
 		this.saveDataAsFile(data, fileName, mimeType);
-		return fileName;
+		return { name: fileName, downloaded: true };
 	}
 
 	saveTextAsFile(text, fileName) {
