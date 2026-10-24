@@ -43,17 +43,19 @@ class MB_Autosave {
 		this.timer = setTimeout(() => this.writeNow(), this.delay);
 	}
 
-	saved() {
+	saved(downloaded) {
 		// Nothing to keep once the project is in a file, unless it was edited while the save dialog was open.
-		this.writeNow();
+		// The page cannot tell whether a download worked, so its copy is kept, with any edit not yet written.
+		if (!downloaded) this.writeNow();
+		else if (this.timer) this.writeNow(true);
 	}
 
-	async writeNow() {
+	async writeNow(keep = false) {
 		clearTimeout(this.timer);
 		this.timer = null;
 		if (this.asking) return; // written when the question closes
 		const editor = this.editor;
-		if (!editor.hasUnsavedEdits()) return this.remove(this.pageID); // saved, or emptied
+		if (!(editor.hasUnsavedEdits() || (keep && editor.project.hasUserCode()))) return this.remove(this.pageID); // saved, or emptied
 		if (this.writeFailed) return;
 		const record = { tab: this.pageID, name: editor.projectName, text: editor.project.codeString(), time: Date.now() };
 		try {

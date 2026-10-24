@@ -2432,8 +2432,7 @@ class MB_Editor {
 			this.projectName = saved.name;
 			this.updateProjectProperties();
 		}
-		// The page cannot tell whether a download worked, so the autosaved copy is kept.
-		if (this.autosave && !saved.downloaded) this.autosave.saved();
+		if (this.autosave) this.autosave.saved(saved.downloaded);
 	}
 
 	async saveFileWithDialog(data, fileName, id, mimeType) {
