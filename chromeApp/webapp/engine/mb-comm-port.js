@@ -157,7 +157,7 @@ class MB_CommPort {
 	serialWrite(data) {
 		if (!this.serialPort || !this.serialPort.writable) return 0;
 		const writer = this.serialPort.writable.getWriter();
-		writer.write(data.buffer);
+		writer.write(data.buffer).catch((e) => console.log('Serial write failed:\n', e)); // e.g. the board was unplugged
 		writer.releaseLock();
 		return data.byteLength;
 	}

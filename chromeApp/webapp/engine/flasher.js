@@ -73,7 +73,11 @@ DFUpload.flashBoard = function (boardName) {
 									'Firmware Installed',
 									'Please reset the board before trying to connect to it.'
 								)
-							);
+							)
+							.catch((e) => {
+								IDE.spinner.hide();
+								if ('NotFoundError' !== e.name) throw e; // all but a cancelled device chooser
+							});
 					}
 				);
 			} else {
