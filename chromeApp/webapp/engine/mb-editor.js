@@ -1074,6 +1074,38 @@ class MB_Editor {
 		this.inform(String(e));
 	}
 
+	reportUncaught(error, sourceURL) {
+		// Tell the user about an error nothing caught, since it may have left an action half done.
+		// Never throws: the board message loop calls this from the catch that keeps it running.
+		try {
+			if (!isReportableError(error, sourceURL)) return;
+			if (typeof FloatingWindow === 'undefined') { // the dialogs load after the engine
+				if (!this.uncaughtWaiting) this.uncaughtWaiting = error;
+				return;
+			}
+			if (this.uncaughtDialog && this.uncaughtDialog.isConnected) return; // one at a time
+			// The same throw again within a minute is not shown, even when its message varies.
+			const site = errorSite(error);
+			const now = Date.now();
+			if (!this.uncaughtShownAt) this.uncaughtShownAt = new Map();
+			if (now - (this.uncaughtShownAt.get(site) ?? -Infinity) < 60000) return;
+			this.uncaughtShownAt.set(site, now);
+			const details = [String(error), errorFrame(error)].filter((s) => s).map(htmlText).join('<br>');
+			const advice = localized('MicroBlocks hit an error, so the last thing it was doing may not have finished. Your project is still open: check that it looks right before you save it.');
+			this.inform(advice + '<br><br><small>' + details + '</small>', localized('Error'));
+			this.uncaughtDialog = [...document.querySelectorAll('win-')].pop();
+		} catch (e) {
+			console.error('Could not report an error:', e);
+		}
+	}
+
+	reportWaitingError() {
+		// Show an error that came before the dialogs could.
+		const error = this.uncaughtWaiting;
+		this.uncaughtWaiting = null;
+		if (error != null) this.reportUncaught(error);
+	}
+
 	toggleRunning(aBlock) {
 		let top = aBlock.topBlock();
 		// A definition is not run from the pane: its code goes to the board with
@@ -3439,6 +3471,41 @@ CursorMorph.prototype.textMenuItems = function () {
 
 // Global singleton instance
 const MB_editor = new MB_Editor();
+
+if ((typeof window !== 'undefined') && window.addEventListener) {
+	window.addEventListener('error', (evt) => MB_editor.reportUncaught(evt.error, evt.filename));
+	window.addEventListener('unhandledrejection', (evt) => MB_editor.reportUncaught(evt.reason));
+	window.addEventListener('DOMContentLoaded', () => MB_editor.reportWaitingError());
+}
+
+function isReportableError(error, sourceURL) {
+	// False for what is not a fault in the IDE: no error object (a ResizeObserver loop notice or
+	// a cross-origin "Script error."), a browser extension's script, a cancelled request, a board
+	// that went away, or a server that could not be reached.
+	if (error == null) return false;
+	const extension = /(chrome|moz|safari(-web)?)-extension:/;
+	if (extension.test(sourceURL || '') || extension.test(String(error.stack || ''))) return false;
+	if (('AbortError' === error.name) || ('NetworkError' === error.name)) return false;
+	return !(('TypeError' === error.name) && /fetch|Load failed/.test(String(error.message)));
+}
+
+function errorFrame(error) {
+	// The line that threw, from the error's stack, or '' if it has none.
+	const lines = String((error && error.stack) || '').split('\n');
+	const frame = lines.find((line) => /^\s+at |^\S*@\S+:\d+:\d+$/.test(line));
+	return frame ? frame.trim() : '';
+}
+
+function errorSite(error) {
+	// The kind of error and where it was thrown, or its text when it has no stack.
+	const frame = errorFrame(error);
+	return frame ? (error.name + ' ' + frame) : String(error);
+}
+
+function htmlText(s) {
+	// s shown as text in a dialog body, which the chrome sets as HTML and then localizes.
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/%/g, '&#37;');
+}
 
 // Debugging Utility Function
 

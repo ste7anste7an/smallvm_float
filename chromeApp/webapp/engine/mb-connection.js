@@ -691,6 +691,7 @@ class MB_Connection {
 			this.handleMessage(msg);
 		} catch (e) {
 			console.log('Error handling message, opcode:', msg[1], e);
+			MB_editor.reportUncaught(e);
 		}
 	}
 
