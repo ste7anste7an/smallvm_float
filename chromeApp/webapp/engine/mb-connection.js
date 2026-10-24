@@ -64,6 +64,7 @@ class MB_Connection {
 		this.portName = null;
 		this.connectionStartTime = null;
 		this.portOpenedTime = null;
+		this.offeringInstall = false;  // while the firmware install offer is up
 		this.pingSentMSecs = 0;
 		this.lastPingRecvMSecs = null;
 		this.recvBuf = new Uint8Array(0);
@@ -362,11 +363,25 @@ class MB_Connection {
 		const connectionAttemptTimeout = 10000; // milliseconds
 		if ((Date.now() - this.portOpenedTime) > connectionAttemptTimeout) {
 			// give up and disconnect if no response from board after connectionAttemptTimeout
+			const portName = this.portName;
 			this.disconnect();
 			this.connectionStartTime = null;
+			if (portName == 'serial') this.offerFirmwareInstall();
 		}
 
 		return 'not connected';
+	}
+
+	async offerFirmwareInstall() {
+		// A serial board that never answers most likely has no MicroBlocks firmware.
+		// The port is closed by now, and each install opens its own.
+		if (this.offeringInstall) return;
+		this.offeringInstall = true;
+		const yes = await MB_editor.confirm(localized('The board is not responding.') + '\n' +
+			localized('Try to Install MicroBlocks on the board?'));
+		this.offeringInstall = false;
+		// a board connected while the question was up is not the board it asked about
+		if (yes && (this.portName == null)) MB_Firmware.presentBoardTypeMenu(false);
 	}
 
 	async justConnected() {
