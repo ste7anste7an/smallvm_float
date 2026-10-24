@@ -1004,6 +1004,7 @@ class MB_Editor {
 
 	async startAll() {
 		try {
+			this.endOpenEdit();
 			this.updateProject();
 			await this.codeManager.syncAndStartAll();
 		} catch (e) {
@@ -1048,6 +1049,7 @@ class MB_Editor {
 
 	async stopAll(forceRecompile) {
 		try {
+			this.endOpenEdit();
 			this.updateProject();
 			await this.codeManager.stopAndSyncScripts(false, forceRecompile);
 		} catch (e) {
@@ -1055,9 +1057,17 @@ class MB_Editor {
 		}
 	}
 
+	endOpenEdit() {
+		// The top bar's buttons and menus are outside the canvas, so a press on them does
+		// not end an open slot edit the way a press in the pane does. End it here, so the
+		// sync that follows sends the typed value.
+		if (world.cursor) world.stopEditing();
+	}
+
 	async stopSyncAndStartAll() {
 		// Stop the board, bring it into line with the project, and start it.
 		try {
+			this.endOpenEdit();
 			this.updateProject();
 			await this.codeManager.stopAndSyncScripts();
 			// Not codeManager.syncAndStartAll: that would sync a second time and can alert "not connected".
