@@ -2797,12 +2797,24 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	var k = this.world() ? ZOOM : 1,
 		bounds = this.fullBounds(),
 		fb = bounds.extent().multiplyBy(k),
-		img, hi, ctx, out;
-	img = newCanvas(fb);
-	ctx = img.getContext('2d');
-	ctx.scale(k, k);
-	ctx.translate(-bounds.origin.x, -bounds.origin.y);
-	this.doWithAlpha(1, () => this.fullDrawOn(ctx, bounds));
+		layer, img, shapes, body, hi, ctx, out;
+	layer = (draw) => {
+		var canvas = newCanvas(fb),
+			c = canvas.getContext('2d');
+		c.scale(k, k);
+		c.translate(-bounds.origin.x, -bounds.origin.y);
+		this.doWithAlpha(1, () => draw(c));
+		return canvas;
+	};
+	img = layer(c => this.fullDrawOn(c, bounds));
+	// the blocks' own shapes and C slots, without their labels or inputs
+	shapes = layer(c => this.allChildren().forEach(m => {
+		if (m.isVisible &&
+				(m instanceof BlockMorph || m instanceof CommandSlotMorph)) {
+			m.drawOn(c, bounds);
+		}
+	}));
+	body = layer(c => this.drawOn(c, bounds));
 	border *= k;
 
 	hi = newCanvas(fb.add(border * 2));
@@ -2817,15 +2829,20 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	ctx.drawImage(img, 0, border * 2);
 	ctx.drawImage(img, 0, border);
 
-	ctx.globalCompositeOperation = 'destination-out';
-	ctx.drawImage(img, border, border);
-
 	out = newCanvas(fb.add(border * 2));
 	ctx = out.getContext('2d');
 	ctx.drawImage(hi, 0, 0);
 	ctx.globalCompositeOperation = 'source-atop';
 	ctx.fillStyle = color.toString();
 	ctx.fillRect(0, 0, out.width, out.height);
+
+	// The highlight covers the top block's body, so the shapes go over the
+	// halo: three coats with the body, as many as an edge pixel needs to read
+	// as solid outline over the highlight; with fewer, the halo shows through.
+	ctx.globalCompositeOperation = 'source-over';
+	ctx.drawImage(shapes, border, border);
+	ctx.drawImage(shapes, border, border);
+	ctx.drawImage(body, border, border);
 	out.unitsPerPixel = 1 / k;
 	return out;
 };
