@@ -269,26 +269,36 @@ class MB_Editor {
 
 	// ***** Copy and paste *****
 
-	exchangeScripter() {
+	exchangeScripter(unread = []) {
 		// What MB_ScriptExchange asks of the scripter it imports into and exports from.
+		// A shipped file it could not read is added to unread.
 		return {
 			project: () => this.project,
 			scriptEditor: () => this.scriptsPane(),
-			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
+			installLibraryNamed: (libName) => this.installLibraryNamed(libName, unread),
 			blockScale: () => 1, // the block size magnifies the whole world, so pane and file units are equal
 		};
 	}
 
-	async installLibraryNamed(libName) {
+	async installLibraryNamed(libName, unread = []) {
 		// Take a shipped library into the project by the name its own module line
-		// declares, which is what a copied script's depends line carries.
+		// declares, which is what a copied script's depends line carries. A shipped
+		// file it could not read is added to unread.
 
 		if (this.project.libraryNamed(libName)) return;
 		const filePath = await this.fileNameForLibraryNamed(libName);
-		if (!filePath) return; // a name no shipped library declares
+		if (!filePath) {
+			// a name no shipped library declares, unless the file named after it could not be read
+			const named = this.findLibraryFile(MB_Editor.renamedLibraries.get(libName) || libName);
+			if (named && (this.unreadLibraryFiles || []).includes(named)) unread.push(named);
+			return;
+		}
 		const data = await MB_Files.readFile(filePath);
-		if (data === undefined) return;
-		await this.importLibraryFromString(data, filePath);
+		if (data === undefined) {
+			unread.push(filePath);
+			return;
+		}
+		await this.importLibraryFromString(data, filePath, false, unread);
 	}
 
 	// Scripts written before a library was renamed still name it the old way.
@@ -368,10 +378,11 @@ class MB_Editor {
 		return null;
 	}
 
-	async importEmbeddedLibrary(libName) {
+	async importEmbeddedLibrary(libName, unread = []) {
 		// Take the shipped library a dependency names into the project, by the
 		// name of its file. A leading underscore asks for it as an implementation
 		// library, whose blocks serve another library and are not offered alone.
+		// A shipped file it could not read is added to unread.
 
 		const asImplementation = libName.startsWith('_');
 		const wanted = asImplementation ? libName.slice(1) : libName;
@@ -379,8 +390,17 @@ class MB_Editor {
 		if (!filePath) return; // a name no shipped file answers to
 		if (this.libraryHoldingFile(wanted, filePath)) return;
 		const data = await MB_Files.readFile(filePath);
-		if (data === undefined) return;
-		await this.importLibraryFromString(data, filePath, asImplementation);
+		if (data === undefined) {
+			unread.push(filePath);
+			return;
+		}
+		await this.importLibraryFromString(data, filePath, asImplementation, unread);
+	}
+
+	informCouldNotRead(unread) {
+		// Name in one inform the shipped files an action could not read, if any.
+		const names = [...new Set(unread)];
+		if (names.length) this.inform(localized('Could not read: ') + names.join(', '));
 	}
 
 	findLibraryFile(libName) {
@@ -407,20 +427,25 @@ class MB_Editor {
 		return null;
 	}
 
-	async installDependenciesOf(libName) {
+	async installDependenciesOf(libName, unread) {
 		// Bring in the libraries a library names, and the ones those name in turn.
+		// A shipped file it could not read is added to unread; with no unread to
+		// add to, it is named to the user here.
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
+		const informHere = !unread;
+		if (informHere) unread = [];
 		for (const dependency of lib.dependencies) {
 			// a loaded library already implements this dependency
 			if (this.project.replacementFor(lib.dependencyName(dependency))) continue;
 			if (dependency.startsWith('http')) {
 				await this.importLibraryDependencyFromUrl(dependency);
 			} else {
-				await this.importEmbeddedLibrary(dependency);
+				await this.importEmbeddedLibrary(dependency, unread);
 			}
 		}
+		if (informHere) this.informCouldNotRead(unread);
 	}
 
 	async importLibraryDependencyFromUrl(dependency) {
@@ -500,7 +525,9 @@ class MB_Editor {
 		}
 		if (!dst) dst = new Point(100, this.scriptsBottom() - pane.top() + (30 * blockScale()));
 		const importer = new MB_ScriptExchange(this.project);
-		await importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		const unread = [];
+		await importer.importScripts(this.exchangeScripter(unread), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		this.informCouldNotRead(unread);
 		pane.adjustBounds();
 		pane.changed();
 
@@ -1369,13 +1396,13 @@ class MB_Editor {
 		}
 	}
 
-	async importLibraryFromString(data, filePath, asImplementation) {
+	async importLibraryFromString(data, filePath, asImplementation, unread) {
 		// Add a library to the project with the libraries it depends on, and show
 		// it, replacing one of the same name and any implementing the same library.
 		// A filePath under Libraries leaves the library a path the reload verb can
 		// read it back from, and a web address is passed on as its source; a bare
-		// file name from the user's computer leaves neither. Answers the module
-		// name, or null.
+		// file name from the user's computer leaves neither. A dependency it could
+		// not read is added to unread, if given. Answers the module name, or null.
 
 		const isURL = /^https?:\/\//.test(filePath);
 		const namePath = isURL ? filePath.split('?')[0] : filePath;
@@ -1401,7 +1428,7 @@ class MB_Editor {
 		}
 		// A library replacing one of its own name keeps the dependencies the
 		// project already resolved for it; a new one needs them brought in.
-		if (!replacing) await this.installDependenciesOf(moduleName);
+		if (!replacing) await this.installDependenciesOf(moduleName, unread);
 		this.codeManager.recompileNeeded(); // its functions were loaded anew
 		this.librariesChanged();
 		this.updateLibraryList();

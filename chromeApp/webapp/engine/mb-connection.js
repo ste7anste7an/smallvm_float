@@ -436,7 +436,9 @@ class MB_Connection {
 		if (this.boardType == null) return;
 		let libs = MB_Connection.BOARD_LIBRARIES[this.boardType];
 		if (!libs && this.boardType.startsWith('MakerPort')) libs = ['MakerPort'];
-		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName);
+		const unread = [];
+		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName, unread);
+		MB_editor.informCouldNotRead(unread);
 	}
 
 	async waitForVersion() {
