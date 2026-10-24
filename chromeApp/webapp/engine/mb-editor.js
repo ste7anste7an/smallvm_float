@@ -312,6 +312,7 @@ class MB_Editor {
 		// The shipped file whose module line declares this name. Building the
 		// index reads every shipped library once, so it is kept.
 
+		await MB_Files.readAgainIfFailed();
 		const wanted = MB_Editor.renamedLibraries.get(libName) || libName;
 		// Nearly every library is in a file named after the module it declares,
 		// and checking one file is worth a second of reading the whole set.
@@ -384,6 +385,7 @@ class MB_Editor {
 		// library, whose blocks serve another library and are not offered alone.
 		// A shipped file it could not read is added to unread.
 
+		await MB_Files.readAgainIfFailed();
 		const asImplementation = libName.startsWith('_');
 		const wanted = asImplementation ? libName.slice(1) : libName;
 		const filePath = this.findLibraryFile(wanted);

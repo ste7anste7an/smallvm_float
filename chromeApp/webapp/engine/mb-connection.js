@@ -951,6 +951,7 @@ class MB_Connection {
 			this.ideVersion = '0.0.0';
 			this.latestVmVersion = 0;
 			this.versionsRead = MB_Files.readFile('versions').then((data) => {
+				if (data === undefined) this.versionsRead = null; // not read, so the next check tries again
 				for (const line of (data || '').split(/\r?\n/)) {
 					if (line.startsWith('IDE ')) this.ideVersion = line.slice(4);
 					if (line.startsWith('VM ')) this.latestVmVersion = Number(line.slice(3));
