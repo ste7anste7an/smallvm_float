@@ -276,14 +276,19 @@ class MB_FilePicker {
 		list.color = MB_FilePicker.colors.list;
 		list.action = (row) => { if (!isString(row)) this.fileOrFolderSelected(row[1]); };
 		list.arrowKey = (dx, dy) => this.arrowKey(dx, dy);
-		const shownAt = Date.now();
+		let clicked = []; // the rows hit by the last two clicks on this list
 		for (const item of list.listContents.children) {
 			item.highlightColor = list.color.darker(8);
 			item.mouseEnter = () => { if (item.userState === 'normal') this.shade(item, 'highlight'); };
 			item.mouseLeave = () => { if (item.userState === 'highlight') this.shade(item, 'normal'); };
+			const click = item.mouseClickLeft;
+			item.mouseClickLeft = function (...args) {
+				clicked = [clicked.at(-1), item];
+				return click.apply(this, args);
+			};
 			item.doubleClickAction = () => {
-				// Ignore a double click whose first click replaced the list.
-				if ((Date.now() - shownAt < 500) || isString(item.action)) return;
+				// Both clicks must hit this row; a first click that replaced the list hit an old row.
+				if ((clicked[0] !== item) || (clicked[1] !== item) || isString(item.action)) return;
 				this.fileOrFolderDoubleClicked(item.action[1]);
 			};
 		}
