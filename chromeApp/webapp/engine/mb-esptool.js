@@ -99,7 +99,12 @@ class MB_ESPTool {
 		while ((Date.now() - startTime) < timeout) {
 			const msg = this.nextSLIPMsg();
 			if (msg != null) return msg;
-			await waitMSecs(10);
+			// A hidden tab slows even short timers, so also wake when serial data arrives.
+			await new Promise(resolve => {
+				this.port.dataArrived = resolve;
+				waitMSecs(10).then(resolve);
+			});
+			this.port.dataArrived = null;
 		}
 		return null;
 	}
