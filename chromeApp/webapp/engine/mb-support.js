@@ -357,11 +357,14 @@ function blockPrototypeForFunction(func, project) {
 	const args = func.argNames || [];
 	MB_Specs.initialize();
 	const builtIn = MB_Specs.selectorToSpec.get(op);
-	const spec = project.blockSpecs.get(op)
+	const found = project.blockSpecs.get(op)
 		|| (builtIn && { blockType: builtIn[0], opName: op, specString: builtIn[2],
 			slotTypes: builtIn[3] || '', defaults: builtIn.slice(4) })
 		|| { blockType: ' ', opName: op, specString: [op, ...args.map(() => '_')].join(' '),
 			slotTypes: args.map(() => 'auto').join(' ') };
+	// The prototype shows the defaults in the current language, as the palette does.
+	const spec = { ...found,
+		defaults: MB_Specs.translatedDefaults(found.specString, found.slotTypes, found.defaults || []) };
 	const proto = ('r' === spec.blockType) ? new ReporterBlockMorph() : new CommandBlockMorph();
 	proto.isPrototype = true;
 	proto.isDraggable = false;
