@@ -1047,9 +1047,10 @@ class MB_Editor {
 	}
 
 	async stopAll(forceRecompile) {
+		// Shift held, on the Stop button or with Escape, forces a full recompile.
 		try {
 			this.updateProject();
-			await this.codeManager.stopAndSyncScripts(false, forceRecompile);
+			await this.codeManager.stopAndSyncScripts(false, forceRecompile || this.shiftDown);
 		} catch (e) {
 			this.reportError(e);
 		}
