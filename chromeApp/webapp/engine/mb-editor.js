@@ -31,6 +31,7 @@ class MB_Editor {
 		this.saveNeeded = false; // the scripts changed since the last step
 		this.exportedScriptScale = 0.65; // block scale of a script picture, set by the chrome
 		this.lastTransferPercent = null; // the last transfer percentage sent to the chrome
+		this.transferSpinner = null; // the file transfer spinner showing, with its title
 		this.spinnerShowing = false; // the chrome is showing the spinner this port raised
 		this.unsavedEdits = false; // the project changed since it was last opened or saved
 		this.category = null; // the selected palette category, or null while a library is
@@ -1192,7 +1193,26 @@ class MB_Editor {
 		const percent = MB_connection.fileTransferProgress;
 		if (percent === this.lastTransferPercent) return;
 		this.lastTransferPercent = percent;
-		if (percent != null) fireIDEEvent('spinner.setPercent', percent);
+		if (percent == null) return;
+		fireIDEEvent('spinner.setPercent', percent);
+		if (this.transferSpinner) fireIDEEvent('spinner.setTitle', percent + '% ' + this.transferSpinner.title);
+	}
+
+	async withTransferSpinner(title, fileName, transfer) {
+		// Show the spinner while transfer runs, its title led by the percentage done.
+		// A cancelled transfer can still be finishing when the next one starts,
+		// and then the spinner showing is the next one's.
+		const spinner = this.transferSpinner = { title: localized(title) };
+		fireIDEEvent('spinner.show', { title: '0% ' + spinner.title,
+			subtitle: fileName, note: null, percent: 0 });
+		try {
+			return await transfer();
+		} finally {
+			if (spinner === this.transferSpinner) {
+				this.transferSpinner = null;
+				fireIDEEvent('spinner.hide');
+			}
+		}
 	}
 
 	updateProject() {
@@ -2657,13 +2677,8 @@ class MB_Editor {
 	async writeFileToBoard(fileName, bytes) {
 		// Another transfer is running, and its spinner is the one showing.
 		if (MB_connection.busy()) return false;
-		fireIDEEvent('spinner.show', { title: localized('Writing file to board...'),
-			subtitle: fileName, note: null, percent: 0 });
-		try {
-			return await MB_connection.writeFileToBoard(fileName, bytes);
-		} finally {
-			fireIDEEvent('spinner.hide');
-		}
+		return this.withTransferSpinner('Writing file to board...', fileName,
+			() => MB_connection.writeFileToBoard(fileName, bytes));
 	}
 
 	async downloadFileFromBoard() {
@@ -2679,14 +2694,8 @@ class MB_Editor {
 	}
 
 	async readAndSaveFile(fileName, fileSize) {
-		fireIDEEvent('spinner.show', { title: localized('Reading file from board...'),
-			subtitle: fileName, note: null, percent: 0 });
-		let bytes;
-		try {
-			bytes = await MB_connection.readFileFromBoard(fileName, fileSize);
-		} finally {
-			fireIDEEvent('spinner.hide');
-		}
+		const bytes = await this.withTransferSpinner('Reading file from board...', fileName,
+			() => MB_connection.readFileFromBoard(fileName, fileSize));
 		// Null is a transfer the board did not finish, which is not an empty file.
 		if (bytes == null) return;
 		if (!(await this.confirm(localized('Save file?')))) return;
