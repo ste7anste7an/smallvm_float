@@ -1660,7 +1660,8 @@ BlockMorph.prototype.userMenu = function () {
 
 	if (!shiftClicked && (typeof Menus !== 'undefined')) {
 		if (MB_editor.scripts.hasSelection()) {
-			return MB_editor.scripts.selectionMenu(this.isFunctionDefinition());
+			// a prototype answers for its definition, as its hat does
+			return MB_editor.scripts.selectionMenu(this.isFunctionDefinition() || !!this.isPrototype);
 		}
 		return this.chromeMenu(); // shift-right-click keeps this Morphic menu
 	}
