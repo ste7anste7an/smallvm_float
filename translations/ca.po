@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-30 07:10+0200\n"
-"PO-Revision-Date: 2026-10-24 12:51+0000\n"
-"Last-Translator: Josep Ferràndiz <josep.ferrandiz@gmail.com>\n"
+"PO-Revision-Date: 2026-10-25 23:56+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Catalan <https://hosted.weblate.org/projects/microblocks/ide/"
 "ca/>\n"
 "Language: ca\n"
@@ -4172,7 +4172,7 @@ msgstr "posa el led RGB _ a vermell _ verd _ blau _"
 
 #. Sphero-RVR robot library block
 msgid "set all LEDs to red _ green _ blue _"
-msgstr "posa tots els leds RGB _ a vermell _ verd _ blau _"
+msgstr "posa tots els leds RGB a vermell _ verd _ blau _"
 
 #. Joystick:bit library block
 msgid "button _ is pressed"
