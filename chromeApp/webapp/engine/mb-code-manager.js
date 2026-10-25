@@ -28,6 +28,7 @@ class MB_CodeManager {
 	// --- run/stop ---
 
 	async evalOnBoard(aBlock, showBytes) {
+		if (!(await MB_editor.saveBeforeRun())) return; // starting now could be stopped by that download
 		if ('not connected' == MB_connection.updateConnection()) {
 			MB_editor.showError(aBlock, localized('Board not connected'));
 			return;
@@ -40,7 +41,8 @@ class MB_CodeManager {
 			// running a block from the palette
 			await this.saveAllChunks(true, aBlock);
 		}
-		this.runChunk(this.lookupChunkID(aBlock));
+		const chunkID = this.lookupChunkID(aBlock);
+		if (chunkID != null) this.runChunk(chunkID); // null: nothing has been stored for it yet
 	}
 
 	isRunning(aBlock) {

@@ -1118,26 +1118,8 @@ class MB_Editor {
 		} else if ('not connected' == MB_connection.updateConnection()) {
 			this.showError(top, localized('Board not connected'));
 		} else {
-			let chunkID = this.codeManager.ensureChunkIdFor(top);
-			this.compileAndRun(top, chunkID);
+			this.codeManager.evalOnBoard(top);
 		}
-	}
-
-	async compileAndRun(aBlock, chunkID) {
-		// Compile and run the given block.
-		if (MB_connection.vmTooOld()) return;
-
-		let code = new MB_Compiler(this.project, this.codeManager).compiledBytesFor(aBlock);
-		while ((code.length % 4) !== 0) {
-			// pad code with zeros to make chunk length be a multiple of four bytes
-			// this ensures 32-bit word chunk alignment in the code store
-			code.push(0);
-		}
-
-		let chunkType = aBlock.chunkType();
-		code.unshift(chunkType); // prepend the chunk type
-		MB_connection.sendMsg('chunkCode16Msg', chunkID, code);
-		MB_connection.sendMsg('startChunkMsg', chunkID);
 	}
 
 	updateRunning(chunkID, isRunning) {
@@ -1168,6 +1150,19 @@ class MB_Editor {
 		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
 		this.saveNeeded = true;
 		this.unsavedEdits = true; // until the project is written to a file
+	}
+
+	async saveBeforeRun() {
+		// Store any pending edit and let a download in progress finish, so a script
+		// started now is not stored again while it runs: storing a chunk stops its task.
+		// Answer false if the download is still going after 30 seconds.
+		const deadline = Date.now() + 30000;
+		while (this.saveNeeded || (this.codeManager.savesInProgress > 0)) {
+			if (Date.now() > deadline) return false;
+			if (this.codeManager.savesInProgress > 0) await waitMSecs(5);
+			else await this.step();
+		}
+		return true;
 	}
 
 	async step() {
