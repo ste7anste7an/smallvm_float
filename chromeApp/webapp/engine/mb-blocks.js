@@ -2606,9 +2606,14 @@ BlockMorph.prototype.removeHighlight = function () {
 	return highlight;
 };
 
+BlockMorph.prototype.highlightBounds = function () {
+	// My full bounds plus the part of my outline that lies outside them.
+	return this.fullBounds().expandBy(this.outlineOutset());
+};
+
 BlockMorph.prototype.highlight = function (color, blur, border) {
 	var highlight = new BlockHighlightMorph(),
-		fb = this.fullBounds(),
+		fb = this.highlightBounds(),
 		edge = border;
 	highlight.bounds.setExtent(fb.extent().add(edge * 2));
 	highlight.holes = [highlight.bounds]; // make the highlight untouchable
@@ -2622,7 +2627,7 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	// Drawn at the world's zoom, so the outline's edges stay sharp when the
 	// script's edge falls between canvas pixels at a large block size.
 	var k = this.world() ? ZOOM : 1,
-		bounds = this.fullBounds(),
+		bounds = this.highlightBounds(),
 		fb = bounds.extent().multiplyBy(k),
 		layer, img, shapes, body, hi, ctx, out;
 	layer = (draw) => {
@@ -2647,14 +2652,12 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	hi = newCanvas(fb.add(border * 2));
 	ctx = hi.getContext('2d');
 
+	// The halo: four diagonal copies of my picture, so a straight edge gets
+	// two of them; a third copy makes its half-covered pixels read too solid.
 	ctx.drawImage(img, 0, 0);
-	ctx.drawImage(img, border, 0);
 	ctx.drawImage(img, border * 2, 0);
-	ctx.drawImage(img, border * 2, border);
 	ctx.drawImage(img, border * 2, border * 2);
-	ctx.drawImage(img, border, border * 2);
 	ctx.drawImage(img, 0, border * 2);
-	ctx.drawImage(img, 0, border);
 
 	out = newCanvas(fb.add(border * 2));
 	ctx = out.getContext('2d');
@@ -2687,7 +2690,7 @@ BlockMorph.prototype.getHighlight = function () {
 
 BlockMorph.prototype.outline = function (color, border) {
 	var highlight = new BlockHighlightMorph(),
-		fb = this.fullBounds(),
+		fb = this.highlightBounds(),
 		edge = border;
 	highlight.bounds.setExtent(fb.extent().add(edge * 2));
 	highlight.color = color;
