@@ -440,6 +440,11 @@ InputSlotMorph.prototype.pans = function () {
 	return MorphicPreferences.isTouchDevice || this.world().hand.middleButton;
 };
 
+InputSlotMorph.prototype.isMenuClick = function (pos) {
+	// a click in the right 20 units of a slot with a menu opens the menu; its text takes its own clicks
+	return this.arrow().isVisible && (pos.x >= this.right() - 20 * this.scale);
+};
+
 InputSlotMorph.prototype.mouseDownLeft = function (pos) {
 	var block = this.parentThatIsA(BlockMorph);
 
@@ -447,7 +452,7 @@ InputSlotMorph.prototype.mouseDownLeft = function (pos) {
 	if (this.pans()) return this.escalateEvent('mouseDownLeft', pos);
 	if (block && block.isTemplate) return;
 	if (this.isReadOnly || this.symbol ||
-			this.arrow().bounds.containsPoint(pos)) {
+			this.isMenuClick(pos)) {
 		this.escalateEvent('mouseDownLeft', pos);
 	}
 };
@@ -461,7 +466,7 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 	if (this.isReadOnly || this.symbol) {
 		// a read-only slot with no menu takes the click as its block does
 		if (!this.dropDownMenu()) this.escalateEvent('mouseClickLeft', pos);
-	} else if (this.arrow().bounds.containsPoint(pos)) {
+	} else if (this.isMenuClick(pos)) {
 		this.dropDownMenu();
 	} else {
 		this.contents().edit();
