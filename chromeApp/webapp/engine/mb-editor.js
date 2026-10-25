@@ -792,8 +792,8 @@ class MB_Editor {
 
 	addPaletteButton(label, action) {
 		// A push button in the palette: a pill 26 screen px high with a bold 14 px
-		// Arial label and a one device pixel border, yellow under the pointer, the
-		// same size at every block size.
+		// Arial label and a border half a screen px wide, yellow under the pointer,
+		// the same size at every block size.
 
 		const dark = this.darkMode();
 		const ink = new Color(38, 41, 56); // blueGray 900
@@ -829,7 +829,7 @@ class MB_Editor {
 				ctx.fill();
 				return;
 			}
-			const line = 1 / (ZOOM * (window.devicePixelRatio || 1));
+			const line = 1 / (2 * ZOOM); // half a screen px
 			ctx.roundRect(line / 2, line / 2, w - line, h - line, (h - line) / 2);
 			ctx.lineWidth = line;
 			ctx.strokeStyle = borderColor;
