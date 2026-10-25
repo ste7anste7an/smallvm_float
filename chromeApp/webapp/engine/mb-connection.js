@@ -244,6 +244,9 @@ class MB_Connection {
 	}
 
 	disconnect() {
+		// Boardie's panel is its port: close the panel, which comes back here with isOpen false.
+		if ((typeof GP === 'object') && GP.boardie && GP.boardie.isOpen) { GP_closeBoardie(); return; }
+
 		// GP's closePort pushes this before it closes anything (MicroBlocksRuntime.gp:896).
 		this.pushToIDE('board.connected', false);
 		this.pushToIDE('board.canDoBLE', false);
