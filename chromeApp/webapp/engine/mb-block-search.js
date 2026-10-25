@@ -360,8 +360,8 @@ class MB_BlockSearch {
 	}
 
 	async place(entry) {
-		// Add the entry's block below the scripts and scroll to it, for the keyboard,
-		// as the pointer may be anywhere while it is in use.
+		// Add the entry's block below the scripts, where a paste goes, and scroll to it,
+		// for the keyboard, as the pointer may be anywhere while it is in use.
 
 		let block;
 		if ('lib' === entry.kind) {
@@ -373,7 +373,11 @@ class MB_BlockSearch {
 		}
 		block.isTemplate = false;
 		block.isDraggable = true;
-		MB_editor.addToBottom(block);
+		const pane = MB_editor.scriptsPane();
+		block.setPosition(pane.topLeft().add(MB_editor.pasteSpot()));
+		pane.add(block);
+		pane.adjustBounds();
+		MB_editor.updateProject();
 		MB_editor.scriptChanged(); // as a dropped block is
 		MB_editor.scrollScriptsToShow(block.fullBounds());
 	}
