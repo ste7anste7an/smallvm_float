@@ -174,6 +174,7 @@
 		<script type="text/javascript" src="engine/mb-project.js"></script>
 		<script type="text/javascript" src="engine/mb-specs.js"></script>
 		<script type="text/javascript" src="engine/mb-tips.js"></script>
+		<script type="text/javascript" src="engine/mb-autosave.js"></script>
 		<script type="text/javascript" src="engine/mb-editor.js"></script>
 
 		<!-- IDE -->
@@ -216,6 +217,8 @@
 					IDE.resize(); // place the world canvas over the workspace slot
 					// Started first, so the IDE keeps running while a link's project asks a question.
 					requestAnimationFrame(loop);
+					// Before a link's project, so the work a crash left behind is offered first.
+					if (MB_editor.autosave) await MB_editor.autosave.start();
 					try {
 						// A link the page was opened with.
 						await MB_editor.importFromURL(location.href);
