@@ -1065,6 +1065,10 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	this.bounds.setWidth(blockWidth);
 	this.bounds.setHeight(blockHeight);
 
+	if (this.fixLayoutRTL && isRTL()) {
+		this.fixLayoutRTL();
+	}
+
 	// adjust CSlots and collect holes
 	this.holes = [];
 	parts.forEach(part => {
@@ -2060,6 +2064,24 @@ BlockMorph.prototype.fixElseSection = function () {
 	}
 	if (changed) this.fixLayout();
 }
+
+BlockMorph.prototype.fixLayoutRTL = function () {
+	// Mirror my parts so that my label reads from right to left. C-slots and the
+	// expander arrows stay in place, and the arrows' width is left out of the mirror.
+	var width = this.width(),
+		left = this.left();
+
+	if (this.selector === 'if') width += 15 * this.scale;
+	if (this.expander) width -= this.expander.fullBounds().width() + (3 * this.scale);
+	this.parts().forEach(part => {
+		if (part.isVisible && (part !== this.expander) && !(part instanceof CommandSlotMorph)) {
+			// the "else" label is mirrored as the Boolean slot it stands in for
+			var bounds = part.fullBounds(),
+				partWidth = part.isElseLine ? 29 * this.scale : bounds.width();
+			part.setLeft(left + width - (bounds.left() - left) - partWidth);
+		}
+	});
+};
 
 BlockMorph.prototype.maxInputCount = function () {
 	// Return the number of inputs for this blocks maximum expansion (may be Infinity).
