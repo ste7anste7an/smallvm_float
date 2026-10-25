@@ -21,6 +21,12 @@ class MB_ESPTool {
 		this.chipType = null;
 		this.fileChip = null; // the chip the firmware image was built for
 		this.failure = null; // after a failed install: 'noResponse', 'notFirmware', 'unsupportedChip', 'wrongChip' or 'failed'
+		this.cancelled = false; // set by cancel(); the install stops at its next wait for the board
+	}
+
+	cancel() {
+		// Stop the install, as Escape on its spinner does. What is already written stays written.
+		this.cancelled = true;
 	}
 
 	// --- Connecting ---
@@ -29,6 +35,7 @@ class MB_ESPTool {
 		// Enter boot mode and connect to the ROM boot loader.
 		this.status = 'Connecting...';
 		for (let i = 1; i <= 30; i++) {
+			if (this.cancelled) return false;
 			if (0 == (i & 1)) {
 				await this.enterBootMode();
 			} else {
@@ -96,7 +103,7 @@ class MB_ESPTool {
 
 	async waitForMsg(timeout = 10000) {
 		const startTime = Date.now();
-		while ((Date.now() - startTime) < timeout) {
+		while (!this.cancelled && ((Date.now() - startTime) < timeout)) {
 			const msg = this.nextSLIPMsg();
 			if (msg != null) return msg;
 			await waitMSecs(10);
@@ -166,6 +173,7 @@ class MB_ESPTool {
 	// --- SLIP Message Sending ---
 
 	sendCmd(cmd, data = [], checksum = 0) {
+		if (this.cancelled) return; // a cancelled install sends nothing more
 		const msg = [0, cmd, data.length & 255, (data.length >> 8) & 255];
 		MB_ESPTool.add32Int(msg, checksum);
 		for (const b of data) msg.push(b);

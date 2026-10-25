@@ -319,14 +319,18 @@ MB_Firmware.flashVM = async function (boardName, eraseFlashFlag, vmData) {
 	}
 	this.showSpinner();
 	const espTool = new MB_ESPTool(port);
+	this.espTool = espTool; // for Escape on the spinner to cancel
 	// the spinner shows the install's progress twice a second
 	const ticker = setInterval(() => fireIDEEvent('spinner.setTitle', espTool.status), 500);
 	if (!vmData) vmData = await this.fetchVM(MB_ESPTool.vmNameForBoard(boardName));
 	const ok = await espTool.installFirmware(boardName, eraseFlashFlag, vmData);
 	clearInterval(ticker);
+	this.espTool = null;
 	// the board must be reconnected through the port chooser after an install
 	await port.serialDisconnect();
-	if (ok) {
+	if (espTool.cancelled) {
+		return; // the person cancelled it and needs no message
+	} else if (ok) {
 		MB_editor.informAndWait(localized('Reconnect to the board by clicking the "Connect" button.'),
 			localized('Firmware Installed'));
 	} else if ('wrongChip' == espTool.failure) {
