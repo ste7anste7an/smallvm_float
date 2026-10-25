@@ -1116,6 +1116,10 @@ ArrowMorph.prototype.setSize = function (size) {
 
 // ArrowMorph displaying:
 
+// Arrows are drawn in slots, so they are clipped as the slots are.
+ArrowMorph.prototype.clipBounds = SyntaxElementMorph.prototype.clipBounds;
+ArrowMorph.prototype.drawOn = SyntaxElementMorph.prototype.drawOn;
+
 ArrowMorph.prototype.render = function (ctx) {
 	// initialize my surface property
 	var pad = this.padding,
@@ -1350,22 +1354,10 @@ ColorSlotMorph.prototype.fixLayout = function () {
 	this.bounds.setHeight(side);
 };
 
-ColorSlotMorph.prototype.drawOn = function (ctx, rect) {
-	// As Morph's drawOn, but the clip runs half a unit past my edge so the
-	// ring render strokes there is not cut off. My block is drawn first, so
-	// the margin lands on it.
-	var clipped = rect.intersect(this.bounds.expandBy(this.scale / 2)),
-		pos = this.position();
-
-	if (!clipped.extent().gt(ZERO)) {return; }
-	ctx.save();
-	ctx.globalAlpha = this.alpha;
-	ctx.beginPath();
-	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
-	ctx.clip();
-	ctx.translate(pos.x, pos.y);
-	this.render(ctx);
-	ctx.restore();
+ColorSlotMorph.prototype.clipBounds = function () {
+	// Half a unit past my edge, so the ring render strokes there is not cut
+	// off. My block is drawn first, so the margin lands on it.
+	return this.bounds.expandBy(this.scale / 2);
 };
 
 ColorSlotMorph.prototype.render = function (ctx) {
