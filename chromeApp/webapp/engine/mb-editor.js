@@ -532,8 +532,10 @@ class MB_Editor {
 	}
 
 	allScriptsString() {
-		// The text that copying the whole scripts pane writes.
+		// The text that copying the whole scripts pane writes. Ends an open edit first,
+		// so the text has what was typed.
 
+		this.endOpenEdit();
 		return this.scriptsString(this.scriptsPane().children.filter((m) => m instanceof BlockMorph));
 	}
 
@@ -551,6 +553,7 @@ class MB_Editor {
 
 	projectURL(pageURL) {
 		// A link that opens this project when opened.
+		this.endOpenEdit();
 		this.updateProject();
 		let code = this.project.codeString();
 		if (this.projectName) {
@@ -679,6 +682,7 @@ class MB_Editor {
 		// Main's own blocks as a library file, under the name the user gives it.
 		// Nothing is written if the dialog is dismissed.
 
+		this.endOpenEdit();
 		return this.prompt(localized('Library name?'), 'my library').then((libName) => {
 			if (!libName) return;
 			this.updateProject();
@@ -1182,8 +1186,8 @@ class MB_Editor {
 
 	endOpenEdit() {
 		// The top bar's buttons and menus are outside the canvas, so a press on them does
-		// not end an open slot edit the way a press in the pane does. End it here, so the
-		// sync that follows sends the typed value.
+		// not end an open slot edit the way a press in the pane does. End it here, so what
+		// follows reads the typed value.
 		if (world.cursor) world.stopEditing();
 	}
 
@@ -1416,6 +1420,7 @@ class MB_Editor {
 	exportLibrary(libName) {
 		// A library's own source in a file named after it.
 
+		this.endOpenEdit();
 		let lib = this.project.libraryNamed(libName);
 		if (!lib) return;
 		this.saveTextAsFile(lib.codeString(this.project), lib.moduleName + '.ubl');
@@ -2369,6 +2374,7 @@ class MB_Editor {
 		if ((typeof IDE != 'undefined') && IDE.board && (IDE.board.type != null)) {
 			IDE.fireEvent('board.type', IDE.board.type);
 		}
+		this.endOpenEdit();
 		await this.restoreUndoState(this.project.codeString());
 	}
 
@@ -2642,6 +2648,7 @@ class MB_Editor {
 		// Write the project to a file the user names in the browser's save dialog, or
 		// to a download where there is no dialog. A .ubp name becomes the project's name.
 
+		this.endOpenEdit();
 		this.updateProject();
 		let name = this.projectName || 'Untitled';
 		if (!name.endsWith('.ubp')) name += '.ubp';
@@ -2746,6 +2753,7 @@ class MB_Editor {
 		// at the exported script scale, as a picture of one script is, whatever the
 		// block size and the screen, or smaller if the browser cannot hold it.
 
+		this.endOpenEdit(); // drawn and written with the typed value
 		if (!this.scriptsPane().scriptsBounds()) return; // no scripts
 		const pngBytes = this.scriptsPicturePNG();
 		if (pngBytes == null) {
