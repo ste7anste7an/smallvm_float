@@ -265,11 +265,17 @@ InputSlotMorph.prototype.mbMenu = function (slotMenuName) {
 		return menu;
 	}
 	// A library declares its own menus with a `choices` line and the project
-	// has already parsed them.
+	// has already parsed them. A choice with exactly one colon is 'label:value',
+	// and a whole-number value is stored as a number.
 	if (typeof MB_editor !== 'undefined') {
 		const choices = MB_editor.project.choicesFor(slotMenuName);
 		if (choices) {
-			choices.forEach((each) => { menu.addItem(each, each); });
+			choices.forEach((each) => {
+				const parts = each.split(':');
+				if (parts.length !== 2) return menu.addItem(each, each);
+				const value = /^-?\d+$/.test(parts[1]) ? parseInt(parts[1]) : parts[1];
+				menu.addItem(parts[0], value);
+			});
 			return menu;
 		}
 	}
