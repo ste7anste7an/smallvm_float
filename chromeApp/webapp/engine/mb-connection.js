@@ -436,7 +436,9 @@ class MB_Connection {
 		if (this.boardType == null) return;
 		let libs = MB_Connection.BOARD_LIBRARIES[this.boardType];
 		if (!libs && this.boardType.startsWith('MakerPort')) libs = ['MakerPort'];
-		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName);
+		const unread = [];
+		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName, unread);
+		MB_editor.informCouldNotRead(unread);
 	}
 
 	async waitForVersion() {
@@ -949,6 +951,7 @@ class MB_Connection {
 			this.ideVersion = '0.0.0';
 			this.latestVmVersion = 0;
 			this.versionsRead = MB_Files.readFile('versions').then((data) => {
+				if (data === undefined) this.versionsRead = null; // not read, so the next check tries again
 				for (const line of (data || '').split(/\r?\n/)) {
 					if (line.startsWith('IDE ')) this.ideVersion = line.slice(4);
 					if (line.startsWith('VM ')) this.latestVmVersion = Number(line.slice(3));

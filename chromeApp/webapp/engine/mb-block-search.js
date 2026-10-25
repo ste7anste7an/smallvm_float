@@ -400,7 +400,10 @@ class MB_BlockSearch {
 		// Two quick takes from one library load it once.
 		let loading = MB_BlockSearch.imports.get(libName);
 		if (!loading) {
-			loading = MB_editor.installLibraryNamed(libName).finally(() => MB_BlockSearch.imports.delete(libName));
+			const unread = [];
+			loading = MB_editor.installLibraryNamed(libName, unread)
+				.then(() => MB_editor.informCouldNotRead(unread))
+				.finally(() => MB_BlockSearch.imports.delete(libName));
 			MB_BlockSearch.imports.set(libName, loading);
 		}
 		await loading;
