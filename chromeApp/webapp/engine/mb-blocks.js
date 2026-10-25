@@ -2969,7 +2969,7 @@ BlockMorph.prototype.fixChildrensBlockColor = function (isForced) {
 };
 
 BlockMorph.prototype.setCategory = function (aString) {
-	this.category = aString;
+	this.category = this.isFunctionDefinition() ? 'Definition' : aString;
 	this.fixBlockColor();
 };
 

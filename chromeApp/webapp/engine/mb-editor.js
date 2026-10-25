@@ -1272,6 +1272,7 @@ class MB_Editor {
 		MB_connection.sendMsg('stopAllMsg');
 		this.clearRunningHighlights();
 		this.codeManager.clearVariableNames();
+		this.project.updateCategories(); // fix block color after library change
 		this.scriptChanged(); // the next step sends the board the changed code
 	}
 
