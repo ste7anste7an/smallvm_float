@@ -3844,7 +3844,7 @@ HatBlockMorph.prototype.definitionMenu = function () {
 	var name = this.definedFunctionName(),
 		items = [];
 
-	items.push(['hide block definition', () => MB_editor.hideDefinition(name),
+	items.push(['hide block definition', () => { MB_editor.hideDefinition(name); MB_editor.definitionsShownOrHidden(); },
 		'take this definition out of the scripting area']);
 	items.push('-');
 	items.push(['copy to clipboard', () => this.copyToClipboard(),
@@ -4735,7 +4735,7 @@ ScriptsMorph.prototype.hideSelectedDefinitions = function () {
 	this.takeSelection().forEach((top) => {
 		if (top.isFunctionDefinition()) MB_editor.hideDefinition(top.definedFunctionName());
 	});
-	MB_editor.updateProject();
+	MB_editor.definitionsShownOrHidden();
 };
 
 BlockMorph.prototype.showSelected = function (flag) {
