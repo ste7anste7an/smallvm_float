@@ -175,6 +175,7 @@ class MB_Editor {
 		this.palette.reactToWorldResize = () => this.fixLayout();
 		this.scriptsFrame.reactToWorldResize = () => this.fixLayout();
 		this.fixLayout();
+		this.pixelRatio = Math.ceil(window.devicePixelRatio || 1);
 
 		// The tip bar sits at the bottom of the window and says what the block
 		// under the pointer does.
@@ -206,6 +207,56 @@ class MB_Editor {
 			this.paletteResizer.setExtent(new Point(15 / ZOOM, this.palette.height()));
 		}
 		this.placeTrashcan();
+	}
+
+	checkPixelRatio() {
+		// Morphic sizes canvases for the pixel ratio the page loaded at. When the ratio
+		// changes (the page is zoomed, or the window moves to another screen), the
+		// canvases are rebuilt at the new one, as a reload would.
+		const ratio = Math.ceil(window.devicePixelRatio || 1);
+		if (ratio === this.pixelRatio) return;
+		this.pixelRatio = ratio;
+		disableRetinaSupport();
+		enableRetinaSupport();
+		this.redrawCachedImages();
+		IDE.resize(); // the world canvas, at the new ratio
+		world.changed();
+	}
+
+	redrawCachedImages() {
+		// Canvases made at the old ratio now answer the wrong size. Each is drawn again,
+		// or, where it was handed to its morph rather than drawn by it, copied at the new ratio.
+		const copy = (m) => {
+			const pic = newCanvas(m.extent());
+			pic.getContext('2d').drawImage(m.cachedImage, 0, 0, m.width(), m.height());
+			return pic;
+		};
+		world.allChildren().concat(world.hand.allChildren()).forEach((m) => {
+			const im = m.cachedImage;
+			if (!im || (im.isRetinaEnabled === false)) return; // made at 1 on purpose
+			if ((m instanceof BlockHighlightMorph) && (m.parent instanceof BlockMorph)) {
+				const block = m.parent;
+				block.removeChild(m);
+				const border = (m.width() - block.fullBounds().width()) / 2;
+				m.cachedImage = block.highlightImage(m.color, border);
+				block.addBack(m);
+			} else if ((m instanceof ShadowMorph) || (m.constructor === Morph)) {
+				m.cachedImage = copy(m);
+			} else {
+				m.cachedImage = null;
+				m.shouldRerender = true;
+			}
+		});
+		// The hand keeps its own picture of what it holds.
+		const hand = world.hand, held = hand.children[0];
+		if (held && hand.cachedFullImage) {
+			if ((held instanceof BlockMorph) || (held instanceof SelectedScriptsMorph)) {
+				hand.takePicture(held);
+			} else {
+				hand.cachedFullImage = held.fullImage();
+				hand.cachedFullBounds = held.fullBounds();
+			}
+		}
 	}
 
 	newTrashcan() {
@@ -1223,6 +1274,7 @@ class MB_Editor {
 		// Called four times a second. Send the scripts to a connected board if they
 		// changed, as GP's MicroBlocksScripter step does. Wait while another download runs.
 		this.sendTransferPercent(); // before the returns below: a transfer holds them both
+		this.checkPixelRatio();
 		if (!this.saveNeeded || this.codeManager.savesInProgress > 0) return;
 		this.saveNeeded = false; // an edit made during the sync below sets it again
 		try {
