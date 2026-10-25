@@ -615,9 +615,9 @@ InputSlotMorph.prototype.render = function (ctx) {
 	}
 	ctx.fillStyle = this.color.toString();
 	if (this.isReadOnly && !this.cachedNormalColor) { // unless flashing
-		// a light tint of the block's category colour, not of its current colour
+		// a light tint of my tintBase or the block's category colour, not its current colour
 		const block = this.parentThatIsA(BlockMorph);
-		const base = (block && block.category) ? block.colorFor(block.category) : borderColor;
+		const base = this.tintBase || ((block && block.category) ? block.colorFor(block.category) : borderColor);
 		ctx.fillStyle = base.lighter(75).toString();
 	}
 

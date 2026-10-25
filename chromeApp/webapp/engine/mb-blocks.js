@@ -5689,6 +5689,7 @@ InputDeclarationMorph.prototype.slotFor = function (type, value) {
 		const slot = SyntaxElementMorph.prototype.labelPart('%auto');
 		slot.setContents(this.type);
 		slot.isReadOnly = true;
+		slot.tintBase = BlockMorph.prototype.colorFor('Control'); // the Control tint, not that of the input's reporter
 		slot.fixLayout();
 		return slot;
 	}
