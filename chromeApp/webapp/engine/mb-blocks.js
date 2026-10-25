@@ -4096,6 +4096,8 @@ ReporterBlockMorph.prototype.determineSlotSpec = function () {
 ReporterBlockMorph.prototype.mouseClickLeft = function (pos) {
 	if (this.parent instanceof TemplateSlotMorph) {
 		this.userRenameVariable();
+	} else if (this.parent instanceof BlockSectionDefinitionMorph) {
+		this.userRenameInput(); // an input of a prototype, which has no value to show
 	} else {
 		ReporterBlockMorph.uber.mouseClickLeft.call(this, pos);
 	}
