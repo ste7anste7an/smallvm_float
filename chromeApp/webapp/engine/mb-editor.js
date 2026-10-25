@@ -2223,6 +2223,11 @@ class MB_Editor {
 		// Reconstruct all scripts with the new translation.
 
 		if (this.scripts == null) return; // not yet initialized
+		// storeIDEProperty fires 'board.type' only when it changes, so fire it
+		// here for the Connect label to follow the language.
+		if ((typeof IDE != 'undefined') && IDE.board && (IDE.board.type != null)) {
+			IDE.fireEvent('board.type', IDE.board.type);
+		}
 		await this.restoreUndoState(this.project.codeString());
 	}
 
