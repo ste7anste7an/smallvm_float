@@ -4524,18 +4524,26 @@ ScriptsMorph.prototype.addClearOfScripts = function (aBlock, position) {
 	}
 };
 
-ScriptsMorph.prototype.scriptsPicture = function () {
-	// private - answer a canvas containing the pictures of all scripts
-	var boundingBox, pic, ctx;
-	if (this.children.length === 0) {return; }
-	boundingBox = this.children[0].fullBounds();
+ScriptsMorph.prototype.scriptsBounds = function () {
+	// answer the bounds of all visible scripts, or of the first if none is visible,
+	// or null if there are no scripts
+	var boundingBox = null;
+	if (this.children.length === 0) {return null; }
 	this.children.forEach(child => {
 		if (child.isVisible) {
-			boundingBox = boundingBox.merge(child.fullBounds());
+			boundingBox = boundingBox ? boundingBox.merge(child.fullBounds()) : child.fullBounds();
 		}
 	});
-	pic = newCanvas(boundingBox.extent());
+	return boundingBox || this.children[0].fullBounds();
+};
+
+ScriptsMorph.prototype.scriptsPicture = function (scale = 1) {
+	// private - answer a canvas containing the pictures of all scripts, drawn at scale
+	var boundingBox = this.scriptsBounds(), pic, ctx;
+	if (!boundingBox) {return; }
+	pic = newCanvas(boundingBox.extent().multiplyBy(scale));
 	ctx = pic.getContext('2d');
+	ctx.scale(scale, scale);
 	this.children.forEach(child => {
 		var pos = child.fullBounds().origin;
 		if (child.isVisible) {
