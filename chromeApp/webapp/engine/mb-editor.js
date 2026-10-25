@@ -511,6 +511,7 @@ class MB_Editor {
 			this.reportError(e);
 		}
 		this.scriptChanged();
+		this.updateProjectProperties();
 	}
 
 	importFromPNG(pngBytes) {
@@ -1606,6 +1607,7 @@ class MB_Editor {
 		this.addToBottom(hat);
 		this.updatePalette();
 		this.scriptChanged();
+		this.updateProjectProperties();
 		return hat;
 	}
 
