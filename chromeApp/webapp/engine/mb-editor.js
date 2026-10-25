@@ -2508,10 +2508,30 @@ class MB_Editor {
 		// The scripts pane as PNG bytes. A canvas is the only thing in a browser
 		// that draws one, and toDataURL the only synchronous way to read it back;
 		// a page without a real canvas answers an empty string, and gets null.
+		// Past its canvas size limit, 16384 squared in area on desktop browsers and
+		// less on iOS, a browser throws or answers an empty picture, so a large pane
+		// is drawn smaller to fit, then at half the scale each time that fails.
 
-		const canvas = this.scriptsPane().scriptsPicture();
-		if (!canvas) return null; // no scripts
-		return this.canvasPNG(canvas);
+		const pane = this.scriptsPane();
+		const box = pane.scriptsBounds();
+		if (!box) return null; // no scripts
+		const ratio = this.canvasPixelRatio();
+		const w = box.width() * ratio, h = box.height() * ratio;
+		let scale = Math.min(1, 32000 / w, 32000 / h, Math.sqrt((0.99 * 16384 * 16384) / (w * h)));
+		for (let i = 0; i < 5; i++, scale /= 2) {
+			let pngBytes = null;
+			try { pngBytes = this.canvasPNG(pane.scriptsPicture(scale)); } catch (e) { } // past the limit
+			if (pngBytes) return pngBytes;
+		}
+		return null;
+	}
+
+	canvasPixelRatio() {
+		// Device pixels per unit in a new canvas: the ratio morphic took when retina
+		// support was turned on, which the window's own ratio can drift from.
+
+		const bak = HTMLCanvasElement.prototype._bak;
+		return bak ? bak.width.get.call(newCanvas(new Point(1, 1))) : 1;
 	}
 
 	canvasPNG(canvas) {
@@ -2526,12 +2546,17 @@ class MB_Editor {
 
 	saveScriptsImage() {
 		// A picture of every script, carrying the scripts as text so that the
-		// wiki and any MicroBlocks IDE can read them back out of it. It uses the
-		// current block scale rather than the export scale, on purpose, so that
-		// what is saved is what is on screen.
+		// wiki and any MicroBlocks IDE can read them back out of it. It is drawn
+		// at the screen's pixel ratio whatever the block size, or smaller if the
+		// browser cannot hold a canvas that large.
 
+		if (!this.scriptsPane().scriptsBounds()) return; // no scripts
 		const pngBytes = this.scriptsPicturePNG();
-		if (pngBytes == null) return;
+		if (pngBytes == null) {
+			// a page that cannot encode even a tiny canvas has no picture at any size
+			if (this.canvasPNG(newCanvas(new Point(1, 1)))) this.inform(localized('The scripts are too large to save as a picture.'));
+			return;
+		}
 		const withText = MB_ScriptPicture.addScriptText(pngBytes, this.allScriptsString());
 		this.saveDataAsFile(new Uint8Array(withText), 'allScripts' + Date.now() + '.png', 'image/png');
 	}
