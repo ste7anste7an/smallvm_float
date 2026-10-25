@@ -1111,11 +1111,6 @@ SyntaxElementMorph.prototype.evaluate = function () {
 	return null;
 };
 
-SyntaxElementMorph.prototype.isEmptySlot = function () {
-	// responsibility of my children, default is to answer false
-	return false;
-};
-
 // BlockLabelMorph ///////////////////////////////////////////////
 
 /*
@@ -4742,10 +4737,6 @@ ArgMorph.prototype.evaluate = function () {
 	return null;
 };
 
-ArgMorph.prototype.isEmptySlot = function () {
-	return this.type !== null;
-};
-
 // CommandSlotMorph ////////////////////////////////////////////////////
 
 /*
@@ -4876,10 +4867,6 @@ CommandSlotMorph.prototype.fixLayout = function () {
 
 CommandSlotMorph.prototype.evaluate = function () {
 	return this.nestedBlock();
-};
-
-CommandSlotMorph.prototype.isEmptySlot = function () {
-	return !this.isStatic && (this.nestedBlock() === null);
 };
 
 // CommandSlotMorph drawing:

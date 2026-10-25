@@ -569,10 +569,6 @@ InputSlotMorph.prototype.acceptedText = function () {
 	return (cursor && cursor.target === this.contents()) ? cursor.originalContents : this.contents().text;
 };
 
-InputSlotMorph.prototype.isEmptySlot = function () {
-	return this.contents().text === '' && !this.selectedBlock && !this.symbol;
-};
-
 InputSlotMorph.prototype.isVarOrBroadcastSlot = function () {
 	// A variable or message name is shown as the user wrote it, never translated.
 	const block = this.parentThatIsA(BlockMorph);
@@ -971,10 +967,6 @@ BooleanSlotMorph.prototype.getSpec = function () {
 
 BooleanSlotMorph.prototype.evaluate = function () {
 	return (this.mbValue === undefined) ? this.value : this.mbValue;
-};
-
-BooleanSlotMorph.prototype.isEmptySlot = function () {
-	return this.value === null;
 };
 
 BooleanSlotMorph.prototype.isLocked = function () {
