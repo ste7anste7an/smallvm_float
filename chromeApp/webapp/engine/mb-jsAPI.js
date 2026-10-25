@@ -315,7 +315,7 @@ GP.apiCall = function (endPoint, params, callback) {
 };
 
 // menus.js shows its paste items from GP.clipboardBytes and clipboardText().
-// mb-editor.js fills that buffer and defines clipboardText().
+// mb-support.js fills that buffer and defines clipboardText().
 GP.clipboardBytes = [];
 
 function setClipboard(text) { setGPClipboard(text); }
