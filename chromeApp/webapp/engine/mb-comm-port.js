@@ -36,6 +36,7 @@ const SERIAL_VENDOR_IDS = [
 class MB_CommPort {
 	constructor() {
 		this.inputBuffers = []; // list of Uint8Array chunks waiting to be read
+		this.dataArrived = null; // if set, called when serial input arrives
 
 		// WebSerial state
 		this.serialPort = null;
@@ -138,7 +139,10 @@ class MB_CommPort {
 		try {
 			while (true) {
 				const { value, done } = await this.serialReader.read();
-				if (value) this.inputBuffers.push(value);
+				if (value) {
+					this.inputBuffers.push(value);
+					if (this.dataArrived) this.dataArrived();
+				}
 				if (done) { // happens when disconnect cancels serialReader, or when Firefox loses the board
 					this.serialReader.releaseLock();
 					this.serialReader = null; // isConnected() is now false, so updateConnection closes the port
