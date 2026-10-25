@@ -5876,10 +5876,11 @@ CursorMorph.prototype.processInput = function (event) {
         filteredContent,
         caret;
 
-    // a numeric field holds a whole number: undo any change that would end that
+    // a numeric field holds a whole number: undo any change that would end that,
+    // leaving the caret where the refused text went in
     if (target.isNumeric && !/^-?[0-9]*$/.test(textarea.value)) {
-        caret = textarea.selectionStart -
-            (textarea.value.length - target.text.length);
+        caret = textarea.selectionStart - (textarea.value.length -
+            target.text.length + Math.abs(target.endMark - target.startMark));
         textarea.value = target.text;
         caret = Math.max(0, Math.min(caret, textarea.value.length));
         textarea.setSelectionRange(caret, caret);
