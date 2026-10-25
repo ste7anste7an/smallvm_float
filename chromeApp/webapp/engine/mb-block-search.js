@@ -16,23 +16,8 @@
 
 /* global MB_editor, MB_Files, MB_Parser, MB_Specs, localized, parsedSpecs, stringArg, blockScale, screenPixels,
 	BoxMorph, Color, CursorMorph, MenuItemMorph, MenuMorph, Morph, Point, StringMorph, GetText, newCanvas,
-	renderBlockString, world, ZOOM */
-
-function zoomedImage(aMorph) {
-	// A morph's full image drawn at the world's zoom. The world draws a cached image
-	// under its zoom, so a picture at world units would be scaled up and blurred at
-	// any block size above 100%; this one is drawn back at 1 / ZOOM of its size.
-
-	const bounds = aMorph.fullBounds();
-	const image = newCanvas(bounds.extent().multiplyBy(ZOOM));
-	const ctx = image.getContext('2d');
-	ctx.scale(ZOOM, ZOOM);
-	ctx.translate(-bounds.origin.x, -bounds.origin.y);
-	aMorph.drawnAtZoom = true;
-	aMorph.fullDrawOn(ctx, bounds);
-	delete aMorph.drawnAtZoom;
-	return image;
-}
+	renderBlockString, world, ZOOM,
+	zoomedImage */
 
 class MB_BlockSearch {
 	// A search of the open project's blocks. search() and recents() answer entries,
