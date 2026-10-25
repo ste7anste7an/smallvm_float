@@ -2635,8 +2635,8 @@ class MB_Editor {
 			bubble = new MB_ResultBubbleMorph(String(result), isError, px);
 			bubbleW = bubble.fullBounds().width();
 			bubbleH = bubble.fullBounds().height();
-			bubbleInsetX = 5 * scale;
-			bubbleInsetY = 5 * scale;
+			bubbleInsetX = 15 * scale;
+			bubbleInsetY = 15 * scale;
 			if (topBlock instanceof HatBlockMorph) bubbleInsetY = (script.height() / 2) + (3 * scale);
 		}
 
@@ -3427,8 +3427,7 @@ MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
 	ctx.lineWidth = this.border;
-	// Round joins blunt the tail's tip on screen; a picture keeps it sharp.
-	ctx.lineJoin = this.picturePx ? 'miter' : 'round';
+	ctx.lineJoin = 'round'; // blunt the tail's tip
 	ctx.strokeStyle = this.borderColor.toString();
 	ctx.stroke();
 };
