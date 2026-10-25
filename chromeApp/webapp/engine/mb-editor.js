@@ -1229,9 +1229,17 @@ class MB_Editor {
 	removeLibraryNamed(libName) {
 		// Take a library out of the project, then tell the board and the IDE.
 
+		this.updateProject();
+		this.hideLibraryDefinitions(this.project.libraryNamed(libName));
 		this.project.removeLibraryNamed(libName);
 		this.librariesChanged();
+		this.codeManager.recompileNeeded(); // a script's text is unchanged by the delete
 		this.updateLibraryList();
+		// A call into the library is rebuilt as an unknown block.
+		for (const top of this.scriptsPane().children.slice()) {
+			if (!(top instanceof BlockMorph) || top.isFunctionDefinition()) continue;
+			this.replaceScript(top, MB_Parser.blockForDecompiled(top.expression()));
+		}
 	}
 
 	exportLibrary(libName) {
