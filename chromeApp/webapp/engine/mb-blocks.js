@@ -170,7 +170,6 @@ var HatBlockMorph;
 var BlockExpanderMorph;
 var BlockHighlightMorph;
 var MicroBitDisplaySlotMorph;
-var WorkspaceMorph;
 var TemplateSlotMorph;
 var TextSlotMorph;
 var SelectionBandMorph;
@@ -5261,87 +5260,6 @@ BlockHighlightMorph.prototype.drawOn = function (ctx, rect) {
 
 BlockHighlightMorph.prototype.readout = function () {
 	return this.children.length ? this.children[0] : null;
-};
-
-// WorkspaceMorph //////////////////////////////////////////////////////
-
-// A window holding text the user can scroll, select, edit and copy. It is
-// dragged by its title bar, resized from its corner and closed by its X.
-
-// WorkspaceMorph inherits from BoxMorph:
-
-WorkspaceMorph.prototype = new BoxMorph();
-WorkspaceMorph.prototype.constructor = WorkspaceMorph;
-WorkspaceMorph.uber = BoxMorph.prototype;
-
-WorkspaceMorph.prototype.inset = 5;
-WorkspaceMorph.prototype.frameColor = new Color(38, 41, 56);
-WorkspaceMorph.prototype.clientColor = new Color(236, 237, 241);
-
-// WorkspaceMorph instance creation:
-
-function WorkspaceMorph(title, contents) {
-	this.init(title, contents);
-}
-
-WorkspaceMorph.prototype.init = function (title, contents) {
-	WorkspaceMorph.uber.init.call(this, 0, 0);
-	this.color = this.frameColor;
-	this.isDraggable = true;
-
-	this.label = new StringMorph(
-		title, 12, null, true, false, false, null, null, this.clientColor, 'Arial');
-	this.add(this.label);
-	this.closeButton = new TriggerMorph(this, 'destroy', 'X', 11, 'sans-serif',
-		null, null, null, true);
-	this.add(this.closeButton);
-
-	this.text = new TextMorph(contents, 16, null, false, false, 'left', null, 'Arial');
-	this.text.isEditable = true;
-	this.text.enableSelecting();
-	this.textFrame = new ScrollFrameMorph();
-	this.textFrame.color = this.clientColor;
-	this.textFrame.acceptsDrops = false;
-	this.textFrame.contents.acceptsDrops = false;
-	this.textFrame.addContents(this.text);
-	this.add(this.textFrame);
-
-	this.resizer = new HandleMorph(this, 140, 50, this.inset, this.inset);
-	this.setExtent(new Point(200, 120));
-};
-
-WorkspaceMorph.prototype.openAtHand = function (world, extent) {
-	this.setPosition(world.hand.position());
-	this.setExtent(extent);
-	world.add(this);
-	this.keepWithin(world);
-	this.fullChanged();
-};
-
-WorkspaceMorph.prototype.justDropped = function () {
-	// A window stays on the world, whatever pane it is dropped over.
-	var world = this.world();
-	if (world && (this.parent !== world)) world.add(this);
-};
-
-// WorkspaceMorph layout:
-
-WorkspaceMorph.prototype.fixLayout = function () {
-	var border = this.inset, top;
-
-	if (!this.textFrame) return; // still being built
-	this.label.setPosition(this.position().add(new Point(10, border)));
-	this.closeButton.setExtent(new Point(20, 15));
-	this.closeButton.setTop(this.top() + border);
-	this.closeButton.setRight(this.right() - border);
-	top = this.label.bottom() + border;
-	this.textFrame.setPosition(new Point(this.left() + border, top));
-	this.textFrame.setExtent(new Point(this.width() - (2 * border), this.bottom() - border - top));
-	this.textFrame.adjustScrollBars();
-	if (this.resizer) {
-		this.resizer.fixLayout();
-		this.add(this.resizer); // keep it in front
-	}
 };
 
 // BlockDefinitionMorph ////////////////////////////////////////////////
