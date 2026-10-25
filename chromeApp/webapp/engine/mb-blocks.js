@@ -2841,7 +2841,7 @@ BlockMorph.prototype.mouseClickLeft = function () {
 		this.children.find((m) => m instanceof BlockDefinitionMorph).clicked();
 		return;
 	}
-	if (scripts.selection && this.world().hand.shiftKey &&
+	if (scripts.selection && MB_editor.shiftDown && // Shift as it is now, at the release
 			(this.parentThatIsA(ScriptsMorph) === scripts)) {
 		scripts.toggleSelected(this.topBlock());
 		return;
@@ -3407,8 +3407,10 @@ CommandBlockMorph.prototype.setWrapHeight = function (h) {
 };
 
 CommandBlockMorph.prototype.prepareToBeGrabbed = function (handMorph) {
-	// check whether the shift-key is held down and if I can be "extracted"
-	if (handMorph && handMorph.world.currentKey === 16 && this.nextBlock()) {
+	// check whether the shift-key is held down and if I can be "extracted";
+	// Shift from the page, so it counts while a button outside the scripting area has the focus.
+	// A copy picked up from a menu has no parent and is never extracted.
+	if (handMorph && this.parent && MB_editor.shiftDown && this.nextBlock()) {
 		this.extract(); // NOTE: no infinite recursion, because extract()
 						// doesn't call this again with a hand
 		handMorph.grabOrigin.action = 'extract'; // ???
