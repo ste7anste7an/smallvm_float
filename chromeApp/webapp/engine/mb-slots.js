@@ -480,9 +480,15 @@ InputSlotMorph.prototype.userMenu = function () {
 
 InputSlotMorph.prototype.reactToEdit = function () {
 	var block = this.parentThatIsA(BlockMorph);
-	// a number slot left with no number in it holds 0, and shows it
-	if (this.isNumeric && !this.isAlphanumeric && isNaN(parseInt(this.contents().text, 10))) {
-		this.setContents(0);
+	// a number slot shows the number it holds: 0 for no number, 7 for 007
+	if (this.isNumeric && !this.isAlphanumeric) {
+		const text = this.contents().text, n = parseInt(text, 10);
+		if (isNaN(n)) {
+			this.setContents(0);
+		} else if ((text !== this.mbValueText) && (String(n) !== text) && Number.isSafeInteger(n)) {
+			// typed text, not a value the slot was given; digits past a safe integer keep their text
+			this.setContents(n);
+		}
 	}
 	this.contents().clearSelection();
 	const cursor = this.world() && this.world().cursor;
