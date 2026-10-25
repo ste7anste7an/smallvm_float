@@ -1745,7 +1745,14 @@ BlockMorph.prototype.showDevView = function (view) {
 		}[view];
 
 	if (text === null) return;
-	FloatingWindow.workspace(win.title, text);
+	var ws = FloatingWindow.workspace(win.title, text);
+	// FloatingWindow.workspace opens at its 240 minimum; resize to this view's width
+	// and recentre, keeping the height it opened with.
+	ws.minWidth = Math.min(ws.minWidth, win.width);
+	ws.style.minWidth = ws.minWidth + 'px';
+	ws.x = Math.max(0, ws.x + (ws.width - win.width) / 2);
+	ws.style.left = ws.x + 'px';
+	ws.setSize(win.width, ws.height, true);
 };
 
 BlockMorph.prototype.isObsolete = function () {
