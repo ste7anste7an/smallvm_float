@@ -1252,6 +1252,19 @@ TextSlotMorph.prototype.layoutChanged = function () {
 	this.fixLayout();
 };
 
+TextSlotMorph.prototype.reactToEdit = function () {
+	// an edit that ends empty, Escape included, gives the place back to the auto slot
+	if (this.autoSlot && (this.contents().text === '')) {
+		const auto = this.autoSlot;
+		this.autoSlot = null;
+		auto.setContents('');
+		this.parent.replaceInput(this, auto);
+		auto.reactToEdit();
+		return;
+	}
+	TextSlotMorph.uber.reactToEdit.call(this);
+};
+
 TextSlotMorph.prototype.reactToInput = function () {
 	if (this.autoSlot && (this.contents().text === '')) {
 		const auto = this.autoSlot;
