@@ -47,7 +47,6 @@ class MB_Editor {
 		this.paletteWidth = 260; // screen px, whatever the block size
 
 		this.palette = new ScrollFrameMorph();
-		this.palette.contents.acceptsDrops = true;
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if ((droppedMorph instanceof BlockMorph) || (droppedMorph instanceof SelectedScriptsMorph)) {
 				droppedMorph.destroy();
@@ -64,6 +63,11 @@ class MB_Editor {
 		// What FrameMorph's constructor would have set; ScriptsMorph takes no
 		// scroll frame, and adjustBounds does nothing without one.
 		this.scripts.scrollFrame = this.scriptsFrame;
+		// The panes take only blocks and selections, so a dialog released over one stays on
+		// the world. A block released on either pane's scroll bar is deleted, as on the palette.
+		const takesBlocks = (m) => (m instanceof BlockMorph) || (m instanceof SelectedScriptsMorph);
+		for (const pane of [this.palette, this.palette.contents, this.scriptsFrame]) pane.wantsDropOf = takesBlocks;
+		this.palette.reactToDropOf = this.scriptsFrame.reactToDropOf = this.palette.contents.reactToDropOf;
 		// The area reaches 50 screen pixels past its scripts on the right and below only.
 		// Script positions are saved from its top left, so that corner must not move.
 		Object.defineProperty(this.scriptsFrame, 'growth', { get: () => 50 / ZOOM });
