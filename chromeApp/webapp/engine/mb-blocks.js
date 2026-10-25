@@ -2827,9 +2827,9 @@ BlockMorph.prototype.reactToTemplateCopy = function () {
 
 BlockMorph.prototype.pickUp = function (wrrld) {
 	// used when duplicating and grabbing a block via its context menu
-	// position the duplicate's top-left corner at the mouse pointer
+	// hold it near its top-left corner, 7 screen pixels in at any block size
 	var world = wrrld || this.world();
-	this.setPosition(world.hand.position().subtract(this.rounding));
+	this.setPosition(world.hand.position().subtract(7 / ZOOM));
 	world.hand.grab(this);
 };
 
