@@ -2593,8 +2593,7 @@ class MB_Editor {
 
 		let bubble = null, bubbleW = 0, bubbleH = 0, bubbleInsetX = 0, bubbleInsetY = 0;
 		if (result != null) {
-			bubble = new SpeechBubbleMorph(this.exportBubbleText(String(result), px),
-				isError ? new Color(255, 190, 190) : null, 6 * px, px);
+			bubble = new MB_ResultBubbleMorph(String(result), isError, px);
 			bubbleW = bubble.fullBounds().width();
 			bubbleH = bubble.fullBounds().height();
 			bubbleInsetX = 5 * scale;
@@ -2638,13 +2637,6 @@ class MB_Editor {
 		if (!topBlock.isFunctionDefinition()) return topBlock instanceof ReporterBlockMorph;
 		const spec = this.project.blockSpecs.get(topBlock.definedFunctionName());
 		return (spec != null) && ('r' === spec.blockType);
-	}
-
-	exportBubbleText(aString, px) {
-		// The text of a result bubble in a script picture, wrapped at 200 image pixels.
-		const text = new TextMorph(aString, 18 * px, 'sans-serif', false, false, 'center', null, 'Arial');
-		if (text.width() <= 200) return text;
-		return new TextMorph(aString, 18 * px, 'sans-serif', false, false, 'center', 200, 'Arial');
 	}
 
 	exportScriptImageWithResult(aBlock) {
@@ -3276,26 +3268,38 @@ class MB_Editor {
 
 // MB_ResultBubbleMorph: the bubble showing a value or an error from the board on its block
 
-function MB_ResultBubbleMorph(value, isError) {
-	this.init(value, isError);
+function MB_ResultBubbleMorph(value, isError, picturePx) {
+	this.init(value, isError, picturePx);
 }
 
 MB_ResultBubbleMorph.prototype = Object.create(SpeechBubbleMorph.prototype);
 MB_ResultBubbleMorph.prototype.constructor = MB_ResultBubbleMorph;
 MB_ResultBubbleMorph.uber = SpeechBubbleMorph.prototype;
 
-MB_ResultBubbleMorph.prototype.init = function (value, isError) {
+MB_ResultBubbleMorph.prototype.init = function (value, isError, picturePx) {
+	// With picturePx, the bubble is drawn for a script picture at that many image pixels per block unit.
+	this.picturePx = picturePx || 0;
+	this.unit = picturePx || 1;
 	const fill = isError ? new Color(255, 242, 242) : new Color(250, 250, 250);
 	const border = isError ? new Color(178, 0, 0) : new Color(140, 140, 140);
-	MB_ResultBubbleMorph.uber.init.call(this, value, fill, 5, 2, border, 0, false, true);
+	MB_ResultBubbleMorph.uber.init.call(this, value, fill, 5, 2 * this.unit, border, 0, false, true);
 };
 
 MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	// Wrap at 175 screen pixels whatever the block size, and show at most 30 lines.
+	// A picture's lines are cut at 400 image pixels by pictureLines.
 	if (this.contentsMorph) this.contentsMorph.destroy();
-	const textMorph = (s, width) => new TextMorph(s, 18, null, false, false, 'center', width, 'Arial');
+	const u = this.unit;
+	const ppu = this.picturePx ? 1 : undefined; // a picture's units are its pixels
+	const textMorph = (s, width) => new TextMorph(s, 18 * u, null, false, false, 'center', width, 'Arial');
+	const probe = textMorph('', 0);
+	probe.measureCtx.font = probe.font();
 	let lines = [];
 	for (const paragraph of String(this.contents).split('\n')) {
+		if (this.picturePx) {
+			lines = lines.concat(pictureLines(paragraph, 400, (s) => probe.measureCtx.measureText(s).width));
+			continue;
+		}
 		// A wrapping TextMorph ends each line with a space, and adds an empty
 		// first line when the first word is wider than the bubble.
 		const wrapped = textMorph(paragraph, 175 / ZOOM).lines.map((s) => s.trimEnd());
@@ -3306,21 +3310,41 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	const text = textMorph(lines.join('\n'), 0);
 	text.color = new Color(0, 0, 0);
 	text.render = renderResultText;
-	text.bounds.setHeight(text.lines.length * resultTextMetrics(text.fontSize).lineHeight);
+	text.pixelsPerUnit = ppu;
+	text.bounds.setHeight(text.lines.length * resultTextMetrics(text.fontSize, ppu).lineHeight);
 	this.contentsMorph = text;
 	this.add(text);
 	// A TextMorph is one space wider than its widest line; the glyphs fill its left part.
 	text.measureCtx.font = text.font();
 	const width = Math.max(...text.lines.map((s) => text.measureCtx.measureText(s.trimEnd()).width));
-	this.bounds.setExtent(new Point(width + 22, text.height() + 21)); // 7 of the height is the tail
-	text.setPosition(this.position().add(new Point(11, 7)));
+	this.bounds.setExtent(new Point(width + (22 * u), text.height() + (21 * u))); // 7 of the height is the tail
+	text.setPosition(this.position().add(new Point(11 * u, 7 * u)));
 };
 
-// GP's line height and baseline at the world's zoom: 0.95 and 0.3 of the font
-// size in device pixels, each rounded down, and the font size less a tenth of it.
+// A paragraph cut into a picture's lines: each runs on to the first space or
+// punctuation mark past the width and keeps it, so a line can be wider than the
+// width, and an empty paragraph has no line.
+function pictureLines(paragraph, width, measure) {
+	const lines = [];
+	let start = 0;
+	for (let i = 0; i < paragraph.length; i++) {
+		const soFar = paragraph.slice(start, i + 1);
+		if (' ,;:.'.includes(paragraph[i]) && (measure(soFar) > width)) {
+			lines.push(soFar);
+			start = i + 1;
+		} else if (i === paragraph.length - 1) {
+			lines.push(soFar);
+		}
+	}
+	return lines;
+}
+
+// The result text's line height and baseline at ppu device pixels per unit, by
+// default the world's: 0.95 and 0.3 of the font size in device pixels, each
+// rounded down, and the font size less a tenth of it.
 // Morphic's lines are 1.2 font sizes, with the glyphs on the bottom of each.
-function resultTextMetrics(fontSize) {
-	const ppu = 2 * ZOOM, px = Math.round(fontSize * ppu);
+function resultTextMetrics(fontSize, ppu = 2 * ZOOM) {
+	const px = Math.round(fontSize * ppu);
 	return {
 		lineHeight: (Math.floor(0.95 * px) + Math.floor(0.3 * px)) / ppu,
 		baseline: (px - Math.floor(px / 10)) / ppu
@@ -3329,7 +3353,7 @@ function resultTextMetrics(fontSize) {
 
 // TextMorph's centred lines, drawn on GP's metrics above.
 function renderResultText(ctx) {
-	const { lineHeight, baseline } = resultTextMetrics(this.fontSize);
+	const { lineHeight, baseline } = resultTextMetrics(this.fontSize, this.pixelsPerUnit);
 	ctx.font = this.font();
 	ctx.textAlign = 'left';
 	ctx.textBaseline = 'alphabetic';
@@ -3341,8 +3365,9 @@ function renderResultText(ctx) {
 
 MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	// A rounded box inset 4 from the bounds, with an 8 high tail under one end.
-	const l = 4, t = 4, r = this.width() - 4, b = this.height() - 4;
-	const radius = 5, tailH = 8, tailW = 4, indent = 8;
+	const u = this.unit;
+	const l = 4 * u, t = 4 * u, r = this.width() - (4 * u), b = this.height() - (4 * u);
+	const radius = 5 * u, tailH = 8 * u, tailW = 4 * u, indent = 8 * u;
 	const base = b - tailH;
 	ctx.beginPath();
 	ctx.moveTo(l, base - radius);
@@ -3363,7 +3388,8 @@ MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
 	ctx.lineWidth = this.border;
-	ctx.lineJoin = 'round'; // GP strokes the screen's paths round, which blunts the tail's tip
+	// Round joins blunt the tail's tip on screen; a picture keeps it sharp.
+	ctx.lineJoin = this.picturePx ? 'miter' : 'round';
 	ctx.strokeStyle = this.borderColor.toString();
 	ctx.stroke();
 };
