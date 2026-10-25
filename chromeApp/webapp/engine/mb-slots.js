@@ -480,6 +480,8 @@ InputSlotMorph.prototype.reactToEdit = function () {
 		this.setContents(0);
 	}
 	this.contents().clearSelection();
+	const cursor = this.world() && this.world().cursor;
+	if (cursor && cursor.cancelled) return; // Escape put the text back: nothing changed
 	this.scriptChanged();
 };
 
@@ -520,6 +522,12 @@ CursorMorph.prototype.processKeyDown = function (event) {
 		return;
 	}
 	this.processKeyDownInText(event);
+};
+
+CursorMorph.prototype.cancelInText = CursorMorph.prototype.cancel;
+CursorMorph.prototype.cancel = function () {
+	this.cancelled = true; // read by the slot's reactToEdit while the edit ends
+	this.cancelInText();
 };
 
 // InputSlotMorph replacing
