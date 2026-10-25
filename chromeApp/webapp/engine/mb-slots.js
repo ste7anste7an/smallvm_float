@@ -1441,10 +1441,12 @@ ColorSlotPickerMorph.prototype.init = function () {
 	this.color = new Color(45, 49, 67); // blueGray 850
 	this.bounds.setExtent(new Point(289, 170));
 
-	this.fullPalette = newCanvas(new Point(200, 128), true);
+	// one palette pixel per world canvas pixel, so the palettes are as sharp as the IDE
+	const px = ZOOM * Math.ceil(window.devicePixelRatio || 1);
+	this.fullPalette = newCanvas(new Point(200 * px, 128 * px), true);
 	this.drawColorPalette(this.fullPalette);
-	this.grayRamp = this.addPalette(this.drawGrayRamp(newCanvas(new Point(200, 10), true)), 10, 18);
-	this.colorPalette = this.addPalette(newCanvas(new Point(200, 128), true), 10, 32);
+	this.grayRamp = this.addPalette(this.drawGrayRamp(newCanvas(new Point(200 * px, 10 * px), true)), 10, 18, 200, 10);
+	this.colorPalette = this.addPalette(newCanvas(new Point(200 * px, 128 * px), true), 10, 32, 200, 128);
 	this.slider = this.addSlider(214, 32);
 	this.swatch = this.addPart(new Morph(), 228, 32, 52, 52);
 	this.swatch.color = WHITE;
@@ -1471,11 +1473,11 @@ ColorSlotPickerMorph.prototype.addPart = function (part, x, y, w, h) {
 	return part;
 };
 
-ColorSlotPickerMorph.prototype.addPalette = function (canvas, x, y) {
-	// A part that shows canvas and picks screen colours while pressed.
-	var part = this.addPart(new Morph(), x, y, canvas.width, canvas.height);
+ColorSlotPickerMorph.prototype.addPalette = function (canvas, x, y, w, h) {
+	// A part w by h that shows canvas and picks screen colours while pressed.
+	var part = this.addPart(new Morph(), x, y, w, h);
 	part.canvas = canvas;
-	part.render = (ctx) => ctx.drawImage(canvas, 0, 0);
+	part.render = (ctx) => ctx.drawImage(canvas, 0, 0, w, h);
 	part.mouseDownLeft = () => {
 		this.world().worldCanvas.style.cursor = 'crosshair';
 		this.track((pos) => this.pickAt(pos), () => {
@@ -1623,7 +1625,7 @@ ColorSlotPickerMorph.prototype.setBrightness = function (n) {
 	alpha = Math.min(Math.max(Math.trunc(255 * n), 0), 255);
 	ctx.globalAlpha = 1;
 	ctx.fillStyle = 'black';
-	ctx.fillRect(0, 0, this.colorPalette.width(), this.colorPalette.height());
+	ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 	ctx.globalAlpha = alpha / 255;
 	ctx.drawImage(this.fullPalette, 0, 0);
 	ctx.globalAlpha = 1;
