@@ -2437,7 +2437,9 @@ class MB_Editor {
 	async newProject() {
 		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
-		// The libraries are gone, then a new project starts on Output.
+		// A connected board's libraries come back, as they do on connect,
+		// then a new project starts on Output.
+		await MB_connection.installBoardSpecificBlocks();
 		this.updateLibraryList();
 		this.selectCategory('cat;Output');
 	}

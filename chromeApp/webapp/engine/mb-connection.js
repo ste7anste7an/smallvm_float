@@ -431,7 +431,7 @@ class MB_Connection {
 	}
 
 	async installBoardSpecificBlocks() {
-		// Give an empty project the libraries for the board just connected,
+		// Give an empty project the connected board's libraries,
 		// unless the user turned that off in Settings.
 		if (MB_editor.readFromBoard || (this.decompiler != null)) return;
 		if (MB_editor.project.hasUserCode()) return;
@@ -439,8 +439,13 @@ class MB_Connection {
 		if (this.boardType == null) return;
 		let libs = MB_Connection.BOARD_LIBRARIES[this.boardType];
 		if (!libs && this.boardType.startsWith('MakerPort')) libs = ['MakerPort'];
+		const project = MB_editor.project;
 		const unread = [];
-		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName, unread);
+		for (const libName of (libs || [])) {
+			// a project opened while a library loads is not the one these are for
+			if (MB_editor.project !== project) return;
+			await MB_editor.importEmbeddedLibrary(libName, unread);
+		}
 		MB_editor.informCouldNotRead(unread);
 	}
 
