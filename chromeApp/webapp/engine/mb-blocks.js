@@ -4253,7 +4253,7 @@ ScriptsMorph.uber = FrameMorph.prototype;
 
 // ScriptsMorph preference settings
 
-ScriptsMorph.prototype.cleanUpMargin = 20;
+ScriptsMorph.prototype.cleanUpMargin = 5;
 ScriptsMorph.prototype.cleanUpSpacing = 15;
 ScriptsMorph.prototype.enableKeyboard = true;
 ScriptsMorph.prototype.feedbackColor = new Color(254, 215, 34);
@@ -4480,12 +4480,25 @@ ScriptsMorph.prototype.definitionsFirst = function (a, b) {
 };
 
 ScriptsMorph.prototype.cleanUp = function () {
+	// Lay the scripts out in rows, starting a new row where the next script
+	// would pass the visible right edge of the pane.
 	var target = this.selectForEdit(), // enable copy-on-edit
 		origin = target.topLeft(),
-		y = target.cleanUpMargin;
+		frame = target.parent,
+		margin = target.cleanUpMargin / ZOOM, // in screen pixels, whatever the block size
+		spacing = 20 * blockScale(),
+		maxRight = frame ? frame.width() - frame.scrollBarSize : target.width(),
+		x = margin, y = margin, rowHeight = 0;
 	target.children.sort(target.definitionsFirst).forEach(child => {
-		child.setPosition(origin.add(new Point(target.cleanUpMargin, y)));
-		y += child.stackHeight() + target.cleanUpSpacing;
+		var size = child.fullBounds().extent();
+		if (x + size.x > maxRight) {
+			x = margin;
+			y += rowHeight + spacing;
+			rowHeight = 0;
+		}
+		child.setPosition(origin.add(new Point(x, y)));
+		x += size.x + spacing;
+		rowHeight = Math.max(rowHeight, size.y);
 	});
 	if (target.parent) {
 		target.setPosition(target.parent.topLeft());
