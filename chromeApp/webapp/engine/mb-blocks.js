@@ -486,32 +486,6 @@ SyntaxElementMorph.prototype.argList = function () {
 	return this.inputs().map(slot => slot.evaluate());
 }
 
-SyntaxElementMorph.prototype.debugCachedInputs = function () {
-	// private - only used for manually debugging inputs caching
-	var realInputs, i;
-	if (!isNil(this.cachedInputs)) {
-		realInputs = this.parts().filter(part =>
-			part instanceof SyntaxElementMorph
-		);
-	}
-	if (this.cachedInputs.length !== realInputs.length) {
-		throw new Error('cached inputs size do not match: ' +
-			this.constructor.name);
-	}
-	for (i = 0; i < realInputs.length; i += 1) {
-		if (this.cachedInputs[i] !== realInputs[i]) {
-			throw new Error('cached input does not match: ' +
-				this.constructor.name +
-				' #' +
-				i +
-				' ' +
-				this.cachedInputs[i].constructor.name +
-				' != ' +
-				realInputs[i].constructor.name);
-		}
-	}
-};
-
 SyntaxElementMorph.prototype.allInputs = function () {
 	// answer arguments and nested reporters of all children
 	return this.allChildren().slice(0).reverse().filter(child =>
@@ -1952,145 +1926,6 @@ BlockMorph.prototype.nextBlock = function (block) {
 	return null;
 }
 
-BlockMorph.prototype.relabel = function (alternativeSelectors) {
-	alert('not yet implemented');
-	return;
-
-	// morph one block into another trying to keep the inputs in place
-	// alternative Selector can either be a string representing
-	// a block selector or a 2-item array containing a string and
-	// an integer offset for restoring inputs
-	var menu, oldInputs,
-		target = this.selectForEdit(); // copy-on-edit
-	if (target !== this) {
-		return this.relabel.call(target, alternativeSelectors);
-	}
-	menu = new MenuMorph(this);
-	oldInputs = this.inputs();
-	alternativeSelectors.forEach(alternative => {
-		var block, selector, offset;
-		if (alternative instanceof Array) {
-			selector = alternative[0];
-			offset = -alternative[1];
-		} else {
-			selector = alternative;
-			offset = 0;
-		}
-		block = SpriteMorph.prototype.blockForSelector(selector, true);
-		block.restoreInputs(oldInputs, offset);
-		block.fixBlockColor(null, true);
-		block.addShadow(new Point(3, 3));
-		menu.addItem(
-			block.doWithAlpha(1, () => block.fullImage()),
-			() => { this.setSelector(selector, -offset); });
-	});
-	menu.popup(this.world(), this.bottomLeft().subtract(new Point(
-		8,
-		this instanceof CommandBlockMorph ? this.corner : 0
-	)));
-};
-
-BlockMorph.prototype.setSelector = function (aSelector, inputOffset = 0) {
-	// private - used only for relabel()
-	// input offset is optional and can be used to shift the inputs
-	// to be restored
-	var oldInputs = this.inputs(),
-		scripts = this.parentThatIsA(ScriptsMorph),
-		surplus,
-		info,
-		slots,
-		i;
-	info = SpriteMorph.prototype.blocks[aSelector];
-	this.setCategory(info.category);
-	this.selector = aSelector;
-	this.setSpec(info.spec);
-	this.defaults = info.defaults || [];
-
-	// restore default values
-	slots = this.inputs();
-	for (i = 0; i < this.defaults.length; i += 1) {
-		if (this.defaults[i] !== null && slots[i].setContents) {
-			slots[i].setContents(this.defaults[i]);
-		}
-	}
-
-	// restore previous inputs
-	surplus = this.restoreInputs(oldInputs, -inputOffset);
-	this.fixLabelColor();
-	this.fixLayout();
-
-	// place surplus blocks on scipts
-	if (scripts && surplus?.length) {
-		surplus.forEach(blk => {
-			blk.moveBy(10);
-			scripts.add(blk);
-		});
-	}
-};
-
-BlockMorph.prototype.restoreInputs = function (oldInputs, offset = 0) {
-	// private - used only for relabel()
-	// try to restore my previous inputs when my spec has been changed
-	// return an Array of left-over blocks, if any
-	// optional offset parameter allows for shifting the range
-	// of inputs to be restored
-	var old, nb, i, src, trg,
-		element = this,
-		inputs = this.inputs(),
-		leftOver = [];
-
-	function preserveBlocksIn(slot) {
-		if (slot instanceof ReporterBlockMorph) {
-			leftOver.push(slot);
-		} else if (slot instanceof CommandSlotMorph) {
-			nb = slot.nestedBlock();
-			if (nb) {
-				leftOver.push(nb);
-			}
-		}
-	}
-
-	// gather leading surplus blocks
-	for (i = 0; i < offset; i += 1) {
-		preserveBlocksIn(oldInputs[i]);
-	}
-
-	// restore matching inputs in their original order
-	inputs.forEach(inp => {
-		old = oldInputs[offset];
-		if (old instanceof ReporterBlockMorph) {
-			if (inp instanceof TemplateSlotMorph || inp.isStatic) {
-				leftOver.push(old);
-			} else {
-				element.replaceInput(inp, old.fullCopy());
-			}
-		} else if (old && inp instanceof InputSlotMorph) {
-			// original - turns empty numberslots to 0:
-			// inp.setContents(old.evaluate());
-			// "fix" may be wrong b/c constants
-			if (old.contents) {
-				inp.setContents(old.contents().text);
-			}
-		} else if (old instanceof CSlotMorph && inp instanceof CSlotMorph) {
-			nb = old.nestedBlock();
-			if (nb) {
-				inp.nestedBlock(nb.fullCopy());
-			}
-		} else {
-			preserveBlocksIn(old);
-		}
-		offset += 1;
-	});
-
-	// gather trailing surplus blocks
-	for (offset; offset < oldInputs.length; offset += 1) {
-		preserveBlocksIn(oldInputs[offset]);
-	}
-	element.cachedInputs = null;
-	this.cachedInputs = null;
-	return leftOver;
-};
-
 // BlockMorph expand/collapse
 
 BlockMorph.prototype.canExpand = function () {
@@ -2314,47 +2149,7 @@ BlockMorph.prototype.addExpander = function () {
 	this.addChild(this.expander);
 }
 
-// BlockMorph thumbnail and script pic
-
-BlockMorph.prototype.thumbnail = function (scale, clipWidth) {
-	var nb = this.nextBlock(),
-		fadeout = 12,
-		ext,
-		trgt,
-		ctx,
-		gradient;
-
-	if (nb) {nb.isVisible = false; }
-	ext = this.fullBounds().extent();
-	trgt = newCanvas(new Point(
-		clipWidth ? Math.min(ext.x * scale, clipWidth) : ext.x * scale,
-		ext.y * scale
-	));
-	ctx = trgt.getContext('2d');
-	ctx.scale(scale, scale);
-	ctx.drawImage(this.fullImage(), 0, 0);
-	// draw fade-out
-	if (clipWidth && ext.x * scale > clipWidth) {
-		gradient = ctx.createLinearGradient(
-			trgt.width / scale - fadeout,
-			0,
-			trgt.width / scale,
-			0
-		);
-		gradient.addColorStop(0, 'transparent');
-		gradient.addColorStop(1, 'black');
-		ctx.globalCompositeOperation = 'destination-out';
-		ctx.fillStyle = gradient;
-		ctx.fillRect(
-			trgt.width / scale - fadeout,
-			0,
-			trgt.width / scale,
-			trgt.height / scale
-		);
-	}
-	if (nb) {nb.isVisible = true; }
-	return trgt;
-};
+// BlockMorph script pic
 
 BlockMorph.prototype.fullImage = function () {
 	// answer a canvas image meant for (semi-) transparent blocks
@@ -2939,12 +2734,6 @@ BlockMorph.prototype.alternateBlockColor = function () {
 	this.fixChildrensBlockColor(true); // has issues if not forced
 };
 
-BlockMorph.prototype.ghost = function () {
-	this.setColor(
-		this.colorFor(this.category).lighter(35)
-	);
-};
-
 BlockMorph.prototype.fixLabelColor = function () {
 	// the label stays white on an alternated block too
 	if (this.zebraContrast > 0 && this.category) {
@@ -3097,7 +2886,7 @@ BlockMorph.prototype.justDropped = function () {
 
 // A held block casts GP's shadow: black at 60/255, 7 screen pixels down and right, blurred
 // by 1, so it reads as a hard-edged copy of the block's shape. A shadow asked for with an
-// offset (a relabel menu's picture) keeps morphic's.
+// offset keeps morphic's.
 BlockMorph.prototype.addShadow = function (off, a, color) {
 	if (off) return BlockMorph.uber.addShadow.call(this, off, a, color);
 	this.shadowBlur = 1 / ZOOM;
@@ -4557,15 +4346,6 @@ ScriptsMorph.prototype.scriptsPicture = function (scale = 1) {
 	});
 	return pic;
 };
-
-ScriptsMorph.prototype.doGPCall = function (apiCall, params) {
-	// Call the given GP API function with the given parameters and print the result.
-
-	GP.apiCall(
-		apiCall,
-		params,
-		function(value) { console.log("return value:", value) });
-}
 
 // ScriptsMorph sizing:
 
