@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:23+0200\n"
-"PO-Revision-Date: 2026-10-24 12:51+0000\n"
-"Last-Translator: Josep Ferràndiz <josep.ferrandiz@gmail.com>\n"
+"PO-Revision-Date: 2026-10-25 23:56+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/microblocks/ide/"
 "es/>\n"
 "Language: es\n"
@@ -7931,8 +7931,7 @@ msgstr ""
 #. External Displays Library block
 msgid "attach ILI9341 rotation _ dc pin _ cs pin _ backlight pin _"
 msgstr ""
-"conecta ILI9341 ancho _ alto _ rotación _ #BR# pin dc _ pin cs _ pin "
-"retroiluminación _"
+"conecta ILI9341 rotación _ #BR# pin dc _ pin cs _ pin retroiluminación _"
 
 #. External Displays Library block
 msgid "attach OLED w _ h _"
@@ -8365,7 +8364,7 @@ msgstr "Reproductor MIDI"
 
 #. TFT Display library block
 msgid "draw image _ on TFT at x _ y _ color _"
-msgstr "dibuja imagen a TFT en x _ y _ color _"
+msgstr "dibuja imagen _ a TFT en x _ y _ color _"
 
 #. TFT Display library block
 msgid "#BR# scale _"
