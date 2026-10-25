@@ -3244,17 +3244,23 @@ MB_ResultBubbleMorph.prototype.init = function (value, isError, picturePx) {
 };
 
 MB_ResultBubbleMorph.prototype.fixLayout = function () {
-	// Wrap at 175 screen pixels whatever the block size, or 200 image pixels in a
-	// picture, and show at most 30 lines.
+	// Wrap at 175 screen pixels whatever the block size, and show at most 30 lines.
+	// A picture's lines are cut at 400 image pixels by pictureLines.
 	if (this.contentsMorph) this.contentsMorph.destroy();
-	const u = this.unit, wrap = this.picturePx ? 200 : 175 / ZOOM;
+	const u = this.unit;
 	const ppu = this.picturePx ? 1 : undefined; // a picture's units are its pixels
 	const textMorph = (s, width) => new TextMorph(s, 18 * u, null, false, false, 'center', width, 'Arial');
+	const probe = textMorph('', 0);
+	probe.measureCtx.font = probe.font();
 	let lines = [];
 	for (const paragraph of String(this.contents).split('\n')) {
+		if (this.picturePx) {
+			lines = lines.concat(pictureLines(paragraph, 400, (s) => probe.measureCtx.measureText(s).width));
+			continue;
+		}
 		// A wrapping TextMorph ends each line with a space, and adds an empty
 		// first line when the first word is wider than the bubble.
-		const wrapped = textMorph(paragraph, wrap).lines.map((s) => s.trimEnd());
+		const wrapped = textMorph(paragraph, 175 / ZOOM).lines.map((s) => s.trimEnd());
 		if ((wrapped.length > 1) && ('' === wrapped[0])) wrapped.shift();
 		lines = lines.concat(wrapped);
 	}
@@ -3272,6 +3278,24 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	this.bounds.setExtent(new Point(width + (22 * u), text.height() + (21 * u))); // 7 of the height is the tail
 	text.setPosition(this.position().add(new Point(11 * u, 7 * u)));
 };
+
+// A paragraph cut into a picture's lines: each runs on to the first space or
+// punctuation mark past the width and keeps it, so a line can be wider than the
+// width, and an empty paragraph has no line.
+function pictureLines(paragraph, width, measure) {
+	const lines = [];
+	let start = 0;
+	for (let i = 0; i < paragraph.length; i++) {
+		const soFar = paragraph.slice(start, i + 1);
+		if (' ,;:.'.includes(paragraph[i]) && (measure(soFar) > width)) {
+			lines.push(soFar);
+			start = i + 1;
+		} else if (i === paragraph.length - 1) {
+			lines.push(soFar);
+		}
+	}
+	return lines;
+}
 
 // The result text's line height and baseline at ppu device pixels per unit, by
 // default the world's: 0.95 and 0.3 of the font size in device pixels, each
