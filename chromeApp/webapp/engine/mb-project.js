@@ -626,6 +626,7 @@ class MB_Project {
 		this.updatePrimitives();
 		this.fixFunctionLocals();
 		this.buildDefinitionHats(); // last: the passes above read plain script entries
+		this.updateCategories();
 		return this;
 	}
 
@@ -761,6 +762,11 @@ class MB_Project {
 			hat.mbScriptId = block.mbScriptId;
 			entry[2] = hat;
 		}
+	}
+
+	updateCategories() {
+		this.main.updateCategories();
+		for (const lib of this.libraries.values()) lib.updateCategories();
 	}
 
 	updatePrimitives() {
@@ -1356,6 +1362,24 @@ class MB_Module {
 			this.scripts.push([x, y, block]);
 		}
 		this.assignScriptIds();
+	}
+
+	// Fix block categories after library load/change
+
+	updateCategories() {
+		for (const f of this.functions) {
+			if (!f.cmdList) continue;
+			f.cmdList.forAllBlocks( b => {
+				b.setCategory(MB_Specs.categoryForSelector(b.selector));
+			});
+		}
+		for (const entry of this.scripts) {
+			let block = entry[2];
+			if (!block) continue;
+			block.forAllBlocks( b => {
+				b.setCategory(MB_Specs.categoryForSelector(b.selector));
+			});
+		}
 	}
 
 	// Primitive updates
