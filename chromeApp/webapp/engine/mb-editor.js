@@ -498,7 +498,7 @@ class MB_Editor {
 			if (Array.isArray(script) && Array.isArray(script[0])) script = script[0];
 			if (Array.isArray(script) && script[0] === 'to') this.hideDefinition(stringArg(script[1]));
 		}
-		if (!dst) dst = new Point(100, this.scriptsBottom() - pane.top() + (30 * blockScale()));
+		if (!dst) dst = this.pasteSpot();
 		const importer = new MB_ScriptExchange(this.project);
 		await importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
 		pane.adjustBounds();
@@ -569,6 +569,11 @@ class MB_Editor {
 			this.updateProject();
 			this.saveTextAsFile(this.project.main.codeString(this.project, libName), libName + '.ubl');
 		});
+	}
+
+	pasteSpot() {
+		// Where a paste goes, relative to the pane: 100 in from the left, below the lowest script.
+		return new Point(100, this.scriptsBottom() - this.scriptsPane().top() + (30 * blockScale()));
 	}
 
 	scriptsBottom() {
