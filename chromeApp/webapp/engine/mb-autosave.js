@@ -55,6 +55,12 @@ class MB_Autosave {
 		this.timer = null;
 		if (this.asking) return; // written when the question closes
 		const editor = this.editor;
+		// The project holds the blocks themselves, so part of a script in the hand is
+		// missing from its text: write after the drop.
+		if (editor.scriptsOutOfPane() === 'part') {
+			if (!this.writeFailed) this.timer = setTimeout(() => this.writeNow(keep), this.delay);
+			return;
+		}
 		if (!(editor.hasUnsavedEdits() || (keep && editor.project.hasUserCode()))) return this.remove(this.pageID); // saved, or emptied
 		if (this.writeFailed) return;
 		const record = { tab: this.pageID, name: editor.projectName, text: editor.project.codeString(), time: Date.now() };
