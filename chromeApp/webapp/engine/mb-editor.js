@@ -2972,28 +2972,53 @@ class MB_Editor {
 		// A link dragged from another page opens what it points at, if that is
 		// something the IDE opens. Any other text becomes a comment at the hand.
 		if (!text.startsWith('http')) return this.addCommentAtHand(text);
-		const url = text.split(/\r\n|\r|\n/)[0];
-		if (url.includes('scripts=') || url.includes('project=')) return this.importFromURL(url);
-		if (!['.ubp', '.ubl', '.png'].some((ext) => url.toLowerCase().endsWith(ext))) return;
-		let fileName = url.slice(url.lastIndexOf('/') + 1);
+		await this.openURL(text.split(/\r\n|\r|\n/)[0], false);
+	}
+
+	async openFromURL() {
+		// Ask for a web address and open what it points at, as a dropped link is opened.
+		let url = String((await this.prompt(localized('URL?'), 'https://')) || '').trim();
+		if (!url || ('https://' === url)) return; // cancelled, or nothing typed
+		url = url.replace(/^https?:/i, (scheme) => scheme.toLowerCase());
+		if (!(url.startsWith('http') && (await this.openURL(url, true)))) {
+			this.inform(localized('Invalid URL'));
+		}
+	}
+
+	async openURL(url, clearFirst) {
+		// Open a link carrying project= or scripts=, or fetch a project, library or
+		// script picture and open it. Answers false for an address that is none of
+		// these. clearFirst is passed to openProjectFromString for a project.
+		if (MB_ScriptExchange.fromURL(url)) {
+			await this.importFromURL(url);
+			return true;
+		}
+		const path = url.split(/[?#]/)[0]; // a query or a line anchor does not change the file
+		if (!['.ubp', '.ubl', '.png'].some((ext) => path.toLowerCase().endsWith(ext))) return false;
+		const address = url.split('#')[0];
+		let fileName = path.slice(path.lastIndexOf('/') + 1);
 		try { fileName = decodeURIComponent(fileName); } catch (e) { /* not encoded: keep it as it is */ }
 		let data;
 		try {
-			const response = await fetch(url);
+			// A web page cannot read a Codeberg file page, but can read its API address.
+			const response = await fetch(MB_Editor.codebergFileURL(path) || address);
 			if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
 			data = MB_Editor.isTextFile(fileName)
 				? await response.text() : new Uint8Array(await response.arrayBuffer());
 		} catch (error) {
 			console.error('Could not read:', url, error);
 			this.inform(localized('Could not read: ') + url);
-			return;
+			return true;
 		}
 		if (fileName.toLowerCase().endsWith('.ubl')) {
 			// Given the address, the library keeps it as the source the reload verb reads.
-			if (await this.importLibraryFromString(data, url)) await this.codeManager.saveAllChunksAfterLoad();
-			return;
+			if (await this.importLibraryFromString(data, address)) await this.codeManager.saveAllChunksAfterLoad();
+		} else if (fileName.toLowerCase().endsWith('.ubp')) {
+			await this.openProjectFromString(data, fileName, clearFirst);
+		} else {
+			await this.processDroppedFile(fileName, data);
 		}
-		await this.processDroppedFile(fileName, data);
+		return true;
 	}
 
 	addCommentAtHand(text) {

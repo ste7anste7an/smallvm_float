@@ -267,6 +267,10 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			MB_editor.openProjectMenu();
 			break;
+		case 'project.openFromURL':
+			callback(0);
+			MB_editor.openFromURL();
+			break;
 		case 'scripts.copyToClipboard':
 			// Answer, then act, as the endpoints below do.
 			callback(0);
