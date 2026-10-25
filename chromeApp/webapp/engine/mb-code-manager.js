@@ -61,8 +61,8 @@ class MB_CodeManager {
 
 	async syncAndStartAll() {
 		if (MB_connection.vmTooOld()) return;
-		// Refuse before sending anything, as GP's startAll does (MicroBlocksRuntime.gp).
-		if (!MB_connection.isConnected()) {
+		// Refuse before sending anything, until the board has answered as well as the port opened.
+		if ('not connected' == MB_connection.updateConnection()) {
 			MB_editor.inform(localized('Board not connected'));
 			return;
 		}
