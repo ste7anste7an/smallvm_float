@@ -920,7 +920,7 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
 		part = new BlockIconMorph(spec, this.fontSize, WHITE);
 	} else {
 		part = new BlockLabelMorph(
-			spec, // text
+			spec.replaceAll(MB_Specs.labelColon, ':'), // text
 			this.fontSize + (blockMathOperators.includes(spec) ? 2 * this.scale : 0), // fontSize
 			this.labelFontStyle, // fontStyle
 			true, // bold
@@ -1646,8 +1646,9 @@ BlockMorph.prototype.localizedBlockSpec = function (spec) {
 	// separately since each spec section has a separate section in the
 	// the translation dictionary.
 
+	// a colon in a translation is part of its label
 	return spec.split(':').map(section => {
-		return this.localizedSpecSection(section.trim());
+		return this.localizedSpecSection(section.trim()).replaceAll(':', MB_Specs.labelColon);
 	}).join(' : ');
 };
 
@@ -2152,7 +2153,7 @@ BlockMorph.prototype.fixElseSection = function () {
 	if (this.selector !== 'if') return;
 	const specSections = this.blockSpec.split(':').map(s => this.parseSpec(s.trim()));
 	if (specSections.length < 2) return;
-	const words = specSections[1].filter(w => w[0] !== '%');
+	const words = specSections[1].filter(w => w[0] !== '%').map(w => w.replaceAll(MB_Specs.labelColon, ':'));
 	const nb = this.nextBlock ? this.nextBlock() : null;
 	const parts = this.children.filter(m => (m !== nb) && (m !== this.expander));
 	const size = specSections[1].length;
