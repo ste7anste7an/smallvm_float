@@ -133,9 +133,21 @@ class MB_Editor {
 		window.addEventListener('blur', () => { this.shiftDown = false; });
 		let morphicHadKeys = false;
 		document.addEventListener('keydown', () => { morphicHadKeys = !!(world.keyboardFocus || world.activeMenu); }, true);
+		// A chrome control clicked last keeps the focus, so its keys come here too. A chrome
+		// text field, window or Boardie's panel keeps all of them, and a button its own Enter
+		// and Space. A window closed by the key has already let its target go.
+		const inChromeWindow = (el) => !!el && (((typeof FloatingWindow === 'function') && (el instanceof FloatingWindow))
+			|| el.classList.contains('boardie') || inChromeWindow(el.parentElement));
+		const chromeKeeps = (event) => {
+			const target = event.target;
+			if ((target === document.body) || (target === world.keyboardHandler)) return false;
+			if (!target.isConnected || inChromeWindow(target)) return true;
+			if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return true;
+			return ['Enter', ' '].includes(event.key) && !(event.ctrlKey || event.metaKey);
+		};
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
 			if (MB_BlockSearchBox.tookKey()) return; // first, so the mark never outlives its key
-			if (morphicHadKeys || ![document.body, world.keyboardHandler].includes(event.target)) return;
+			if (morphicHadKeys || chromeKeeps(event)) return;
 			if (event.isComposing || (229 === event.keyCode)) return; // an input method is composing
 			const spinnerWasUp = this.spinnerShowing; // Escape below cancels it
 			if ('Escape' === event.key) fireIDEEvent('ide.keyPressed', 'ESC');
@@ -1053,7 +1065,7 @@ class MB_Editor {
 		const letter = (event.ctrlKey || event.metaKey) ? event.key.toLowerCase() : null;
 		if (event.repeat || menu) { // a held key acts once
 			if (menu && !event.repeat && ('Escape' === event.key)) Menus.close();
-			return ['Escape', 'Enter', 'Delete'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
+			return ['Escape', 'Enter', 'Delete', 'Backspace'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
 		}
 		if (('Escape' === event.key) && (this.readFromBoard || (MB_connection.decompiler != null))) {
 			MB_connection.stopDecompilation(); // a read from the board, armed or running, goes first
