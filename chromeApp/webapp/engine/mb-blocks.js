@@ -263,6 +263,19 @@ function blockTextWidth(width, pixelsPerUnit = 2 * ZOOM) {
 	return Math.round(width * pixelsPerUnit) / pixelsPerUnit;
 }
 
+// A rectangle grown to whole device pixels under ctx's transform, for a clip.
+function clipOnDevicePixels(rect, ctx) {
+	var m = ctx.getTransform(),
+		x = (v, round) => (round(v * m.a + m.e) - m.e) / m.a,
+		y = (v, round) => (round(v * m.d + m.f) - m.f) / m.d,
+		down = (v) => Math.floor(v + 1e-6),
+		up = (v) => Math.ceil(v - 1e-6);
+
+	if (m.b || m.c) {return rect; }
+	return new Point(x(rect.left(), down), y(rect.top(), down))
+		.corner(new Point(x(rect.right(), up), y(rect.bottom(), up)));
+}
+
 // StringMorph's font with its size rounded to a whole device pixel at the world's
 // zoom, as GP's browser IDE sets a font: 32.5 px, a slot's text at block size
 // 125%, is drawn at 33. Shared by the label and the slot text morphs.
@@ -1101,6 +1114,33 @@ SyntaxElementMorph.prototype.fixHighlight = function () {
 	if (top.getHighlight && top.getHighlight()) {
 		top.addHighlight(top.removeHighlight());
 	}
+};
+
+// SyntaxElementMorph drawing:
+
+SyntaxElementMorph.prototype.clipBounds = function () {
+	// The area my render may paint; some parts reach past their bounds.
+	return this.bounds;
+};
+
+SyntaxElementMorph.prototype.drawOn = function (ctx, rect) {
+	// As Morph's drawOn, but the clip is grown to whole device pixels: the render
+	// already blends an edge that falls part way across one, and a clip there
+	// would blend it a second time.
+	var clipped = rect.intersect(this.clipBounds()),
+		pos = this.position();
+
+	if (this.isCachingImage) {return Morph.prototype.drawOn.call(this, ctx, rect); }
+	if (!clipped.extent().gt(ZERO)) {return; }
+	clipped = clipOnDevicePixels(clipped, ctx);
+	ctx.save();
+	ctx.globalAlpha = this.alpha;
+	ctx.beginPath();
+	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
+	ctx.clip();
+	ctx.translate(pos.x, pos.y);
+	this.render(ctx);
+	ctx.restore();
 };
 
 // SyntaxElementMorph evaluating:
@@ -2499,19 +2539,8 @@ BlockMorph.prototype.outlineOutset = function () {
 
 // A command block's outline reaches past my bounds: draw it, and redraw it when I change.
 
-BlockMorph.prototype.drawOn = function (ctx, rect) {
-	var clipped = rect.intersect(this.bounds.expandBy(this.outlineOutset())),
-		pos = this.position();
-
-	if (!clipped.extent().gt(ZERO)) {return; }
-	ctx.save();
-	ctx.globalAlpha = this.alpha;
-	ctx.beginPath();
-	ctx.rect(clipped.left(), clipped.top(), clipped.width(), clipped.height());
-	ctx.clip();
-	ctx.translate(pos.x, pos.y);
-	this.render(ctx);
-	ctx.restore();
+BlockMorph.prototype.clipBounds = function () {
+	return this.bounds.expandBy(this.outlineOutset());
 };
 
 BlockMorph.prototype.changed = function () {
