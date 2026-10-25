@@ -4,7 +4,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-30 07:10+0200\n"
 "PO-Revision-Date: 2026-10-25 23:56+0000\n"
-"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
+"Last-Translator: Josep Ferràndiz <josep.ferrandiz@gmail.com>\n"
 "Language-Team: Catalan <https://hosted.weblate.org/projects/microblocks/ide/"
 "ca/>\n"
 "Language: ca\n"
@@ -4168,7 +4168,7 @@ msgstr "atura't amb direcció _"
 
 #. Sphero-RVR robot library block
 msgid "set RGB LED _ to red _ green _ blue _"
-msgstr "posa el led RGB _ a vermell _ verd _ blau _"
+msgstr "posa el led RGB a vermell _ verd _ blau _"
 
 #. Sphero-RVR robot library block
 msgid "set all LEDs to red _ green _ blue _"
