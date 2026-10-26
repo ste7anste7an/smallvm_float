@@ -1490,9 +1490,11 @@ class MB_Editor {
 			this.inform(localized('Invalid URL'));
 			return;
 		}
+		IDE.spinner.show('Fetching...');
 		if (!(await this.importLibraryFromUrl(url))) return;
 		if (picker) picker.removeFromOwner(); // can be removed when the DOM window is finalized
 		await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+		IDE.spinner.hide();
 		return url;
 	}
 
@@ -2917,9 +2919,13 @@ class MB_Editor {
 		// Show the file picker on the built-in projects. Its Computer button
 		// leads to the browser's chooser.
 
-		const open = MB_FilePicker.findOpen(world);
-		if (open) open.removeFromOwner();
-		new MB_FilePicker((path) => this.openProjectFromFile(path), this.lastProjectFolder, ['.ubp', '.gpp']).open(world);
+		const open = document.querySelector('.window.browser');
+		if (open) { open.remove(); }
+		(new FileBrowser(
+					path => MB_editor.openProjectFromFile(path),
+					'Examples',
+					['.ubp', '.gpp'])
+				).popUp()
 	}
 
 	openProject() {
@@ -3094,15 +3100,19 @@ class MB_Editor {
 		let url = String((await this.prompt(localized('URL?'), 'https://')) || '').trim();
 		if (!url || ('https://' === url)) return; // cancelled, or nothing typed
 		url = url.replace(/^https?:/i, (scheme) => scheme.toLowerCase());
+		IDE.spinner.show('Fetching...');
 		if (!(url.startsWith('http') && (await this.openURL(url, true)))) {
 			this.inform(localized('Invalid URL'));
 		}
+		IDE.spinner.hide();
+		return url;
 	}
 
 	async openURL(url, clearFirst) {
 		// Open a link carrying project= or scripts=, or fetch a project, library or
 		// script picture and open it. Answers false for an address that is none of
 		// these. clearFirst is passed to openProjectFromString for a project.
+
 		if (MB_ScriptExchange.fromURL(url)) {
 			await this.importFromURL(url);
 			return true;

@@ -155,7 +155,7 @@ Menus.project = {
 		},
 		{
 			label: 'Open',
-			action: () => { GP.apiCall('project.open'); }
+			action: () => { MB_editor.openProjectMenu(); }
 		},
 		{
 			label: 'Open from URL',

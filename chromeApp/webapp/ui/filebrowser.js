@@ -96,8 +96,13 @@ class FileBrowser extends FloatingWindow {
 	}
 
 	async promptURL() {
-		const url = await MB_editor.promptLibraryURL();
-		if (url) { this.cancel(); }
+		let url;
+		this.remove();
+		if (this.forLibraries) {
+			url = await MB_editor.promptLibraryURL();
+		} else {
+			url = await MB_editor.openFromURL();
+		}
 	}
 
 	bodyDiv() {
@@ -238,7 +243,7 @@ let div = newDiv('panel__container');
 			}
 		});
 		if (isDir) {
-			this.clearLibraryFields();
+			if (this.forLibraries) { this.clearLibraryFields(); }
 			if (ignoreDirectories) { return; }
 			this.showFolder(this.currentDir + '/' + value.slice(4), false);
 		} else if (this.fileSelectAction) {
@@ -255,7 +260,7 @@ let div = newDiv('panel__container');
 		this.currentDir = path;
 		if (isTop) { this.topDir = path; }
 		this.selection = null;
-		this.clearLibraryFields();
+		if (this.forLibraries) { this.clearLibraryFields(); }
 		this.updateView();
 		if (this.folderSelectAction) { this.folderSelectAction(path); }
 	}
@@ -315,14 +320,14 @@ let div = newDiv('panel__container');
 
 	sideDiv() {
 		let div = newDiv('sidebar');
+		div.appendChild(this.shortcuts());
 		if (this.forLibraries) {
-			div.appendChild(this.libraryShortcuts());
 			div.appendChild(newButton('New Library', () => this.createLibrary()));
 		}
 		return div;
 	}
 
-	libraryShortcuts() {
+	shortcuts() {
 		let div = newDiv('shortcuts'),
 			title = document.createElement('span'),
 			list = document.createElement('ul');
