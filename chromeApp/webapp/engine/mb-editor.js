@@ -3148,6 +3148,12 @@ class MB_Editor {
 		this.removeAllScripts();
 		this.project.main.scripts.forEach(
 			(entry) => this.addBlockToScriptsAt(entry[2], entry[0], entry[1]));
+		// The decompiler places each script at random, so lay them out and keep
+		// that layout as the state undo returns to. Script ids are minted from
+		// positions, so they are minted again from the new ones.
+		this.scriptsPane().cleanUp();
+		this.scriptsPane().children.forEach((m) => { delete m.mbScriptId; });
+		this.updateProject();
 		this.codeManager = new MB_CodeManager(this.project);
 		this.projectName = null;
 		this.updateProjectProperties();
