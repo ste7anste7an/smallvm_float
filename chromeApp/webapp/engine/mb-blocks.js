@@ -4401,21 +4401,22 @@ ScriptsMorph.prototype.scriptsBounds = function () {
 };
 
 ScriptsMorph.prototype.scriptsPicture = function (scale = 1) {
-	// private - answer a canvas containing the pictures of all scripts, drawn at scale
-	var boundingBox = this.scriptsBounds(), pic, ctx;
+	// private - answer a canvas containing the pictures of all scripts, at scale image
+	// pixels per unit. Drawn straight onto it: a script's fullImage holds only the
+	// screen's pixels and would blur when enlarged.
+	var boundingBox = this.scriptsBounds(), pic, ctx, size;
 	if (!boundingBox) {return; }
-	pic = newCanvas(boundingBox.extent().multiplyBy(scale));
+	// Sized once it is not retina: at the retina size first it can pass the browser's
+	// limit, which leaves a canvas that draws nothing.
+	size = boundingBox.extent().multiplyBy(scale).ceil();
+	pic = newCanvas(new Point(1, 1), true);
+	pic.width = size.x;
+	pic.height = size.y;
 	ctx = pic.getContext('2d');
 	ctx.scale(scale, scale);
+	ctx.translate(-boundingBox.left(), -boundingBox.top());
 	this.children.forEach(child => {
-		var pos = child.fullBounds().origin;
-		if (child.isVisible) {
-			ctx.drawImage(
-				child.fullImage(),
-				pos.x - boundingBox.origin.x,
-				pos.y - boundingBox.origin.y
-			);
-		}
+		if (child.isVisible) {child.fullDrawOn(ctx, child.fullBounds()); }
 	});
 	return pic;
 };
