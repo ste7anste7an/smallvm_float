@@ -532,6 +532,12 @@ CursorMorph.prototype.processKeyDown = function (event) {
 		slot.becomeStringSlot(this);
 		return;
 	}
+	const composing = event.isComposing || (229 === event.keyCode);
+	if ((event.ctrlKey || event.metaKey) && !event.shiftKey && ('z' === event.key.toLowerCase()) && !composing) {
+		event.preventDefault();
+		this.cancel();
+		return;
+	}
 	this.processKeyDownInText(event);
 };
 
