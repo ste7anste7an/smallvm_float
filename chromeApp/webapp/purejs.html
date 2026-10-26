@@ -107,7 +107,7 @@
 					<div class="libraries">
 						<h2 class="libraries__title"><l->LIBRARIES</l-></h2>
 						<nav class="libraries__add-button-wrapper">
-							<button class="button-rounded libraries__add-button" onclick="GP.apiCall('ide.showLibraryDialog');">
+							<button class="button-rounded libraries__add-button" onclick="(new FileBrowser((path)=>{MB_editor.openLibraryFile(path)},'Libraries',['.ubl'])).popUp();">
 								<l->Add Library</l->
 								<span class="libraries__add-button-icon">
 									<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
