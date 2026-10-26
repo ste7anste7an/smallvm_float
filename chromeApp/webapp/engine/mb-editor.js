@@ -6,7 +6,7 @@
 
 // mb-editor.js - MicroBlocks top-level editor.
 
-/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Module, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, HatBlockMorph, SpeechBubbleMorph, TextMorph, ZOOM, world */
+/* global MB_BlockSearchBox, MB_Files, MB_FilePicker, MB_LibraryImportDialog, MB_LibraryInfoDialog, MB_Module, MB_Parser, MB_Specs, MB_Project, Color, Point, BlockMorph, ReporterBlockMorph, ScriptsMorph, ScrollFrameMorph, StringMorph, HatBlockMorph, SpeechBubbleMorph, TextMorph, ZOOM, world, askChrome, blockScale, chromeDrawnMenu, chromeMenuFor, clipboardText, cropTransparent, errorFrame, errorSite, fireIDEEvent, fixEmbeddedQuotes, fixedCallArgs, forEachExpression, htmlText, isMobile, isReportableError, localized, readGPClipboard, setClipboardBuffer, uniqueNameNotIn, waitMSecs */
 
 class MB_Editor {
 	constructor() {
@@ -40,6 +40,7 @@ class MB_Editor {
 		this.redoStack = [];
 		this.watchProjectVariables();
 		this.blockSize = 125; // a fresh profile draws at GP's default block size
+		this.autosave = (typeof MB_Autosave === 'function') ? new MB_Autosave(this) : null;
 	}
 
 	open(world) {
@@ -126,15 +127,28 @@ class MB_Editor {
 			event.stopPropagation();
 			event.preventDefault();
 		}, true);
-		// Whether Shift is down now: a result shown while it is gets copied, and it arrives after the click.
+		// Whether Shift is down now, as of the last key, press or release: a result shown while it is
+		// gets copied, and it arrives after the click.
 		const noteShift = (event) => { this.shiftDown = event.shiftKey; };
-		['keydown', 'keyup', 'pointerdown'].forEach((type) => document.addEventListener(type, noteShift, true));
+		['keydown', 'keyup', 'pointerdown', 'pointerup'].forEach((type) => document.addEventListener(type, noteShift, true));
 		window.addEventListener('blur', () => { this.shiftDown = false; });
 		let morphicHadKeys = false;
 		document.addEventListener('keydown', () => { morphicHadKeys = !!(world.keyboardFocus || world.activeMenu); }, true);
+		// A chrome control clicked last keeps the focus, so its keys come here too. A chrome
+		// text field, window or Boardie's panel keeps all of them, and a button its own Enter
+		// and Space. A window closed by the key has already let its target go.
+		const inChromeWindow = (el) => !!el && (((typeof FloatingWindow === 'function') && (el instanceof FloatingWindow))
+			|| el.classList.contains('boardie') || inChromeWindow(el.parentElement));
+		const chromeKeeps = (event) => {
+			const target = event.target;
+			if ((target === document.body) || (target === world.keyboardHandler)) return false;
+			if (!target.isConnected || inChromeWindow(target)) return true;
+			if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return true;
+			return ['Enter', ' '].includes(event.key) && !(event.ctrlKey || event.metaKey);
+		};
 		if (world.keyboardHandler) document.addEventListener('keydown', (event) => {
 			if (MB_BlockSearchBox.tookKey()) return; // first, so the mark never outlives its key
-			if (morphicHadKeys || ![document.body, world.keyboardHandler].includes(event.target)) return;
+			if (morphicHadKeys || chromeKeeps(event)) return;
 			if (event.isComposing || (229 === event.keyCode)) return; // an input method is composing
 			const spinnerWasUp = this.spinnerShowing; // Escape below cancels it
 			if ('Escape' === event.key) fireIDEEvent('ide.keyPressed', 'ESC');
@@ -269,26 +283,36 @@ class MB_Editor {
 
 	// ***** Copy and paste *****
 
-	exchangeScripter() {
+	exchangeScripter(unread = []) {
 		// What MB_ScriptExchange asks of the scripter it imports into and exports from.
+		// A shipped file it could not read is added to unread.
 		return {
 			project: () => this.project,
 			scriptEditor: () => this.scriptsPane(),
-			installLibraryNamed: (libName) => this.installLibraryNamed(libName),
+			installLibraryNamed: (libName) => this.installLibraryNamed(libName, unread),
 			blockScale: () => 1, // the block size magnifies the whole world, so pane and file units are equal
 		};
 	}
 
-	async installLibraryNamed(libName) {
+	async installLibraryNamed(libName, unread = []) {
 		// Take a shipped library into the project by the name its own module line
-		// declares, which is what a copied script's depends line carries.
+		// declares, which is what a copied script's depends line carries. A shipped
+		// file it could not read is added to unread.
 
 		if (this.project.libraryNamed(libName)) return;
 		const filePath = await this.fileNameForLibraryNamed(libName);
-		if (!filePath) return; // a name no shipped library declares
+		if (!filePath) {
+			// a name no shipped library declares, unless the file named after it could not be read
+			const named = this.findLibraryFile(MB_Editor.renamedLibraries.get(libName) || libName);
+			if (named && (this.unreadLibraryFiles || []).includes(named)) unread.push(named);
+			return;
+		}
 		const data = await MB_Files.readFile(filePath);
-		if (data === undefined) return;
-		await this.importLibraryFromString(data, filePath);
+		if (data === undefined) {
+			unread.push(filePath);
+			return;
+		}
+		await this.importLibraryFromString(data, filePath, false, unread);
 	}
 
 	// Scripts written before a library was renamed still name it the old way.
@@ -302,6 +326,7 @@ class MB_Editor {
 		// The shipped file whose module line declares this name. Building the
 		// index reads every shipped library once, so it is kept.
 
+		await MB_Files.readAgainIfFailed();
 		const wanted = MB_Editor.renamedLibraries.get(libName) || libName;
 		// Nearly every library is in a file named after the module it declares,
 		// and checking one file is worth a second of reading the whole set.
@@ -368,19 +393,30 @@ class MB_Editor {
 		return null;
 	}
 
-	async importEmbeddedLibrary(libName) {
+	async importEmbeddedLibrary(libName, unread = []) {
 		// Take the shipped library a dependency names into the project, by the
 		// name of its file. A leading underscore asks for it as an implementation
 		// library, whose blocks serve another library and are not offered alone.
+		// A shipped file it could not read is added to unread.
 
+		await MB_Files.readAgainIfFailed();
 		const asImplementation = libName.startsWith('_');
 		const wanted = asImplementation ? libName.slice(1) : libName;
 		const filePath = this.findLibraryFile(wanted);
 		if (!filePath) return; // a name no shipped file answers to
 		if (this.libraryHoldingFile(wanted, filePath)) return;
 		const data = await MB_Files.readFile(filePath);
-		if (data === undefined) return;
-		await this.importLibraryFromString(data, filePath, asImplementation);
+		if (data === undefined) {
+			unread.push(filePath);
+			return;
+		}
+		await this.importLibraryFromString(data, filePath, asImplementation, unread);
+	}
+
+	informCouldNotRead(unread) {
+		// Name in one inform the shipped files an action could not read, if any.
+		const names = [...new Set(unread)];
+		if (names.length) this.inform(localized('Could not read: ') + names.join(', '));
 	}
 
 	findLibraryFile(libName) {
@@ -407,20 +443,25 @@ class MB_Editor {
 		return null;
 	}
 
-	async installDependenciesOf(libName) {
+	async installDependenciesOf(libName, unread) {
 		// Bring in the libraries a library names, and the ones those name in turn.
+		// A shipped file it could not read is added to unread; with no unread to
+		// add to, it is named to the user here.
 
 		const lib = this.project.libraryNamed(libName);
 		if (!lib) return;
+		const informHere = !unread;
+		if (informHere) unread = [];
 		for (const dependency of lib.dependencies) {
 			// a loaded library already implements this dependency
 			if (this.project.replacementFor(lib.dependencyName(dependency))) continue;
 			if (dependency.startsWith('http')) {
 				await this.importLibraryDependencyFromUrl(dependency);
 			} else {
-				await this.importEmbeddedLibrary(dependency);
+				await this.importEmbeddedLibrary(dependency, unread);
 			}
 		}
+		if (informHere) this.informCouldNotRead(unread);
 	}
 
 	async importLibraryDependencyFromUrl(dependency) {
@@ -498,9 +539,11 @@ class MB_Editor {
 			if (Array.isArray(script) && Array.isArray(script[0])) script = script[0];
 			if (Array.isArray(script) && script[0] === 'to') this.hideDefinition(stringArg(script[1]));
 		}
-		if (!dst) dst = new Point(100, this.scriptsBottom() - pane.top() + (30 * blockScale()));
+		if (!dst) dst = this.pasteSpot();
 		const importer = new MB_ScriptExchange(this.project);
-		await importer.importScripts(this.exchangeScripter(), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		const unread = [];
+		await importer.importScripts(this.exchangeScripter(unread), scriptString, pane.left() + dst.x, pane.top() + dst.y);
+		this.informCouldNotRead(unread);
 		pane.adjustBounds();
 		pane.changed();
 
@@ -511,6 +554,7 @@ class MB_Editor {
 			this.reportError(e);
 		}
 		this.scriptChanged();
+		this.updateProjectProperties();
 	}
 
 	importFromPNG(pngBytes) {
@@ -569,6 +613,11 @@ class MB_Editor {
 			this.updateProject();
 			this.saveTextAsFile(this.project.main.codeString(this.project, libName), libName + '.ubl');
 		});
+	}
+
+	pasteSpot() {
+		// Where a paste goes, relative to the pane: 100 in from the left, below the lowest script.
+		return new Point(100, this.scriptsBottom() - this.scriptsPane().top() + (30 * blockScale()));
 	}
 
 	scriptsBottom() {
@@ -792,8 +841,8 @@ class MB_Editor {
 
 	addPaletteButton(label, action) {
 		// A push button in the palette: a pill 26 screen px high with a bold 14 px
-		// Arial label and a one device pixel border, yellow under the pointer, the
-		// same size at every block size.
+		// Arial label and a border half a screen px wide, yellow under the pointer,
+		// the same size at every block size.
 
 		const dark = this.darkMode();
 		const ink = new Color(38, 41, 56); // blueGray 900
@@ -829,7 +878,7 @@ class MB_Editor {
 				ctx.fill();
 				return;
 			}
-			const line = 1 / (ZOOM * (window.devicePixelRatio || 1));
+			const line = 1 / (2 * ZOOM); // half a screen px
 			ctx.roundRect(line / 2, line / 2, w - line, h - line, (h - line) / 2);
 			ctx.lineWidth = line;
 			ctx.strokeStyle = borderColor;
@@ -1004,6 +1053,7 @@ class MB_Editor {
 
 	async startAll() {
 		try {
+			this.endOpenEdit();
 			this.updateProject();
 			await this.codeManager.syncAndStartAll();
 		} catch (e) {
@@ -1021,7 +1071,7 @@ class MB_Editor {
 		const letter = (event.ctrlKey || event.metaKey) ? event.key.toLowerCase() : null;
 		if (event.repeat || menu) { // a held key acts once
 			if (menu && !event.repeat && ('Escape' === event.key)) Menus.close();
-			return ['Escape', 'Enter', 'Delete'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
+			return ['Escape', 'Enter', 'Delete', 'Backspace'].includes(event.key) || ['z', 's', 'o', ' '].includes(letter);
 		}
 		if (('Escape' === event.key) && (this.readFromBoard || (MB_connection.decompiler != null))) {
 			MB_connection.stopDecompilation(); // a read from the board, armed or running, goes first
@@ -1048,6 +1098,7 @@ class MB_Editor {
 
 	async stopAll(forceRecompile) {
 		try {
+			this.endOpenEdit();
 			this.updateProject();
 			await this.codeManager.stopAndSyncScripts(false, forceRecompile);
 		} catch (e) {
@@ -1055,9 +1106,17 @@ class MB_Editor {
 		}
 	}
 
+	endOpenEdit() {
+		// The top bar's buttons and menus are outside the canvas, so a press on them does
+		// not end an open slot edit the way a press in the pane does. End it here, so the
+		// sync that follows sends the typed value.
+		if (world.cursor) world.stopEditing();
+	}
+
 	async stopSyncAndStartAll() {
 		// Stop the board, bring it into line with the project, and start it.
 		try {
+			this.endOpenEdit();
 			this.updateProject();
 			await this.codeManager.stopAndSyncScripts();
 			// Not codeManager.syncAndStartAll: that would sync a second time and can alert "not connected".
@@ -1074,6 +1133,38 @@ class MB_Editor {
 		this.inform(String(e));
 	}
 
+	reportUncaught(error, sourceURL) {
+		// Tell the user about an error nothing caught, since it may have left an action half done.
+		// Never throws: the board message loop calls this from the catch that keeps it running.
+		try {
+			if (!isReportableError(error, sourceURL)) return;
+			if (typeof FloatingWindow === 'undefined') { // the dialogs load after the engine
+				if (!this.uncaughtWaiting) this.uncaughtWaiting = error;
+				return;
+			}
+			if (this.uncaughtDialog && this.uncaughtDialog.isConnected) return; // one at a time
+			// The same throw again within a minute is not shown, even when its message varies.
+			const site = errorSite(error);
+			const now = Date.now();
+			if (!this.uncaughtShownAt) this.uncaughtShownAt = new Map();
+			if (now - (this.uncaughtShownAt.get(site) ?? -Infinity) < 60000) return;
+			this.uncaughtShownAt.set(site, now);
+			const details = [String(error), errorFrame(error)].filter((s) => s).map(htmlText).join('<br>');
+			const advice = localized('MicroBlocks hit an error, so the last thing it was doing may not have finished. Your project is still open: check that it looks right before you save it.');
+			this.inform(advice + '<br><br><small>' + details + '</small>', localized('Error'));
+			this.uncaughtDialog = [...document.querySelectorAll('win-')].pop();
+		} catch (e) {
+			console.error('Could not report an error:', e);
+		}
+	}
+
+	reportWaitingError() {
+		// Show an error that came before the dialogs could.
+		const error = this.uncaughtWaiting;
+		this.uncaughtWaiting = null;
+		if (error != null) this.reportUncaught(error);
+	}
+
 	toggleRunning(aBlock) {
 		let top = aBlock.topBlock();
 		// A definition is not run from the pane: its code goes to the board with
@@ -1086,26 +1177,8 @@ class MB_Editor {
 		} else if ('not connected' == MB_connection.updateConnection()) {
 			this.showError(top, localized('Board not connected'));
 		} else {
-			let chunkID = this.codeManager.ensureChunkIdFor(top);
-			this.compileAndRun(top, chunkID);
+			this.codeManager.evalOnBoard(top);
 		}
-	}
-
-	async compileAndRun(aBlock, chunkID) {
-		// Compile and run the given block.
-		if (MB_connection.vmTooOld()) return;
-
-		let code = new MB_Compiler(this.project, this.codeManager).compiledBytesFor(aBlock);
-		while ((code.length % 4) !== 0) {
-			// pad code with zeros to make chunk length be a multiple of four bytes
-			// this ensures 32-bit word chunk alignment in the code store
-			code.push(0);
-		}
-
-		let chunkType = aBlock.chunkType();
-		code.unshift(chunkType); // prepend the chunk type
-		MB_connection.sendMsg('chunkCode16Msg', chunkID, code);
-		MB_connection.sendMsg('startChunkMsg', chunkID);
 	}
 
 	updateRunning(chunkID, isRunning) {
@@ -1136,6 +1209,20 @@ class MB_Editor {
 		// The next step sends the change to the board, as in GP's MicroBlocksScripter.
 		this.saveNeeded = true;
 		this.unsavedEdits = true; // until the project is written to a file
+		if (this.autosave) this.autosave.edited();
+	}
+
+	async saveBeforeRun() {
+		// Store any pending edit and let a download in progress finish, so a script
+		// started now is not stored again while it runs: storing a chunk stops its task.
+		// Answer false if the download is still going after 30 seconds.
+		const deadline = Date.now() + 30000;
+		while (this.saveNeeded || (this.codeManager.savesInProgress > 0)) {
+			if (Date.now() > deadline) return false;
+			if (this.codeManager.savesInProgress > 0) await waitMSecs(5);
+			else await this.step();
+		}
+		return true;
 	}
 
 	async step() {
@@ -1191,15 +1278,24 @@ class MB_Editor {
 		MB_connection.sendMsg('stopAllMsg');
 		this.clearRunningHighlights();
 		this.codeManager.clearVariableNames();
+		this.project.updateCategories(); // fix block color after library change
 		this.scriptChanged(); // the next step sends the board the changed code
 	}
 
 	removeLibraryNamed(libName) {
 		// Take a library out of the project, then tell the board and the IDE.
 
+		this.updateProject();
+		this.hideLibraryDefinitions(this.project.libraryNamed(libName));
 		this.project.removeLibraryNamed(libName);
 		this.librariesChanged();
+		this.codeManager.recompileNeeded(); // a script's text is unchanged by the delete
 		this.updateLibraryList();
+		// A call into the library is rebuilt as an unknown block.
+		for (const top of this.scriptsPane().children.slice()) {
+			if (!(top instanceof BlockMorph) || top.isFunctionDefinition()) continue;
+			this.replaceScript(top, MB_Parser.blockForDecompiled(top.expression()));
+		}
 	}
 
 	exportLibrary(libName) {
@@ -1337,13 +1433,13 @@ class MB_Editor {
 		}
 	}
 
-	async importLibraryFromString(data, filePath, asImplementation) {
+	async importLibraryFromString(data, filePath, asImplementation, unread) {
 		// Add a library to the project with the libraries it depends on, and show
 		// it, replacing one of the same name and any implementing the same library.
 		// A filePath under Libraries leaves the library a path the reload verb can
 		// read it back from, and a web address is passed on as its source; a bare
-		// file name from the user's computer leaves neither. Answers the module
-		// name, or null.
+		// file name from the user's computer leaves neither. A dependency it could
+		// not read is added to unread, if given. Answers the module name, or null.
 
 		const isURL = /^https?:\/\//.test(filePath);
 		const namePath = isURL ? filePath.split('?')[0] : filePath;
@@ -1369,7 +1465,7 @@ class MB_Editor {
 		}
 		// A library replacing one of its own name keeps the dependencies the
 		// project already resolved for it; a new one needs them brought in.
-		if (!replacing) await this.installDependenciesOf(moduleName);
+		if (!replacing) await this.installDependenciesOf(moduleName, unread);
 		this.codeManager.recompileNeeded(); // its functions were loaded anew
 		this.librariesChanged();
 		this.updateLibraryList();
@@ -1574,6 +1670,7 @@ class MB_Editor {
 		this.addToBottom(hat);
 		this.updatePalette();
 		this.scriptChanged();
+		this.updateProjectProperties();
 		return hat;
 	}
 
@@ -2312,7 +2409,7 @@ class MB_Editor {
 		// pane is not in the project yet and does not count as work.
 		this.updateProject();
 		if (!this.project.hasUserCode()) return true;
-		return this.confirm(localized('Discard current project?'));
+		return this.confirm(localized('Discard current project?'), false);
 	}
 
 	hasUnsavedEdits() {
@@ -2324,12 +2421,14 @@ class MB_Editor {
 		return this.unsavedEdits && this.project.hasUserCode();
 	}
 
-	confirm(question) {
+	confirm(question, closedAnswer) {
 		// Answer a promise of true or false from the chrome's dialog, as GP's Page confirm
-		// does, or from the browser's own on a page without the chrome.
+		// does, or from the browser's own on a page without the chrome. A window closed
+		// unanswered answers closedAnswer if one is given, and otherwise never.
 		if (typeof FloatingWindow === 'undefined') return Promise.resolve(confirm(question));
 		return new Promise((resolve) => askChrome('window.confirm',
-			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve));
+			{ title: null, text: question, yesLabel: null, noLabel: null }, resolve,
+			(closedAnswer === undefined) ? null : () => resolve(closedAnswer)));
 	}
 
 	informAndWait(msg, title) {
@@ -2352,7 +2451,9 @@ class MB_Editor {
 	async newProject() {
 		if (!(await this.canReplaceCurrentProject())) return;
 		this.clearProject();
-		// The libraries are gone, then a new project starts on Output.
+		// A connected board's libraries come back, as they do on connect,
+		// then a new project starts on Output.
+		await MB_connection.installBoardSpecificBlocks();
 		this.updateLibraryList();
 		this.selectCategory('cat;Output');
 	}
@@ -2414,25 +2515,27 @@ class MB_Editor {
 		if (!name.endsWith('.ubp')) name += '.ubp';
 		const wasUnsaved = this.unsavedEdits;
 		this.unsavedEdits = false; // an edit made while the dialog is open sets it again
-		let savedName = null;
+		let saved = null;
 		try {
-			savedName = await this.saveFileWithDialog(this.project.codeString(), name, 'project', 'text/plain');
+			saved = await this.saveFileWithDialog(this.project.codeString(), name, 'project', 'text/plain');
 		} catch (e) {
 			this.reportError(e); // e.g. a folder the browser may not write to
 		}
-		if (savedName == null) {
+		if (saved == null) {
 			this.unsavedEdits = this.unsavedEdits || wasUnsaved;
 			return;
 		}
-		if (savedName.endsWith('.ubp')) {
-			this.projectName = savedName;
+		if (saved.name.endsWith('.ubp')) {
+			this.projectName = saved.name;
 			this.updateProjectProperties();
 		}
+		if (this.autosave) this.autosave.saved(saved.downloaded);
 	}
 
 	async saveFileWithDialog(data, fileName, id, mimeType) {
-		// Answer the name the user saved under, or null if they cancelled. id lets the
-		// browser remember the last folder used for each kind of file.
+		// Answer the name the user saved under and whether it went to a download, or
+		// null if they cancelled. id lets the browser remember the last folder used for
+		// each kind of file.
 		if ((typeof window !== 'undefined') && (typeof window.showSaveFilePicker === 'function')) {
 			const ext = fileName.slice(fileName.lastIndexOf('.'));
 			let handle = null;
@@ -2447,11 +2550,11 @@ class MB_Editor {
 				const writable = await handle.createWritable();
 				await writable.write(new Blob([data]));
 				await writable.close(); // the file is written only once close succeeds
-				return handle.name;
+				return { name: handle.name, downloaded: false };
 			}
 		}
 		this.saveDataAsFile(data, fileName, mimeType);
-		return fileName;
+		return { name: fileName, downloaded: true };
 	}
 
 	saveTextAsFile(text, fileName) {
@@ -2476,10 +2579,30 @@ class MB_Editor {
 		// The scripts pane as PNG bytes. A canvas is the only thing in a browser
 		// that draws one, and toDataURL the only synchronous way to read it back;
 		// a page without a real canvas answers an empty string, and gets null.
+		// Past its canvas size limit, 16384 squared in area on desktop browsers and
+		// less on iOS, a browser throws or answers an empty picture, so a large pane
+		// is drawn smaller to fit, then at half the scale each time that fails.
 
-		const canvas = this.scriptsPane().scriptsPicture();
-		if (!canvas) return null; // no scripts
-		return this.canvasPNG(canvas);
+		const pane = this.scriptsPane();
+		const box = pane.scriptsBounds();
+		if (!box) return null; // no scripts
+		const ratio = this.canvasPixelRatio();
+		const w = box.width() * ratio, h = box.height() * ratio;
+		let scale = Math.min(1, 32000 / w, 32000 / h, Math.sqrt((0.99 * 16384 * 16384) / (w * h)));
+		for (let i = 0; i < 5; i++, scale /= 2) {
+			let pngBytes = null;
+			try { pngBytes = this.canvasPNG(pane.scriptsPicture(scale)); } catch (e) { } // past the limit
+			if (pngBytes) return pngBytes;
+		}
+		return null;
+	}
+
+	canvasPixelRatio() {
+		// Device pixels per unit in a new canvas: the ratio morphic took when retina
+		// support was turned on, which the window's own ratio can drift from.
+
+		const bak = HTMLCanvasElement.prototype._bak;
+		return bak ? bak.width.get.call(newCanvas(new Point(1, 1))) : 1;
 	}
 
 	canvasPNG(canvas) {
@@ -2494,12 +2617,17 @@ class MB_Editor {
 
 	saveScriptsImage() {
 		// A picture of every script, carrying the scripts as text so that the
-		// wiki and any MicroBlocks IDE can read them back out of it. It uses the
-		// current block scale rather than the export scale, on purpose, so that
-		// what is saved is what is on screen.
+		// wiki and any MicroBlocks IDE can read them back out of it. It is drawn
+		// at the screen's pixel ratio whatever the block size, or smaller if the
+		// browser cannot hold a canvas that large.
 
+		if (!this.scriptsPane().scriptsBounds()) return; // no scripts
 		const pngBytes = this.scriptsPicturePNG();
-		if (pngBytes == null) return;
+		if (pngBytes == null) {
+			// a page that cannot encode even a tiny canvas has no picture at any size
+			if (this.canvasPNG(newCanvas(new Point(1, 1)))) this.inform(localized('The scripts are too large to save as a picture.'));
+			return;
+		}
 		const withText = MB_ScriptPicture.addScriptText(pngBytes, this.allScriptsString());
 		this.saveDataAsFile(new Uint8Array(withText), 'allScripts' + Date.now() + '.png', 'image/png');
 	}
@@ -2521,12 +2649,11 @@ class MB_Editor {
 
 		let bubble = null, bubbleW = 0, bubbleH = 0, bubbleInsetX = 0, bubbleInsetY = 0;
 		if (result != null) {
-			bubble = new SpeechBubbleMorph(this.exportBubbleText(String(result), px),
-				isError ? new Color(255, 190, 190) : null, 6 * px, px);
+			bubble = new MB_ResultBubbleMorph(String(result), isError, px);
 			bubbleW = bubble.fullBounds().width();
 			bubbleH = bubble.fullBounds().height();
-			bubbleInsetX = 5 * scale;
-			bubbleInsetY = 5 * scale;
+			bubbleInsetX = 15 * scale;
+			bubbleInsetY = 15 * scale;
 			if (topBlock instanceof HatBlockMorph) bubbleInsetY = (script.height() / 2) + (3 * scale);
 		}
 
@@ -2566,13 +2693,6 @@ class MB_Editor {
 		if (!topBlock.isFunctionDefinition()) return topBlock instanceof ReporterBlockMorph;
 		const spec = this.project.blockSpecs.get(topBlock.definedFunctionName());
 		return (spec != null) && ('r' === spec.blockType);
-	}
-
-	exportBubbleText(aString, px) {
-		// The text of a result bubble in a script picture, wrapped at 200 image pixels.
-		const text = new TextMorph(aString, 18 * px, 'sans-serif', false, false, 'center', null, 'Arial');
-		if (text.width() <= 200) return text;
-		return new TextMorph(aString, 18 * px, 'sans-serif', false, false, 'center', 200, 'Arial');
 	}
 
 	exportScriptImageWithResult(aBlock) {
@@ -2704,15 +2824,34 @@ class MB_Editor {
 		// Asked before anything is cleared, so the open project and the board stay as
 		// they are until every question is answered.
 		const libraryUpdates = await new MB_Project().checkForNewerLibraryVersions(contents);
+		// Loaded before anything is cleared, so a file that fails to load leaves the
+		// open project and the board alone. A block takes its label from the
+		// editor's project, so the new one stands in for it while it loads. With no
+		// code manager, loading cannot mark the open project's code for recompiling.
+		const openProject = MB_editor.project, openCodeManager = MB_editor.codeManager;
+		const project = new MB_Project();
+		MB_editor.project = project;
+		MB_editor.codeManager = null;
+		try {
+			project.loadFromString(contents, libraryUpdates);
+		} catch (e) {
+			console.error('Could not read:', name, e);
+			this.inform(localized('Could not read: ') + name);
+			return;
+		} finally {
+			MB_editor.project = openProject;
+			MB_editor.codeManager = openCodeManager;
+		}
+		// A script line with no body has nothing to show.
+		project.main.scripts = project.main.scripts.filter((entry) => entry[2] != null);
 		// clearFirst decides whether the empty project becomes an undo state before
-		// the new one loads, because clearProject stores one. Clearing therefore
+		// the new one is shown, because clearProject stores one. Clearing therefore
 		// adds a step for undo to stop at. A dropped file passes false and skips it.
 		const cleared = clearFirst ? MB_editor.clearProject() : null;
 		// Without clearProject the old scripts stay on screen, and the next save keeps them.
 		if (!clearFirst) MB_editor.removeAllScripts();
 		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
-		MB_editor.project.onVariableChange = null;
-		MB_editor.project.loadFromString(contents, libraryUpdates);
+		MB_editor.project = project;
 		MB_editor.watchProjectVariables();
 		MB_editor.project.main.scripts.forEach( (entry) => {
 			let x = entry[0], y = entry[1], script = entry[2];
@@ -2940,6 +3079,8 @@ class MB_Editor {
 	// Connect/Disconnect
 
 	async justConnected() {
+		// A blank project erases the board below, so a restore is answered first.
+		if (this.autosave) await this.autosave.offer;
 		try {
 			if (this.readFromBoard) {
 				this.readFromBoard = false;
@@ -3183,26 +3324,38 @@ class MB_Editor {
 
 // MB_ResultBubbleMorph: the bubble showing a value or an error from the board on its block
 
-function MB_ResultBubbleMorph(value, isError) {
-	this.init(value, isError);
+function MB_ResultBubbleMorph(value, isError, picturePx) {
+	this.init(value, isError, picturePx);
 }
 
 MB_ResultBubbleMorph.prototype = Object.create(SpeechBubbleMorph.prototype);
 MB_ResultBubbleMorph.prototype.constructor = MB_ResultBubbleMorph;
 MB_ResultBubbleMorph.uber = SpeechBubbleMorph.prototype;
 
-MB_ResultBubbleMorph.prototype.init = function (value, isError) {
+MB_ResultBubbleMorph.prototype.init = function (value, isError, picturePx) {
+	// With picturePx, the bubble is drawn for a script picture at that many image pixels per block unit.
+	this.picturePx = picturePx || 0;
+	this.unit = picturePx || 1;
 	const fill = isError ? new Color(255, 242, 242) : new Color(250, 250, 250);
 	const border = isError ? new Color(178, 0, 0) : new Color(140, 140, 140);
-	MB_ResultBubbleMorph.uber.init.call(this, value, fill, 5, 2, border, 0, false, true);
+	MB_ResultBubbleMorph.uber.init.call(this, value, fill, 5, 2 * this.unit, border, 0, false, true);
 };
 
 MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	// Wrap at 175 screen pixels whatever the block size, and show at most 30 lines.
+	// A picture's lines are cut at 400 image pixels by pictureLines.
 	if (this.contentsMorph) this.contentsMorph.destroy();
-	const textMorph = (s, width) => new TextMorph(s, 18, null, false, false, 'center', width, 'Arial');
+	const u = this.unit;
+	const ppu = this.picturePx ? 1 : undefined; // a picture's units are its pixels
+	const textMorph = (s, width) => new TextMorph(s, 18 * u, null, false, false, 'center', width, 'Arial');
+	const probe = textMorph('', 0);
+	probe.measureCtx.font = probe.font();
 	let lines = [];
 	for (const paragraph of String(this.contents).split('\n')) {
+		if (this.picturePx) {
+			lines = lines.concat(pictureLines(paragraph, 400, (s) => probe.measureCtx.measureText(s).width));
+			continue;
+		}
 		// A wrapping TextMorph ends each line with a space, and adds an empty
 		// first line when the first word is wider than the bubble.
 		const wrapped = textMorph(paragraph, 175 / ZOOM).lines.map((s) => s.trimEnd());
@@ -3213,21 +3366,41 @@ MB_ResultBubbleMorph.prototype.fixLayout = function () {
 	const text = textMorph(lines.join('\n'), 0);
 	text.color = new Color(0, 0, 0);
 	text.render = renderResultText;
-	text.bounds.setHeight(text.lines.length * resultTextMetrics(text.fontSize).lineHeight);
+	text.pixelsPerUnit = ppu;
+	text.bounds.setHeight(text.lines.length * resultTextMetrics(text.fontSize, ppu).lineHeight);
 	this.contentsMorph = text;
 	this.add(text);
 	// A TextMorph is one space wider than its widest line; the glyphs fill its left part.
 	text.measureCtx.font = text.font();
 	const width = Math.max(...text.lines.map((s) => text.measureCtx.measureText(s.trimEnd()).width));
-	this.bounds.setExtent(new Point(width + 22, text.height() + 21)); // 7 of the height is the tail
-	text.setPosition(this.position().add(new Point(11, 7)));
+	this.bounds.setExtent(new Point(width + (22 * u), text.height() + (21 * u))); // 7 of the height is the tail
+	text.setPosition(this.position().add(new Point(11 * u, 7 * u)));
 };
 
-// GP's line height and baseline at the world's zoom: 0.95 and 0.3 of the font
-// size in device pixels, each rounded down, and the font size less a tenth of it.
+// A paragraph cut into a picture's lines: each runs on to the first space or
+// punctuation mark past the width and keeps it, so a line can be wider than the
+// width, and an empty paragraph has no line.
+function pictureLines(paragraph, width, measure) {
+	const lines = [];
+	let start = 0;
+	for (let i = 0; i < paragraph.length; i++) {
+		const soFar = paragraph.slice(start, i + 1);
+		if (' ,;:.'.includes(paragraph[i]) && (measure(soFar) > width)) {
+			lines.push(soFar);
+			start = i + 1;
+		} else if (i === paragraph.length - 1) {
+			lines.push(soFar);
+		}
+	}
+	return lines;
+}
+
+// The result text's line height and baseline at ppu device pixels per unit, by
+// default the world's: 0.95 and 0.3 of the font size in device pixels, each
+// rounded down, and the font size less a tenth of it.
 // Morphic's lines are 1.2 font sizes, with the glyphs on the bottom of each.
-function resultTextMetrics(fontSize) {
-	const ppu = 2 * ZOOM, px = Math.round(fontSize * ppu);
+function resultTextMetrics(fontSize, ppu = 2 * ZOOM) {
+	const px = Math.round(fontSize * ppu);
 	return {
 		lineHeight: (Math.floor(0.95 * px) + Math.floor(0.3 * px)) / ppu,
 		baseline: (px - Math.floor(px / 10)) / ppu
@@ -3236,7 +3409,7 @@ function resultTextMetrics(fontSize) {
 
 // TextMorph's centred lines, drawn on GP's metrics above.
 function renderResultText(ctx) {
-	const { lineHeight, baseline } = resultTextMetrics(this.fontSize);
+	const { lineHeight, baseline } = resultTextMetrics(this.fontSize, this.pixelsPerUnit);
 	ctx.font = this.font();
 	ctx.textAlign = 'left';
 	ctx.textBaseline = 'alphabetic';
@@ -3248,8 +3421,9 @@ function renderResultText(ctx) {
 
 MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	// A rounded box inset 4 from the bounds, with an 8 high tail under one end.
-	const l = 4, t = 4, r = this.width() - 4, b = this.height() - 4;
-	const radius = 5, tailH = 8, tailW = 4, indent = 8;
+	const u = this.unit;
+	const l = 4 * u, t = 4 * u, r = this.width() - (4 * u), b = this.height() - (4 * u);
+	const radius = 5 * u, tailH = 8 * u, tailW = 4 * u, indent = 8 * u;
 	const base = b - tailH;
 	ctx.beginPath();
 	ctx.moveTo(l, base - radius);
@@ -3270,100 +3444,10 @@ MB_ResultBubbleMorph.prototype.render = function (ctx) {
 	ctx.fillStyle = this.color.toString();
 	ctx.fill();
 	ctx.lineWidth = this.border;
-	ctx.lineJoin = 'round'; // GP strokes the screen's paths round, which blunts the tail's tip
+	ctx.lineJoin = 'round'; // blunt the tail's tip
 	ctx.strokeStyle = this.borderColor.toString();
 	ctx.stroke();
 };
-
-// Announce something to whatever chrome is listening. Sent on the document
-// rather than through IDE.fireEvent, which is the same dispatch, so that the
-// port does not require the chrome to be loaded.
-function fireIDEEvent(name, value) {
-	// The spinner is the chrome's, and no morph here stands for it, so what the
-	// port last said about it is the only record that one is up.
-	if ('spinner.show' === name) MB_editor.spinnerShowing = true;
-	if ('spinner.hide' === name) MB_editor.spinnerShowing = false;
-	// Both guards: the port is also loaded with no DOM, and into contexts that
-	// supply a partial one where document exists and CustomEvent does not.
-	if (typeof document === 'undefined' || typeof CustomEvent === 'undefined') { return; }
-	document.dispatchEvent(new CustomEvent(name, { detail: { value: value } }));
-}
-
-// n screen pixels in world units. Morphic draws the world ZOOM times its size, so a
-// dialog sized with this keeps one size on screen at every block size, as GP's do.
-function screenPixels(n) {
-	return n / ZOOM;
-}
-
-// The hand's position as the chrome expects GP's: menus.js adds where #canvas
-// is on the page, while the hand is in world units on the world's own canvas,
-// which morphic draws ZOOM times larger.
-function chromePoint(aWorld) {
-	const page = aWorld.worldCanvas.getBoundingClientRect();
-	const canvas = document.querySelector('#canvas').getBoundingClientRect();
-	const hand = aWorld.hand.position();
-	return {
-		x: (hand.x * ZOOM) + page.left - canvas.left,
-		y: (hand.y * ZOOM) + page.top - canvas.top
-	};
-}
-
-// What contextMenu answers when the chrome draws the menu, so the hand opens no Morphic one.
-const chromeDrawnMenu = { popUpAtHand() {} };
-
-// Questions put to the chrome and not yet answered, by id. Its menus and dialogs answer
-// by writing JSON into GP.apiResponses[id], which GP polls for in its UI loop.
-const chromeQuestions = new Map();
-let chromeQuestionsPolled = false;
-
-function askChrome(eventName, options, callback) {
-	// Fire a menu or dialog event and call back with the chrome's answer.
-	const id = nextCallId();
-	fireIDEEvent(eventName, Object.assign({ id: id }, options));
-	const shown = ('menu' === eventName) ? Menus.current() : [...document.querySelectorAll('win-')].pop();
-	chromeQuestions.set(id, { shown: shown, callback: callback });
-	if (!chromeQuestionsPolled) {
-		chromeQuestionsPolled = true;
-		requestAnimationFrame(checkChromeAnswers);
-	}
-}
-
-function checkChromeAnswers() {
-	// A menu or window closed without an answer never gets one, so it is forgotten.
-	try {
-		for (const [id, question] of chromeQuestions) {
-			const json = GP.apiResponses[id];
-			if (json !== undefined) {
-				delete GP.apiResponses[id];
-				chromeQuestions.delete(id);
-				question.callback(JSON.parse(json));
-			} else if (!(question.shown && question.shown.isConnected)) {
-				chromeQuestions.delete(id);
-			}
-		}
-	} finally { // an answer whose action throws must not stop the answers after it
-		chromeQuestionsPolled = (chromeQuestions.size > 0);
-		if (chromeQuestionsPolled) requestAnimationFrame(checkChromeAnswers);
-	}
-}
-
-function chromeMenuFor(aWorld, items, menuClass = null) {
-	// Show items, each '-' or [label, action, tip, image, class, checked], in the chrome's menu.
-	// An item with an image, a PNG data URL, shows the picture in place of its label.
-	const p = chromePoint(aWorld);
-	const descriptors = items.map((item) => {
-		if ('-' === item) return { label: '-' };
-		const d = { label: item[0], tip: item[2] };
-		if (item[3]) Object.assign(d, { image: item[3], class: item[4] });
-		if (item.length > 5) d.checked = !!item[5];
-		return d;
-	});
-	askChrome('menu', { x: p.x, y: p.y, class: menuClass, items: descriptors }, (label) => {
-		const chosen = items.find((item) => item[0] === label);
-		if (chosen) chosen[1]();
-	});
-	return chromeDrawnMenu;
-}
 
 // Text being edited answers a right-click with its own menu, and editing goes on.
 for (const textClass of [StringMorph, TextMorph]) {
@@ -3421,262 +3505,8 @@ CursorMorph.prototype.textMenuItems = function () {
 // Global singleton instance
 const MB_editor = new MB_Editor();
 
-// Debugging Utility Function
-
-function reload(scriptPath) {
-	// Run in console to reload a Javascript file without reloading the page.
-	// Example: reloadScript('mb-gui.js')
-	const newScript = document.createElement('script');
-	newScript.src = scriptPath + '?' + new Date().getTime(); // cache busting
-	document.body.appendChild(newScript);
-}
-
-// --- Global Helper Functions ---
-
-function quoteIfNeeded(s) {
-	// Return a quoted version of the given string if necessary for parsing.
-	// Otherwise, return the original string.
-	// To be unquoted, the string must start with a letter or underscore and must
-	// contain only alfanumeric characters (including underscore).
-
-	let mustQuote = false;
-	if ((s.length == 0) || !/[a-zA-Z_]/.test(s[0])) { // does not start with a letter or underscore
-		mustQuote = true;
-	}
-	for (const ch of s) {
-		if (!/[a-zA-Z0-9_]/.test(ch)) {
-			mustQuote = true; // contains a non-alphanumeric character
-			break;
-		}
-	}
-	return mustQuote ? ('\'' + fixEmbeddedQuotes(s) + '\'') : s;
-}
-
-function fixEmbeddedQuotes(s) {
-	// If the given string includes any single quote characters, double them so that the
-	// the MicroBlocks parser will treat them as embedded quotes.
-
-	if (!s.includes('\'')) return s;
-	return s.replaceAll('\'', '\'\''); // double embedded single quotes
-}
-
-let waitWorker = null; // times waitMSecs while the tab is hidden; false if none can be made
-
-async function waitMSecs(msecs) {
-	// A hidden tab runs timers at most once a second, which stretches every short
-	// wait while talking to the board, such as the 3 msec pause between serial
-	// writes, to a second. Timers in a worker are slowed far less, so time it there.
-	if (document.hidden && (waitWorker === null)) {
-		try {
-			const src = 'onmessage = (e) => setTimeout(() => e.ports[0].postMessage(0), e.data);';
-			waitWorker = new Worker(URL.createObjectURL(new Blob([src])));
-		} catch (e) {
-			waitWorker = false; // no worker in this browser; use setTimeout below
-		}
-	}
-	if (document.hidden && waitWorker) {
-		// Race the worker against a plain setTimeout. A worker refused by the page's
-		// CSP, or whose script fails, is made without an error and never answers.
-		const channel = new MessageChannel();
-		let timer;
-		await new Promise(resolve => {
-			channel.port1.onmessage = resolve;
-			timer = setTimeout(resolve, msecs);
-			waitWorker.postMessage(msecs, [channel.port2]);
-		});
-		clearTimeout(timer);
-		channel.port1.close();
-		return;
-	}
-	const sleep = function (msecs) {
-		return (new Promise( resolve => setTimeout(resolve, msecs) ));
-	}
-	await sleep(msecs);
-}
-
-function localized(s) {
-	return GetText.localize(s);
-}
-
-function isMobile() {
-	return false;
-}
-
-function cropTransparent(canvas) {
-	// The smallest part of a non-retina canvas that holds all of its non-transparent pixels.
-	const w = canvas.width, h = canvas.height;
-	const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
-	let left = w, top = h, right = -1, bottom = -1;
-	for (let y = 0; y < h; y++) {
-		for (let x = 0; x < w; x++) {
-			if (data[(((y * w) + x) * 4) + 3] === 0) continue;
-			left = Math.min(left, x); right = Math.max(right, x);
-			top = Math.min(top, y); bottom = Math.max(bottom, y);
-		}
-	}
-	if (right < 0) return canvas; // nothing drawn
-	const result = newCanvas(new Point((right - left) + 1, (bottom - top) + 1), true);
-	result.getContext('2d').drawImage(canvas, -left, -top);
-	return result;
-}
-
-function blockScale() {
-	// The pixels-per-unit that block morphs lay themselves out with. GP's
-	// blockScale is (global 'blockScale') * (global 'scale') and serves the
-	// same purpose: it converts between pane pixels and script-file units.
-	return SyntaxElementMorph.prototype.scale;
-}
-
-function uniqueNameNotIn(names, baseName) {
-	// baseName, or baseName followed by the first of 2, 3, 4... not in names.
-	let result = baseName;
-	for (let i = 2; names.includes(result); i++) result = baseName + i;
-	return result;
-}
-
-function forEachExpression(node, fn) {
-	// Call fn on every block node in a model node tree: arguments, bodies and
-	// the blocks that follow.
-	for (let n = node; (n != null) && (typeof n.selector === 'string'); n = n.next) {
-		fn(n);
-		for (const arg of n.args || []) {
-			if ((arg != null) && (typeof arg === 'object')) forEachExpression(arg, fn);
-		}
-	}
-}
-
-function fixedCallArgs(call, rule) {
-	// Fix one call node's arguments in place by rule; answer whether any changed.
-	// The call's shape, command or reporter, is left as it is.
-	const before = JSON.stringify(call.args);
-	const args = call.args;
-	while (args.length < rule.minArgs) args.push(rule.slots[args.length][1]);
-	if (!rule.isVariadic) args.length = rule.minArgs;
-	const checked = Math.min(rule.minArgs, args.length, rule.slots.length);
-	for (let i = 0; i < checked; i++) {
-		const arg = args[i];
-		if ((arg != null) && arg.isReporter && !arg.isDefaultColour) continue;
-		const [type, value] = rule.slots[i];
-		// A colour slot can hold its colour as a packed number, as the bytes
-		// carry it, and a number from any other slot is not a colour.
-		const isColour = (('number' === typeof arg) && rule.colourSlots[i]) ||
-			((arg != null) && ((true === arg.isColor) || (true === arg.isDefaultColour)));
-		// Only the green a colour input filled in is retyped; any other colour
-		// stays, as a swatch once its slot no longer takes a colour.
-		if (isColour && !arg.isDefaultColour) {
-			if ('color' !== type) args[i] = colourSwatchNode(arg);
-			continue;
-		}
-		const fits = ('auto' === type) ? ['number', 'string'].includes(typeof arg)
-			: ('bool' === type) ? ('boolean' === typeof arg)
-			: ('color' === type) ? isColour
-			: true;
-		if (!fits) args[i] = value;
-	}
-	return JSON.stringify(args) !== before;
-}
-
-function colourSwatchNode(colour) {
-	// A colorSwatch reporter node for a packed or spelled colour. Only a spelled
-	// one can carry an alpha.
-	const c = ('number' === typeof colour) ?
-		{ r: (colour >> 16) & 255, g: (colour >> 8) & 255, b: colour & 255 } : colour;
-	return { selector: 'colorSwatch', args: [c.r, c.g, c.b, c.alpha ?? 255], isReporter: true, next: null };
-}
-
-function varMustBeQuoted(varName) {
-	// Return true if varName must be enclosed in quotes when serialized.
-	// A name must be quoted if it is empty, contains a space, or starts with a digit or '-'.
-	if (varName === '') return true;
-	if (varName.includes(' ')) return true;
-	const ch = varName[0];
-	return /\d/.test(ch) || ch === '-';
-}
-
-// Clipboard support (XXX TODO maybe move to own file?)
-
-var MB = {};
-MB.clipboard = document.createElement('textarea');
-MB.clipboard.style.position = 'fixed';
-MB.clipboard.style.left = '0px';
-MB.clipboard.style.top = '0px';
-MB.clipboard.style.width = '1px';
-MB.clipboard.style.height = '1em';
-MB.clipboard.style.border = '0';
-MB.clipboard.style.padding = '0';
-MB.clipboard.style.margin = '0';
-MB.clipboard.style.outline = 'none';
-MB.clipboard.style.opacity = '0';
-document.body.appendChild(MB.clipboard);
-
-function setGPClipboard(s) {
-	// Called by GP's setClipboard primitive
-
-	setClipboardBuffer(s);
-
-	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.writeText)) {
-		navigator.clipboard.writeText(s).catch(() => {});
-	} else {
-		MB.clipboard.focus();
-		MB.clipboard.select();
-		try {
-			document.execCommand('copy');
-		} catch (err) {
-			console.error('setGPClipboard failed', err);
-		}
-	}
-}
-
-function setClipboardBuffer(s) {
-	// The IDE's own copy of the clipboard text, which clipboardText() reads.
-	GP.clipboardBytes = toUTF8Array(s);
-	MB.clipboard.value = s;
-}
-
-async function readGPClipboard(s) {
-	if ((typeof navigator.clipboard !== 'undefined') && (navigator.clipboard.readText)) {
-		var s = await navigator.clipboard.readText().catch(() => {});
-		if (s) MB.clipboard.value = s;
-	} else {
-		MB.clipboard.focus();
-		MB.clipboard.select();
-		try {
-			document.execCommand('paste');
-		} catch (err) {
-			console.error('readGPClipboard failed', err);
-		}
-	}
-	GP.clipboardBytes = toUTF8Array(MB.clipboard.value);
-	return GP.clipboardBytes.length;
-}
-
-function toUTF8Array(str) {
-	// Convert a Javascript string into an array of UTF8 bytes.
-	var utf8 = [];
-	for (var i = 0; i < str.length; i++) {
-		var charcode = str.charCodeAt(i);
-		if (charcode < 0x80) utf8.push(charcode);
-		else if (charcode < 0x800) {
-			utf8.push(
-				0xc0 | (charcode >> 6),
-				0x80 | (charcode & 0x3f));
-		}
-		else if (charcode < 0x10000) {
-			utf8.push(
-				0xe0 | (charcode >> 12),
-				0x80 | ((charcode >> 6) & 0x3f),
-				0x80 | (charcode & 0x3f));
-		} else if (charcode <= 0x10FFFF) {
-			utf8.push(
-				0xf0 | (charcode >> 18),
-				0x80 | ((charcode >> 12) & 0x3f),
-				0x80 | ((charcode >> 6) & 0x3f),
-				0x80 | (charcode & 0x3f));
-		}
-	}
-	return utf8;
-}
-
-function clipboardText() {
-	return new TextDecoder().decode(new Uint8Array(GP.clipboardBytes).buffer);
+if ((typeof window !== 'undefined') && window.addEventListener) {
+	window.addEventListener('error', (evt) => MB_editor.reportUncaught(evt.error, evt.filename));
+	window.addEventListener('unhandledrejection', (evt) => MB_editor.reportUncaught(evt.reason));
+	window.addEventListener('DOMContentLoaded', () => MB_editor.reportWaitingError());
 }

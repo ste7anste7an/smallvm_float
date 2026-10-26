@@ -150,7 +150,9 @@
 
 		<!-- Snap Blocks -->
 		<script type="text/javascript" src="engine/morphic.js"></script>
+		<script type="text/javascript" src="engine/mb-support.js"></script>
 		<script type="text/javascript" src="engine/mb-blocks.js"></script>
+		<script type="text/javascript" src="engine/mb-slots.js"></script>
 		<script type="text/javascript" src="engine/mb-block-search.js"></script>
 		<script type="text/javascript" src="engine/mb-code-manager.js"></script>
 		<script type="text/javascript" src="engine/mb-comm-port.js"></script>
@@ -173,6 +175,7 @@
 		<script type="text/javascript" src="engine/mb-project.js"></script>
 		<script type="text/javascript" src="engine/mb-specs.js"></script>
 		<script type="text/javascript" src="engine/mb-tips.js"></script>
+		<script type="text/javascript" src="engine/mb-autosave.js"></script>
 		<script type="text/javascript" src="engine/mb-editor.js"></script>
 
 		<!-- IDE -->
@@ -215,6 +218,8 @@
 					IDE.resize(); // place the world canvas over the workspace slot
 					// Started first, so the IDE keeps running while a link's project asks a question.
 					requestAnimationFrame(loop);
+					// Before a link's project, so the work a crash left behind is offered first.
+					if (MB_editor.autosave) await MB_editor.autosave.start();
 					try {
 						// A link the page was opened with.
 						await MB_editor.importFromURL(location.href);

@@ -49,7 +49,10 @@ GP.apiCall = function (endPoint, params, callback) {
 			} else if (MB_connection.isConnected()) {
 				// A disconnect the user asked for leaves the board running the
 				// IDE's program, as it will after its next power-up.
-				MB_editor.stopSyncAndStartAll().finally(() => MB_connection.disconnect());
+				const port = MB_connection.port;
+				MB_editor.stopSyncAndStartAll().finally(() => {
+					if (MB_connection.port === port) MB_connection.disconnect(); // not a connection made since
+				});
 			} else {
 				MB_connection.disconnect();
 			}
@@ -188,10 +191,11 @@ GP.apiCall = function (endPoint, params, callback) {
 		case 'ide.spinnerCancelled':
 			// Reply first, then act. The chrome sends this for every Escape key
 			// whether a spinner is up or not. What a spinner here stands over that can
-			// be stopped is a file transfer or a firmware download: a project read
-			// shows one and runs to its end either way.
+			// be stopped is a file transfer, a firmware download or an ESP install: a
+			// project read shows one and runs to its end either way.
 			callback(0);
 			if (MB_editor.spinnerShowing && MB_connection.busy()) MB_connection.abortFileTransfer();
+			if (MB_editor.spinnerShowing && MB_Firmware.espTool) MB_Firmware.espTool.cancel();
 			if (MB_Firmware.downloadAborter) MB_Firmware.downloadAborter.abort();
 			MB_editor.spinnerShowing = false; // cancelled or not, the overlay is gone
 			break;
@@ -311,7 +315,7 @@ GP.apiCall = function (endPoint, params, callback) {
 };
 
 // menus.js shows its paste items from GP.clipboardBytes and clipboardText().
-// mb-editor.js fills that buffer and defines clipboardText().
+// mb-support.js fills that buffer and defines clipboardText().
 GP.clipboardBytes = [];
 
 function setClipboard(text) { setGPClipboard(text); }

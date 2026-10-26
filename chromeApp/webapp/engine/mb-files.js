@@ -7,20 +7,33 @@
 //	mb-files.js - Server-based "built-in" file system for Libraries, Examples, etc.
 
 const MB_Files = {
-	fileNames: null
+	fileNames: null,
+	reading: null // the files.txt read in flight
 }
 
 MB_Files.initialize = async function () {
-	// Create a list of available files by reading files.txt.
+	// Create a list of available files by reading files.txt. A caller arriving
+	// during the read waits for it. A list that could not be read is left empty,
+	// and read again on the next call.
 
-	if (this.fileNames) return; // already initialized
+	if (this.fileNames && this.fileNames.length) return; // already initialized
 
-	this.fileNames = [];
-	let s = await this.readFile('files.txt');
+	if (!this.reading) {
+		this.fileNames = [];
+		this.reading = this.readFile('files.txt').finally(() => { this.reading = null; });
+	}
+	let s = await this.reading;
 	if (!s) return; // could not read files.txt from server; empty file system
 
 	this.fileNames = s.split('\n');
 	if (this.fileNames.at(-1) == '') this.fileNames.pop();
+}
+
+MB_Files.readAgainIfFailed = async function () {
+	// Read files.txt again if the last read of it failed. A read still in flight
+	// is not waited for: the caller goes on with the list as it stands.
+
+	if (!this.reading) await this.initialize();
 }
 
 MB_Files.readFile = async function (url) {

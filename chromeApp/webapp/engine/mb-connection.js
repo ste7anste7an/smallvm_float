@@ -64,6 +64,7 @@ class MB_Connection {
 		this.portName = null;
 		this.connectionStartTime = null;
 		this.portOpenedTime = null;
+		this.offeringInstall = false;  // while the firmware install offer is up
 		this.pingSentMSecs = 0;
 		this.lastPingRecvMSecs = null;
 		this.recvBuf = new Uint8Array(0);
@@ -243,6 +244,9 @@ class MB_Connection {
 	}
 
 	disconnect() {
+		// Boardie's panel is its port: close the panel, which comes back here with isOpen false.
+		if ((typeof GP === 'object') && GP.boardie && GP.boardie.isOpen) { GP_closeBoardie(); return; }
+
 		// GP's closePort pushes this before it closes anything (MicroBlocksRuntime.gp:896).
 		this.pushToIDE('board.connected', false);
 		this.pushToIDE('board.canDoBLE', false);
@@ -362,11 +366,25 @@ class MB_Connection {
 		const connectionAttemptTimeout = 10000; // milliseconds
 		if ((Date.now() - this.portOpenedTime) > connectionAttemptTimeout) {
 			// give up and disconnect if no response from board after connectionAttemptTimeout
+			const portName = this.portName;
 			this.disconnect();
 			this.connectionStartTime = null;
+			if (portName == 'serial') this.offerFirmwareInstall();
 		}
 
 		return 'not connected';
+	}
+
+	async offerFirmwareInstall() {
+		// A serial board that never answers most likely has no MicroBlocks firmware.
+		// The port is closed by now, and each install opens its own.
+		if (this.offeringInstall) return;
+		this.offeringInstall = true;
+		const yes = await MB_editor.confirm(localized('The board is not responding.') + '\n' +
+			localized('Try to Install MicroBlocks on the board?'));
+		this.offeringInstall = false;
+		// a board connected while the question was up is not the board it asked about
+		if (yes && (this.portName == null)) MB_Firmware.presentBoardTypeMenu(false);
 	}
 
 	async justConnected() {
@@ -413,7 +431,7 @@ class MB_Connection {
 	}
 
 	async installBoardSpecificBlocks() {
-		// Give an empty project the libraries for the board just connected,
+		// Give an empty project the connected board's libraries,
 		// unless the user turned that off in Settings.
 		if (MB_editor.readFromBoard || (this.decompiler != null)) return;
 		if (MB_editor.project.hasUserCode()) return;
@@ -421,7 +439,14 @@ class MB_Connection {
 		if (this.boardType == null) return;
 		let libs = MB_Connection.BOARD_LIBRARIES[this.boardType];
 		if (!libs && this.boardType.startsWith('MakerPort')) libs = ['MakerPort'];
-		for (const libName of (libs || [])) await MB_editor.importEmbeddedLibrary(libName);
+		const project = MB_editor.project;
+		const unread = [];
+		for (const libName of (libs || [])) {
+			// a project opened while a library loads is not the one these are for
+			if (MB_editor.project !== project) return;
+			await MB_editor.importEmbeddedLibrary(libName, unread);
+		}
+		MB_editor.informCouldNotRead(unread);
 	}
 
 	async waitForVersion() {
@@ -676,6 +701,7 @@ class MB_Connection {
 			this.handleMessage(msg);
 		} catch (e) {
 			console.log('Error handling message, opcode:', msg[1], e);
+			MB_editor.reportUncaught(e);
 		}
 	}
 
@@ -933,6 +959,7 @@ class MB_Connection {
 			this.ideVersion = '0.0.0';
 			this.latestVmVersion = 0;
 			this.versionsRead = MB_Files.readFile('versions').then((data) => {
+				if (data === undefined) this.versionsRead = null; // not read, so the next check tries again
 				for (const line of (data || '').split(/\r?\n/)) {
 					if (line.startsWith('IDE ')) this.ideVersion = line.slice(4);
 					if (line.startsWith('VM ')) this.latestVmVersion = Number(line.slice(3));
