@@ -726,10 +726,12 @@ method isChineseWebapp MicroBlocksEditor {
 
 method applyUserPreferences MicroBlocksEditor {
 	prefs = (readUserPreferences this)
-	if (notNil (at prefs 'locale')) {
-		setLanguage this (at prefs 'locale')
+	locale = (at prefs 'locale')
+	if ('zh_chs' == locale) { locale = 'zh-chs' } // earlier versions saved this misspelling
+	if (notNil locale) {
+		setLanguage this locale
 	} (isChineseWebapp this) {
-		setLanguage this 'zh_chs'
+		setLanguage this 'zh-chs'
 	} else {
 		setLanguage this 'en'
 	}
