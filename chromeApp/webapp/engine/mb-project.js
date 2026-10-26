@@ -128,18 +128,31 @@ class MB_Project {
 		// the ones to load in their place, as loadFromString takes them. This project
 		// is not changed. If true is passed to the optional autoConfirm parameter,
 		// update old libraries without asking. Otherwise ask the user for confirmation.
+		// A library that another library in the project implements is left as it is.
 
-		let updates = new Map();
+		let libs = new MB_Project(); // the project's libraries, as the updates so far leave them
 		for (const modCmds of this.librariesIn(this.splitCmdListIntoModules(this.parseProject(s))).values()) {
 			let lib = new MB_Module();
 			lib.loadModuleNameAndCategory(modCmds);
 			lib.loadVersion(modCmds);
+			lib.loadImplements(modCmds);
+			libs.libraries.set(lib.moduleName, lib);
+		}
+		let updates = new Map();
+		for (const libName of Array.from(libs.libraries.keys())) {
+			let lib = libs.libraryNamed(libName); // null if an earlier update replaced it
+			if (!lib || libs.replacementFor(libName)) continue;
 			let newCmds = await lib.getNewerVersion();
 			if (!newCmds) continue;
 			// localized() has no parameter substitution, so the name is filled in here.
-			let question = localized('Found a newer version of %1.').replace('%1', lib.moduleName) + '\n' +
+			let question = localized('Found a newer version of %1.').replace('%1', libName) + '\n' +
 				localized('Do you want me to update the one in the project?');
-			if (autoConfirm || await MB_editor.confirm(question)) updates.set(lib.moduleName, newCmds);
+			if (autoConfirm || await MB_editor.confirm(question)) {
+				updates.set(libName, newCmds);
+				let newLib = new MB_Module(libName);
+				newLib.loadImplements(newCmds);
+				libs.addLibrary(newLib); // removes any library the new version replaces
+			}
 		}
 		return updates;
 	}
