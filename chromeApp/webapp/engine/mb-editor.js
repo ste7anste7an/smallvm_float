@@ -235,11 +235,7 @@ class MB_Editor {
 			const im = m.cachedImage;
 			if (!im || (im.isRetinaEnabled === false)) return; // made at 1 on purpose
 			if ((m instanceof BlockHighlightMorph) && (m.parent instanceof BlockMorph)) {
-				const block = m.parent;
-				block.removeChild(m);
-				const border = (m.width() - block.fullBounds().width()) / 2;
-				m.cachedImage = block.highlightImage(m.color, border);
-				block.addBack(m);
+				m.parent.addHighlight(m.parent.removeHighlight()); // made again, in its colour
 			} else if ((m instanceof ShadowMorph) || (m.constructor === Morph)) {
 				m.cachedImage = copy(m);
 			} else {
