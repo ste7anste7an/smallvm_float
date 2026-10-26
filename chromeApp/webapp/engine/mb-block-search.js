@@ -713,7 +713,8 @@ class MB_BlockSearchBox {
 	}
 
 	menuIsOpen() {
-		return (this.menu !== null) && (this.menu.parent !== null);
+		// A destroyed morph keeps its parent, so ask the world.
+		return (this.menu !== null) && world.children.includes(this.menu);
 	}
 
 	keystroke(event) {
