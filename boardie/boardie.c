@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 
 #include <emscripten.h>
 
@@ -19,33 +18,25 @@
 
 // Timing Functions
 
-static int startSecs = 0;
-
-static void initTimers() {
-	struct timeval now;
-	gettimeofday(&now, NULL);
-	startSecs = now.tv_sec;
+uint64 totalMicrosecs() {
+	// Microseconds since the page loaded. The browser clock moves in steps (100 usecs in
+	// Chrome), so between steps each reading adds one, staying at most 100 usecs ahead.
+	// Reading more often than once a microsecond can repeat a value, as on a board.
+	static uint64 last = 0;
+	uint64 browserMicros = (uint64) (emscripten_get_now() * 1000.0);
+	uint64 now = browserMicros;
+	if (now <= last) now = last + 1;
+	if (now > (browserMicros + 100)) now = last;
+	last = now;
+	return now;
 }
 
 uint32 microsecs() {
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	return ((1000000 * (now.tv_sec - startSecs)) + now.tv_usec) & 0xFFFFFFFF;
+	return (uint32) totalMicrosecs(); // wraps every 2^32 microseconds, as on a board
 }
 
 uint32 millisecs() {
 	return microsecs() / 1000;
-}
-
-uint64 totalMicrosecs() {
-	// Returns a 64-bit integer containing microseconds since start.
-
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	uint64 secs = now.tv_sec - startSecs;
-	return (1000000 * secs) + now.tv_usec;
 }
 
 // Communication/System Functions
@@ -265,7 +256,6 @@ int main(int argc, char *argv[]) {
 
 	syncFiles();
 
-	initTimers();
 	memInit();
 	primsInit();
 	restoreScripts();
