@@ -1224,7 +1224,8 @@ class MB_Editor {
 		// started now is not stored again while it runs: storing a chunk stops its task.
 		// Answer false if the download is still going after 30 seconds.
 		const deadline = Date.now() + 30000;
-		while (this.saveNeeded || (this.codeManager.savesInProgress > 0)) {
+		// An edit pending while part of a script is held is stored after the drop.
+		while ((this.saveNeeded && (this.scriptsOutOfPane() !== 'part')) || (this.codeManager.savesInProgress > 0)) {
 			if (Date.now() > deadline) return false;
 			if (this.codeManager.savesInProgress > 0) await waitMSecs(5);
 			else await this.step();
@@ -1237,6 +1238,7 @@ class MB_Editor {
 		// changed, as GP's MicroBlocksScripter step does. Wait while another download runs.
 		this.sendTransferPercent(); // before the returns below: a transfer holds them both
 		if (!this.saveNeeded || this.codeManager.savesInProgress > 0) return;
+		if (this.scriptsOutOfPane() === 'part') return; // its text lacks the held part; save after the drop
 		this.saveNeeded = false; // an edit made during the sync below sets it again
 		try {
 			this.updateProject();
@@ -1276,8 +1278,27 @@ class MB_Editor {
 		}
 	}
 
+	scriptsOutOfPane() {
+		// Answer 'whole' if the hand holds only scripts of the project, taken whole from
+		// the scripting pane, 'part' if it holds anything else from the pane or a block
+		// dropped on the world is sliding back, or null. A copy is not from the pane.
+		const pane = this.scriptsPane();
+		const world = pane && pane.world();
+		if (!world) return null;
+		if (world.children.some((m) => (m instanceof BlockMorph) || (m instanceof SelectedScriptsMorph))) return 'part';
+		const hand = world.hand;
+		if (!((hand.children.length > 0) && hand.grabOrigin && (hand.grabOrigin.origin === pane))) return null;
+		const held = [];
+		for (const m of hand.children) held.push(...((m instanceof SelectedScriptsMorph) ? m.children : [m]));
+		const scripts = this.project.main.scripts.map((entry) => entry[2]);
+		return held.every((m) => scripts.includes(m)) ? 'whole' : 'part';
+	}
+
 	updateProject() {
 		// Replace the project scripts with the scripts in the scripting pane.
+		// A script out of the pane is still part of the project, so the project
+		// stays as it was until it is back.
+		if (this.scriptsOutOfPane()) return;
 
 		let newScripts = [];
 		for (const aBlockMorph of this.scriptsPane().children) {
