@@ -591,12 +591,18 @@ class MB_Editor {
 
 	showFunctions(functions) {
 		for (const func of functions) this.showDefinition(func);
-		this.updateProject();
+		this.definitionsShownOrHidden();
 	}
 
 	hideFunctions(functions) {
 		for (const func of functions) this.hideDefinition(func.functionName);
+		this.definitionsShownOrHidden();
+	}
+
+	definitionsShownOrHidden() {
+		// Showing or hiding a definition changes nothing the board runs, but undo can take it back.
 		this.updateProject();
+		this.storeUndoState();
 	}
 
 	functionsOfLibrary(libName) {
@@ -1854,7 +1860,10 @@ class MB_Editor {
 	showAndScrollToDefinition(funcName) {
 		// Show the definition of funcName, adding its hat below the scripts if the
 		// pane has none, and scroll the pane to it.
-		this.showDefinition(this.project.functionNamed(funcName));
+		if (!this.definitionShown(funcName)) {
+			this.showDefinition(this.project.functionNamed(funcName));
+			this.definitionsShownOrHidden();
+		}
 		const hat = this.definitionHatFor(funcName);
 		if (hat) this.scrollScriptsToShow(hat.fullBounds());
 	}
