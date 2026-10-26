@@ -42,7 +42,7 @@ class MB_Editor {
 		this.watchProjectVariables();
 		this.blockSize = 125; // a fresh profile draws at GP's default block size
 		this.autosave = (typeof MB_Autosave === 'function') ? new MB_Autosave(this) : null;
-		this.boardTurn = Promise.resolve(); // an open's download and a connect's sync take turns
+		this.boardTurn = Promise.resolve(); // what erases or downloads a project takes turns on the board
 	}
 
 	open(world) {
@@ -1499,7 +1499,7 @@ class MB_Editor {
 		IDE.spinner.show('Fetching...');
 		if (!(await this.importLibraryFromUrl(url))) return;
 		if (picker) picker.removeFromOwner(); // can be removed when the DOM window is finalized
-		await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+		await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad()); // a connected board takes the new chunks
 		IDE.spinner.hide();
 		return url;
 	}
@@ -1553,7 +1553,7 @@ class MB_Editor {
 			return;
 		}
 		if (await this.importLibraryFromString(data, filePath)) {
-			await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+			await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad()); // a connected board takes the new chunks
 		}
 	}
 
@@ -2591,7 +2591,9 @@ class MB_Editor {
 
 	async newProject() {
 		if (!(await this.canReplaceCurrentProject())) return;
-		this.clearProject();
+		// A connect's download still running would carry on into the board this erases.
+		// An erase that fails is reported, and New still goes on.
+		await this.withBoardTurn(() => this.clearProject().catch((e) => this.reportUncaught(e)));
 		// A connected board's libraries come back, as they do on connect,
 		// then a new project starts on Output.
 		await MB_connection.installBoardSpecificBlocks();
@@ -3093,7 +3095,7 @@ class MB_Editor {
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
 		else if (name.endsWith('.ubl')) {
 			if (await this.importLibraryFromString(data, fileName)) {
-				await this.codeManager.saveAllChunksAfterLoad();
+				await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad());
 			}
 		}
 		else if (name.endsWith('.csv')) this.importLoggedData(data);
@@ -3151,7 +3153,9 @@ class MB_Editor {
 		}
 		if (fileName.toLowerCase().endsWith('.ubl')) {
 			// Given the address, the library keeps it as the source the reload verb reads.
-			if (await this.importLibraryFromString(data, address)) await this.codeManager.saveAllChunksAfterLoad();
+			if (await this.importLibraryFromString(data, address)) {
+				await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad());
+			}
 		} else if (fileName.toLowerCase().endsWith('.ubp')) {
 			await this.openProjectFromString(data, fileName, clearFirst);
 		} else {
@@ -3274,8 +3278,8 @@ class MB_Editor {
 	}
 
 	async takeBoardTurn() {
-		// Wait for the open or connect already erasing or downloading to the board,
-		// then answer the function that ends this caller's turn.
+		// Wait for the open, connect, New or import already erasing or downloading
+		// to the board, then answer the function that ends this caller's turn.
 		const previous = this.boardTurn;
 		let endTurn;
 		this.boardTurn = new Promise((resolve) => { endTurn = resolve; });
@@ -3283,12 +3287,22 @@ class MB_Editor {
 		return endTurn;
 	}
 
+	async withBoardTurn(action) {
+		// Run action in a turn of its own, as above, and answer what it answers.
+		const endTurn = await this.takeBoardTurn();
+		try {
+			return await action();
+		} finally {
+			endTurn();
+		}
+	}
+
 	async openFromBoard() {
 		// GP's openFromBoard (MicroBlocksEditor.gp:296): clear the project, then
 		// wait for the NEXT board to connect. A board that is already connected
 		// is not read; justConnected does the reading, on the next connect.
 		if (!(await this.canReplaceCurrentProject())) return;
-		this.clearProject();
+		await this.withBoardTurn(() => this.clearProject().catch((e) => this.reportUncaught(e))); // as in newProject
 		this.updateLibraryList(); // no libraries left, so cat;Control
 		this.readFromBoard = true;
 		this.inform('Connect board to proceed.');
