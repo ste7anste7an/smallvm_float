@@ -1065,6 +1065,10 @@ SyntaxElementMorph.prototype.fixLayout = function () {
 	this.bounds.setWidth(blockWidth);
 	this.bounds.setHeight(blockHeight);
 
+	if (this.fixLayoutRTL && isRTL()) {
+		this.fixLayoutRTL();
+	}
+
 	// adjust CSlots and collect holes
 	this.holes = [];
 	parts.forEach(part => {
@@ -2061,6 +2065,24 @@ BlockMorph.prototype.fixElseSection = function () {
 	if (changed) this.fixLayout();
 }
 
+BlockMorph.prototype.fixLayoutRTL = function () {
+	// Mirror my parts so that my label reads from right to left. C-slots and the
+	// expander arrows stay in place, and the arrows' width is left out of the mirror.
+	var width = this.width(),
+		left = this.left();
+
+	if (this.selector === 'if') width += 15 * this.scale;
+	if (this.expander) width -= this.expander.fullBounds().width() + (3 * this.scale);
+	this.parts().forEach(part => {
+		if (part.isVisible && (part !== this.expander) && !(part instanceof CommandSlotMorph)) {
+			// the "else" label is mirrored as the Boolean slot it stands in for
+			var bounds = part.fullBounds(),
+				partWidth = part.isElseLine ? 29 * this.scale : bounds.width();
+			part.setLeft(left + width - (bounds.left() - left) - partWidth);
+		}
+	});
+};
+
 BlockMorph.prototype.maxInputCount = function () {
 	// Return the number of inputs for this blocks maximum expansion (may be Infinity).
 
@@ -2607,9 +2629,14 @@ BlockMorph.prototype.removeHighlight = function () {
 	return highlight;
 };
 
+BlockMorph.prototype.highlightBounds = function () {
+	// My full bounds plus the part of my outline that lies outside them.
+	return this.fullBounds().expandBy(this.outlineOutset());
+};
+
 BlockMorph.prototype.highlight = function (color, blur, border) {
 	var highlight = new BlockHighlightMorph(),
-		fb = this.fullBounds(),
+		fb = this.highlightBounds(),
 		edge = border;
 	highlight.bounds.setExtent(fb.extent().add(edge * 2));
 	highlight.holes = [highlight.bounds]; // make the highlight untouchable
@@ -2623,7 +2650,7 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	// Drawn at the world's zoom, so the outline's edges stay sharp when the
 	// script's edge falls between canvas pixels at a large block size.
 	var k = this.world() ? ZOOM : 1,
-		bounds = this.fullBounds(),
+		bounds = this.highlightBounds(),
 		fb = bounds.extent().multiplyBy(k),
 		layer, img, shapes, body, hi, ctx, out;
 	layer = (draw) => {
@@ -2648,14 +2675,12 @@ BlockMorph.prototype.highlightImage = function (color, border) {
 	hi = newCanvas(fb.add(border * 2));
 	ctx = hi.getContext('2d');
 
+	// The halo: four diagonal copies of my picture, so a straight edge gets
+	// two of them; a third copy makes its half-covered pixels read too solid.
 	ctx.drawImage(img, 0, 0);
-	ctx.drawImage(img, border, 0);
 	ctx.drawImage(img, border * 2, 0);
-	ctx.drawImage(img, border * 2, border);
 	ctx.drawImage(img, border * 2, border * 2);
-	ctx.drawImage(img, border, border * 2);
 	ctx.drawImage(img, 0, border * 2);
-	ctx.drawImage(img, 0, border);
 
 	out = newCanvas(fb.add(border * 2));
 	ctx = out.getContext('2d');
@@ -2688,7 +2713,7 @@ BlockMorph.prototype.getHighlight = function () {
 
 BlockMorph.prototype.outline = function (color, border) {
 	var highlight = new BlockHighlightMorph(),
-		fb = this.fullBounds(),
+		fb = this.highlightBounds(),
 		edge = border;
 	highlight.bounds.setExtent(fb.extent().add(edge * 2));
 	highlight.color = color;
@@ -3071,7 +3096,7 @@ HandMorph.prototype.processMouseMoveCopyingWithCtrl = function (event) {
 	}
 	pos = this.position();
 	this.setPosition(this.grabPosition);
-	dup.setPosition(block.position());
+	dup.setPosition(this.position().subtract(10 * blockScale())); // held just inside its top-left
 	this.grab(dup);
 	this.setPosition(pos);
 };
@@ -4376,21 +4401,22 @@ ScriptsMorph.prototype.scriptsBounds = function () {
 };
 
 ScriptsMorph.prototype.scriptsPicture = function (scale = 1) {
-	// private - answer a canvas containing the pictures of all scripts, drawn at scale
-	var boundingBox = this.scriptsBounds(), pic, ctx;
+	// private - answer a canvas containing the pictures of all scripts, at scale image
+	// pixels per unit. Drawn straight onto it: a script's fullImage holds only the
+	// screen's pixels and would blur when enlarged.
+	var boundingBox = this.scriptsBounds(), pic, ctx, size;
 	if (!boundingBox) {return; }
-	pic = newCanvas(boundingBox.extent().multiplyBy(scale));
+	// Sized once it is not retina: at the retina size first it can pass the browser's
+	// limit, which leaves a canvas that draws nothing.
+	size = boundingBox.extent().multiplyBy(scale).ceil();
+	pic = newCanvas(new Point(1, 1), true);
+	pic.width = size.x;
+	pic.height = size.y;
 	ctx = pic.getContext('2d');
 	ctx.scale(scale, scale);
+	ctx.translate(-boundingBox.left(), -boundingBox.top());
 	this.children.forEach(child => {
-		var pos = child.fullBounds().origin;
-		if (child.isVisible) {
-			ctx.drawImage(
-				child.fullImage(),
-				pos.x - boundingBox.origin.x,
-				pos.y - boundingBox.origin.y
-			);
-		}
+		if (child.isVisible) {child.fullDrawOn(ctx, child.fullBounds()); }
 	});
 	return pic;
 };

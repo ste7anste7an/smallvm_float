@@ -491,6 +491,7 @@ class MB_BlockSearchBox {
 		this.matches = [];
 		this.pendingSearch = null;
 		this.lastEditMSecs = 0;
+		this.lastEditText = '';
 		this.blockSearch = new MB_BlockSearch();
 	}
 
@@ -538,18 +539,44 @@ class MB_BlockSearchBox {
 	// incremental search
 
 	textEdited() {
-		const s = this.searchText.text;
+		let s = this.searchText.text;
 		if ('' === s) {
+			this.lastEditText = '';
 			this.hintText.show();
 			this.pendingSearch = null;
 			this.showRecents();
 			return;
 		}
+		if (s === (this.lastEditText + '\n')) {
+			// Enter with nothing to place: drop its newline and keep typing.
+			this.setSearchText(this.lastEditText);
+			return;
+		}
+		if (s.includes('\n')) {
+			// Pasted line breaks are not Enter: fold them into spaces.
+			s = s.split('\n').join(' ');
+			this.setSearchText(s);
+		}
 		this.hintText.hide();
 		// Searching on every keystroke lags on a slow machine, so the search
 		// runs from step once typing pauses.
+		this.lastEditText = s;
 		this.pendingSearch = s;
 		this.lastEditMSecs = Date.now();
+	}
+
+	setSearchText(s) {
+		// Replace the text being edited, keeping the edit's copy of it and its caret in step.
+
+		const area = world.cursor.textarea;
+		const caret = Math.min(area.selectionStart, s.length);
+		area.value = s;
+		area.setSelectionRange(caret, caret);
+		this.searchText.changed();
+		this.searchText.text = s;
+		this.searchText.fixLayout();
+		this.searchText.rerender();
+		world.cursor.gotoSlot(caret);
 	}
 
 	runPendingSearch() {
@@ -686,7 +713,8 @@ class MB_BlockSearchBox {
 	}
 
 	menuIsOpen() {
-		return (this.menu !== null) && (this.menu.parent !== null);
+		// A destroyed morph keeps its parent, so ask the world.
+		return (this.menu !== null) && world.children.includes(this.menu);
 	}
 
 	keystroke(event) {

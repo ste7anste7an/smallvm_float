@@ -114,6 +114,12 @@ function localized(s) {
 	return GetText.localize(s);
 }
 
+function isRTL() {
+	// Arabic and Persian labels read from right to left. gettext.js loads after
+	// the engine, whose block prototypes are laid out as their files load.
+	return (typeof GetText !== 'undefined') && ['ar', 'fa'].includes(GetText.currentLocale);
+}
+
 function isMobile() {
 	return false;
 }

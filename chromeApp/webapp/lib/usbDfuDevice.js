@@ -159,7 +159,7 @@ let usbDfuDevice = class {
 				", Waiting: " + pollTime + "ms");
 
 			// Wait for the given poll time
-			await new Promise(resolve => setTimeout(resolve, pollTime));
+			await this.wait(pollTime);
 
 			// If there's an error, or the state machine enters the error state
 			if (error == 50) { error = this.dfuError.OK; }
@@ -492,28 +492,25 @@ async erase() {
 		}
 	}
 
-	async sleep(ms, msg) {
-		return new Promise(resolve => {
-			let remaining = ms;
-			IDE.spinner.show(
-				msg || 'Sleeping...', // title
-				null, // subtitle
-				0, // percent
-				() => { dfu.disconnect(); }, // onCancel
-			);
+	// waitMSecs keeps a short wait short in a hidden tab. The GP IDE's page has no waitMSecs.
+	async wait(ms) {
+		if (typeof waitMSecs === 'function') return waitMSecs(ms);
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
 
-			setInterval(
-				()=>{
-					if (remaining <= 0) {
-						resolve();
-					} else {
-						IDE.spinner.setPercent(100*(ms - remaining)/ms);
-					}
-					remaining = remaining - ms / 10;
-				},
-				ms / 10
-			);
-		});
+	async sleep(ms, msg) {
+		IDE.spinner.show(
+			msg || 'Sleeping...', // title
+			null, // subtitle
+			0, // percent
+			() => { dfu.disconnect(); }, // onCancel
+		);
+		const end = performance.now() + ms; // a wait in a hidden tab can run long
+		let remaining;
+		while ((remaining = end - performance.now()) > 0) {
+			IDE.spinner.setPercent(100*(ms - remaining)/ms);
+			await this.wait(Math.min(remaining, ms / 10));
+		}
 	}
 
 	// Function which disconnects the USB device

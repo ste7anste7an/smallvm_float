@@ -67,8 +67,8 @@ GP.apiCall = function (endPoint, params, callback) {
 			callback(0);
 			break;
 		case 'ide.stopAll':
-			// params[0] is shift, from the button's own click event. Anything
-			// that is not true, a missing argument included, is not shift.
+			// params[0] is shift, from the button's own click event; stopAll also
+			// forces the recompile while Shift is down on the page.
 			MB_editor.stopAll(true === params[0]);
 			callback(0);
 			break;
@@ -266,6 +266,10 @@ GP.apiCall = function (endPoint, params, callback) {
 			// The same order: answer, then show the file picker.
 			callback(0);
 			MB_editor.openProjectMenu();
+			break;
+		case 'project.openFromURL':
+			callback(0);
+			MB_editor.openFromURL();
 			break;
 		case 'scripts.copyToClipboard':
 			// Answer, then act, as the endpoints below do.

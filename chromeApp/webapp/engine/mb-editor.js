@@ -48,7 +48,6 @@ class MB_Editor {
 		this.paletteWidth = 260; // screen px, whatever the block size
 
 		this.palette = new ScrollFrameMorph();
-		this.palette.contents.acceptsDrops = true;
 		this.palette.contents.reactToDropOf = (droppedMorph) => {
 			if ((droppedMorph instanceof BlockMorph) || (droppedMorph instanceof SelectedScriptsMorph)) {
 				droppedMorph.destroy();
@@ -65,6 +64,11 @@ class MB_Editor {
 		// What FrameMorph's constructor would have set; ScriptsMorph takes no
 		// scroll frame, and adjustBounds does nothing without one.
 		this.scripts.scrollFrame = this.scriptsFrame;
+		// The panes take only blocks and selections, so a dialog released over one stays on
+		// the world. A block released on either pane's scroll bar is deleted, as on the palette.
+		const takesBlocks = (m) => (m instanceof BlockMorph) || (m instanceof SelectedScriptsMorph);
+		for (const pane of [this.palette, this.palette.contents, this.scriptsFrame]) pane.wantsDropOf = takesBlocks;
+		this.palette.reactToDropOf = this.scriptsFrame.reactToDropOf = this.palette.contents.reactToDropOf;
 		// The area reaches 50 screen pixels past its scripts on the right and below only.
 		// Script positions are saved from its top left, so that corner must not move.
 		Object.defineProperty(this.scriptsFrame, 'growth', { get: () => 50 / ZOOM });
@@ -630,7 +634,20 @@ class MB_Editor {
 		const hat = scriptForFunction(func);
 		// A hidden definition keeps its body at the block size it was made at.
 		this.relayoutScript(hat);
-		this.addToBottom(hat);
+		// Flush below the lowest script and at least 50 down; 50 in from the left,
+		// or level with a script further left.
+		const pane = this.scriptsPane(), inset = 50 * blockScale();
+		let left = pane.left() + inset, top = pane.top() + inset;
+		for (const m of pane.children) {
+			if (m instanceof BlockMorph) {
+				left = Math.min(left, m.fullBounds().left());
+				top = Math.max(top, m.fullBounds().bottom());
+			}
+		}
+		hat.setPosition(new Point(left, top));
+		pane.add(hat);
+		pane.adjustBounds();
+		this.updateProject();
 	}
 
 	definitionShown(funcName) {
@@ -714,7 +731,9 @@ class MB_Editor {
 		const prefs = this.readUserPreferences();
 		if (typeof prefs.locale !== 'string') {
 			// The chrome starts in the saved language, read after this runs.
-			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh_chs' : 'en');
+			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh-chs' : 'en');
+		} else if (prefs.locale === 'zh_chs') {
+			this.saveToUserPreferences('locale', 'zh-chs'); // earlier versions saved this misspelling
 		}
 		const percent = prefs.blockSizePercent;
 		if (typeof percent === 'number' && Number.isFinite(percent)) {
@@ -1151,10 +1170,11 @@ class MB_Editor {
 	}
 
 	async stopAll(forceRecompile) {
+		// Shift held, on the Stop button or with Escape, forces a full recompile.
 		try {
 			this.endOpenEdit();
 			this.updateProject();
-			await this.codeManager.stopAndSyncScripts(false, forceRecompile);
+			await this.codeManager.stopAndSyncScripts(false, forceRecompile || this.shiftDown);
 		} catch (e) {
 			this.reportError(e);
 		}
@@ -2317,13 +2337,21 @@ class MB_Editor {
 		await this.codeManager.syncScripts();
 	}
 
+	cancelScriptEdit() {
+		// Undo and redo rebuild the scripts, so an edit open in one of them can only be dropped.
+		const cursor = world.cursor;
+		if (cursor && cursor.target.allParents().includes(this.scriptsPane())) cursor.cancel();
+	}
+
 	async undo() {
+		this.cancelScriptEdit();
 		if (this.undoStack.length) this.redoStack.push(this.undoStack.pop());
 		await this.restoreUndoState(this.undoStack.at(-1));
 		this.undoStateChanged();
 	}
 
 	async redo() {
+		this.cancelScriptEdit();
 		if (this.redoStack.length) {
 			const source = this.redoStack.pop();
 			this.undoStack.push(source);
@@ -2683,30 +2711,23 @@ class MB_Editor {
 		// The scripts pane as PNG bytes. A canvas is the only thing in a browser
 		// that draws one, and toDataURL the only synchronous way to read it back;
 		// a page without a real canvas answers an empty string, and gets null.
-		// Past its canvas size limit, 16384 squared in area on desktop browsers and
-		// less on iOS, a browser throws or answers an empty picture, so a large pane
-		// is drawn smaller to fit, then at half the scale each time that fails.
+		// It is drawn at a script picture's pixels per block unit. Past its canvas
+		// size limit, 16384 squared in area on desktop browsers and less on iOS, a
+		// browser throws or answers an empty picture, so a large pane is drawn
+		// smaller to fit, then at half the scale each time that fails.
 
 		const pane = this.scriptsPane();
 		const box = pane.scriptsBounds();
 		if (!box) return null; // no scripts
-		const ratio = this.canvasPixelRatio();
-		const w = box.width() * ratio, h = box.height() * ratio;
-		let scale = Math.min(1, 32000 / w, 32000 / h, Math.sqrt((0.99 * 16384 * 16384) / (w * h)));
+		const px = 2 * this.exportedScriptScale; // as in exportScriptImage; pane units are block units
+		const w = box.width() * px, h = box.height() * px;
+		let scale = px * Math.min(1, 32000 / w, 32000 / h, Math.sqrt((0.99 * 16384 * 16384) / (w * h)));
 		for (let i = 0; i < 5; i++, scale /= 2) {
 			let pngBytes = null;
 			try { pngBytes = this.canvasPNG(pane.scriptsPicture(scale)); } catch (e) { } // past the limit
 			if (pngBytes) return pngBytes;
 		}
 		return null;
-	}
-
-	canvasPixelRatio() {
-		// Device pixels per unit in a new canvas: the ratio morphic took when retina
-		// support was turned on, which the window's own ratio can drift from.
-
-		const bak = HTMLCanvasElement.prototype._bak;
-		return bak ? bak.width.get.call(newCanvas(new Point(1, 1))) : 1;
 	}
 
 	canvasPNG(canvas) {
@@ -2722,8 +2743,8 @@ class MB_Editor {
 	saveScriptsImage() {
 		// A picture of every script, carrying the scripts as text so that the
 		// wiki and any MicroBlocks IDE can read them back out of it. It is drawn
-		// at the screen's pixel ratio whatever the block size, or smaller if the
-		// browser cannot hold a canvas that large.
+		// at the exported script scale, as a picture of one script is, whatever the
+		// block size and the screen, or smaller if the browser cannot hold it.
 
 		if (!this.scriptsPane().scriptsBounds()) return; // no scripts
 		const pngBytes = this.scriptsPicturePNG();
@@ -3065,28 +3086,53 @@ class MB_Editor {
 		// A link dragged from another page opens what it points at, if that is
 		// something the IDE opens. Any other text becomes a comment at the hand.
 		if (!text.startsWith('http')) return this.addCommentAtHand(text);
-		const url = text.split(/\r\n|\r|\n/)[0];
-		if (url.includes('scripts=') || url.includes('project=')) return this.importFromURL(url);
-		if (!['.ubp', '.ubl', '.png'].some((ext) => url.toLowerCase().endsWith(ext))) return;
-		let fileName = url.slice(url.lastIndexOf('/') + 1);
+		await this.openURL(text.split(/\r\n|\r|\n/)[0], false);
+	}
+
+	async openFromURL() {
+		// Ask for a web address and open what it points at, as a dropped link is opened.
+		let url = String((await this.prompt(localized('URL?'), 'https://')) || '').trim();
+		if (!url || ('https://' === url)) return; // cancelled, or nothing typed
+		url = url.replace(/^https?:/i, (scheme) => scheme.toLowerCase());
+		if (!(url.startsWith('http') && (await this.openURL(url, true)))) {
+			this.inform(localized('Invalid URL'));
+		}
+	}
+
+	async openURL(url, clearFirst) {
+		// Open a link carrying project= or scripts=, or fetch a project, library or
+		// script picture and open it. Answers false for an address that is none of
+		// these. clearFirst is passed to openProjectFromString for a project.
+		if (MB_ScriptExchange.fromURL(url)) {
+			await this.importFromURL(url);
+			return true;
+		}
+		const path = url.split(/[?#]/)[0]; // a query or a line anchor does not change the file
+		if (!['.ubp', '.ubl', '.png'].some((ext) => path.toLowerCase().endsWith(ext))) return false;
+		const address = url.split('#')[0];
+		let fileName = path.slice(path.lastIndexOf('/') + 1);
 		try { fileName = decodeURIComponent(fileName); } catch (e) { /* not encoded: keep it as it is */ }
 		let data;
 		try {
-			const response = await fetch(url);
+			// A web page cannot read a Codeberg file page, but can read its API address.
+			const response = await fetch(MB_Editor.codebergFileURL(path) || address);
 			if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
 			data = MB_Editor.isTextFile(fileName)
 				? await response.text() : new Uint8Array(await response.arrayBuffer());
 		} catch (error) {
 			console.error('Could not read:', url, error);
 			this.inform(localized('Could not read: ') + url);
-			return;
+			return true;
 		}
 		if (fileName.toLowerCase().endsWith('.ubl')) {
 			// Given the address, the library keeps it as the source the reload verb reads.
-			if (await this.importLibraryFromString(data, url)) await this.codeManager.saveAllChunksAfterLoad();
-			return;
+			if (await this.importLibraryFromString(data, address)) await this.codeManager.saveAllChunksAfterLoad();
+		} else if (fileName.toLowerCase().endsWith('.ubp')) {
+			await this.openProjectFromString(data, fileName, clearFirst);
+		} else {
+			await this.processDroppedFile(fileName, data);
 		}
-		await this.processDroppedFile(fileName, data);
+		return true;
 	}
 
 	addCommentAtHand(text) {
