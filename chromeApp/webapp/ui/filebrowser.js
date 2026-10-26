@@ -47,14 +47,42 @@ class FileBrowser extends FloatingWindow {
 
 		contents.replaceWith(this.bodyDiv());
 
+		this.addEventListener('keydown', e => this.handleKeyDown(e.key));
+
 		let path = defaultPath || '';
 		if ((path.length > 1) && path.endsWith('/')) { path = path.slice(0, -1); }
 		this.showFolder(path, !path.includes('/'));
 	}
 
+	handleKeyDown(key) {
+		let files = this.folderContents(),
+			currentIndex = files.map(pair=>pair[1]).indexOf(this.selection),
+			newIndex = currentIndex;
+		if (key == 'ArrowDown') {
+			if (currentIndex < 0) {
+				newIndex = 0;
+			} else {
+				newIndex = Math.min((newIndex + 1), files.length - 1);
+			}
+		} else if (key == 'ArrowUp') {
+			if (currentIndex < 0) {
+				newIndex = files.length - 1;
+			} else {
+				newIndex = Math.max((newIndex - 1), 0);
+			}
+		}
+		this.fileOrFolderSelected(this.folderContents()[newIndex][1], true);
+	}
+
 	loadSelectedFile() {
-		this.action(this.currentDir + '/' + this.selection);
-		this.remove();
+		if (!this.selection) { return; }
+		if (this.selection.startsWith('[ ] ')) {
+			this.showFolder(this.currentDir + '/' + this.selection.slice(4), false);
+		} else {
+			this.answer = this.currentDir + '/' + this.selection;
+			if (this.action) { this.action(this.answer); }
+			this.remove();
+		}
 	}
 
 	cancel() { this.remove(); }
@@ -197,37 +225,37 @@ let div = newDiv('panel__container');
 		});
 	}
 
-	fileOrFolderSelected(value, ignoreDirectories, element) {
+	fileOrFolderSelected(value, ignoreDirectories) {
 		// Mark a row. A folder row is entered unless ignoreDirectories is set.
 
+		let isDir = value.startsWith('[ ] ');
 		this.selection = value;
-		if (value.startsWith('[ ] ')) {
+		this.fileListView.childNodes[0].childNodes.forEach(node => {
+			if (node.innerText == (isDir ? value : value.slice(0,-4))) {
+				node.classList.add('selected');
+			} else {
+				node.classList.remove('selected')
+			}
+		});
+		if (isDir) {
+			this.clearLibraryFields();
 			if (ignoreDirectories) { return; }
 			this.showFolder(this.currentDir + '/' + value.slice(4), false);
 		} else if (this.fileSelectAction) {
 			this.fileSelectAction(this.currentDir + '/' + value);
-			this.fileListView.childNodes[0].childNodes.forEach(node =>
-				node.classList.remove('selected')
-			);
-			element.classList.add('selected');
 		}
 	}
 
 	fileOrFolderDoubleClicked(value) {
 		this.selection = value;
-		if (value.startsWith('[ ] ')) {
-			this.showFolder(this.currentDir + '/' + value.slice(4), false);
-		} else {
-			this.answer = this.currentDir + '/' + value;
-			if (this.action) { this.action(this.answer); }
-			this.remove();
-		}
+		this.loadSelectedFile();
 	}
 
 	showFolder(path, isTop) {
 		this.currentDir = path;
 		if (isTop) { this.topDir = path; }
 		this.selection = null;
+		this.clearLibraryFields();
 		this.updateView();
 		if (this.folderSelectAction) { this.folderSelectAction(path); }
 	}
@@ -255,8 +283,12 @@ let div = newDiv('panel__container');
 		this.updateLibraryFields();
 	}
 
-	updateLibraryFields() {
+	clearLibraryFields() {
 		this.libraryDescriptionView.innerHTML = '';
+	}
+
+	updateLibraryFields() {
+		this.clearLibraryFields();
 		let lib = this.library;
 		[
 			{ label: 'Description', text: lib.description },
