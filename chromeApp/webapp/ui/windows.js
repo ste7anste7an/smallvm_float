@@ -49,6 +49,7 @@ class FloatingWindow extends HTMLElement {
 
 			windowTitle.classList.add('window__title');
 			windowClose.classList.add('window__close');
+			windowClose.setAttribute('data-undraggable', true);
 
 			windowTitle.appendChild(newLabel(descriptor.title));
 			fetch('img/icon-close--16x16.svg')
@@ -63,7 +64,6 @@ class FloatingWindow extends HTMLElement {
 
 		// Window Body
 		let windowBody = newDiv('window__body');
-		windowBody.setAttribute('data-undraggable', true);
 
 		if (descriptor.body) {
 			if (typeof descriptor.body == 'string') {
@@ -94,7 +94,6 @@ class FloatingWindow extends HTMLElement {
 		// Buttons
 		if (descriptor.buttons) {
 			let windowButtons = newDiv('window__buttons');
-			windowButtons.setAttribute('data-undraggable', true);
 
 			descriptor.buttons.forEach(buttonDescriptor => {
 				windowButtons.append(

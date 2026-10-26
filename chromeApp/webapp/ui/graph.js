@@ -75,6 +75,7 @@ Graph.build = function () {
 	this.canvas.style.display = 'block';
 
 	this.controls = document.createElement('div');
+	this.controls.setAttribute('data-undraggable', true);
 	this.controls.classList.add('window__body-object-controls');
 	this.controls.classList.add('--can-drag-through');
 

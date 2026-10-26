@@ -295,11 +295,11 @@
 			.navigation__panel {
 				display: flex;
 				flex-direction: row;
-				flex-grow: 1;
 				gap: 5px;
 				.navigation__list {
 					background-color: var(--color-white);
 					padding: 5px;
+					flex-shrink: 0;
 					li {
 						cursor: pointer;
 						text-align: left;
@@ -315,6 +315,7 @@
 				.description {
 					border: 1px solid var(--color-blue-grey-100);
 					text-align: left;
+					flex-shrink: 1;
 					.field-name {
 						display: block;
 						font-weight: bold;
@@ -326,8 +327,7 @@
 				}
 				.navigation__list, .description {
 					border-radius: 5px;
-					flex-grow: 0;
-					flex-shrink: 0;
+					flex-grow: 1;
 					overflow: scroll;
 				}
 			}

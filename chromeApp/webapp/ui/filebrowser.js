@@ -4,8 +4,9 @@
 
 // Copyright 2026 John Maloney, Bernat Romagosa, and Jens Mönig
 
-// filebrowser.js - Dialogs to load libraries or projects
+// filebrowser.js - Dialog to load libraries or projects
 
+// Sam McHardy, 2026
 // Bernat Romagosa, 2026
 
 class FileBrowser extends FloatingWindow {
@@ -16,10 +17,10 @@ class FileBrowser extends FloatingWindow {
 		let forLibraries = (extensionList.includes('.ubl'));
 			
 		super({
-			title: forLibraries ? 'Load Library' : 'Load Project',
+			title: 'Load ' + ( forLibraries ? 'Library' : 'Project'),
 			body: contents,
-			minHeight: 470,
-			minWidth: 600,
+			minHeight: 400,
+			minWidth: 500,
 			resizable: true,
 			className: 'browser'
 		});
@@ -296,7 +297,7 @@ let div = newDiv('panel__container');
 
 		title.appendChild(newLabel('Shortcuts'));
 
-		[ 'Libraries', 'Computer', 'Cloud' ].forEach(label => {
+		[ 'Computer', 'Cloud' ].forEach(label => {
 			let item = document.createElement('li'),
 				a = document.createElement('button');
 			a.appendChild(newLabel(label));

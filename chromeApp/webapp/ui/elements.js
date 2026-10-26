@@ -16,6 +16,7 @@ function newElement(name, className) {
 
 function newButton(label, action) {
 	let button = newElement('button', 'button-rounded');
+	button.setAttribute('data-undraggable', true);
 	button.appendChild(newLabel(label));
 	button.onclick = action;
 	return button;
