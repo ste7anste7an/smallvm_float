@@ -2331,13 +2331,21 @@ class MB_Editor {
 		await this.codeManager.syncScripts();
 	}
 
+	cancelScriptEdit() {
+		// Undo and redo rebuild the scripts, so an edit open in one of them can only be dropped.
+		const cursor = world.cursor;
+		if (cursor && cursor.target.allParents().includes(this.scriptsPane())) cursor.cancel();
+	}
+
 	async undo() {
+		this.cancelScriptEdit();
 		if (this.undoStack.length) this.redoStack.push(this.undoStack.pop());
 		await this.restoreUndoState(this.undoStack.at(-1));
 		this.undoStateChanged();
 	}
 
 	async redo() {
+		this.cancelScriptEdit();
 		if (this.redoStack.length) {
 			const source = this.redoStack.pop();
 			this.undoStack.push(source);
