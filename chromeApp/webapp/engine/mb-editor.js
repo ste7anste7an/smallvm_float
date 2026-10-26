@@ -731,7 +731,9 @@ class MB_Editor {
 		const prefs = this.readUserPreferences();
 		if (typeof prefs.locale !== 'string') {
 			// The chrome starts in the saved language, read after this runs.
-			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh_chs' : 'en');
+			this.saveToUserPreferences('locale', this.isChineseWebapp() ? 'zh-chs' : 'en');
+		} else if (prefs.locale === 'zh_chs') {
+			this.saveToUserPreferences('locale', 'zh-chs'); // earlier versions saved this misspelling
 		}
 		const percent = prefs.blockSizePercent;
 		if (typeof percent === 'number' && Number.isFinite(percent)) {
