@@ -910,10 +910,9 @@ class MB_Module {
 				parts.push(s);
 			}
 		}
-		// GP adds the newline to the list and then joins with a space, so a
-		// space lands in front of it (MicroBlocksProject.gp
-		// arrayToDeclaration).
-		return parts.join(' ') + ' \n';
+		// No space before the newline, so an editor that strips trailing
+		// spaces leaves a saved file unchanged. The reader accepts either form.
+		return parts.join(' ') + '\n';
 	}
 
 	codeString(owningProject, newLibName) {
