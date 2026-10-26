@@ -1376,8 +1376,9 @@ class MB_Editor {
 			return;
 		}
 		if (!(await this.importLibraryFromUrl(url))) return;
-		picker.removeFromOwner();
+		if (picker) picker.removeFromOwner(); // can be removed when the DOM window is finalized
 		await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+		return url;
 	}
 
 	async importLibraryFromUrl(fullUrl) {

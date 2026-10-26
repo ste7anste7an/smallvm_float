@@ -10,7 +10,7 @@
 
 class LibraryInfoWindow extends FloatingWindow {
 	constructor(library, forEditing = IDE.isDevMode()) {
-		const contents = document.createElement('div');
+		const contents = newDiv();
 		// a read-only window is closed from its title bar
 		const buttons = forEditing ? [
 			{ label: 'Save', action: onSave, closesWindow: true },
@@ -66,19 +66,17 @@ class LibraryInfoWindow extends FloatingWindow {
 	}
 
 	bodyDiv() {
-		let div = document.createElement('div');
+		let div = newDiv();
 
 		div.appendChild(this.fieldFor('moduleName'));
 		div.appendChild(this.fieldFor('description'));
 
-		let fieldGroup = document.createElement('div');
-		fieldGroup.classList.add('window__field_group');
+		let fieldGroup = newDiv('window__field_group');
 		fieldGroup.appendChild(this.fieldFor('author'));
 		fieldGroup.appendChild(this.fieldFor('version'));
 		div.appendChild(fieldGroup);
 
-		fieldGroup = document.createElement('div');
-		fieldGroup.classList.add('window__field_group');
+		fieldGroup = newDiv('window__field_group');
 		fieldGroup.appendChild(this.fieldFor('dependencies'));
 		fieldGroup.appendChild(this.fieldFor('moduleCategory'));
 		div.appendChild(fieldGroup);
@@ -86,14 +84,12 @@ class LibraryInfoWindow extends FloatingWindow {
 	}
 
 	fieldFor(selector) {
-		let field = document.createElement('div');
-		let label = document.createElement('l-');
-		label.innerText = this.labelFor(selector);
+		let field = newDiv('window__field');
+		let label = newLabel(this.labelFor(selector));
 		let input =
 			['moduleName', 'author'].includes(selector) ?
 				this.textInput(selector) :
 				this[selector + 'Input']();
-		field.classList.add('window__field');
 		field.classList.add(selector);
 		field.appendChild(label);
 		field.appendChild(input);
@@ -122,8 +118,7 @@ class LibraryInfoWindow extends FloatingWindow {
 	}
 
 	dependenciesInput() {
-		let div = document.createElement('div');
-		div.classList.add('dependency__list');
+		let div = newDiv('dependency__list');
 		if (this.library.dependencies.length) {
 			this.library.dependencies.forEach(dep => {
 				let span = document.createElement('span');
@@ -132,8 +127,7 @@ class LibraryInfoWindow extends FloatingWindow {
 				div.appendChild(span);
 			});
 		} else {
-			let text = document.createElement('l-');
-			text.innerText = 'None';
+			let text = newLabel('None');
 			div.appendChild(text);
 		}
 		if (this.forEditing) {
@@ -216,7 +210,7 @@ class LibraryInfoWindow extends FloatingWindow {
 	}
 
 	moduleCategoryInput() {
-		let button = document.createElement('button');
+		let button = newElement('button');
 		button.style.backgroundColor =
 			Categories.colorFor(this.library.moduleCategory);
 		button.setAttribute('data-value', this.library.moduleCategory);
@@ -226,11 +220,9 @@ class LibraryInfoWindow extends FloatingWindow {
 					selector: 'categoryColor',
 					type: 'context',
 					items: Categories.categoryNames().map(catName => {
-						let item = document.createElement('div'),
-							color = document.createElement('div'),
-							label = document.createElement('span');
-						item.classList.add('category--color-item');
-						color.classList.add('color--rectangle');
+						let item = newDiv('category--color-item'),
+							color = newDiv('color--rectangle'),
+							label = newElement('span');
 						color.style.backgroundColor = Categories.colorFor(catName);
 						label.innerText = catName;
 						item.appendChild(color);

@@ -43,15 +43,14 @@ class FloatingWindow extends HTMLElement {
 
 		// Window Top
 		if (typeof descriptor.title == 'string') {
-			let windowTop = document.createElement('div');
+			let windowTop = newDiv('window__top');
 			let windowTitle = document.createElement('h2');
 			let windowClose = document.createElement('button');
 
-			windowTop.classList.add('window__top');
 			windowTitle.classList.add('window__title');
 			windowClose.classList.add('window__close');
 
-			windowTitle.innerHTML = `<l->${descriptor.title}</l->`;
+			windowTitle.appendChild(newLabel(descriptor.title));
 			fetch('img/icon-close--16x16.svg')
 				.then(res => res.text())
 				.then(text => windowClose.innerHTML = text);
@@ -63,8 +62,7 @@ class FloatingWindow extends HTMLElement {
 
 
 		// Window Body
-		let windowBody = document.createElement('div');
-		windowBody.classList.add('window__body');
+		let windowBody = newDiv('window__body');
 		windowBody.setAttribute('data-undraggable', true);
 
 		if (descriptor.body) {
@@ -95,25 +93,24 @@ class FloatingWindow extends HTMLElement {
 
 		// Buttons
 		if (descriptor.buttons) {
-			let windowButtons = document.createElement('div');
-			windowButtons.classList.add('window__buttons');
+			let windowButtons = newDiv('window__buttons');
 			windowButtons.setAttribute('data-undraggable', true);
 
 			descriptor.buttons.forEach(buttonDescriptor => {
-				let button = document.createElement('button');
-				button.innerHTML = `<l->${buttonDescriptor.label}</l->`;
-				button.classList.add('button-rounded');
-				windowButtons.append(button);
-
-				button.onclick = () => {
-					let value;
-					if (descriptor.input) {
-						value = windowBody.querySelector('.window__input').value;
-					}
-					buttonDescriptor.action.call(this, value);
-					if (buttonDescriptor.closesWindow) { this.remove(); }
-					GP.delegateKeyboardEvents = false;
-				};
+				windowButtons.append(
+					newButton(
+						buttonDescriptor.label,
+						() => {
+							let value;
+							if (descriptor.input) {
+								value = windowBody.querySelector('.window__input').value;
+							}
+							buttonDescriptor.action.call(this, value);
+							if (buttonDescriptor.closesWindow) { this.remove(); }
+							GP.delegateKeyboardEvents = false;
+						}
+					)
+				);
 			});
 
 			windowButtons.children[0].classList.add('--default');
