@@ -630,7 +630,20 @@ class MB_Editor {
 		const hat = scriptForFunction(func);
 		// A hidden definition keeps its body at the block size it was made at.
 		this.relayoutScript(hat);
-		this.addToBottom(hat);
+		// Flush below the lowest script and at least 50 down; 50 in from the left,
+		// or level with a script further left.
+		const pane = this.scriptsPane(), inset = 50 * blockScale();
+		let left = pane.left() + inset, top = pane.top() + inset;
+		for (const m of pane.children) {
+			if (m instanceof BlockMorph) {
+				left = Math.min(left, m.fullBounds().left());
+				top = Math.max(top, m.fullBounds().bottom());
+			}
+		}
+		hat.setPosition(new Point(left, top));
+		pane.add(hat);
+		pane.adjustBounds();
+		this.updateProject();
 	}
 
 	definitionShown(funcName) {
