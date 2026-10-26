@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: interest@microblocks.fun\n"
 "POT-Creation-Date: 2024-10-28 16:36+0200\n"
-"PO-Revision-Date: 2025-09-13 10:01+0000\n"
-"Last-Translator: Toru Kato <troa0001@gmail.com>\n"
+"PO-Revision-Date: 2026-10-26 22:39+0000\n"
+"Last-Translator: Sam McHardy <sammchardy@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/microblocks/ide/"
 "ja/>\n"
 "Language: ja\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.14-dev\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #. "Output" blocks category label
 msgid "cat;Output"
@@ -449,7 +449,7 @@ msgstr "WiFiの状態"
 
 #. Block in Data category
 msgid "item _ of _"
-msgstr "アイテム _  _ の"
+msgstr "アイテム _ _ の"
 
 #. NeoPixel library label
 msgid "NeoPixel"
