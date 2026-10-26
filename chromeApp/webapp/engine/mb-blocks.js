@@ -2155,7 +2155,8 @@ BlockMorph.prototype.slotDefaultForInput = function (inputIndex) {
 
 	const specArray = this.specArray();
 	if (!specArray) return null;
-	const spec = { specString: specArray[2], slotTypes: specArray[3], defaults: specArray.slice(4) };
+	const spec = { specString: specArray[2], slotTypes: specArray[3],
+		defaults: MB_Specs.translatedDefaults(specArray[2], specArray[3], specArray.slice(4)) };
 	const info = specSlotInfo(spec);
 	let i = inputIndex;
 	if (i >= info.length) {

@@ -6,7 +6,7 @@
 
 // mb-specs.js - MicroBlocks block spec operations and specs for built-in blocks.
 
-/* global MB_Parser, CommandBlockMorph, MB_editor */
+/* global MB_Parser, CommandBlockMorph, MB_editor, GetText, localized */
 
 MB_Specs = {
 	selectorToSpec: {}, // cached Map for looking up specs by selector
@@ -214,7 +214,8 @@ MB_Specs.blockForSpec = function (spec, category) {
 	// No call behind these: the block keeps the shape its spec declares, and
 	// every slot it has is an argument. The type comes from the spec, which may
 	// not be one the table carries.
-	let b = new MB_Parser('').blockWithArgs(spec[1], spec.slice(4), ('r' == type), false, false, type,
+	const defaults = this.translatedDefaults(spec[2], spec[3], spec.slice(4));
+	let b = new MB_Parser('').blockWithArgs(spec[1], defaults, ('r' == type), false, false, type,
 		this.snapSpecForSpecArray(spec));
 	b.setCategory(category);
 	// A slot with no type shows its default only as a hint: a copy is called with nil there.
@@ -223,6 +224,25 @@ MB_Specs.blockForSpec = function (spec, category) {
 	// out of the palette instead (HandMorph.processMouseMove).
 	b.isDraggable = false;
 	return b;
+}
+
+MB_Specs.translatedDefaults = function (specString, slotTypes, defaults) {
+	// The defaults in the current language, when the label has a translation. A
+	// menu slot's default is a value the compiler reads and stays as it is, except
+	// a broadcast menu's, which is a message name. A slot with no type shows its
+	// default only as a hint, which stays as it is.
+
+	const dict = (typeof GetText !== 'undefined') && GetText.locales[GetText.currentLocale];
+	const hasTranslation = (section) => Object.hasOwn(dict, section) && ('' !== dict[section]);
+	if (!dict || !String(specString || '').split(':').some((section) => hasTranslation(section.trim()))) {
+		return defaults;
+	}
+	const types = String(slotTypes || '').split(/\s+/).filter((t) => t.length > 0);
+	return defaults.map((value, i) => {
+		if ((typeof value !== 'string') || ('' === value) || (types[i] === undefined)) return value;
+		const menu = types[i].split('.')[1];
+		return (!menu || ('broadcastMenu' == menu)) ? localized(value) : value;
+	});
 }
 
 MB_Specs.snapSpecForSelector = function (selector, isReporter, argCount) {
