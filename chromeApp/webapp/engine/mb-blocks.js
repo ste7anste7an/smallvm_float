@@ -3096,7 +3096,7 @@ HandMorph.prototype.processMouseMoveCopyingWithCtrl = function (event) {
 	}
 	pos = this.position();
 	this.setPosition(this.grabPosition);
-	dup.setPosition(block.position());
+	dup.setPosition(this.position().subtract(10 * blockScale())); // held just inside its top-left
 	this.grab(dup);
 	this.setPosition(pos);
 };
