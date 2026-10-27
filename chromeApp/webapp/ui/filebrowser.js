@@ -25,8 +25,6 @@ class FileBrowser extends FloatingWindow {
 			className: 'browser'
 		});
 
-		this.markdown = new MiniGFM();
-
 		this.extensions = extensionList;
 		this.forLibraries = forLibraries;
 		this.topDir = '';
@@ -326,7 +324,7 @@ class FileBrowser extends FloatingWindow {
 		this.clearLibraryFields();
 		let lib = this.library;
 		[
-			{ label: 'Description', content: this.markdown.parse(lib.description) },
+			{ label: 'Description', content: snarkdown(lib.description) },
 			{ label: 'Author', content: newLabel(lib.author) },
 			{ label: 'Version', content: newLabel(lib.version.join('.')) },
 			{ label: 'Dependencies', content: newLabel(lib.dependencies.join(',')) }
