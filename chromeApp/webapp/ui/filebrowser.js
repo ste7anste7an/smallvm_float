@@ -55,6 +55,9 @@ class FileBrowser extends FloatingWindow {
 	}
 
 	handleKeyDown(key) {
+		// Up and Down mark the previous or next row. Enter and Escape belong to
+		// the window (FloatingWindow popUp), and other keys do nothing here.
+		if ((key != 'ArrowDown') && (key != 'ArrowUp')) { return; }
 		let files = this.folderContents(),
 			currentIndex = files.map(pair=>pair[1]).indexOf(this.selection),
 			newIndex = currentIndex;
@@ -71,7 +74,8 @@ class FileBrowser extends FloatingWindow {
 				newIndex = Math.max((newIndex - 1), 0);
 			}
 		}
-		this.fileOrFolderSelected(this.folderContents()[newIndex][1], true);
+		if (files.length == 0) { return; }
+		this.fileOrFolderSelected(files[newIndex][1], true);
 	}
 
 	loadSelectedFile() {
