@@ -2044,7 +2044,7 @@ BlockMorph.prototype.repeatedSlotSpec = function () {
 BlockMorph.prototype.variableInputs = function () {
 	// My last inputs that share the repeated slot spec, so any one can take another's place.
 	const spec = this.repeatedSlotSpec();
-	if (!spec || this.isTemplate || this.isPrototype || !this.parentThatIsA(ScriptsMorph)) return [];
+	if (!spec) return [];
 	const inputs = this.inputs();
 	let first = inputs.length;
 	while ((first > 0) && (this.slotSpecForInput(first - 1) === spec)) first--;
@@ -2065,13 +2065,13 @@ BlockMorph.prototype.slotItemsFor = function (input) {
 }
 
 BlockMorph.prototype.insertSlotBefore = function (input) {
-	// Expand, then move the new slot into the given input's place, empty rather than
-	// showing the default expanding gave it.
+	// Expand, then move the new slot into the given input's place, cleared as an edit
+	// clears it rather than showing the default expanding gave it.
 	const before = this.variableInputs(), i = before.indexOf(input);
 	if ((i < 0) || !this.canExpand()) return;
 	this.expand();
 	const slot = this.inputs().at(-1);
-	if (slot instanceof InputSlotMorph) slot.setContents('');
+	if (slot instanceof InputSlotMorph) slot.setContents((slot.isNumeric && !slot.isAlphanumeric) ? 0 : '');
 	this.reorderInputs(this.variableInputs(), [...before.slice(0, i), slot, ...before.slice(i)]);
 }
 
@@ -4842,14 +4842,7 @@ ArgMorph.prototype.getSpec = function () {
 
 ArgMorph.prototype.userMenu = function () {
 	let sm = this.slotMenu();
-	if (sm) return sm;
-	const items = this.slotEditItems();
-	return items.length ? chromeMenuFor(this.world(), items) : this.parent.userMenu();
-};
-
-ArgMorph.prototype.slotEditItems = function () {
-	// 'insert a slot' and 'delete slot', when I am one of my block's variable inputs.
-	return (this.parent instanceof BlockMorph) ? this.parent.slotItemsFor(this) : [];
+	return sm ? sm : this.parent.userMenu();
 };
 
 ArgMorph.prototype.slotMenu = function () {
