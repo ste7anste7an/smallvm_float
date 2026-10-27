@@ -132,7 +132,7 @@ class FileBrowser extends FloatingWindow {
 	navigationBar() {
 		let div = newDiv('navigation__bar');
 		this.parentButton = Icon.forSelector('arrow-right--16x16');
-		this.parentButton.onclick = () => this.moveUpFolder;
+		this.parentButton.onclick = () => this.moveUpFolder();
 		this.folderReadout = newElement('h3');
 		this.folderReadout.appendChild(newLabel('MicroBlocks'));
 		this.parentButton.classList.add('button-rounded');
@@ -182,8 +182,8 @@ class FileBrowser extends FloatingWindow {
 		const { dirs, files } = this.listFolder(this.currentDir);
 		const result = [];
 		if (this.topDir != this.currentDir) {
-			// add a .. folder that brings you one level up
-			result.push(['..','..',true]);
+			// add a fake folder that brings you one level up
+			result.push(['🡨','..',true]);
 		}
 		for (const dir of dirs.sort(MB_FilePicker.caseInsensitiveOrder)) {
 			if (!dir.startsWith('.')) {
