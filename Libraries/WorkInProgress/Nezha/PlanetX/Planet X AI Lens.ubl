@@ -1,6 +1,6 @@
 module 'Planet X AI Lens' Input
 author 'Elecfreaks Team'
-version 2 1 
+version 2 2
 depends '_Planet X Support' 
 choices planetXAILensLearnID ID1 ID2 ID3 ID4 ID5 
 choices planetXAILensCardStatus 'x coordinate' 'y coordinate' size confidence 'card ID' 
@@ -21,7 +21,6 @@ WIKI:
 https://wiki.elecfreaks.com/microbit/planetx-series/sensors/ai/'
 variables _planetX_aiLensReady _planetX_aiLensData _planetX_aiLensCmd 
 
-  spec ' ' 'planetXAILensInit' 'initialize AI camera'
   spec ' ' 'planetXAILensSwitchFunc' 'AI camera switch function to _' 'menu.planetXAILensFunc' 'card recognition'
   spec ' ' 'planetXAILensCameraImage' 'AI camera capture image'
   space
@@ -270,10 +269,6 @@ to planetXAILensFaceTotalNum {
   if (not ('_planetX_aiLensEnsure')) {return 0}
   if ((at 1 _planetX_aiLensData) == 6) {return (at 8 _planetX_aiLensData)}
   return 0
-}
-
-to planetXAILensInit {
-  if ('_planetX_aiLensEnsure') {planetXAILensCameraImage}
 }
 
 to planetXAILensLearnObject thingsID {

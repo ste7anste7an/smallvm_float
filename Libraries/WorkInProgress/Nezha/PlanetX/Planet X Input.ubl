@@ -1,6 +1,6 @@
 module 'Planet X Input' Control
 author 'Elecfreaks Team'
-version 2 2 
+version 2 8
 depends '_Planet X Support' 
 choices planetXBME280State 'temperature (°C)' 'humidity (0-100%)' 'pressure (hPa)' 'altitude (m)' 
 choices planetXRTCReadField year month day weekday hour minute seconds 
@@ -97,10 +97,11 @@ https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05034
 Four-channel grayscale line-following sensors
 WIKI:
 https://wiki.elecfreaks.com/microbit/planetx-series/sensors/Plant_X_EF05053
-'
-variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_dht_temperature _planetX_dht_humidity _planetX_dhtData _planetX_dhtLastReadTime _planetX_dhtRawPulses _planetX_rfidReady _planetX_rfidRetBits _planetX_rfidRetCount _planetX_rfidAck _planetX_rfidRecv _planetX_rfidUid _planetX_rfidBlock _planetX_rfidWrite _planetX_rfidKey _planetX_bmeReady _planetX_bmeAddr _planetX_bmeDigT1 _planetX_bmeDigT2 _planetX_bmeDigT3 _planetX_bmeDigP1 _planetX_bmeDigP2 _planetX_bmeDigP3 _planetX_bmeDigP4 _planetX_bmeDigP5 _planetX_bmeDigP6 _planetX_bmeDigP7 _planetX_bmeDigP8 _planetX_bmeDigP9 _planetX_bmeDigH1 _planetX_bmeDigH2 _planetX_bmeDigH3 _planetX_bmeDigH4 _planetX_bmeDigH5 _planetX_bmeDigH6 _planetX_bmeTemperature _planetX_bmePressure _planetX_bmeHumidity _planetX_rtcReady _planetX_trackBitReady _planetX_trackBitStateValue _planetX_trackBitStateValid _planetX_rfidStart _planetX_rfidController _planetX_wsResponse 
 
-  spec ' ' 'planetX_buttonEventBroadcast' 'when button _ key _ is pressed send broadcast _' 'menu.planetXPort menu.planetXButton str' 'J1' 'C' ''
+On micro:bit, analog sensors require J1 or J2. Digital sensors can use J1-J4.
+'
+variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_dht_temperature _planetX_dht_humidity _planetX_dhtData _planetX_dhtLastReadTime _planetX_dhtRawPulses _planetX_rfidReady _planetX_rfidRetBits _planetX_rfidRetCount _planetX_rfidAck _planetX_rfidRecv _planetX_rfidUid _planetX_rfidBlock _planetX_rfidWrite _planetX_rfidKey _planetX_bmeReady _planetX_bmeAddr _planetX_bmeDigT1 _planetX_bmeDigT2 _planetX_bmeDigT3 _planetX_bmeDigP1 _planetX_bmeDigP2 _planetX_bmeDigP3 _planetX_bmeDigP4 _planetX_bmeDigP5 _planetX_bmeDigP6 _planetX_bmeDigP7 _planetX_bmeDigP8 _planetX_bmeDigP9 _planetX_bmeDigH1 _planetX_bmeDigH2 _planetX_bmeDigH3 _planetX_bmeDigH4 _planetX_bmeDigH5 _planetX_bmeDigH6 _planetX_bmeTemperature _planetX_bmePressure _planetX_bmeHumidity _planetX_rtcReady _planetX_trackBitReady _planetX_trackBitStateValue _planetX_trackBitStateValid _planetX_rfidStart _planetX_rfidController _planetX_wsResponse  _planetX_rfidPhase _planetX_rfidError _planetX_rfidStep _planetX_rfidCommand _planetX_rfidSoft _planetX_rfidLastTransport _planetX_rfidPreferSoft _planetX_rfidClockOK
+
   spec 'r' 'planetX_buttonCD' 'button _ key _ is pressed' 'menu.planetXPort menu.planetXButton' 'J1' 'C'
   space
   spec 'r' 'planetX_crash' 'crash sensor _ pressed?' 'menu.planetXPort' 'J1'
@@ -147,6 +148,11 @@ variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_d
   spec 'r' 'planetX_trackBitState' 'four-channel grayscale line sensor detects state _' 'menu.planetXTrackBitPattern' '0000'
   spec 'r' 'planetX_trackBitGray' 'four-channel grayscale line sensor channel _ gray value' 'menu.planetXTrackBitChannel' '1'
   advanced
+  spec ' ' 'planetX_buttonEventBroadcast' 'when button _ key _ is pressed send broadcast _' 'menu.planetXPort menu.planetXButton str' 'J1' 'C' ''
+  spec 'r' '_planetX_analogPinForPort' '_planetX_analogPinForPort _' 'auto' 'J1'
+  spec ' ' '_planetX_buttonEventLoop' '_planetX_buttonEventLoop'
+  spec ' ' '_planetX_pollButtonEvents' '_planetX_pollButtonEvents'
+  spec 'r' '_planetX_sr04PulseWidth' '_planetX_sr04PulseWidth _ _ polling _' 'auto auto bool' 1 8 true
   spec 'r' 'planetX_trackBitOffset' 'four-channel grayscale line sensor offset'
   spec 'r' '_planetX_buttonNow' '_planetX_buttonNow _ _' 'auto auto' 0 0
   spec 'r' '_planetX_dhtCaptureData' '_planetX_dhtCaptureData _' 'auto' 0
@@ -185,6 +191,7 @@ variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_d
   spec ' ' '_planetX_rfidSetCmdDcs' '_planetX_rfidSetCmdDcs _ _' 'auto auto' 0 0
   spec ' ' '_planetX_rfidTextToBlock' '_planetX_rfidTextToBlock _' 'str' ''
   spec 'r' '_planetX_rfidWakeup' '_planetX_rfidWakeup'
+  spec 'r' '_planetX_rfidReadReady' '_planetX_rfidReadReady _' 'auto' 0
   spec 'r' '_planetX_rfidWriteAndRead' '_planetX_rfidWriteAndRead _ _' 'auto auto' 0 0
   spec 'r' '_planetX_rfidWriteBlock8' '_planetX_rfidWriteBlock8'
   spec 'r' '_planetX_rtcDecToHex' '_planetX_rtcDecToHex _' 'auto' 0
@@ -216,6 +223,55 @@ variables _planetX_dsLastTemp _planetX_sr04_last _planetX_sr04_misses _planetX_d
   spec 'r' '_planetX_wsWithCRC' '_planetX_wsWithCRC _' 'auto' 0
   spec 'r' '_planetX_wsWrite' '_planetX_wsWrite _ _' 'auto auto' 0 0
   spec 'r' '_planetX_wsWriteBlock' '_planetX_wsWriteBlock'
+
+variables _planetX_buttonListeners _planetX_dhtCache _planetX_sr04_cache
+
+  spec 'r' '_planetX_rfidSCLHigh' '_planetX_rfidSCLHigh'
+  spec 'r' '_planetX_rfidStartBus' '_planetX_rfidStartBus'
+  spec ' ' '_planetX_rfidStopBus' '_planetX_rfidStopBus'
+  spec 'r' '_planetX_rfidWriteByte' '_planetX_rfidWriteByte _' 'num' 72
+  spec 'r' '_planetX_rfidReadByte' '_planetX_rfidReadByte _' 'bool' true
+  spec ' ' '_planetX_rfidRecover' '_planetX_rfidRecover'
+  spec 'r' '_planetX_rfidFirmwareOK' '_planetX_rfidFirmwareOK _' 'auto' 0
+  spec 'r' '_planetX_rfidBusRead' '_planetX_rfidBusRead _' 'auto' 0
+  spec 'r' '_planetX_rfidBusWrite' '_planetX_rfidBusWrite _' 'auto' 0
+  spec 'r' '_planetX_rfidSoftBegin' '_planetX_rfidSoftBegin'
+  spec ' ' '_planetX_rfidSoftEnd' '_planetX_rfidSoftEnd'
+  spec 'r' '_planetX_rfidTryPn' '_planetX_rfidTryPn _' 'auto' 0
+
+to '_planetX_analogPinForPort' port {
+  local 'pin' ('_planetX_pinForPort' port 'A')
+  local 'board' (boardType)
+  if (and (or (board == 'micro:bit') (board == 'micro:bit v2')) (not (or (port == 'J1') (port == 'J2')))) {
+    sayIt 'Planet X analog sensors require J1 or J2 on micro:bit.' port
+    stopTask
+    return -1
+  }
+  return pin
+}
+
+to '_planetX_buttonEventLoop' {
+  forever {
+    '_planetX_pollButtonEvents'
+    waitMillis 10
+  }
+}
+
+to '_planetX_pollButtonEvents' {
+  if (_planetX_buttonListeners == 0) {return}
+  for listener _planetX_buttonListeners {
+    local 'pin' (at 1 listener)
+    local 'pressed' (not (digitalReadOp pin 'up'))
+    waitMillis 1
+    if (pressed == (not (digitalReadOp pin 'up'))) {
+      local 'wasPressed' (at 3 listener)
+      atPut 3 listener pressed
+      if (and pressed (not wasPressed)) {
+        sendBroadcast (at 2 listener)
+      }
+    }
+  }
+}
 
 to '_planetX_bmeEnsure' {
   '_planetX_extI2CInit'
@@ -360,17 +416,24 @@ to '_planetX_dhtCaptureData' pin {
   '[sensors:captureStart]' pin
   waitMillis 10
   local 'pulses' ('[sensors:captureEnd]')
+  _planetX_dhtRawPulses = pulses
+  if (not (isType pulses 'list')) {return false}
   local 'pulseCount' (size pulses)
   if (pulseCount < 80) {
-    return 0
+    return false
   }
   if (pulseCount > 80) {
     pulses = ('[data:copyFromTo]' pulses (pulseCount - 79))
   }
-  _planetX_dhtRawPulses = pulses
   local 'byte' 0
   for i 40 {
-    if ((at ((2 * i) - 1) pulses) > 40) {byte += 1}
+    local 'high' (at ((2 * i) - 1) pulses)
+    local 'low' (at (2 * i) pulses)
+    if (or (or (high < 10) (high > 150)) (or (low >= 0) (low < -150))) {
+      atPut 'all' _planetX_dhtData 1
+      return false
+    }
+    if (high > 40) {byte += 1}
     if ((i % 8) == 0) {
       atPut (i / 8) _planetX_dhtData byte
       byte = 0
@@ -378,10 +441,12 @@ to '_planetX_dhtCaptureData' pin {
       byte = (byte << 1)
     }
   }
+  return true
 }
 
 to '_planetX_dhtChecksumOkay' {
   if (not (isType _planetX_dhtData 'list')) {return false}
+  if ((size _planetX_dhtData) != 5) {return false}
   local 'checksum' 0
   for i 4 {
     checksum += (at i _planetX_dhtData)
@@ -393,10 +458,10 @@ to '_planetX_dhtChecksumOkay' {
 to '_planetX_dhtReadData' pin {
   if (_planetX_dhtData == 0) {_planetX_dhtData = (newList 5)}
   atPut 'all' _planetX_dhtData 1
-  local 'data' ('[elfreaks_dev_sensor:dhtRead]' pin)
-  if (isType data 'list') {
-    _planetX_dhtData = data
-  }
+  comment 'Pull low for at least 18 ms; captureStart releases the pin to input.'
+  digitalWriteOp pin false
+  waitMillis 20
+  '_planetX_dhtCaptureData' pin
 }
 
 to '_planetX_dhtReady' {
@@ -405,15 +470,31 @@ to '_planetX_dhtReady' {
 }
 
 to '_planetX_dhtUpdate' pin {
+  comment 'Keep separate cached readings and sample intervals for each physical pin.'
+  if (_planetX_dhtCache == 0) {_planetX_dhtCache = ('[data:makeList]')}
+  local 'entry' 0
+  for item _planetX_dhtCache {
+    if ((at 1 item) == pin) {entry = item}
+  }
+  if (entry == 0) {
+    entry = ('[data:makeList]' pin 0 0 -2001)
+    '[data:addLast]' entry _planetX_dhtCache
+  }
+  _planetX_dht_temperature = (at 2 entry)
+  _planetX_dht_humidity = (at 3 entry)
+  _planetX_dhtLastReadTime = (at 4 entry)
   if ('_planetX_dhtReady') {
     '_planetX_dhtReadData' pin
     _planetX_dhtLastReadTime = (millisOp)
+    atPut 4 entry _planetX_dhtLastReadTime
     if ('_planetX_dhtChecksumOkay') {
       local 'newTemp' (at 3 _planetX_dhtData)
       local 'newHum' (at 1 _planetX_dhtData)
-      if (and (newTemp != 0) (newHum != 0)) {
+      if (newHum <= 100) {
         _planetX_dht_temperature = newTemp
         _planetX_dht_humidity = newHum
+        atPut 2 entry newTemp
+        atPut 3 entry newHum
       }
     }
   }
@@ -470,28 +551,16 @@ to '_planetX_humidityDHT11' pin {
 }
 
 to '_planetX_pinForPort' port pin {
-  if (pin == 'B') {
-    if (port == 'J2') {
-      return 7
-    } (port == 'J3') {
-      return 16
-    } (port == 'J4') {
-      return 18
-    }
-    return 5
-  }
-  if (port == 'J2') {
-    return 6
-  } (port == 'J3') {
-    return 15
-  } (port == 'J4') {
-    return 17
-  }
-  return 4
+  return ('_planetX_jPortPin' port pin)
 }
 
 to '_planetX_rfidAckOk' {
-  return (and ((at 2 _planetX_rfidAck) == 0) (and ((at 3 _planetX_rfidAck) == 0) (and ((at 4 _planetX_rfidAck) == 255) ((at 5 _planetX_rfidAck) == 0))))
+  if ((at 1 _planetX_rfidAck) != 1) {return false}
+  local 'expected' ('[data:makeList]' 0 0 255 0 255 0)
+  for i 6 {
+    if ((at (i + 1) _planetX_rfidAck) != (at i expected)) {return false}
+  }
+  return true
 }
 
 to '_planetX_rfidBlockToText' {
@@ -507,6 +576,7 @@ to '_planetX_rfidBlockToText' {
 
 to '_planetX_rfidCheckCard' {
   if (not ('_planetX_rfidWakeup')) {return false}
+  _planetX_rfidPhase = 'scan'
   local 'cmd' ('[data:newByteArray]' 11 0)
   atPut 1 cmd 0
   atPut 2 cmd 0
@@ -525,7 +595,12 @@ to '_planetX_rfidCheckCard' {
   if (not ('_planetX_rfidAckOk')) {
     return false
   }
-  if (or ((at 7 _planetX_rfidRecv) != 213) (not ('_planetX_rfidCheckDcs' 20))) {
+  if (or ((at 7 _planetX_rfidRecv) != 213) (or ((at 8 _planetX_rfidRecv) != 75) (not ('_planetX_rfidCheckDcs' 20)))) {
+    _planetX_rfidError = 'scan frame'
+    return false
+  }
+  if ((at 9 _planetX_rfidRecv) != 1) {
+    _planetX_rfidError = 'no target'
     return false
   }
   for i 4 {
@@ -546,7 +621,7 @@ to '_planetX_rfidCheckDcs' recvLen {
 
 to '_planetX_rfidEnsure' {
   if _planetX_rfidReady {return true}
-  _planetX_rfidAck = ('[data:newByteArray]' 8 0)
+  _planetX_rfidAck = ('[data:newByteArray]' 7 0)
   _planetX_rfidRecv = ('[data:newByteArray]' 32 0)
   _planetX_rfidUid = ('[data:newByteArray]' 5 0)
   _planetX_rfidBlock = ('[data:newByteArray]' 16 0)
@@ -561,6 +636,7 @@ to '_planetX_rfidExpired' {
 }
 
 to '_planetX_rfidPasswdCheck' {
+  _planetX_rfidPhase = 'auth'
   local 'cmd' ('[data:newByteArray]' 22 0)
   atPut 1 cmd 0
   atPut 2 cmd 0
@@ -586,7 +662,9 @@ to '_planetX_rfidPasswdCheck' {
   if (not ('_planetX_rfidAckOk')) {
     return false
   }
-  return (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 65) (and ((at 9 _planetX_rfidRecv) == 0) ('_planetX_rfidCheckDcs' 11))))
+  local 'ok' (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 65) (and ((at 9 _planetX_rfidRecv) == 0) ('_planetX_rfidCheckDcs' 11))))
+  if (not ok) {_planetX_rfidError = 'auth frame/status'}
+  return ok
 }
 
 to '_planetX_rfidPnOperation' operation {
@@ -598,6 +676,7 @@ to '_planetX_rfidPnOperation' operation {
 }
 
 to '_planetX_rfidReadBlock8' {
+  _planetX_rfidPhase = 'read8'
   local 'cmd' ('[data:newByteArray]' 12 0)
   atPut 1 cmd 0
   atPut 2 cmd 0
@@ -615,6 +694,7 @@ to '_planetX_rfidReadBlock8' {
     return false
   }
   if (or ((at 7 _planetX_rfidRecv) != 213) (or ((at 8 _planetX_rfidRecv) != 65) (or ((at 9 _planetX_rfidRecv) != 0) (not ('_planetX_rfidCheckDcs' 27))))) {
+    _planetX_rfidError = 'read frame/status'
     return false
   }
   for i 16 {
@@ -631,16 +711,29 @@ to '_planetX_rfidRun' operation text {
   if (not ('_planetX_i2cAcquire')) {
     return result
   }
-  '[sensors:i2cSetClockSpeed]' 200000
+  _planetX_rfidSoft = 0
+  _planetX_rfidLastTransport = 0
+  _planetX_rfidPhase = 'select'
+  _planetX_rfidError = ''
+  _planetX_rfidStep = ''
+  _planetX_rfidCommand = 0
+  if ((boardType) == 'micro:bit v2') {
+    comment 'Restore and restart the external bus before each complete RFID transaction.'
+    '[sensors:i2cSetPins]' 20 19
+  }
+  '_planetX_i2cSetClock'
   _planetX_rfidStart = (millisOp)
   '_planetX_rfidEnsure'
   '_planetX_rfidTextToBlock' text
   if ('_planetX_rfidSelectController') {
     local 'ok' false
     if (_planetX_rfidController == 36) {
-      ok = ('_planetX_rfidPnOperation' operation)
+      ok = ('_planetX_rfidTryPn' operation)
     } else {
+      _planetX_rfidPhase = 'WS1850'
+      _planetX_rfidError = ''
       ok = ('_planetX_wsOperation' operation)
+      if (not ok) {_planetX_rfidError = 'WS1850 operation'}
     }
     if (operation == 1) {
       if ok {result = ('_planetX_rfidBlockToText')}
@@ -648,23 +741,35 @@ to '_planetX_rfidRun' operation text {
       result = ok
     }
   }
+  '_planetX_rfidSoftEnd'
   '_planetX_i2cRelease'
   return result
 }
 
 to '_planetX_rfidSelectController' {
-  if (or (_planetX_rfidController == 36) (_planetX_rfidController == 40)) {return true}
-  if ('[sensors:i2cExists]' 36) {if ('_planetX_rfidWakeup') {
+  if (_planetX_rfidController == 40) {return true}
+  if (_planetX_rfidController == 36) {
+    if (and ((boardType) == 'micro:bit v2') _planetX_rfidPreferSoft) {
+      return ('_planetX_rfidSoftBegin')
+    }
+    return true
+  }
+  comment 'Identify by protocol response; an empty I2C write is not required.'
+  if ('_planetX_rfidWakeup') {
     _planetX_rfidController = 36
     return true
-  }}
-  if ('[sensors:i2cExists]' 40) {
-    local 'version' ('_planetX_wsRead' 55)
-    if (and (version > 0) (version < 255)) {
-      if ('_planetX_wsInit') {
-        _planetX_rfidController = 40
-        return true
-      }
+  }
+  local 'version' ('_planetX_wsRead' 55)
+  if (and (version > 0) (version < 255)) {
+    if ('_planetX_wsInit') {
+      _planetX_rfidController = 40
+      return true
+    }
+  }
+  if ((boardType) == 'micro:bit v2') {
+    if ('_planetX_rfidSoftBegin') {
+      _planetX_rfidController = 36
+      return true
     }
   }
   return false
@@ -697,6 +802,7 @@ to '_planetX_rfidTextToBlock' text {
 }
 
 to '_planetX_rfidWakeup' {
+  _planetX_rfidPhase = 'SAM'
   if (not ('_planetX_rfidEnsure')) {return false}
   local 'cmd' ('[data:newByteArray]' 12 0)
   atPut 1 cmd 0
@@ -714,34 +820,59 @@ to '_planetX_rfidWakeup' {
   if (not ('_planetX_rfidWriteAndRead' cmd 10)) {
     return false
   }
-  return (and ('_planetX_rfidAckOk') (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 21) ('_planetX_rfidCheckDcs' 10))))
+  local 'ok' (and ('_planetX_rfidAckOk') (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 21) ('_planetX_rfidCheckDcs' 10))))
+  if (not ok) {_planetX_rfidError = 'SAM frame'}
+  return ok
+}
+
+to '_planetX_rfidReadReady' buffer {
+  comment 'Nordic reads may return requested count with 255-filled bytes after NACK. Retry until ready or timeout.'
+  local 'start' (millisOp)
+  repeatUntil ('_planetX_rfidExpired') {
+    local 'count' ('_planetX_rfidBusRead' buffer)
+    if (and (count == (size buffer)) ((at 1 buffer) == 1)) {return true}
+    comment 'Bound missing-device ACK discovery so WS1850 still has time to run.'
+    if (and (_planetX_rfidStep == 'ack') ((millisSince start) >= 300)) {return false}
+    waitMillis 5
+  }
+  return false
 }
 
 to '_planetX_rfidWriteAndRead' writeBuf recvLen {
+  _planetX_rfidCommand = (at 7 writeBuf)
+  _planetX_rfidStep = 'write'
   atPut 'all' _planetX_rfidAck 0
   _planetX_rfidRecv = ('[data:newByteArray]' recvLen 0)
   if (or (recvLen > 32) ('_planetX_rfidExpired')) {
+    _planetX_rfidError = 'length/deadline'
     return false
   }
-  '[sensors:i2cWrite]' 36 writeBuf
+  if (not ('_planetX_rfidBusWrite' writeBuf)) {
+    _planetX_rfidError = 'write NACK/clock'
+    return false
+  }
   waitMillis 20
-  if ('_planetX_rfidExpired') {
-    return false
-  }
-  if (('[sensors:i2cRead]' 36 _planetX_rfidAck) != 8) {
+  _planetX_rfidStep = 'ack'
+  if (not ('_planetX_rfidReadReady' _planetX_rfidAck)) {
+    _planetX_rfidError = 'ACK timeout'
     return false
   }
   if (not ('_planetX_rfidAckOk')) {
+    _planetX_rfidError = 'ACK frame'
     return false
   }
   waitMillis 20
-  if ('_planetX_rfidExpired') {
+  _planetX_rfidStep = 'response'
+  if (not ('_planetX_rfidReadReady' _planetX_rfidRecv)) {
+    _planetX_rfidError = 'response timeout'
     return false
   }
-  return (('[sensors:i2cRead]' 36 _planetX_rfidRecv) == recvLen)
+  _planetX_rfidStep = 'frame'
+  return true
 }
 
 to '_planetX_rfidWriteBlock8' {
+  _planetX_rfidPhase = 'write8'
   local 'cmd' ('[data:newByteArray]' 28 0)
   atPut 1 cmd 0
   atPut 2 cmd 0
@@ -758,10 +889,12 @@ to '_planetX_rfidWriteBlock8' {
   }
   atPut 28 cmd 0
   '_planetX_rfidSetCmdDcs' cmd 27
-  if (not ('_planetX_rfidWriteAndRead' cmd 12)) {
+  if (not ('_planetX_rfidWriteAndRead' cmd 11)) {
     return false
   }
-  return (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 65) (and ((at 9 _planetX_rfidRecv) == 0) ('_planetX_rfidCheckDcs' 12))))
+  local 'ok' (and ((at 7 _planetX_rfidRecv) == 213) (and ((at 8 _planetX_rfidRecv) == 65) (and ((at 9 _planetX_rfidRecv) == 0) ('_planetX_rfidCheckDcs' 11))))
+  if (not ok) {_planetX_rfidError = 'write frame/status'}
+  return ok
 }
 
 to '_planetX_rtcDecToHex' value {
@@ -847,7 +980,7 @@ to '_planetX_trackBitPatternCode' pattern {
 
 to '_planetX_trackBitReadRaw' reg {
   if (not ('_planetX_i2cAcquire')) {return -1}
-  '[sensors:i2cSetClockSpeed]' 200000
+  '_planetX_i2cSetClock'
   local 'buf' ('[data:newByteArray]' 1 0)
   local 'value' -1
   if ('[sensors:i2cExists]' 26) {
@@ -960,7 +1093,8 @@ to '_planetX_wsPrepare' command data {
 to '_planetX_wsRead' reg {
   if ('_planetX_rfidExpired') {return -1}
   local 'buf' ('[data:newByteArray]' 1 0)
-  '[sensors:i2cWrite]' 40 ('[data:makeList]' reg) false
+  comment 'Match the official WS1850 driver: STOP after the register address.'
+  '[sensors:i2cWrite]' 40 ('[data:makeList]' reg) true
   if (('[sensors:i2cRead]' 40 buf) != 1) {
     return -1
   }
@@ -1162,7 +1296,27 @@ to planetX_buttonCD port button {
 }
 
 to planetX_buttonEventBroadcast port button message {
-  '[elfreaks:Event_RegisterPlanetXButton]' port button message
+  if (not (or (button == 'C') (button == 'D'))) {
+    sayIt 'Planet X button must be C or D.' button
+    stopTask
+    return
+  }
+  local 'signal' 'A'
+  if (button == 'D') {signal = 'B'}
+  local 'pin' ('_planetX_pinForPort' port signal)
+  if (_planetX_buttonListeners == 0) {_planetX_buttonListeners = ('[data:makeList]')}
+  local 'entry' 0
+  for listener _planetX_buttonListeners {
+    if ((at 1 listener) == pin) {entry = listener}
+  }
+  if (entry == 0) {
+    entry = ('[data:makeList]' pin message (not (digitalReadOp pin 'up')))
+    '[data:addLast]' entry _planetX_buttonListeners
+  } else {
+    atPut 2 entry message
+  }
+  comment 'Starting the receiver again also resumes polling after the stop button.'
+  sendBroadcast '_planetX_buttonEventLoop'
 }
 
 to planetX_crash port {
@@ -1180,22 +1334,27 @@ to planetX_dht11Sensor port state {
 to planetX_ds18b20Temp port unit {
   local 'tempC' (('_planetX_ds18b20Raw' ('_planetX_pinForPort' port 'B')) / 16)
   if (or (unit == 'Fahrenheit') (unit == '华氏度')) {
-    return ((tempC * 18) / 10) '+' 32
+    return (((tempC * 18) / 10) + 32)
   }
   return tempC
 }
 
 to planetX_dust port {
-  local 'voPin' ('_planetX_pinForPort' port 'A')
+  local 'voPin' ('_planetX_analogPinForPort' port)
   local 'ledPin' ('_planetX_pinForPort' port 'B')
-  local 'raw' ('[elfreaks_dev_sensor:dustRaw]' voPin ledPin)
+  digitalWriteOp ledPin false
+  waitMicros 160
+  local 'raw' (analogReadOp voPin)
+  waitMicros 100
+  digitalWriteOp ledPin true
+  waitMillis 10
   local 'mv' ('[misc:rescale]' raw 0 1023 0 4650)
   local 'dust' (((mv - 380) * 5) / 29)
   return (maximum 0 dust)
 }
 
 to planetX_gasValue port gasType {
-  local 'value' (analogReadOp ('_planetX_pinForPort' port 'A'))
+  local 'value' (analogReadOp ('_planetX_analogPinForPort' port))
   if (or (gasType == 'carbon dioxide') (gasType == '二氧化碳')) {
     return (1024 - value)
   }
@@ -1203,7 +1362,7 @@ to planetX_gasValue port gasType {
 }
 
 to planetX_lightSensor port {
-  local 'pin' ('_planetX_pinForPort' port 'A')
+  local 'pin' ('_planetX_analogPinForPort' port)
   local 'value' 0
   for i 100 {
     value += (analogReadOp pin)
@@ -1218,7 +1377,7 @@ to planetX_lightSensor port {
 }
 
 to planetX_noiseSensor port {
-  local 'pin' ('_planetX_pinForPort' port 'A')
+  local 'pin' ('_planetX_analogPinForPort' port)
   local 'baseline' 0
   for i 200 {
     baseline += (analogReadOp pin)
@@ -1330,7 +1489,7 @@ to planetX_rtcSetData num data {
 }
 
 to planetX_soilHumidity port {
-  local 'value' ('[misc:rescale]' (analogReadOp ('_planetX_pinForPort' port 'A')) 0 1023 0 100)
+  local 'value' ('[misc:rescale]' (analogReadOp ('_planetX_analogPinForPort' port)) 0 1023 0 100)
   return (maximum 0 (minimum (100 - value) 100))
 }
 
@@ -1413,50 +1572,91 @@ to planetX_trackingSensor port state {
 }
 
 to planetX_trimpot port {
-  return (analogReadOp ('_planetX_pinForPort' port 'A'))
+  return (analogReadOp ('_planetX_analogPinForPort' port))
+}
+
+to '_planetX_sr04PulseWidth' trig echo polling {
+  comment 'Configure echo before triggering; wait for an old echo to finish.'
+  digitalWriteOp trig false
+  local 'start' (millisOp)
+  repeatUntil (not (digitalReadOp echo 'none')) {
+    if ((millisSince start) > 25) {return 0}
+  }
+  if (not polling) {'[sensors:captureStart]' echo}
+  waitMicros 2
+  digitalWriteOp trig true
+  comment '10 us stays in the VM busy wait; 50 us yields to other tasks.'
+  waitMicros 10
+  digitalWriteOp trig false
+  start = (millisOp)
+  if polling {
+    comment 'Nordic interrupt capture is unreliable on some edge pins. Read GPIO directly.'
+    repeatUntil (digitalReadOp echo 'none') {
+      if ((millisSince start) > 25) {return 0}
+    }
+    local 'rise' (microsOp)
+    repeatUntil (not (digitalReadOp echo 'none')) {
+      if ((microsSince rise) > 25000) {return 0}
+    }
+    return (microsSince rise)
+  }
+  repeatUntil (('[sensors:captureCount]') >= 2) {
+    if ((millisSince start) > 25) {exitLoop}
+    waitMillis 1
+  }
+  local 'pulses' ('[sensors:captureEnd]')
+  if (not (isType pulses 'list')) {return 0}
+  if ((size pulses) < 2) {return 0}
+  if ((at 1 pulses) >= 0) {return 0}
+  return (maximum 0 (at 2 pulses))
 }
 
 to planetX_ultrasoundSensor port unit {
   local 'trig' ('_planetX_pinForPort' port 'A')
   local 'echo' ('_planetX_pinForPort' port 'B')
-  digitalWriteOp trig false
-  waitMicros 2
-  digitalWriteOp trig true
-  waitMicros 50
-  digitalWriteOp trig false
-  '[sensors:captureStart]' echo
-  local 'start' (millisOp)
-  repeatUntil (('[sensors:captureCount]') >= 2) {
-    if ((millisSince start) > 24) {exitLoop}
-    waitMillis 1
+  if (_planetX_sr04_cache == 0) {_planetX_sr04_cache = ('[data:makeList]')}
+  local 'entry' 0
+  for item _planetX_sr04_cache {
+    if ((at 1 item) == trig) {entry = item}
   }
-  local 'pulses' ('[sensors:captureEnd]')
+  if (entry == 0) {
+    entry = ('[data:makeList]' trig 400 9 -61)
+    '[data:addLast]' entry _planetX_sr04_cache
+  }
+  comment 'Allow 60 ms recovery after each read; 1 ms covers clock rounding.'
+  local 'elapsed' (millisSince (at 4 entry))
+  if (and (elapsed >= 0) (elapsed < 61)) {waitMillis (61 - elapsed)}
+  local 'board' (boardType)
+  local 'polling' (or (board == 'micro:bit') (board == 'micro:bit v2'))
+  local 'width' ('_planetX_sr04PulseWidth' trig echo polling)
+  atPut 4 entry (millisOp)
+  _planetX_sr04_last = (at 2 entry)
+  _planetX_sr04_misses = (at 3 entry)
   local 'distance' 400
-  if (and ((size pulses) >= 2) ((at 2 pulses) > 0)) {
+  if (and (width > 0) (width <= 25000)) {
     _planetX_sr04_misses = 0
-    _planetX_sr04_last = ((10 * (at 2 pulses)) / 583)
+    _planetX_sr04_last = ((10 * width) / 583)
     distance = _planetX_sr04_last
+    atPut 2 entry distance
   } else {
     _planetX_sr04_misses += 1
-    if (_planetX_sr04_misses < 10) {
-      distance = _planetX_sr04_last
-    }
+    if (_planetX_sr04_misses < 10) {distance = _planetX_sr04_last}
   }
+  atPut 3 entry _planetX_sr04_misses
   if (or (or (unit == 'inch') (unit == '英尺')) (unit == '英寸')) {
     return (((distance * 100) + 127) / 254)
   }
-  if (or (unit == 'mm') (unit == '毫米')) {
-    return (distance * 10)
-  }
+  if (or (unit == 'mm') (unit == '毫米')) {return (distance * 10)}
   return distance
 }
 
 to planetX_uvLevel port {
-  local 'value' (minimum (analogReadOp ('_planetX_pinForPort' port 'A')) 625)
+  local 'value' (minimum (analogReadOp ('_planetX_analogPinForPort' port)) 625)
   return ('[misc:rescale]' value 0 625 0 15)
 }
 
 to planetX_waterLevel port optionalSpeed {
+  local 'pin' ('_planetX_analogPinForPort' port)
   local 'speed' (argOrDefault 2 'fast')
   local 'sampleCount' 1
   local 'sampleDelay' 0
@@ -1469,7 +1669,7 @@ to planetX_waterLevel port optionalSpeed {
   }
   local 'total' 0
   repeat sampleCount {
-    total += (analogReadOp ('_planetX_pinForPort' port 'A'))
+    total += (analogReadOp pin)
     if (sampleDelay > 0) {
       waitMillis sampleDelay
     }
@@ -1479,3 +1679,195 @@ to planetX_waterLevel port optionalSpeed {
   return (maximum 0 (minimum value 100))
 }
 
+
+
+to _planetX_rfidSCLHigh {
+  local 'start' (millisOp)
+  repeatUntil (digitalReadOp 19 'up') {
+    if ((millisSince start) >= 25) {
+      _planetX_rfidClockOK = false
+      return false
+    }
+    waitMicros 2
+  }
+  return true
+}
+
+to _planetX_rfidStartBus {
+  local 'released' (digitalReadOp 20 'up')
+  if (not (_planetX_rfidSCLHigh)) {return false}
+  if (not (digitalReadOp 20 'up')) {return false}
+  waitMicros 5
+  digitalWriteOp 20 false
+  comment 'Hold START for 200 us to allow PN532 I2C wakeup before the address.'
+  waitMicros 200
+  digitalWriteOp 19 false
+  return true
+}
+
+to _planetX_rfidStopBus {
+  digitalWriteOp 19 false
+  digitalWriteOp 20 false
+  local 'released' (_planetX_rfidSCLHigh)
+  waitMicros 5
+  released = (digitalReadOp 20 'up')
+  waitMicros 5
+}
+
+to _planetX_rfidWriteByte byte {
+  local 'mask' 128
+  repeat 8 {
+    if ((byte & mask) == 0) {
+      digitalWriteOp 20 false
+    } else {
+      local 'released' (digitalReadOp 20 'up')
+    }
+    waitMicros 5
+    if (not (_planetX_rfidSCLHigh)) {return false}
+    waitMicros 5
+    digitalWriteOp 19 false
+    mask = (mask >> 1)
+  }
+  local 'released' (digitalReadOp 20 'up')
+  waitMicros 5
+  if (not (_planetX_rfidSCLHigh)) {return false}
+  local 'ack' (not (digitalReadOp 20 'up'))
+  digitalWriteOp 19 false
+  return ack
+}
+
+to _planetX_rfidReadByte ack {
+  local 'released' (digitalReadOp 20 'up')
+  local 'byte' 0
+  repeat 8 {
+    waitMicros 5
+    if (not (_planetX_rfidSCLHigh)) {return 255}
+    byte = (byte << 1)
+    if (digitalReadOp 20 'up') {byte += 1}
+    digitalWriteOp 19 false
+  }
+  if ack {digitalWriteOp 20 false}
+  waitMicros 5
+  if (not (_planetX_rfidSCLHigh)) {return 255}
+  waitMicros 5
+  digitalWriteOp 19 false
+  released = (digitalReadOp 20 'up')
+  return byte
+}
+
+to _planetX_rfidRecover {
+  _planetX_rfidClockOK = true
+  local 'released' (digitalReadOp 20 'up')
+  repeat 9 {
+    digitalWriteOp 19 false
+    waitMicros 5
+    if (not (_planetX_rfidSCLHigh)) {return}
+    waitMicros 5
+  }
+  _planetX_rfidStopBus
+}
+
+to _planetX_rfidFirmwareOK frame {
+  if ((size frame) != 14) {return false}
+  local 'header' ('[data:makeList]' 1 0 0 255 6 250 213 3 50)
+  for i 9 {
+    if ((at i frame) != (at i header)) {return false}
+  }
+  local 'checksum' 0
+  for i 7 {checksum += (at (i + 6) frame)}
+  return (and ((checksum & 255) == 0) ((at 14 frame) == 0))
+}
+
+to '_planetX_rfidBusRead' buffer {
+  if (_planetX_rfidSoft == 0) {return ('[sensors:i2cRead]' 36 buffer)}
+  atPut 'all' buffer 255
+  if (not ('_planetX_rfidStartBus')) {
+    '_planetX_rfidStopBus'
+    return 0
+  }
+  if (not ('_planetX_rfidWriteByte' 73)) {
+    '_planetX_rfidStopBus'
+    return 0
+  }
+  for i (size buffer) {
+    atPut i buffer ('_planetX_rfidReadByte' (i < (size buffer)))
+    if (not _planetX_rfidClockOK) {exitLoop}
+  }
+  '_planetX_rfidStopBus'
+  if (not _planetX_rfidClockOK) {return 0}
+  return (size buffer)
+}
+
+to '_planetX_rfidBusWrite' frame {
+  if (_planetX_rfidSoft == 0) {
+    '[sensors:i2cWrite]' 36 frame true
+    return true
+  }
+  if (not ('_planetX_rfidStartBus')) {
+    '_planetX_rfidStopBus'
+    return false
+  }
+  if (not ('_planetX_rfidWriteByte' 72)) {
+    '_planetX_rfidStopBus'
+    return false
+  }
+  for byte frame {
+    if (not ('_planetX_rfidWriteByte' byte)) {
+      '_planetX_rfidStopBus'
+      return false
+    }
+  }
+  '_planetX_rfidStopBus'
+  return _planetX_rfidClockOK
+}
+
+to '_planetX_rfidSoftBegin' {
+  if ((boardType) != 'micro:bit v2') {return false}
+  if ('_planetX_rfidExpired') {return false}
+  _planetX_rfidSoft = 1
+  _planetX_rfidLastTransport = 1
+  _planetX_rfidPhase = 'firmware'
+  _planetX_rfidError = ''
+  comment 'Park both idle TWIM signals on unused P0 to free P20/P19 without touching any J port.'
+  '[sensors:i2cSetPins]' 0 0
+  '_planetX_rfidRecover'
+  if (not _planetX_rfidClockOK) {
+    _planetX_rfidError = 'SCL timeout'
+    return false
+  }
+  repeat 3 {
+    if ('_planetX_rfidExpired') {
+      _planetX_rfidError = 'operation timeout'
+      return false
+    }
+    waitMillis 100
+    if ('_planetX_rfidWriteAndRead' ('[data:makeList]' 0 0 255 2 254 212 2 42 0) 14) {
+      if ('_planetX_rfidFirmwareOK' _planetX_rfidRecv) {
+        _planetX_rfidPreferSoft = true
+        _planetX_rfidError = ''
+        return true
+      }
+      _planetX_rfidError = 'firmware frame'
+    }
+  }
+  return false
+}
+
+to '_planetX_rfidSoftEnd' {
+  if (_planetX_rfidSoft != 1) {return}
+  '_planetX_rfidStopBus'
+  '[sensors:i2cSetPins]' 20 19
+  local 'released' (digitalReadOp 0)
+  _planetX_rfidSoft = 0
+  '_planetX_i2cSetClock'
+}
+
+to '_planetX_rfidTryPn' operation {
+  if ('_planetX_rfidPnOperation' operation) {return true}
+  if (or ((boardType) != 'micro:bit v2') (_planetX_rfidSoft == 1)) {return false}
+  local 'transportError' (or (_planetX_rfidError == 'ACK timeout') (or (_planetX_rfidError == 'ACK frame') (_planetX_rfidError == 'response timeout')))
+  comment 'Never replay a card write after its result becomes uncertain.'
+  if (or (not transportError) (_planetX_rfidPhase == 'write8')) {return false}
+  if (not ('_planetX_rfidSoftBegin')) {return false}
+  return ('_planetX_rfidPnOperation' operation)
+}

@@ -1,6 +1,6 @@
 module 'Planet X Execute' Control
 author 'Elecfreaks Team'
-version 2 1 
+version 2 4
 depends '_Planet X Support' 
 choices planetXMP3Action play stop 'next track' 'previous track' pause 
 description 'laser
@@ -36,6 +36,7 @@ variables _planetX_mp3Pin
   spec ' ' 'planetX_mp3LoopFolder' 'MP3 loop folder _' 'num' 1
   spec ' ' 'planetX_mp3Execute' 'MP3 execute _' 'menu.planetXMP3Action' 'play'
   spec ' ' '_planetX_mp3Ensure' '_planetX_mp3Ensure'
+  spec ' ' '_planetX_mp3OpenPort' '_planetX_mp3OpenPort _' 'auto' 'J1'
   spec ' ' '_planetX_mp3Send' '_planetX_mp3Send _ _ _' 'auto auto auto' 0 0 0
   spec ' ' '_planetX_ledBrightness' '_planetX_ledBrightness _ _ _' 'auto auto auto' 0 0 0
   spec ' ' '_planetX_motorFan' '_planetX_motorFan _ _ _' 'auto auto auto' 0 0 0
@@ -43,14 +44,7 @@ variables _planetX_mp3Pin
 to '_planetX_ledBrightness' port on optionalBrightness {
   local 'brightness' (argOrDefault 3 100)
   brightness = (maximum 0 (minimum brightness 100))
-  local 'pin' 4
-  if (port == 'J2') {
-    pin = 6
-  } (port == 'J3') {
-    pin = 15
-  } (port == 'J4') {
-    pin = 17
-  }
+  local 'pin' ('_planetX_jPortPin' port 'A')
   if (and on (brightness > 0)) {
     analogWriteOp pin ((1023 * brightness) / 100)
   } else {
@@ -62,14 +56,7 @@ to '_planetX_ledBrightness' port on optionalBrightness {
 to '_planetX_motorFan' port on optionalSpeed {
   local 'speed' (argOrDefault 3 100)
   speed = (maximum 0 (minimum speed 100))
-  local 'pin' 4
-  if (port == 'J2') {
-    pin = 6
-  } (port == 'J3') {
-    pin = 15
-  } (port == 'J4') {
-    pin = 17
-  }
+  local 'pin' ('_planetX_jPortPin' port 'A')
   if (and on (speed > 0)) {
     analogWriteOp pin ((1023 * speed) / 100)
   } else {
@@ -80,10 +67,26 @@ to '_planetX_motorFan' port on optionalSpeed {
 
 to '_planetX_mp3Ensure' {
   if (_planetX_mp3Pin == 0) {
-    _planetX_mp3Pin = 5
-    '[elfreaks_dev_sensor:wifiUartInit]' 'J1' 9600
-    waitMillis 50
+    '_planetX_mp3OpenPort' 'J1'
   }
+}
+
+to '_planetX_mp3OpenPort' port {
+  local 'txPin' ('_planetX_jPortPin' port 'B')
+  local 'board' (boardType)
+  if (or (board == 'micro:bit') (board == 'micro:bit v2')) {
+    comment 'MP3 only needs output. Software serial is verified on micro:bit V2.'
+    if (board == 'micro:bit v2') {
+      comment 'Release pins if a previous project opened the hardware UART.'
+      '[serial:close]'
+    }
+    digitalWriteOp txPin true
+  } else {
+    local 'rxPin' ('_planetX_jPortPin' port 'A')
+    '[serial:open]' 9600 rxPin txPin
+  }
+  _planetX_mp3Pin = txPin
+  waitMillis 50
 }
 
 to '_planetX_mp3Send' cmd arg1 arg2 {
@@ -98,19 +101,20 @@ to '_planetX_mp3Send' cmd arg1 arg2 {
   sum = (65536 - sum)
   atPut 8 msg ((sum >> 8) & 255)
   atPut 9 msg (sum & 255)
-  '[elfreaks_dev_sensor:wifiUartWrite]' msg
+  local 'board' (boardType)
+  if (or (board == 'micro:bit') (board == 'micro:bit v2')) {
+    for byte msg {
+      '[io:softWriteByte]' byte _planetX_mp3Pin 9600
+    }
+  } else {
+    comment 'A byte array is sent in one transfer. Lists are sent one byte at a time.'
+    '[serial:write]' ('[data:asByteArray]' msg)
+  }
   waitMillis 100
 }
 
 to planetX_laserSwitch port on {
-  local 'pin' 5
-  if (port == 'J2') {
-    pin = 7
-  } (port == 'J3') {
-    pin = 16
-  } (port == 'J4') {
-    pin = 18
-  }
+  local 'pin' ('_planetX_jPortPin' port 'B')
   digitalWriteOp pin on
 }
 
@@ -160,17 +164,7 @@ to planetX_mp3PlayTrack tracking repeat {
 }
 
 to planetX_mp3SetPort port {
-  local 'pin' 5
-  if (port == 'J2') {
-    pin = 7
-  } (port == 'J3') {
-    pin = 16
-  } (port == 'J4') {
-    pin = 18
-  }
-  _planetX_mp3Pin = pin
-  '[elfreaks_dev_sensor:wifiUartInit]' port 9600
-  waitMillis 50
+  '_planetX_mp3OpenPort' port
   planetX_mp3SetVolume 25
 }
 

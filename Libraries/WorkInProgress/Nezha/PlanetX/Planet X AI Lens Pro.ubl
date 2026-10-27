@@ -1,6 +1,6 @@
 module 'Planet X AI Lens Pro' Input
 author 'Elecfreaks Team'
-version 2 1 
+version 2 2
 depends '_Planet X Support' 
 choices planetXAILensProLineValueMenu angle distance 
 choices planetXAILensProColorModeMenu 'learn mode' 'recognize mode' 
@@ -51,10 +51,9 @@ WIKI:
 https://wiki.elecfreaks.com/microbit/planetx-series/sensors/ai-lens-pro/'
 variables _planetX_aiLensPro_addr _planetX_aiLensPro_gap _planetX_aiLensPro_init_done _planetX_aiLensPro_online _planetX_aiLensPro_read_fail_count _planetX_aiLensPro_last_recovery_probe _planetX_aiLensPro_current_mode _planetX_aiLensPro_face_state _planetX_aiLensPro_face_id _planetX_aiLensPro_face_confidence _planetX_aiLensPro_face_blink _planetX_aiLensPro_face_mouth _planetX_aiLensPro_face_coord_valid _planetX_aiLensPro_face_left_x _planetX_aiLensPro_face_left_y _planetX_aiLensPro_face_right_x _planetX_aiLensPro_face_right_y _planetX_aiLensPro_face_label _planetX_aiLensPro_face_count _planetX_aiLensPro_self_status _planetX_aiLensPro_self_id _planetX_aiLensPro_self_confidence _planetX_aiLensPro_hand_status _planetX_aiLensPro_hand_id _planetX_aiLensPro_hand_confidence _planetX_aiLensPro_hand_x _planetX_aiLensPro_hand_y _planetX_aiLensPro_hand_width _planetX_aiLensPro_hand_height _planetX_aiLensPro_hand_label _planetX_aiLensPro_rhythm_status _planetX_aiLensPro_rhythm_bpm _planetX_aiLensPro_rhythm_beats _planetX_aiLensPro_rhythm_duration_ms _planetX_aiLensPro_recording_active _planetX_aiLensPro_recording_seconds _planetX_aiLensPro_wifi_state _planetX_aiLensPro_wifi_flags _planetX_aiLensPro_wifi_seq _planetX_aiLensPro_wifi_mailbox_type _planetX_aiLensPro_ball_count _planetX_aiLensPro_ball_red _planetX_aiLensPro_ball_blue _planetX_aiLensPro_ball_records _planetX_aiLensPro_ball_targets _planetX_aiLensPro_object_count _planetX_aiLensPro_object_records _planetX_aiLensPro_object_targets _planetX_aiLensPro_object_labels _planetX_aiLensPro_ocr_status _planetX_aiLensPro_ocr_confidence _planetX_aiLensPro_ocr_length _planetX_aiLensPro_ocr_text _planetX_aiLensPro_ocr_bytes _planetX_aiLensPro_tracking_records _planetX_aiLensPro_tracking_targets _planetX_aiLensPro_expression_count _planetX_aiLensPro_expression_records _planetX_aiLensPro_expression_targets _planetX_aiLensPro_expression_labels _planetX_aiLensPro_posture_records _planetX_aiLensPro_posture_targets _planetX_aiLensPro_posture_label _planetX_aiLensPro_color_mode _planetX_aiLensPro_color_records _planetX_aiLensPro_color_targets _planetX_aiLensPro_color_center_id _planetX_aiLensPro_color_r _planetX_aiLensPro_color_g _planetX_aiLensPro_color_b _planetX_aiLensPro_card_count _planetX_aiLensPro_card_records _planetX_aiLensPro_card_targets _planetX_aiLensPro_code_detected _planetX_aiLensPro_code_type _planetX_aiLensPro_code_length _planetX_aiLensPro_code_bytes _planetX_aiLensPro_code_content _planetX_aiLensPro_line_detected _planetX_aiLensPro_line_angle _planetX_aiLensPro_line_distance 
 
-  spec ' ' 'planetX_aiLensPro_init' 'initialize AI Lens Pro'
   spec ' ' 'planetX_aiLensPro_switch_to' 'switch function to _' 'menu.planetXAILensProModeMenu' 'main menu'
   spec ' ' 'planetX_aiLensPro_set_flashlight' 'set flashlight _ brightness _ %' 'menu.planetXOnOff num' 'on' 80
-  spec ' ' 'planetX_aiLensPro_get_one_frame' 'get one frame from AI Lens Pro'
+  spec ' ' 'planetX_aiLensPro_get_one_frame' 'AI Lens Pro capture image'
   space
   spec 'r' 'planetX_aiLensPro_image_contains_face' 'image contains face'
   spec 'r' 'planetX_aiLensPro_image_face_count' 'get total number of faces from image'
@@ -964,7 +963,11 @@ to '_planetX_aiLensPro_read_wifi_mailbox' expectedType expectedSeq timeoutMS {
 to '_planetX_aiLensPro_ready' {
   '_planetX_aiLensPro_defaults'
   if (not _planetX_aiLensPro_init_done) {
-    return false
+    _planetX_aiLensPro_online = false
+    _planetX_aiLensPro_read_fail_count = 0
+    _planetX_aiLensPro_last_recovery_probe = ((millisOp) - 200)
+    _planetX_aiLensPro_init_done = true
+    return ('_planetX_aiLensPro_probe_init')
   }
   if _planetX_aiLensPro_online {
     return true
@@ -1700,15 +1703,6 @@ to planetX_aiLensPro_image_text_equals text {
 to planetX_aiLensPro_image_text_value data {
   if (or (data == 'confidence (%)') (data == 'confidence')) {return _planetX_aiLensPro_ocr_confidence}
   return _planetX_aiLensPro_ocr_length
-}
-
-to planetX_aiLensPro_init {
-  '_planetX_aiLensPro_defaults'
-  _planetX_aiLensPro_online = false
-  _planetX_aiLensPro_read_fail_count = 0
-  _planetX_aiLensPro_last_recovery_probe = ((millisOp) - 200)
-  _planetX_aiLensPro_init_done = true
-  return ('_planetX_aiLensPro_probe_init')
 }
 
 to planetX_aiLensPro_is_camera_wifi_connected {

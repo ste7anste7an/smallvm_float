@@ -1,6 +1,6 @@
 module 'Planet X Display' Output
 author 'Elecfreaks Team'
-version 2 1 
+version 2 2
 depends '_Planet X Support' 
 choices planetXNeoColor red orange yellow green blue indigo violet purple white black 
 choices planetXNeoMode 'RGB(GRB order)' RGBW 'RGB(RGB order)' 
@@ -194,7 +194,7 @@ to '_planetX_neopixelRainbow' optionalStartHue optionalEndHue {
 }
 
 to '_planetX_npEnsure' {
-  if (_planetX_npPixels == 0) {planetX_neopixelCreate 'J1' 10 'RGB(GRB)'}
+  if (_planetX_npPixels == 0) {planetX_neopixelCreate 'J1' 10 'RGB(GRB order)'}
   if (_planetX_npRangeStart == 0) {
     _planetX_npRangeStart = 1
     _planetX_npRangeLength = (size _planetX_npPixels)
@@ -207,6 +207,7 @@ to '_planetX_npIndex' i {
 }
 
 to '_planetX_npUpdate' {
+  '_planetX_npEnsure'
   '[display:neoPixelSetPin]' _planetX_npPin _planetX_npHasWhite
   '[display:neoPixelSend]' _planetX_npPixels
   waitMicros 300
@@ -409,6 +410,13 @@ to '_planetX_tmDelay' {
 }
 
 to '_planetX_tmEnsure' {
+  if (_planetX_tmClockPin == 0) {
+    _planetX_tmClockPin = ('_planetX_jPortPin' 'J1' 'A')
+    _planetX_tmDataPin = ('_planetX_jPortPin' 'J1' 'B')
+    _planetX_tmBrightness = 7
+    digitalWriteOp _planetX_tmClockPin false
+    digitalWriteOp _planetX_tmDataPin false
+  }
   if (_planetX_tmDigits == 0) {
     _planetX_tmDigits = (newList 4)
     atPut 'all' _planetX_tmDigits 0
@@ -561,15 +569,7 @@ to planetX_neopixelCreate port optionalCount optionalMode {
   count = (maximum 1 count)
   local 'hasWhite' (mode == 'RGBW')
   '[display:neoPixelSetRGB]' (('[data:find]' 'RGB(RGB' mode) == 1)
-  if (port == 'J2') {
-    _planetX_npPin = 7
-  } (port == 'J3') {
-    _planetX_npPin = 16
-  } (port == 'J4') {
-    _planetX_npPin = 18
-  } else {
-    _planetX_npPin = 5
-  }
+  _planetX_npPin = ('_planetX_jPortPin' port 'B')
   _planetX_npHasWhite = hasWhite
   if (or (_planetX_npPixels == 0) (count != (size _planetX_npPixels))) {
     _planetX_npPixels = (newList count)
@@ -687,19 +687,9 @@ to planetX_tm1637Clear {
 }
 
 to planetX_tm1637Create port {
-  if (port == 'J2') {
-    _planetX_tmClockPin = 6
-    _planetX_tmDataPin = 7
-  } (port == 'J3') {
-    _planetX_tmClockPin = 15
-    _planetX_tmDataPin = 16
-  } (port == 'J4') {
-    _planetX_tmClockPin = 17
-    _planetX_tmDataPin = 18
-  } else {
-    _planetX_tmClockPin = 4
-    _planetX_tmDataPin = 5
-  }
+  _planetX_tmClockPin = ('_planetX_jPortPin' port 'A')
+  _planetX_tmDataPin = ('_planetX_jPortPin' port 'B')
+  sayIt _planetX_tmClockPin _planetX_tmDataPin
   _planetX_tmBrightness = 7
   digitalWriteOp _planetX_tmClockPin false
   digitalWriteOp _planetX_tmDataPin false
