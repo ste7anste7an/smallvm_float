@@ -28,6 +28,7 @@ class FileBrowser extends FloatingWindow {
 		this.extensions = extensionList;
 		this.forLibraries = forLibraries;
 		this.topDir = '';
+		this.currentDir = '';
 		this.selection = null; // the value of the marked row
 		this.answer = '';
 		this.action = anAction;
@@ -338,7 +339,11 @@ let div = newDiv('panel__container');
 
 		title.appendChild(newLabel('Shortcuts'));
 
-		[ 'Computer', 'Cloud' ].forEach(label => {
+		[
+			this.forLibraries ? 'Libraries' : 'Examples',
+			'Computer',
+			'Cloud'
+		].forEach(label => {
 			let item = document.createElement('li'),
 				a = document.createElement('button');
 			a.appendChild(newLabel(label));
@@ -363,6 +368,12 @@ let div = newDiv('panel__container');
 				break;
 			case 'Cloud':
 				this.promptURL();
+				break;
+			case 'Libraries':
+				this.showFolder('Libraries');
+				break;
+			case 'Examples':
+				this.showFolder('Examples');
 				break;
 			default:
 				console.log('not yet implemented', source);
