@@ -99,6 +99,7 @@ class LibraryInfoWindow extends FloatingWindow {
 
 	textInput(selector, value) {
 		let input = document.createElement('input');
+		input.setAttribute('data-undraggable', true);
 		input.classList.add('window__input');
 		input.type = 'text';
 		input.value = value ?? this.library[selector];
@@ -108,6 +109,7 @@ class LibraryInfoWindow extends FloatingWindow {
 
 	descriptionInput() {
 		let textarea = document.createElement('textarea');
+		textarea.setAttribute('data-undraggable', true);
 		textarea.textContent = this.library.description;
 		textarea.readOnly = !this.forEditing;
 		return textarea;
