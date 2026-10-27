@@ -21,6 +21,11 @@
 	border-radius: var(--borderRadius-max);
 	transition: all var(--duration-200) ease-in-out;
 
+	/* MARC DESTROY THIS */
+	&.--is-disabled {
+		opacity: 0.4;
+		pointer-events: none;
+	}
 
 	/* Workspace Left */
 	.workspace__left & {
@@ -30,7 +35,7 @@
 		background-color: var(--color-blue-grey-850);
 		border: var(--buttonBorder) solid var(--color-blue-grey-700);
 
-		&:hover {
+		&:not(.--is-disabled):hover {
 			color: var(--color-blue-grey-900);
 			border: var(--buttonBorder) solid var(--color-yellow-action);
 			background-color: var(--color-yellow-action);

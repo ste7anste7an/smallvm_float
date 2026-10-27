@@ -239,7 +239,6 @@ fetch('img/icon-checkmark--16x16.svg')
 	.then(text => Icon.cache.tick = text);
 
 Icon.forSelector = function (selector, html = 'button') {
-	// TODO: Rename files to avoid 'icon-'?
 	return this.forUrl('img/icon-' + selector + '.svg', html);
 };
 

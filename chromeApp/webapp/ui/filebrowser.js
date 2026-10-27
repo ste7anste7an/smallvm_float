@@ -111,7 +111,7 @@ class FileBrowser extends FloatingWindow {
 	}
 
 	bodyDiv() {
-let div = newDiv('panel__container');
+		let div = newDiv('panel__container');
 		div.appendChild(this.sideDiv());
 		div.appendChild(this.mainDiv());
 		return div;
@@ -132,17 +132,19 @@ let div = newDiv('panel__container');
 	navigationBar() {
 		let div = newDiv('navigation__bar');
 		this.parentButton = Icon.forSelector('arrow-right--16x16');
-		this.parentButton.onclick = () => {
-			const i = this.currentDir.lastIndexOf('/');
-			if (i < 0) { return; }
-			this.showFolder(this.currentDir.slice(0, i), false);
-		};
+		this.parentButton.onclick = () => this.moveUpFolder;
 		this.folderReadout = newElement('h3');
 		this.folderReadout.appendChild(newLabel('MicroBlocks'));
 		this.parentButton.classList.add('button-rounded');
 		div.appendChild(this.parentButton);
 		div.appendChild(this.folderReadout);
 		return div;
+	}
+
+	moveUpFolder() {
+		const i = this.currentDir.lastIndexOf('/');
+		if (i < 0) { return; }
+		this.showFolder(this.currentDir.slice(0, i), false);
 	}
 
 	navigator() {
@@ -170,14 +172,19 @@ let div = newDiv('panel__container');
 	}
 
 	folderContents() {
-		// Rows of [label, value]: folders first, then the files that match the
-		// extensions, each group in case-insensitive order, dot names hidden.
+		// Rows of [label, value, isFolder]: folders first, then the files that
+		// match the extensions, each group in case-insensitive order, dot names
+		// hidden.
 
 		const ext = this.extensions;
 		const showExtension = !ext ||
 			!(ext.includes('.ubl') || ext.includes('.ubp') || ext.includes('.gpp'));
 		const { dirs, files } = this.listFolder(this.currentDir);
 		const result = [];
+		if (this.topDir != this.currentDir) {
+			// add a .. folder that brings you one level up
+			result.push(['..','..',true]);
+		}
 		for (const dir of dirs.sort(MB_FilePicker.caseInsensitiveOrder)) {
 			if (!dir.startsWith('.')) {
 				result.push([this.localizeDir(dir), dir, true]);
@@ -219,15 +226,15 @@ let div = newDiv('panel__container');
 		this.folderReadout.innerText = this.localizeDir(
 			this.currentDir.slice(this.currentDir.lastIndexOf('/') + 1)
 		);
+
 		const below =
 			this.currentDir.startsWith(this.topDir) &&
 				(this.currentDir.length > this.topDir.length);
-
 		this.parentButton.disabled = !below;
 		if (below) {
-			this.parentButton.classList.remove('--disabled');
+			this.parentButton.classList.remove('--is-disabled');
 		} else {
-			this.parentButton.classList.add('--disabled');
+			this.parentButton.classList.add('--is-disabled');
 		}
 
 		let list = newElement('ul');
@@ -273,6 +280,10 @@ let div = newDiv('panel__container');
 	}
 
 	showFolder(path, isTop) {
+		if (path.endsWith('/..')) {
+			this.moveUpFolder();
+			return;
+		}
 		this.currentDir = path;
 		if (isTop) { this.topDir = path; }
 		this.selection = [,,];
