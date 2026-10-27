@@ -1507,7 +1507,7 @@ void interpretStep() {
 			}
 		}
 		if (!runCount) { // no active tasks; consider taking a nap
-			usecs = microsecs(); // get usecs
+			// same usecs as the wake test above, so a task it skipped cannot look overdue
 			int sleepUSecs = 100000;
 			for (int i = 0; i < taskCount; i++) {
 				Task *task = &tasks[i];
