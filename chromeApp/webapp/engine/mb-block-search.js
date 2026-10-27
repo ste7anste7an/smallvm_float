@@ -439,6 +439,13 @@ class MB_BlockSearchBox {
 		return box;
 	}
 
+	static close() {
+		// Remove the box, if one is showing.
+
+		const existing = world.children.find((m) => m.searchBox instanceof MB_BlockSearchBox);
+		if (existing) existing.searchBox.dismiss();
+	}
+
 	static tookKey() {
 		// Whether the box acted on the key now reaching the IDE's listener. Enter and
 		// Escape end the edit before that listener runs, so it cannot tell by the focus.

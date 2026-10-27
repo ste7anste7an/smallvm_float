@@ -2377,6 +2377,7 @@ class MB_Editor {
 			IDE.fireEvent('board.type', IDE.board.type);
 		}
 		this.endOpenEdit();
+		MB_BlockSearchBox.close(); // its index holds the old language's words
 		await this.restoreUndoState(this.project.codeString());
 	}
 
