@@ -122,6 +122,7 @@ class FileBrowser extends FloatingWindow {
 		let div = newDiv('main'),
 			navigation = newDiv('navigation__container');
 
+		navigation.setAttribute('data-undraggable', true);
 		navigation.appendChild(this.navigationBar());
 		navigation.appendChild(this.navigator());
 
@@ -324,15 +325,21 @@ class FileBrowser extends FloatingWindow {
 		this.clearLibraryFields();
 		let lib = this.library;
 		[
-			{ label: 'Description', content: snarkdown(lib.description) },
+			{ label: 'Description', content: marked.parse(lib.description) },
 			{ label: 'Author', content: newLabel(lib.author) },
 			{ label: 'Version', content: newLabel(lib.version.join('.')) },
-			{ label: 'Dependencies', content: newLabel(lib.dependencies.join(',')) }
+			{
+				label: 'Dependencies',
+				content: lib.dependencies[0] ?
+					newLabel(lib.dependencies.join(',')) :
+					'None'
+			}
 		].forEach(each => {
 			let title = newElement('span', 'field-name');
 			title.appendChild(newLabel(each.label));
 			this.libraryDescriptionView.appendChild(title);
-			let value = newElement('span', 'field-text');
+			let value = newElement('span', 'field-value');
+			value.classList.add('__field_' + each.label.toLowerCase());
 			if (typeof each.content == 'string') {
 				value.innerHTML = each.content;
 			} else {

@@ -14,9 +14,11 @@ Sensible starting points (the hardware-SPI pins of the board plus a free CS; adj
 
 MicroBlocks pin numbers follow the labels of each board - on the ESP8266 that means the D-labels (D7 = 7, D5 = 5, D8 = 8); on ESP32 and Pico they are the GPIO numbers.
 
-Coordinates: x = 1..(8 * modules) left to right, y = 1..8 top to bottom. Text uses the built-in MicroBlocks font via [misc:shapeforChar].
+Coordinates: `x = 1..(8 * modules)` left to right, `y = 1..8` top to bottom. Text uses the built-in MicroBlocks font via [misc:shapeforChar].
 
-ORIENTATION: use "MAX7219 rotation _" (0/90/180/270) to match how the panel is mounted. 0 and 180 keep the full (8*modules) x 8 canvas (180 = upside-down); 90/270 give a tall 8 x (8*modules) canvas, handy for pixel graphics on a vertically-mounted strip (only one character of text fits across). Separately, cheap 4-in-1 (FC16) panels are often wired mirrored: use "MAX7219 flip horizontal _" / "MAX7219 flip vertical _" to correct per-module mirroring (flip horizontal defaults ON, which suits the common 4-in-1). For panels whose modules are out of order on the chain, see the KNOB comments inside "MAX7219 show".'
+ORIENTATION: use "MAX7219 rotation _" (0/90/180/270) to match how the panel is
+mounted. 0 and 180 keep the full `(8*modules) x 8 canvas` (180 = upside-down);
+`90/270` give a tall `8 x (8*modules)` canvas, handy for pixel graphics on a vertically-mounted strip (only one character of text fits across). Separately, cheap 4-in-1 (FC16) panels are often wired mirrored: use "MAX7219 flip horizontal _" / "MAX7219 flip vertical _" to correct per-module mirroring (flip horizontal defaults ON, which suits the common 4-in-1). For panels whose modules are out of order on the chain, see the KNOB comments inside "MAX7219 show".'
 variables _max7219_buf _max7219_count _max7219_width _max7219_din _max7219_clk _max7219_cs _max7219_flipH _max7219_flipV _max7219_rot _max7219_rows _max7219_cols _max7219_serp _max7219_rowFlip _max7219_zx _max7219_zy _max7219_zw _max7219_zh _max7219_ztext _max7219_zeffect _max7219_zspeed _max7219_zphase _max7219_zcount
 choices m7align left right center
 choices m7rotation '0' '90' '180' '270'

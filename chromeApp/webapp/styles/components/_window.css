@@ -323,6 +323,12 @@
 					}
 					.field-value {
 						display: block;
+						&.__field_description {
+							ul {
+								list-style: circle;
+								padding-left: 1em;
+							}
+						}
 					}
 				}
 				.navigation__list, .description {
