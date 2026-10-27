@@ -25,6 +25,8 @@ class FileBrowser extends FloatingWindow {
 			className: 'browser'
 		});
 
+		this.markdown = new MiniGFM();
+
 		this.extensions = extensionList;
 		this.forLibraries = forLibraries;
 		this.topDir = '';
@@ -37,7 +39,8 @@ class FileBrowser extends FloatingWindow {
 		
 		if (this.extensions &&
 				(this.extensions.includes('.ubl') ||
-					this.extensions.includes('.ubp'))
+					this.extensions.includes('.ubp') ||
+					this.extensions.includes('.gpp'))
 		) {
 			this.folderTranslationPrefix = 'folder;';
 		}
@@ -323,16 +326,21 @@ class FileBrowser extends FloatingWindow {
 		this.clearLibraryFields();
 		let lib = this.library;
 		[
-			{ label: 'Description', text: lib.description },
-			{ label: 'Author', text: lib.author },
-			{ label: 'Version', text: lib.version.join('.') },
-			{ label: 'Dependencies', text: lib.dependencies.join(',') }
+			{ label: 'Description', content: this.markdown.parse(lib.description) },
+			{ label: 'Author', content: newLabel(lib.author) },
+			{ label: 'Version', content: newLabel(lib.version.join('.')) },
+			{ label: 'Dependencies', content: newLabel(lib.dependencies.join(',')) }
 		].forEach(each => {
 			let title = newElement('span', 'field-name');
 			title.appendChild(newLabel(each.label));
 			this.libraryDescriptionView.appendChild(title);
 			let value = newElement('span', 'field-text');
-			value.appendChild(newLabel(each.text));
+			if (typeof each.content == 'string') {
+				value.innerHTML = each.content;
+			} else {
+				// assume DOM element
+				value.appendChild(each.content);
+			}
 			this.libraryDescriptionView.appendChild(value);
 		});
 	}
