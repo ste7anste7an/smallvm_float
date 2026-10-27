@@ -245,7 +245,14 @@ Icon.forSelector = function (selector, html = 'button') {
 
 Icon.forUrl = function (url, html = 'button') {
 	let icon = document.createElement(html);
-	fetch(url).then(res => res.text()).then(text => icon.innerHTML = text);
+	if (Icon.cache[url]) {
+		icon.innerHTML = Icon.cache[url];
+	} else {
+		fetch(url).then(res => res.text()).then(text => {
+			icon.innerHTML = text;
+			Icon.cache[url] = text;
+		});
+	}
 
 	return icon;
 };
