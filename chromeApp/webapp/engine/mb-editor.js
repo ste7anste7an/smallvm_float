@@ -42,6 +42,7 @@ class MB_Editor {
 		this.watchProjectVariables();
 		this.blockSize = 125; // a fresh profile draws at GP's default block size
 		this.autosave = (typeof MB_Autosave === 'function') ? new MB_Autosave(this) : null;
+		this.boardTurn = Promise.resolve(); // what erases or downloads a project takes turns on the board
 	}
 
 	open(world) {
@@ -1498,7 +1499,7 @@ class MB_Editor {
 		IDE.spinner.show('Fetching...');
 		if (!(await this.importLibraryFromUrl(url))) return;
 		if (picker) picker.removeFromOwner(); // can be removed when the DOM window is finalized
-		await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+		await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad()); // a connected board takes the new chunks
 		IDE.spinner.hide();
 		return url;
 	}
@@ -1552,7 +1553,7 @@ class MB_Editor {
 			return;
 		}
 		if (await this.importLibraryFromString(data, filePath)) {
-			await this.codeManager.saveAllChunksAfterLoad(); // a connected board takes the new chunks
+			await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad()); // a connected board takes the new chunks
 		}
 	}
 
@@ -2590,7 +2591,9 @@ class MB_Editor {
 
 	async newProject() {
 		if (!(await this.canReplaceCurrentProject())) return;
-		this.clearProject();
+		// A connect's download still running would carry on into the board this erases.
+		// An erase that fails is reported, and New still goes on.
+		await this.withBoardTurn(() => this.clearProject().catch((e) => this.reportUncaught(e)));
 		// A connected board's libraries come back, as they do on connect,
 		// then a new project starts on Output.
 		await MB_connection.installBoardSpecificBlocks();
@@ -2972,36 +2975,42 @@ class MB_Editor {
 		}
 		// A script line with no body has nothing to show.
 		project.main.scripts = project.main.scripts.filter((entry) => entry[2] != null);
-		// clearFirst decides whether the empty project becomes an undo state before
-		// the new one is shown, because clearProject stores one. Clearing therefore
-		// adds a step for undo to stop at. A dropped file passes false and skips it.
-		const cleared = clearFirst ? MB_editor.clearProject() : null;
-		// Without clearProject the old scripts stay on screen, and the next save keeps them.
-		if (!clearFirst) MB_editor.removeAllScripts();
-		MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
-		MB_editor.project = project;
-		MB_editor.watchProjectVariables();
-		MB_editor.project.main.scripts.forEach( (entry) => {
-			let x = entry[0], y = entry[1], script = entry[2];
-			MB_editor.addBlockToScriptsAt(script, x, y);
-		});
-		MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
-		MB_editor.projectName = name;
-		MB_connection.setCodeManager(MB_editor.codeManager);
-		MB_editor.updateProjectProperties();
+		// A connect's download still running would carry on into the board this one is sent to.
+		const endTurn = await this.takeBoardTurn();
+		try {
+			// clearFirst decides whether the empty project becomes an undo state before
+			// the new one is shown, because clearProject stores one. Clearing therefore
+			// adds a step for undo to stop at. A dropped file passes false and skips it.
+			const cleared = clearFirst ? MB_editor.clearProject() : null;
+			// Without clearProject the old scripts stay on screen, and the next save keeps them.
+			if (!clearFirst) MB_editor.removeAllScripts();
+			MB_editor.saveNeeded = false; // don't save scripts while project is loading, as GP does
+			MB_editor.project = project;
+			MB_editor.watchProjectVariables();
+			MB_editor.project.main.scripts.forEach( (entry) => {
+				let x = entry[0], y = entry[1], script = entry[2];
+				MB_editor.addBlockToScriptsAt(script, x, y);
+			});
+			MB_editor.codeManager = new MB_CodeManager(MB_editor.project);
+			MB_editor.projectName = name;
+			MB_connection.setCodeManager(MB_editor.codeManager);
+			MB_editor.updateProjectProperties();
 
-		// Without the erase the project that was open keeps running on the board.
-		// Awaited: the download below must not overtake the erase. clearProject
-		// has already sent one when it ran, so waiting on that is the whole of
-		// it; sending a second erases an already empty board and stops it twice.
-		await (cleared || MB_connection.clearBoardIfConnected());
-		MB_editor.updateLibraryList(); // its libraries, variables and functions reach the palette
-		console.log("Loaded:", name,
-			MB_editor.project.main.scripts.length, 'scripts,',
-			MB_editor.project.allFunctions().length, 'functions'
-		);
-		// Opening a project ends by downloading it to a connected board.
-		await MB_editor.codeManager.saveAllChunksAfterLoad();
+			// Without the erase the project that was open keeps running on the board.
+			// Awaited: the download below must not overtake the erase. clearProject
+			// has already sent one when it ran, so waiting on that is the whole of
+			// it; sending a second erases an already empty board and stops it twice.
+			await (cleared || MB_connection.clearBoardIfConnected());
+			MB_editor.updateLibraryList(); // its libraries, variables and functions reach the palette
+			console.log("Loaded:", name,
+				MB_editor.project.main.scripts.length, 'scripts,',
+				MB_editor.project.allFunctions().length, 'functions'
+			);
+			// Opening a project ends by downloading it to a connected board.
+			await MB_editor.codeManager.saveAllChunksAfterLoad();
+		} finally {
+			endTurn();
+		}
 		// Keep the opened project as the state an edit can undo back to.
 		MB_editor.storeUndoState();
 		// Last, for the same reason as in clearProject: loading the project
@@ -3086,7 +3095,7 @@ class MB_Editor {
 		if (name.endsWith('.ubp') || name.endsWith('.ubp.txt')) await this.openProjectFromString(data, fileName, false);
 		else if (name.endsWith('.ubl')) {
 			if (await this.importLibraryFromString(data, fileName)) {
-				await this.codeManager.saveAllChunksAfterLoad();
+				await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad());
 			}
 		}
 		else if (name.endsWith('.csv')) this.importLoggedData(data);
@@ -3144,7 +3153,9 @@ class MB_Editor {
 		}
 		if (fileName.toLowerCase().endsWith('.ubl')) {
 			// Given the address, the library keeps it as the source the reload verb reads.
-			if (await this.importLibraryFromString(data, address)) await this.codeManager.saveAllChunksAfterLoad();
+			if (await this.importLibraryFromString(data, address)) {
+				await this.withBoardTurn(() => this.codeManager.saveAllChunksAfterLoad());
+			}
 		} else if (fileName.toLowerCase().endsWith('.ubp')) {
 			await this.openProjectFromString(data, fileName, clearFirst);
 		} else {
@@ -3238,6 +3249,8 @@ class MB_Editor {
 	async justConnected() {
 		// A blank project erases the board below, so a restore is answered first.
 		if (this.autosave) await this.autosave.offer;
+		// Half downloaded, an open's project looks like a different one, and is erased under it.
+		const endTurn = await this.takeBoardTurn();
 		try {
 			if (this.readFromBoard) {
 				this.readFromBoard = false;
@@ -3259,6 +3272,28 @@ class MB_Editor {
 			}
 		} catch (e) {
 			this.reportError(e);
+		} finally {
+			endTurn();
+		}
+	}
+
+	async takeBoardTurn() {
+		// Wait for the open, connect, New or import already erasing or downloading
+		// to the board, then answer the function that ends this caller's turn.
+		const previous = this.boardTurn;
+		let endTurn;
+		this.boardTurn = new Promise((resolve) => { endTurn = resolve; });
+		await previous;
+		return endTurn;
+	}
+
+	async withBoardTurn(action) {
+		// Run action in a turn of its own, as above, and answer what it answers.
+		const endTurn = await this.takeBoardTurn();
+		try {
+			return await action();
+		} finally {
+			endTurn();
 		}
 	}
 
@@ -3267,7 +3302,7 @@ class MB_Editor {
 		// wait for the NEXT board to connect. A board that is already connected
 		// is not read; justConnected does the reading, on the next connect.
 		if (!(await this.canReplaceCurrentProject())) return;
-		this.clearProject();
+		await this.withBoardTurn(() => this.clearProject().catch((e) => this.reportUncaught(e))); // as in newProject
 		this.updateLibraryList(); // no libraries left, so cat;Control
 		this.readFromBoard = true;
 		this.inform('Connect board to proceed.');
