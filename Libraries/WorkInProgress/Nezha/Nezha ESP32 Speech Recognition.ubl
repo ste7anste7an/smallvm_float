@@ -7,7 +7,7 @@ description 'Speech recognition'
 
   spec ' ' 'nezha_SR_Enable' 'enable speech recognition _' 'menu.nezha_SR_Language' 'CN'
   spec ' ' '[elfreaks:SR_Disable]' 'disable speech recognition'
-  spec ' ' 'nezha_SR_Register' 'when _ is recognized send broadcast _' 'str str' '' ''
+  spec ' ' 'nezha_SR_Register' 'when _ recognized broadcast _' 'str str' '' ''
 
 to '_nezha_SR_ParseLanguage' language {
   if (or (language == 'CN') (language == '中文')) {
