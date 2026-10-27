@@ -474,8 +474,10 @@ InputSlotMorph.prototype.mouseClickLeft = function (pos) {
 };
 
 InputSlotMorph.prototype.userMenu = function () {
-	// A right-click on a slot opens nothing, and the hand looks no further up for a menu.
-	return chromeDrawnMenu;
+	// A right-click on a slot opens nothing, and the hand looks no further up for a menu,
+	// unless its block can insert a slot before it or delete it.
+	const items = this.slotEditItems();
+	return items.length ? chromeMenuFor(this.world(), items) : chromeDrawnMenu;
 };
 
 InputSlotMorph.prototype.reactToEdit = function () {
