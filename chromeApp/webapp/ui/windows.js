@@ -183,9 +183,9 @@ class FloatingWindow extends HTMLElement {
 		// first button is always the OK button
 		let defaultButton = this.querySelector('.window__buttons button');
 		this.onkeydown = (e) => {
-			e.preventDefault();
 			if (e.key == 'Enter' && defaultButton) {
 				defaultButton.click();
+				e.preventDefault();
 			} else if (e.key == 'Escape') {
 				this.remove();
 			}
