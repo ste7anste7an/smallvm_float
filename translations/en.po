@@ -4163,6 +4163,14 @@ msgstr "yellow"
 msgid "green"
 msgstr "green"
 
+#. Color name input.
+msgid "cyan"
+msgstr "cyan"
+
+#. Color name input.
+msgid "magenta"
+msgstr "magenta"
+
 #. Generic robot direction input. Used in robot libraries
 msgid "forward"
 msgstr "forward"
@@ -8776,6 +8784,18 @@ msgstr "Report a byte array containing the UTF-8 bytes of the given string."
 msgid "Report the number of words of memory available. Stop button frees up memory."
 msgstr "Report the number of words of memory available. Stop button frees up memory."
 
+#. Library folder
+msgid "folder;Nezha"
+msgstr "folder;Nezha"
+
+#. Library folder
+msgid "folder;Planet X"
+msgstr "folder;Planet X"
+
+#. Library name
+msgid "Nezha ESP32 Motor"
+msgstr "Nezha ESP32 Motor"
+
 #. Nezha ESP32 Motor library choice
 msgid "low"
 msgstr "low"
@@ -8864,6 +8884,10 @@ msgstr "start motor _ speed _ % direction _"
 msgid "stop motor _"
 msgstr "stop motor _"
 
+#. Library name
+msgid "Nezha ESP32 Speech Recognition"
+msgstr "Nezha ESP32 Speech Recognition"
+
 #. Nezha ESP32 Speech Recognition library choice
 msgid "CN"
 msgstr "CN"
@@ -8883,3 +8907,444 @@ msgstr "enable speech recognition _"
 #. Nezha ESP32 Speech Recognition library block
 msgid "when _ recognized broadcast _"
 msgstr "when _ recognized broadcast _"
+
+#. Library name
+msgid "Planet X Color"
+msgstr "Planet X Color"
+
+#. Planet X Color library block
+msgid "color sensor detected _ ?"
+msgstr "color sensor detected _ ?"
+
+#. Planet X Color library block
+msgid "color sensor hue (0-360)"
+msgstr "color sensor hue (0-360)"
+
+#. Library name
+msgid "Planet X Gesture"
+msgstr "Planet X Gesture"
+
+#. Planet X Gesture library choice
+msgid "up"
+msgstr "up"
+
+#. Planet X Gesture library choice
+msgid "down"
+msgstr "down"
+
+#. Planet X Gesture library choice
+msgid "wave"
+msgstr "wave"
+
+#. Planet X Gesture library block
+msgid "initialize gesture sensor"
+msgstr "initialize gesture sensor"
+
+#. Planet X Gesture library block
+msgid "gesture sensor detected _ ?"
+msgstr "gesture sensor detected _ ?"
+
+#. Library name
+msgid "Planet X Speech"
+msgstr "Planet X Speech"
+
+#. Planet X Speech library choice
+msgid "hello Xiaoen"
+msgstr "hello Xiaoen"
+
+#. Planet X Speech library choice
+msgid "turn headlights on"
+msgstr "turn headlights on"
+
+#. Planet X Speech library choice
+msgid "turn headlights off"
+msgstr "turn headlights off"
+
+#. Planet X Speech library choice
+msgid "move forward"
+msgstr "move forward"
+
+#. Planet X Speech library choice
+msgid "move backward"
+msgstr "move backward"
+
+#. Planet X Speech library choice
+msgid "line-tracking mode"
+msgstr "line-tracking mode"
+
+#. Planet X Speech library choice
+msgid "obstacle-avoidance mode"
+msgstr "obstacle-avoidance mode"
+
+#. Planet X Speech library choice
+msgid "park"
+msgstr "park"
+
+#. Planet X Speech library choice
+msgid "start device"
+msgstr "start device"
+
+#. Planet X Speech library choice
+msgid "stop device"
+msgstr "stop device"
+
+#. Planet X Speech library choice
+msgid "pause operation"
+msgstr "pause operation"
+
+#. Planet X Speech library choice
+msgid "resume operation"
+msgstr "resume operation"
+
+#. Planet X Speech library choice
+msgid "increase level"
+msgstr "increase level"
+
+#. Planet X Speech library choice
+msgid "decrease level"
+msgstr "decrease level"
+
+#. Planet X Speech library choice
+msgid "play music"
+msgstr "play music"
+
+#. Planet X Speech library choice
+msgid "stop music"
+msgstr "stop music"
+
+#. Planet X Speech library choice
+msgid "next track"
+msgstr "next track"
+
+#. Planet X Speech library choice
+msgid "run function one"
+msgstr "run function one"
+
+#. Planet X Speech library choice
+msgid "run function two"
+msgstr "run function two"
+
+#. Planet X Speech library choice
+msgid "learned phrase 1"
+msgstr "learned phrase 1"
+
+#. Planet X Speech library choice
+msgid "learned phrase 2"
+msgstr "learned phrase 2"
+
+#. Planet X Speech library choice
+msgid "learned phrase 3"
+msgstr "learned phrase 3"
+
+#. Planet X Speech library choice
+msgid "learned phrase 4"
+msgstr "learned phrase 4"
+
+#. Planet X Speech library choice
+msgid "learned phrase 5"
+msgstr "learned phrase 5"
+
+#. Planet X Speech library choice
+msgid "learned phrase 6"
+msgstr "learned phrase 6"
+
+#. Planet X Speech library choice
+msgid "learned phrase 7"
+msgstr "learned phrase 7"
+
+#. Planet X Speech library choice
+msgid "learned phrase 8"
+msgstr "learned phrase 8"
+
+#. Planet X Speech library choice
+msgid "learned phrase 9"
+msgstr "learned phrase 9"
+
+#. Planet X Speech library choice
+msgid "learned phrase 10"
+msgstr "learned phrase 10"
+
+#. Planet X Speech library block
+msgid "speech recognition sensor clear learned phrases"
+msgstr "speech recognition sensor clear learned phrases"
+
+#. Planet X Speech library block
+msgid "speech recognition sensor enter learning mode"
+msgstr "speech recognition sensor enter learning mode"
+
+#. Planet X Speech library block
+msgid "speech recognition sensor heard _ ?"
+msgstr "speech recognition sensor heard _ ?"
+
+#. Planet X Speech library block
+msgid "speech recognition sensor current code"
+msgstr "speech recognition sensor current code"
+
+#. Library name
+msgid "Planet X AI Lens"
+msgstr "Planet X AI Lens"
+
+#. Planet X AI Lens library choice
+msgid "x coordinate"
+msgstr "x coordinate"
+
+#. Planet X AI Lens library choice
+msgid "y coordinate"
+msgstr "y coordinate"
+
+#. Planet X AI Lens library choice
+msgid "size"
+msgstr "size"
+
+#. Planet X AI Lens library choice
+msgid "confidence"
+msgstr "confidence"
+
+#. Planet X AI Lens library choice
+msgid "ball ID"
+msgstr "ball ID"
+
+#. Planet X AI Lens library choice
+msgid "color ID"
+msgstr "color ID"
+
+#. Planet X AI Lens library choice
+msgid "width"
+msgstr "width"
+
+#. Planet X AI Lens library choice
+msgid "height"
+msgstr "height"
+
+#. Planet X AI Lens library choice
+msgid "face ID"
+msgstr "face ID"
+
+#. Planet X AI Lens library choice
+msgid "card recognition"
+msgstr "card recognition"
+
+#. Planet X AI Lens library choice
+msgid "face recognition"
+msgstr "face recognition"
+
+#. Planet X AI Lens library choice
+msgid "ball recognition"
+msgstr "ball recognition"
+
+#. Planet X AI Lens library choice
+msgid "line tracking"
+msgstr "line tracking"
+
+#. Planet X AI Lens library choice
+msgid "color recognition"
+msgstr "color recognition"
+
+#. Planet X AI Lens library choice
+msgid "feature learning"
+msgstr "feature learning"
+
+#. Planet X AI Lens library choice
+msgid "ID1"
+msgstr "ID1"
+
+#. Planet X AI Lens library choice
+msgid "ID2"
+msgstr "ID2"
+
+#. Planet X AI Lens library choice
+msgid "ID3"
+msgstr "ID3"
+
+#. Planet X AI Lens library choice
+msgid "ID4"
+msgstr "ID4"
+
+#. Planet X AI Lens library choice
+msgid "ID5"
+msgstr "ID5"
+
+#. Planet X AI Lens library choice
+msgid "offset angle"
+msgstr "offset angle"
+
+#. Planet X AI Lens library choice
+msgid "offset distance"
+msgstr "offset distance"
+
+#. Planet X AI Lens library choice
+msgid "line length"
+msgstr "line length"
+
+#. Planet X AI Lens library choice
+msgid "mouse"
+msgstr "mouse"
+
+#. Planet X AI Lens library choice
+msgid "micro:bit"
+msgstr "micro:bit"
+
+#. Planet X AI Lens library choice
+msgid "ruler"
+msgstr "ruler"
+
+#. Planet X AI Lens library choice
+msgid "pear"
+msgstr "pear"
+
+#. Planet X AI Lens library choice
+msgid "boat"
+msgstr "boat"
+
+#. Planet X AI Lens library choice
+msgid "apple"
+msgstr "apple"
+
+#. Planet X AI Lens library choice
+msgid "car"
+msgstr "car"
+
+#. Planet X AI Lens library choice
+msgid "pen"
+msgstr "pen"
+
+#. Planet X AI Lens library choice
+msgid "airplane"
+msgstr "airplane"
+
+#. Planet X AI Lens library choice
+msgid "clock"
+msgstr "clock"
+
+#. Planet X AI Lens library choice
+msgid "grapes"
+msgstr "grapes"
+
+#. Planet X AI Lens library choice
+msgid "cup"
+msgstr "cup"
+
+#. Planet X AI Lens library choice
+msgid "turn around"
+msgstr "turn around"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains _ ball?"
+msgstr "AI camera image contains _ ball?"
+
+#. Planet X AI Lens library block
+msgid "AI camera ball _ value"
+msgstr "AI camera ball _ value"
+
+#. Planet X AI Lens library block
+msgid "AI camera ball count"
+msgstr "AI camera ball count"
+
+#. Planet X AI Lens library block
+msgid "AI camera capture image"
+msgstr "AI camera capture image"
+
+#. Planet X AI Lens library block
+msgid "AI camera any card _ value"
+msgstr "AI camera any card _ value"
+
+#. Planet X AI Lens library block
+msgid "AI camera card count"
+msgstr "AI camera card count"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains a ball?"
+msgstr "AI camera image contains a ball?"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains a face?"
+msgstr "AI camera image contains a face?"
+
+#. Planet X AI Lens library block
+msgid "AI camera clear learned objects"
+msgstr "AI camera clear learned objects"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains _ color card?"
+msgstr "AI camera image contains _ color card?"
+
+#. Planet X AI Lens library block
+msgid "AI camera color-card _ value"
+msgstr "AI camera color-card _ value"
+
+#. Planet X AI Lens library block
+msgid "AI camera color-card count"
+msgstr "AI camera color-card count"
+
+#. Planet X AI Lens library block
+msgid "AI camera face _ value"
+msgstr "AI camera face _ value"
+
+#. Planet X AI Lens library block
+msgid "AI camera face count"
+msgstr "AI camera face count"
+
+#. Planet X AI Lens library block
+msgid "AI camera learn object in view as _"
+msgstr "AI camera learn object in view as _"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains letter card _ ?"
+msgstr "AI camera image contains letter card _ ?"
+
+#. Planet X AI Lens library block
+msgid "AI camera black-line _ value"
+msgstr "AI camera black-line _ value"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains black line offset _ ?"
+msgstr "AI camera image contains black line offset _ ?"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains number card _ ?"
+msgstr "AI camera image contains number card _ ?"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains object _ ?"
+msgstr "AI camera image contains object _ ?"
+
+#. Planet X AI Lens library block
+msgid "AI camera object _ confidence"
+msgstr "AI camera object _ confidence"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains _ card?"
+msgstr "AI camera image contains _ card?"
+
+#. Planet X AI Lens library block
+msgid "AI camera switch function to _"
+msgstr "AI camera switch function to _"
+
+#. Planet X AI Lens library block
+msgid "AI camera image contains traffic sign card _ ?"
+msgstr "AI camera image contains traffic sign card _ ?"
+
+#. Library name
+msgid "Planet X AI Lens Pro"
+msgstr "Planet X AI Lens Pro"
+
+#. Library name
+msgid "Planet X Display"
+msgstr "Planet X Display"
+
+#. Library name
+msgid "Planet X Execute"
+msgstr "Planet X Execute"
+
+#. Library name
+msgid "Planet X Input"
+msgstr "Planet X Input"
+
+#. Library name
+msgid "Planet X Wireless"
+msgstr "Planet X Wireless"
+
+#. Library name
+msgid "Planet X Support"
+msgstr "Planet X Support"
+
