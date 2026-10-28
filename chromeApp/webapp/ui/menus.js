@@ -513,7 +513,7 @@ Menus.popUpFromDescriptor = function (
 			? { x: event.clientX, y: event.clientY }
 			: triggerElement.getClientRects()[0];
 
-	event.preventDefault();
+	if (event) { event.preventDefault(); }
 
 	nav.trigger = triggerElement;
 	container.appendChild(nav);
