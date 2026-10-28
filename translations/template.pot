@@ -8937,10 +8937,6 @@ msgid "wave"
 msgstr ""
 
 #. Planet X Gesture library block
-msgid "initialize gesture sensor"
-msgstr ""
-
-#. Planet X Gesture library block
 msgid "gesture sensor detected _ ?"
 msgstr ""
 
