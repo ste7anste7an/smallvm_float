@@ -1429,4 +1429,5 @@ void processMessage() {
 	} else {
 		skipToStartByteAfter(1); // bad message, probably due to dropped bytes
 	}
+	sendData(); // try to send the reply now, before the VM can nap
 }
