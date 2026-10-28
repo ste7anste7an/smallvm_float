@@ -8775,3 +8775,111 @@ msgstr ""
 #. Tip Bar text for a block (at the bottom of the IDE, gives info on the currently hovered block or input)
 msgid "Report the number of words of memory available. Stop button frees up memory."
 msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "low"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "medium"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "high"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "mm"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "counterclockwise"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "shortest path"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "no wait"
+msgstr ""
+
+#. Nezha ESP32 Motor library choice
+msgid "wait until done"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "read motor _ absolute angle (degrees)"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "read motor _ relative angle (degrees)"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "read motor _ speed (degrees/sec)"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "turn motor _ speed _ % direction _ to absolute angle _"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "turn motor _ speed _ % direction _ for _ _"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "reset motor _ position"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "drive robot at _ % speed _ with _ acceleration for _ _"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "run robot left wheel speed _ % right wheel speed _ %"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "set robot left wheel _ right wheel _"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "set robot wheel diameter _ mm"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "stop robot"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "turn robot at _ % speed with _ acceleration by _ degrees"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "start motor _ speed _ % direction _"
+msgstr ""
+
+#. Nezha ESP32 Motor library block
+msgid "stop motor _"
+msgstr ""
+
+#. Nezha ESP32 Speech Recognition library choice
+msgid "CN"
+msgstr ""
+
+#. Nezha ESP32 Speech Recognition library choice
+msgid "EN"
+msgstr ""
+
+#. Nezha ESP32 Speech Recognition library block
+msgid "disable speech recognition"
+msgstr ""
+
+#. Nezha ESP32 Speech Recognition library block
+msgid "enable speech recognition _"
+msgstr ""
+
+#. Nezha ESP32 Speech Recognition library block
+msgid "when _ recognized broadcast _"
+msgstr ""
