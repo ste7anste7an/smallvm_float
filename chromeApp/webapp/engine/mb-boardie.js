@@ -21,7 +21,7 @@ GP.boardie = {
 		// The VM clears the screen when it resets. Boardie may be on another origin,
 		// so this window cannot reach its canvas.
 		win.postMessage(new Uint8Array([ 0xFA, 0x0F, 3 ]), '*'); // system reset w/ Boardie option
-		win.postMessage(new Uint8Array([ 0xFA, 0x05, 0 ]), '*'); // start all
+		win.postMessage(new Uint8Array([ 0xFA, 0x05, 1 ]), '*'); // start all; chunk type 1 means 16-bit instructions
 	},
 	buttonForCode: function (keyCode) {
 		switch (parseInt(keyCode)) {
