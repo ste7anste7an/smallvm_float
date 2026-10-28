@@ -220,6 +220,11 @@ MB_Firmware.installHexOrUF2File = async function (boardName, fromMenu) {
 
 MB_Firmware.installDFUFirmware = function (boardName) {
 	// DFUpload asks the user to put the board in DFU mode and flashes it over WebUSB.
+	if ((typeof navigator === 'undefined') || !navigator.usb) {
+		MB_editor.inform(localized('Installing firmware on this board needs WebUSB, which only Chrome and Edge support. You can still program the board from this browser once it has MicroBlocks firmware.'),
+			localized('Firmware Install'));
+		return;
+	}
 	MB_connection.disconnect();
 	DFUpload.flashBoard(boardName);
 }
