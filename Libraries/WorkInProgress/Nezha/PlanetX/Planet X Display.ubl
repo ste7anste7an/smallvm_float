@@ -1,6 +1,6 @@
 module 'Planet X Display' Output
 author 'Elecfreaks Team'
-version 2 2
+version 2 3 
 depends '_Planet X Support' 
 choices planetXNeoColor red orange yellow green blue indigo violet purple white black 
 choices planetXNeoMode 'RGB(GRB order)' RGBW 'RGB(RGB order)' 
@@ -35,10 +35,11 @@ variables _planetX_tmClockPin _planetX_tmDataPin _planetX_tmBrightness _planetX_
   spec ' ' 'planetX_neopixelShift' 'shift rainbow LED _' 'num' 1
   spec ' ' 'planetX_neopixelRotate' 'rotate rainbow LED _' 'num' 1
   spec ' ' 'planetX_neopixelClear' 'clear rainbow LED'
-  spec 'r' 'planetX_neopixelRGB' 'generate RGB color _ _ _' 'num num num' 255 0 0
-  spec 'r' 'planetX_neopixelHSL' 'generate HSV color _ _ _' 'num num num' 180 100 50
-  spec 'r' 'planetX_neopixelColor' 'rainbow LED color _' 'menu.planetXNeoColor' 'red'
   spec ' ' 'planetX_neopixelRange' 'rainbow LED range start _ length _' 'num num' 1 5
+  space
+  spec 'r' 'planetX_neopixelRGB' 'color r _ g _ b _ (0-255)' 'num num num' 255 0 0
+  spec 'r' 'planetX_neopixelHSL' 'color hue _ (0-360) saturation _ % brightness _ %' 'num num num' 180 100 50
+  spec 'r' 'planetX_neopixelColor' 'rainbow LED color _' 'menu.planetXNeoColor' 'red'
   space
   spec ' ' 'planetX_oledShowText' 'OLED line _ show text _' 'num str' 1 'Hello'
   spec ' ' 'planetX_oledShowNumber' 'OLED line _ show number _' 'num num' 2 123456
@@ -48,16 +49,21 @@ variables _planetX_tmClockPin _planetX_tmDataPin _planetX_tmBrightness _planetX_
   spec ' ' 'planetX_matrixEmoji' '5x5 matrix display emoji _' 'menu.planetXMatrixEmoji' 'smile'
   spec ' ' 'planetX_matrixRefresh' 'refresh matrix display'
   spec ' ' 'planetX_matrixClear' 'clear matrix display'
+  space
   spec 'r' '_planetX_colorFromRGB' '_planetX_colorFromRGB _ _ _' 'auto auto auto' 0 0 0
+  spec ' ' '_planetX_neopixelRainbow' '_planetX_neopixelRainbow _ _' 'auto auto' 0 0
+  space
   spec 'r' '_planetX_matrixCmd' '_planetX_matrixCmd _' 'auto' 0
   spec 'r' '_planetX_matrixEnsure' '_planetX_matrixEnsure'
-  spec 'r' '_planetX_matrixSetPoint' '_planetX_matrixSetPoint _ _' 'auto auto' 0 0
-  spec 'r' '_planetX_matrixSetRow' '_planetX_matrixSetRow _ _' 'auto auto' 0 0
-  spec 'r' '_planetX_matrixShow' '_planetX_matrixShow'
+  spec ' ' '_planetX_matrixSetPoint' '_planetX_matrixSetPoint _ _' 'auto auto' 0 0
+  spec ' ' '_planetX_matrixSetRow' '_planetX_matrixSetRow _ _' 'auto auto' 0 0
+  spec ' ' '_planetX_matrixShow' '_planetX_matrixShow'
   spec ' ' '_planetX_matrixShow5x5' '_planetX_matrixShow5x5 _ _ _ _ _' 'auto auto auto auto auto' 0 0 0 0 0
+  space
   spec ' ' '_planetX_npEnsure' '_planetX_npEnsure'
   spec 'r' '_planetX_npIndex' '_planetX_npIndex _' 'auto' 0
   spec ' ' '_planetX_npUpdate' '_planetX_npUpdate'
+  space
   spec ' ' '_planetX_tmDelay' '_planetX_tmDelay'
   spec ' ' '_planetX_tmEnsure' '_planetX_tmEnsure'
   spec ' ' '_planetX_tmRefresh' '_planetX_tmRefresh'
@@ -67,7 +73,7 @@ variables _planetX_tmClockPin _planetX_tmDataPin _planetX_tmBrightness _planetX_
   spec ' ' '_planetX_tmStop' '_planetX_tmStop'
   spec 'r' '_planetX_tmValidDigitIndex' '_planetX_tmValidDigitIndex _' 'auto' 0
   spec ' ' '_planetX_tmWriteByte' '_planetX_tmWriteByte _' 'auto' 0
-  spec 'r' '_planetX_i2cPortExists' '_planetX_i2cPortExists _' 'auto' 0
+  space
   spec 'r' '_planetX_i2cPortWrite' '_planetX_i2cPortWrite _ _' 'auto auto' 0 0
   spec ' ' '_planetX_oledClearCore' '_planetX_oledClearCore'
   spec 'r' '_planetX_oledCmd' '_planetX_oledCmd _' 'auto' 0
@@ -86,21 +92,12 @@ variables _planetX_tmClockPin _planetX_tmDataPin _planetX_tmBrightness _planetX_
   spec 'r' '_planetX_oledWakeCore' '_planetX_oledWakeCore'
   spec ' ' '_planetX_oledWriteDataUnlocked' '_planetX_oledWriteDataUnlocked _ _' 'auto auto' 0 0
   spec 'r' '_planetX_oledWriteLineCore' '_planetX_oledWriteLineCore _ _' 'auto str' 0 ''
-  spec ' ' '_planetX_neopixelRainbow' '_planetX_neopixelRainbow _ _' 'auto auto' 0 0
 
 to '_planetX_colorFromRGB' r g b {
   r = (maximum 0 (minimum r 255))
   g = (maximum 0 (minimum g 255))
   b = (maximum 0 (minimum b 255))
   return (((r << 16) | (g << 8)) | b)
-}
-
-to '_planetX_i2cPortExists' addr {
-  if (not ('_planetX_i2cAcquire')) {return false}
-  '[sensors:i2cSetClockSpeed]' 200000
-  local 'present' ('[sensors:i2cExists]' addr)
-  '_planetX_i2cRelease'
-  return present
 }
 
 to '_planetX_i2cPortWrite' addr bytes {
