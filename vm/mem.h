@@ -126,6 +126,7 @@ typedef int * OBJ;
 // They have a 1 in their lowest bit and a signed value in their top 31 bits.
 
 #define isInt(obj) (((int) (obj)) & 1)
+#define bothInts(obj1, obj2) (((int) (obj1) & (int) (obj2)) & 1) // one test for two ints
 #define int2obj(n) ((OBJ) (((n) << 1) | 1))
 #define obj2int(obj) ((int)(obj) >> 1)
 #define zeroObj ((OBJ) 1)
