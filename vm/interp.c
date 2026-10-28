@@ -1361,14 +1361,13 @@ static inline int napIfPossible() {
 	const int napMicroSecs = 4000;
 	if (displayIsActive()) return false;
 
-	int usecs = microsecs(); // get usecs
+	uint32 usecs = microsecs(); // get usecs
 	for (int i = 0; i < taskCount; i++) {
 		Task *task = &tasks[i];
 		if (running == task->status) return false;
 		if (waiting_micros == task->status) {
-			int usecsUntilWake = task->wakeTime - usecs;
-			if (usecsUntilWake < 0) usecsUntilWake = task->wakeTime; // clock wrap; use wakeTime as estimate
-			if (usecsUntilWake < napMicroSecs) return false;
+			if ((usecs - task->wakeTime) < RECENT) return false; // task is ready to run
+			if ((task->wakeTime - usecs) < napMicroSecs) return false; // task is ready to run soon
 		}
 	}
 	#if defined(GNUBLOCKS)
