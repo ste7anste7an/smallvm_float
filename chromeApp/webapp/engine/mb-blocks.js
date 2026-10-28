@@ -1801,6 +1801,9 @@ BlockMorph.prototype.chromeMenu = function () {
 		items.push(['extract block', () => this.userExtractJustThis(), 'pull out this block']);
 	}
 	items.push('-');
+	if (this.parent instanceof BlockMorph) {
+		items.push(...this.parent.slotItemsFor(this));
+	}
 
 	items.push('-');
 	if (this.canExpand()) {
@@ -2026,6 +2029,66 @@ BlockMorph.prototype.contract = function () {
 		const x = (keep instanceof CommandBlockMorph) ? blockRight : scriptRight;
 		scripts.addClearOfScripts(keep, new Point(x + scripts.cleanUpSpacing, keep.top()));
 	}
+}
+
+// BlockMorph inserting and deleting slots
+
+BlockMorph.prototype.repeatedSlotSpec = function () {
+	// The slot spec of the section my spec repeats, if that section has one slot, else null.
+	const sections = this.blockSpec.split(':').map(s => s.trim());
+	if ((sections.length < 3) || (sections.at(-1) !== '...')) return null;
+	const slots = sections.at(-2).split(/\s+/).filter(w => MB_Specs.isSlotSpec(w));
+	return (slots.length === 1) ? slots[0] : null;
+}
+
+BlockMorph.prototype.variableInputs = function () {
+	// My last inputs that share the repeated slot spec, so any one can take another's place.
+	const spec = this.repeatedSlotSpec();
+	if (!spec) return [];
+	const inputs = this.inputs();
+	let first = inputs.length;
+	while ((first > 0) && (this.slotSpecForInput(first - 1) === spec)) first--;
+	return inputs.slice(first);
+}
+
+BlockMorph.prototype.slotItemsFor = function (input) {
+	// The items that insert a slot before the given input or delete it.
+	if (!this.variableInputs().includes(input)) return [];
+	const items = [];
+	if (this.canExpand()) {
+		items.push(['insert a slot', () => { this.insertSlotBefore(input); this.scriptChanged(); }]);
+	}
+	if (this.canContract()) {
+		items.push(['delete slot', () => { this.deleteSlot(input); this.scriptChanged(); }]);
+	}
+	return items;
+}
+
+BlockMorph.prototype.insertSlotBefore = function (input) {
+	// Expand, then move the new slot into the given input's place, cleared as an edit
+	// clears it rather than showing the default expanding gave it.
+	const before = this.variableInputs(), i = before.indexOf(input);
+	if ((i < 0) || !this.canExpand()) return;
+	this.expand();
+	const slot = this.inputs().at(-1);
+	if (slot instanceof InputSlotMorph) slot.setContents((slot.isNumeric && !slot.isAlphanumeric) ? 0 : '');
+	this.reorderInputs(this.variableInputs(), [...before.slice(0, i), slot, ...before.slice(i)]);
+}
+
+BlockMorph.prototype.deleteSlot = function (input) {
+	// Move the given input to the last place and collapse, which keeps a block in it on the pane.
+	const inputs = this.variableInputs();
+	if (!inputs.includes(input) || !this.canContract()) return;
+	this.reorderInputs(inputs, [...inputs.filter(m => m !== input), input]);
+	this.contract();
+}
+
+BlockMorph.prototype.reorderInputs = function (inputs, newOrder) {
+	// Put the inputs of newOrder, in turn, in the places the given inputs hold.
+	const places = inputs.map(m => this.children.indexOf(m));
+	newOrder.forEach((m, i) => { this.children[places[i]] = m; });
+	this.cachedInputs = null;
+	this.fixLayout();
 }
 
 BlockMorph.prototype.fixElseSection = function () {
