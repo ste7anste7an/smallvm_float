@@ -2622,6 +2622,7 @@ class MB_Editor {
 		// Last before the return, because removeAllScripts above destroys blocks and
 		// each of those is an edit. An empty project has nothing to lose.
 		this.unsavedEdits = false;
+		if (this.autosave) this.autosave.replaced();
 		return cleared;
 	}
 

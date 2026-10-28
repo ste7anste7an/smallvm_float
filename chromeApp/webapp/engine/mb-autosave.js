@@ -50,6 +50,14 @@ class MB_Autosave {
 		else if (this.timer) this.writeNow(true);
 	}
 
+	replaced() {
+		// The project was replaced by an empty one, before an open or a read from the board fills it.
+		// What this page kept of the old one goes, or a reload would offer it back.
+		clearTimeout(this.timer);
+		this.timer = null;
+		this.remove(this.pageID);
+	}
+
 	async writeNow(keep = false) {
 		clearTimeout(this.timer);
 		this.timer = null;
