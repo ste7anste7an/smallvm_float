@@ -18,6 +18,10 @@
 #include "mem.h"
 #include "interp.h"
 
+#if defined(ESP32)
+	#include "soc/soc_caps.h" // SOC_MCPWM_SUPPORTED
+#endif
+
 #if defined(NEZHA_ESP32)
 	#include <NezhaMicroBlocks.h>
 #endif
@@ -2644,7 +2648,106 @@ static void setServo(int pin, int usecs) {
 	}
 }
 
+#elif defined(ESP32) && defined(SOC_MCPWM_SUPPORTED)
+
+// The MCPWM generators make each pulse in hardware, so interrupts (BLE, Flash writes)
+// cannot stretch it. Eight channels: all six of unit 0, then two of unit 1.
+
+#include "driver/mcpwm.h"
+#include "soc/gpio_sig_map.h"
+
+#define MAX_SERVOS 8
+#define UNUSED 255
+
+typedef struct {
+	mcpwm_unit_t unit;
+	mcpwm_timer_t timer;
+	mcpwm_generator_t gen;
+	int signal; // GPIO matrix output signal
+} ServoChannel;
+
+static const ServoChannel servoChannel[MAX_SERVOS] = {
+	{MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_A, PWM0_OUT0A_IDX},
+	{MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_GEN_B, PWM0_OUT0B_IDX},
+	{MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_GEN_A, PWM0_OUT1A_IDX},
+	{MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_GEN_B, PWM0_OUT1B_IDX},
+	{MCPWM_UNIT_0, MCPWM_TIMER_2, MCPWM_GEN_A, PWM0_OUT2A_IDX},
+	{MCPWM_UNIT_0, MCPWM_TIMER_2, MCPWM_GEN_B, PWM0_OUT2B_IDX},
+	{MCPWM_UNIT_1, MCPWM_TIMER_0, MCPWM_GEN_A, PWM1_OUT0A_IDX},
+	{MCPWM_UNIT_1, MCPWM_TIMER_0, MCPWM_GEN_B, PWM1_OUT0B_IDX},
+};
+
+static char esp32_servoPin[MAX_SERVOS] = {UNUSED, UNUSED, UNUSED, UNUSED, UNUSED, UNUSED, UNUSED, UNUSED};
+static char servoTimerStarted[2][3];
+static int servosRunning = false;
+
+static void esp32_releaseServo(int i) {
+	// Hold the output low, then give the pin back to ordinary GPIO so digitalWrite works.
+	int pin = esp32_servoPin[i];
+	const ServoChannel *ch = &servoChannel[i];
+	mcpwm_set_signal_low(ch->unit, ch->timer, ch->gen);
+	esp32_servoPin[i] = UNUSED;
+	if (pin == UNUSED) return;
+	digitalWrite(pin, LOW);
+	gpio_matrix_out(pin, SIG_GPIO_OUT_IDX, 0, 0);
+}
+
+static void updateServosRunning() {
+	servosRunning = false;
+	for (int i = 0; i < MAX_SERVOS; i++) {
+		if (esp32_servoPin[i] != UNUSED) servosRunning = true;
+	}
+}
+
+static void setServo(int pin, int usecs) {
+	if (inputOnlyPin(pin)) return;
+
+	if (usecs <= 0) { // turn off servo
+		for (int i = 0; i < MAX_SERVOS; i++) {
+			if (pin == esp32_servoPin[i]) esp32_releaseServo(i);
+		}
+		updateServosRunning();
+		return;
+	}
+
+	for (int i = 0; i < MAX_SERVOS; i++) {
+		if (pin == esp32_servoPin[i]) { // update the pulse width for the given pin
+			const ServoChannel *ch = &servoChannel[i];
+			mcpwm_set_duty_in_us(ch->unit, ch->timer, ch->gen, usecs);
+			gpio_matrix_out(pin, ch->signal, 0, 0); // pinMode() or analogWrite() may have taken the pin
+			return;
+		}
+	}
+
+	for (int i = 0; i < MAX_SERVOS; i++) {
+		if (UNUSED == esp32_servoPin[i]) { // found unused servo entry
+			const ServoChannel *ch = &servoChannel[i];
+			if (!servoTimerStarted[ch->unit][ch->timer]) {
+				// 50 Hz with both generators low; mcpwm_init() also starts the timer
+				mcpwm_config_t config = {50, 0, 0, MCPWM_DUTY_MODE_0, MCPWM_UP_COUNTER};
+				if (ESP_OK != mcpwm_init(ch->unit, ch->timer, &config)) return;
+				servoTimerStarted[ch->unit][ch->timer] = true;
+			}
+			mcpwm_set_duty_in_us(ch->unit, ch->timer, ch->gen, usecs);
+			mcpwm_set_duty_type(ch->unit, ch->timer, ch->gen, MCPWM_DUTY_MODE_0); // undo set_signal_low
+			gpio_matrix_out(pin, ch->signal, 0, 0);
+			esp32_servoPin[i] = pin;
+			servosRunning = true;
+			return;
+		}
+	}
+}
+
+void stopServos() {
+	for (int i = 0; i < MAX_SERVOS; i++) {
+		if (esp32_servoPin[i] != UNUSED) esp32_releaseServo(i);
+	}
+	servosRunning = false;
+}
+
 #elif defined(ESP32)
+
+// ESP32 chips without MCPWM (S2, C3): timer interrupt servos
 
 #define MAX_SERVOS 8
 #define UNUSED 255
