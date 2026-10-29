@@ -8786,11 +8786,11 @@ msgstr "Report the number of words of memory available. Stop button frees up mem
 
 #. Library folder
 msgid "folder;Nezha"
-msgstr "folder;Nezha"
+msgstr "Nezha"
 
 #. Library folder
 msgid "folder;Planet X"
-msgstr "folder;Planet X"
+msgstr "Planet X"
 
 #. Library name
 msgid "Nezha ESP32 Motor"
