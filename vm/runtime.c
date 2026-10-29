@@ -1271,7 +1271,6 @@ static void processShortMessage() {
 	case clearVarsMsg:
 		if (1 != chunkIndex) break; // ignore msg from 32-bit IDE
 		clearAllVariables();
-		memClear();
 		break;
 	case getChunkCRCMsg:
 		sendChunkCRC(chunkIndex);
