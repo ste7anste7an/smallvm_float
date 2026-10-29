@@ -880,6 +880,7 @@ class MB_CodeManager {
 		// Return true if variables have changed, false otherwise.
 		const newVarNames = this.project.allVariableNames();
 		if (this.arraysEqual(this.oldVarNames, newVarNames)) return false;
+		if (await this.saveAddedVariableNames(newVarNames)) return true;
 
 		const varCount = newVarNames.length;
 		const progressInterval = Math.max(1, Math.floor(varCount / 20));
@@ -906,6 +907,26 @@ class MB_CodeManager {
 			}
 		}
 		this.oldVarNames = newVarNames.slice();
+		this.oldVarIndices = this.project.varIndices;
+		return true;
+	}
+
+	async saveAddedVariableNames(newVarNames) {
+		// Send only the names of added variables: clearVarsMsg also clears the board's
+		// memory under the scripts still running. Answer false when all must be resent:
+		// a variable was removed, or the indices were or would be renumbered (undo, redo, 128).
+		if (!this.oldVarNames || (this.project.varIndices !== this.oldVarIndices)) return false;
+		const added = newVarNames.filter((v) => !this.oldVarNames.includes(v));
+		if (added.length !== (newVarNames.length - this.oldVarNames.length)) return false; // one was removed
+		if ((this.project.nextVarIndex + added.length) >= 128) return false;
+		for (const varName of added) {
+			const varID = this.project.indexForVar(varName);
+			if (MB_connection.isConnected()) {
+				await MB_connection.sendMsgSync('varNameMsg', varID, Array.from(new TextEncoder().encode(varName)));
+			}
+		}
+		this.oldVarNames = newVarNames.slice();
+		this.oldVarIndices = this.project.varIndices;
 		return true;
 	}
 
