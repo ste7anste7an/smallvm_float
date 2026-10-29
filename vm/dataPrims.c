@@ -166,10 +166,15 @@ OBJ primNewList(int argCount, OBJ *args) {
 
 	int count = ((argCount > 0) && isInt(args[0])) ? obj2int(args[0]) : 0;
 	if (count < 0) count = 0;
-	OBJ fillValue = (argCount > 1) ? args[1] : zeroObj;
 
-	OBJ result = newObj(ListType, count + 1, fillValue);
-	if (result) FIELD(result, 0) = int2obj(count);
+	OBJ result = newObj(ListType, count + 1, zeroObj);
+	if (!result) return result;
+	FIELD(result, 0) = int2obj(count);
+	if (argCount > 1) {
+		// read the fill value after newObj(), since a GC may have moved it
+		OBJ fillValue = args[1];
+		for (int i = 1; i <= count; i++) FIELD(result, i) = fillValue;
+	}
 	return result;
 }
 
