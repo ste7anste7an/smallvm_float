@@ -47,7 +47,7 @@ xcrun notarytool history \
   --team-id YU23V8C72W \
   --keychain-profile "NotaryTool" | head
 
-4. Local check (not useful until after processing by able)
+4. Local check (not useful until after processing by Apple)
 
   spctl --assess --verbose=4 --type execute MicroBlocks.app
 
