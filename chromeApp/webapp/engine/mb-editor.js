@@ -166,10 +166,14 @@ class MB_Editor {
 		// A block released on the world rather than on a pane, as under the tip bar, slides back
 		// to where it was picked up. A duplicate with nowhere to return to is discarded, and one
 		// grabbed again mid-slide comes back here with no hand, so it is kept in view.
+		// A definition released on a library's entry, or on My Blocks, then moves there.
 		world.reactToDropOf = (morph, hand) => {
 			if (!((morph instanceof BlockMorph) || (morph instanceof SelectedScriptsMorph))) return;
-			if (hand && hand.grabOrigin) morph.slideBackTo(hand.grabOrigin);
-			else if (hand) morph.destroy();
+			if (hand && hand.grabOrigin) {
+				const lib = (morph instanceof BlockMorph) && morph.isFunctionDefinition() && this.moduleEntryAt(hand.position());
+				const moveIt = lib ? () => this.addToLibrary(morph.definedFunctionName(), lib) : null;
+				morph.slideBackTo(hand.grabOrigin, null, null, moveIt);
+			} else if (hand) morph.destroy();
 			else {
 				this.scripts.add(morph);
 				morph.keepWithin(this.scriptsFrame);
@@ -1853,6 +1857,17 @@ class MB_Editor {
 		else this.selectLibrary(lib.moduleName);
 		this.scriptChanged();
 		this.updateProjectProperties();
+	}
+
+	moduleEntryAt(worldPoint) {
+		// The library whose entry in the left bar is at worldPoint, main for My Blocks, else null.
+		const r = world.worldCanvas.getBoundingClientRect();
+		const el = document.elementFromPoint(r.left + worldPoint.x * ZOOM, r.top + worldPoint.y * ZOOM);
+		const label = el && el.closest('.category-button')?.querySelector('l-')?.key;
+		if (!label) return null;
+		if (el.closest('[data-ide="libraries-list"]')) return this.project.libraryNamed(label) || null;
+		if (el.closest('[data-ide="categories-list"]') && (label === 'cat;My Blocks')) return this.project.main;
+		return null;
 	}
 
 	recolourCallsOf(op) {
