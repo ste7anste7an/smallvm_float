@@ -502,6 +502,7 @@ MB.clipboard.style.padding = '0';
 MB.clipboard.style.margin = '0';
 MB.clipboard.style.outline = 'none';
 MB.clipboard.style.opacity = '0';
+MB.clipboard.tabIndex = -1; // focused from code only, never a stop in the page's Tab order
 document.body.appendChild(MB.clipboard);
 
 function setGPClipboard(s) {
