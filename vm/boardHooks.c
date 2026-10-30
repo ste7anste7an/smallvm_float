@@ -92,3 +92,26 @@ int vmRequestStopAll() {
 int vmIDEConnected() {
 	return ideConnected();
 }
+
+#if defined(NEZHA_ESP32)
+
+int suspendRequested = false;
+int isSuspended = false;
+
+void vmRequestSuspend() {
+	// request suspension of VM execution and communications with IDE
+	suspendRequested = true;
+}
+
+int vmIsSuspended() {
+	// returns true when board is suspended
+	return isSuspended;
+}
+
+void vmResume() {
+	// resume normal VM execution and communications with IDE
+	suspendRequested = false;
+	isSuspended = false;
+}
+
+#endif

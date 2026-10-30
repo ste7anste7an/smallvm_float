@@ -63,6 +63,17 @@ int vmCallOnVMThread(VMThreadFunction fn, void *arg);
 int vmRequestStopAll(); // same as the IDE stop button
 int vmIDEConnected(); // true if the IDE sent a message in the last few seconds; safe from any task
 
+#if defined(NEZHA_ESP32)
+
+extern int suspendRequested;
+extern int isSuspended;
+
+void vmRequestSuspend(); // request suspension of VM execution and communications with IDE
+int vmIsSuspended(); // returns true when board is suspended
+void vmResume(); // resume normal VM execution and communications with IDE
+
+ #endif
+
 // Used by the VM itself
 
 void processVMRequests();

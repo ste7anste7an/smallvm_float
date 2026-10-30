@@ -1426,6 +1426,23 @@ void vmLoop() {
 	while (true) {
 		if (count-- < 0) {
 			// do background VM tasks once every N VM loop cycles
+			#if defined(NEZHA_ESP32)
+				void delay(uint32_t); // declare the Arduino delay() function
+
+				if (suspendRequested) {
+					// this code executes when no primitives or Flash operations are in progress
+					// TODO: shut down communictions
+					stopAllAndSoftReset();
+					suspendRequested = false;
+					isSuspended = true;
+				}
+				if (isSuspended) {
+					// when suspended just loop without doing anything
+					// the delay() call allows Nezha tasks to get most of the CPU cycles
+					delay(5);
+					continue;
+				}
+			#endif
 			processMessage();
 			checkButtons();
 			#if defined(HAS_LED_MATRIX)

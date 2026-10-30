@@ -445,6 +445,7 @@ void BLE_UART_ReceiveCallback(uint8 *data, int byteCount);
 void BLE_UART_Send(uint8 *data, int byteCount);
 
 void getMACAddress(uint8 *sixBytes);
+void clearIDECommBuffers();
 
 // Primitive Sets
 

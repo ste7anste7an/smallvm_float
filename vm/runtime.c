@@ -1430,3 +1430,16 @@ void processMessage() {
 	}
 	sendData(); // try to send the reply now, before the VM can nap
 }
+
+#if defined(NEZHA_ESP32)
+
+void clearIDECommBuffers() {
+	// Clear the receive and output buffers when suspending communications.
+
+	rcvByteCount = 0;
+	lastRcvTime = 0;
+	outBufStart = 0;
+	outBufEnd = 0;
+}
+
+#endif

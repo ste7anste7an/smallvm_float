@@ -765,3 +765,22 @@ int BLE_isEnabled() {
 	BLE_allowShutdown = false;
 	return false;
 }
+
+#if defined(NEZHA_ESP32)
+
+void suspendIDEComm() {
+	if (BLE_isEnabled()) {
+		BLE_pauseAdvertising();
+	}
+	Serial.end();
+	clearIDECommBuffers();
+}
+
+void resumeIDEComm() {
+	if (BLE_isEnabled()) {
+		BLE_resumeAdvertising();
+	}
+	Serial.begin(115200);
+}
+
+#endif
