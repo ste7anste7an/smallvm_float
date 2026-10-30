@@ -460,11 +460,12 @@ OBJ primCopyFromTo(int argCount, OBJ *args) {
 		if (endIndex > srcLen) endIndex = srcLen;
 		if (startIndex > endIndex) return newObj(ByteArrayType, 0, falseObj);
 
-		char *base = (char *) (&FIELD(src, 0));
 		int byteCount = (endIndex - startIndex) + 1;
 		int wordCount = (byteCount + 3) / 4;
 		OBJ result = newObj(ByteArrayType, wordCount, falseObj);
 		if (result) {
+			src = args[0]; // update src after possible GC
+			char *base = (char *) (&FIELD(src, 0));
 			setByteCountAdjust(result, byteCount);
 			memcpy(&FIELD(result, 0), base + startIndex - 1, byteCount);
 		}
