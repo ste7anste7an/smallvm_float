@@ -1741,6 +1741,11 @@ void turnOffPins() {
 			#elif defined(DATABOT_V3)
 				if (46 == pin) continue; // do not turn off the RGB LED enable pin
 			#endif
+			#if defined(ESP32_ORIGINAL)
+				if ((25 == pin) || (26 == pin)) dacDisable(pin);
+			#elif defined(ESP32_S2)
+				if ((17 == pin) || (18 == pin)) dacDisable(pin);
+			#endif
 			#if defined(PICO_RP2350)
 				// workaround for RP2350 chip bug; set low before switching to input
 				pinMode(pin, OUTPUT);
