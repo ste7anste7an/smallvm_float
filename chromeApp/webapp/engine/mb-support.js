@@ -176,8 +176,13 @@ function fixedCallArgs(call, rule) {
 	if (!rule.isVariadic) args.length = rule.minArgs;
 	const checked = Math.min(rule.minArgs, args.length, rule.slots.length);
 	for (let i = 0; i < checked; i++) {
-		const arg = args[i];
-		if ((arg != null) && arg.isReporter && !arg.isDefaultColour) continue;
+		let arg = args[i];
+		// The filled-in green, a swatch block while its slot took no colour.
+		if ((arg != null) && arg.isReporter && arg.isDefaultColour) {
+			const [r, g, b, alpha] = arg.args;
+			arg = args[i] = { isColor: true, r, g, b, alpha, isDefaultColour: true };
+		}
+		if ((arg != null) && arg.isReporter) continue;
 		const [type, value] = rule.slots[i];
 		// A colour slot can hold its colour as a packed number, as the bytes
 		// carry it, and a number from any other slot is not a colour.

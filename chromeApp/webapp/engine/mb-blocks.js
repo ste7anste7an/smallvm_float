@@ -2555,7 +2555,9 @@ BlockMorph.prototype.expressionForArg = function (arg) {
 	// A colour goes out spelled, so a node never holds a live Color. Only a
 	// block's colour has an alpha (0-255, as a colorSwatch writes it); the bytes carry none.
 	if (value instanceof Color) {
-		return { isColor: true, r: value.r, g: value.g, b: value.b, alpha: Math.round(value.a * 255) };
+		const node = { isColor: true, r: value.r, g: value.g, b: value.b, alpha: Math.round(value.a * 255) };
+		if (arg.isDefaultColour) node.isDefaultColour = true; // see updateCallsOf
+		return node;
 	}
 	// A slot showing a block or a symbol answers something no node can carry,
 	// and codeString never sees it. Say so rather than put it in the tree.
