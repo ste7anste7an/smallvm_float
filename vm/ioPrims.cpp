@@ -1999,10 +1999,11 @@ OBJ primAnalogRead(int argCount, OBJ *args) {
 void primAnalogWrite(OBJ *args) {
 	if (!isInt(args[0]) || !isInt(args[1])) { fail(needsIntegerError); return; }
 	int pinNum = obj2int(args[0]);
-	#if defined(USE_DIGITAL_PIN_MAP) && !defined(DUELink) && !defined(ARDUINO_ARCH_SAMD)
-		// DUELink and SAMD cases handled below
-		pinNum = mapDigitalPinNum(pinNum);
-		if (pinNum < 0) return;
+	#if (defined(USE_DIGITAL_PIN_MAP) || defined(ARDUINO_CITILAB_ED1)) && \
+		 !defined(DUELink) && !defined(ARDUINO_ARCH_SAMD)
+			// DUELink and SAMD cases handled below
+			pinNum = mapDigitalPinNum(pinNum);
+			if (pinNum < 0) return;
 	#endif
 	#if defined(ADAFRUIT_ITSYBITSY_M0)
 		if (pinNum > 25) return;
@@ -2077,7 +2078,7 @@ void primAnalogWrite(OBJ *args) {
 	#if defined(ESP32)
 		#if !defined(ESP32_S3) && !defined(ESP32_C3) && !defined(ESP32_C6) && !defined(COCUBE)
 			if ((25 == pinNum) || (26 == pinNum)) { // ESP32 and ESP32-S2 DAC pins
-				dacWrite(pinNum, (value >> 2)); // convert 10-bit to 8-bit value for ESP32 DAC
+				dacWrite(pinNum, (value >> 1)); // convert 9-bit PWM to 8-bits for ESP32 DAC
 				return;
 			}
 		#endif
