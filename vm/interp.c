@@ -1376,8 +1376,7 @@ static void runTask(Task *task) {
 #if defined(ESP32) || defined(ESP8266) || defined(GNUBLOCKS) || defined(ARDUINO_ARCH_SAMD) || \
 	defined(ARDUINO_ARCH_RP2040) || defined(PICO_RP2350)
 
-	#if !defined(ESP32_ORIGINAL) && !defined(ESP32_S3_MATRIX_PORTAL) && !defined(NEZHA_ESP32)
-		// original ESP32 fails with TG1WDT_SYS_RESET when napping
+	#if !defined(ESP32_S3_MATRIX_PORTAL) && !defined(NEZHA_ESP32)
 		// S3_MATRIX_PORTAL pixel scanning (DMA) does not work with napping enabled
 		// NEZHA_ESP32 runs background tasks that need full speed CPU so cannot nap
 

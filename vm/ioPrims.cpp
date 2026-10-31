@@ -3672,6 +3672,11 @@ static OBJ primSquareWave(int argCount, OBJ *args) {
  	#include <esp_sleep.h>
 
 	extern "C" void lightSleep(int msecs) {
+		#if defined(ESP32_ORIGINAL)
+			delay(msecs); // changing the clock to nap makes the original ESP32 drop replies or reset
+			return;
+		#endif
+
 		if (servosRunning) return; // changing clock speed messes up servo timing
 
 		int lowCPUFrequency;
