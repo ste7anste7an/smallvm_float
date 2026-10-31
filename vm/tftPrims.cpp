@@ -2282,8 +2282,6 @@ static void init_OLED(int w, int h, int flipVertical) {
 	if ((w < 32) || (w > 128) || (h < 16) || (h > 128)) return;
 	if (!tft) delete tft;
 
-	if (!hasI2CPullups()) return; // no OLED connected and no I2C pullups
-
 	const int OLED_ADDR_1 = 0x3C;
 	const int OLED_ADDR_2 = 0x3D;
 	int response = readI2CReg(OLED_ADDR_1, 0); // see if OLED responds at OLED_ADDR_1
