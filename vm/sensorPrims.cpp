@@ -478,10 +478,10 @@ static OBJ primI2cSetPins(int argCount, OBJ *args) {
 			// Needed on RP2040 to reset the I2C bus after a timeout
 			Wire.setTimeout(100, true);
 		#endif
-		wireStarted = true;
 	#else
 		return fail(primitiveNotImplemented);
 	#endif
+	wireStarted = true; // so the next I2C operation does not restart Wire on the default pins
 	return falseObj;
 }
 
