@@ -768,7 +768,7 @@ int BLE_isEnabled() {
 
 #if defined(NEZHA_ESP32)
 
-void suspendIDEComm() {
+extern "C" void suspendIDEComm() {
 	if (BLE_isEnabled()) {
 		BLE_pauseAdvertising();
 	}
@@ -776,7 +776,7 @@ void suspendIDEComm() {
 	clearIDECommBuffers();
 }
 
-void resumeIDEComm() {
+extern "C" void resumeIDEComm() {
 	if (BLE_isEnabled()) {
 		BLE_resumeAdvertising();
 	}

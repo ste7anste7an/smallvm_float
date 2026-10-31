@@ -65,6 +65,9 @@ int vmIDEConnected(); // true if the IDE sent a message in the last few seconds;
 
 #if defined(NEZHA_ESP32)
 
+void suspendIDEComm();
+void resumeIDEComm();
+
 extern int suspendRequested;
 extern int isSuspended;
 

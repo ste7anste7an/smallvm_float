@@ -1432,6 +1432,7 @@ void vmLoop() {
 				if (suspendRequested) {
 					// this code executes when no primitives or Flash operations are in progress
 					// TODO: shut down communictions
+					suspendIDEComm();
 					stopAllAndSoftReset();
 					suspendRequested = false;
 					isSuspended = true;

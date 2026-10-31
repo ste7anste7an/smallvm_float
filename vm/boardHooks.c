@@ -100,6 +100,7 @@ int isSuspended = false;
 
 void vmRequestSuspend() {
 	// request suspension of VM execution and communications with IDE
+	// actual suspension is done by the interpret loop between task executions
 	suspendRequested = true;
 }
 
@@ -109,9 +110,11 @@ int vmIsSuspended() {
 }
 
 void vmResume() {
-	// resume normal VM execution and communications with IDE
+	// resume normal VM execution and communications with IDE; start all scripts
 	suspendRequested = false;
 	isSuspended = false;
+	resumeIDEComm();
+	startAll();
 }
 
 #endif
