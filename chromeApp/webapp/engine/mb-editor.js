@@ -2215,9 +2215,11 @@ class MB_Editor {
 				type = type.split('.')[0];
 				if (('color' === type) && (value == null)) {
 					// Marked as filled in here, so a later type change replaces it;
-					// a swatch the user wrote stays.
-					value = { selector: 'colorSwatch', args: [35, 190, 30, 255], isReporter: true, next: null,
-						isDefaultColour: true };
+					// a colour the user picked or wrote stays.
+					value = { isColor: true, r: 35, g: 190, b: 30, alpha: 255, isDefaultColour: true };
+				} else if (value instanceof Color) {
+					// A colour default picked in the definition, as a colour node.
+					value = { isColor: true, r: value.r, g: value.g, b: value.b, alpha: Math.round(value.a * 255) };
 				}
 				if (('auto' === type) && (typeof value === 'string') && /^-?\d+$/.test(value)) {
 					value = Number(value);

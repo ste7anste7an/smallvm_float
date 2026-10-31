@@ -1344,6 +1344,7 @@ ColorSlotMorph.prototype.setContents = function (clr) {
 	// the source gave (Block.gp initializeForNode keeps the parse node).
 	this.mbValue = (clr instanceof Color) ? undefined : clr;
 	this.mbUnsupplied = false;
+	this.isDefaultColour = false; // a colour put here is the user's
 	this.setColor(clr);
 };
 
