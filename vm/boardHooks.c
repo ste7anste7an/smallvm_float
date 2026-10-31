@@ -111,10 +111,9 @@ int vmIsSuspended() {
 
 void vmResume() {
 	// resume normal VM execution and communications with IDE; start all scripts
+	resumeIDEComm();
 	suspendRequested = false;
 	isSuspended = false;
-	resumeIDEComm();
-	startAll();
 }
 
 #endif

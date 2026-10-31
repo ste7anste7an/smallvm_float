@@ -182,7 +182,7 @@ static void updateConnectionState() { // NimBLE
 		BLE_resumeAdvertising();
 	}
 	if (!USB_connected_to_IDE) { // either not connected or connected via BLE
-		if (Serial.available()) {
+		if (Serial.available() > 0) {
 			// New serial connection. A connected BLE client is left alone; it may be
 			// using BLE serial, which stays available while the IDE is on USB.
 			// tell runtime that we've gotten a ping
@@ -770,16 +770,19 @@ int BLE_isEnabled() {
 
 extern "C" void suspendIDEComm() {
 	if (BLE_isEnabled()) {
-		BLE_pauseAdvertising();
+		BLE_stop();
+		BLE_connected_to_IDE = false;
 	}
 	Serial.end();
+	USB_connected_to_IDE = false;
 	clearIDECommBuffers();
 }
 
 extern "C" void resumeIDEComm() {
 	if (BLE_isEnabled()) {
-		BLE_resumeAdvertising();
+		BLE_start();
 	}
+	clearIDECommBuffers();
 	Serial.begin(115200);
 }
 
