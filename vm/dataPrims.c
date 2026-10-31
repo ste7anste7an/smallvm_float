@@ -67,6 +67,15 @@ int countUTF8(char *s) {
 	return count;
 }
 
+OBJ newSubstring(OBJ *stringPtr, int offset, int byteCount) {
+	// Return a new string containing byteCount bytes of *stringPtr starting at offset.
+	// *stringPtr must be a GC root, so it is still valid if the allocation moves the string.
+
+	OBJ result = newString(byteCount);
+	if (result) memcpy(obj2str(result), obj2str(*stringPtr) + offset, byteCount);
+	return result;
+}
+
 OBJ charAt(OBJ stringObj, int i) {
 	char *start = obj2str(stringObj);
 	while (i-- > 1) { // find start of the ith Unicode character
@@ -74,10 +83,9 @@ OBJ charAt(OBJ stringObj, int i) {
 		start = nextUTF8(start);
 	}
 	int byteCount = nextUTF8(start) - start;
-	OBJ result = newString(byteCount);
-	if (result) {
-		memcpy(obj2str(result), start, byteCount);
-	}
+	tempGCRoot = stringObj; // record stringObj in case allocation triggers GC that moves it
+	OBJ result = newSubstring(&tempGCRoot, start - obj2str(stringObj), byteCount);
+	tempGCRoot = NULL;
 	return result;
 }
 
@@ -166,10 +174,15 @@ OBJ primNewList(int argCount, OBJ *args) {
 
 	int count = ((argCount > 0) && isInt(args[0])) ? obj2int(args[0]) : 0;
 	if (count < 0) count = 0;
-	OBJ fillValue = (argCount > 1) ? args[1] : zeroObj;
 
-	OBJ result = newObj(ListType, count + 1, fillValue);
-	if (result) FIELD(result, 0) = int2obj(count);
+	OBJ result = newObj(ListType, count + 1, zeroObj);
+	if (!result) return result;
+	FIELD(result, 0) = int2obj(count);
+	if (argCount > 1) {
+		// read the fill value after newObj(), since a GC may have moved it
+		OBJ fillValue = args[1];
+		for (int i = 1; i <= count; i++) FIELD(result, i) = fillValue;
+	}
 	return result;
 }
 
@@ -233,11 +246,7 @@ OBJ primAt(int argCount, OBJ *args) {
 			start = nextUTF8(start);
 		}
 		int byteCount = nextUTF8(start) - start;
-		OBJ result = newString(byteCount);
-		if (result) {
-			memcpy(obj2str(result), start, byteCount);
-		}
-		return result;
+		return newSubstring(&args[1], start - obj2str(obj), byteCount);
 	} else if (IS_TYPE(obj, ByteArrayType)) {
 		uint8 *bytes = (uint8 *) &FIELD(obj, 0);
 		return int2obj(bytes[i - 1]);
@@ -460,11 +469,12 @@ OBJ primCopyFromTo(int argCount, OBJ *args) {
 		if (endIndex > srcLen) endIndex = srcLen;
 		if (startIndex > endIndex) return newObj(ByteArrayType, 0, falseObj);
 
-		char *base = (char *) (&FIELD(src, 0));
 		int byteCount = (endIndex - startIndex) + 1;
 		int wordCount = (byteCount + 3) / 4;
 		OBJ result = newObj(ByteArrayType, wordCount, falseObj);
 		if (result) {
+			src = args[0]; // update src after possible GC
+			char *base = (char *) (&FIELD(src, 0));
 			setByteCountAdjust(result, byteCount);
 			memcpy(&FIELD(result, 0), base + startIndex - 1, byteCount);
 		}
@@ -585,6 +595,8 @@ OBJ primSplit(int argCount, OBJ *args) {
 	tempGCRoot = newObj(ListType, resultCount + 1, zeroObj);
 	if (!tempGCRoot) return tempGCRoot; // allocation failed
 	FIELD(tempGCRoot, 0) = int2obj(resultCount);
+	s = obj2str(args[0]); // update s and delim after possible GC
+	delim = obj2str(args[1]);
 
 	// add substrings to the result list
 	if ((delimLen == 0) && !convertNums) {
@@ -594,8 +606,10 @@ OBJ primSplit(int argCount, OBJ *args) {
 		for (int i = 0; i < resultCount; i++) {
 			// allocate string and save in list
 			int byteCount = next - last;
-			OBJ item = newStringFromBytes(last, byteCount);
+			OBJ item = newSubstring(&args[0], last - s, byteCount);
 			if (!item) return falseObj; // allocation failed
+			next = obj2str(args[0]) + (next - s); // update next and s after possible GC
+			s = obj2str(args[0]);
 			FIELD(tempGCRoot, i + 1) = item;
 			last = next;
 			next = nextUTF8(last);
@@ -605,7 +619,6 @@ OBJ primSplit(int argCount, OBJ *args) {
 	} else {
 		int i = 1;
 		char *last = s;
-		char *end = s + strlen(s);
 		char *next = (delimLen == 0) ? last + 1 : strstr(last, delim);
 		while (next && (i <= resultCount)) {
 			OBJ item;
@@ -613,13 +626,16 @@ OBJ primSplit(int argCount, OBJ *args) {
 			if (convertNums && substringIsInteger(last, next)) {
 				item = int2obj(substringToInteger(last, next));
 			} else {
-				item = newStringFromBytes(last, byteCount);
+				item = newSubstring(&args[0], last - s, byteCount);
 				if (!item) return falseObj; // allocation failed
+				next = obj2str(args[0]) + (next - s); // update next, s, and delim after possible GC
+				s = obj2str(args[0]);
+				delim = obj2str(args[1]);
 			}
 			FIELD(tempGCRoot, i++) = item;
 			last = next + delimLen;
 			next = (delimLen == 0) ? last + 1 : strstr(last, delim);
-			if (!next) next = end; // handle string after final delimiter
+			if (!next) next = s + strlen(s); // handle string after final delimiter
 		}
 	}
 	return tempGCRoot;
@@ -856,7 +872,7 @@ OBJ primAsByteArray(int argCount, OBJ *args) {
 		result = newObj(ByteArrayType, (byteCount + 3) / 4, falseObj);
 		if (result) {
 			setByteCountAdjust(result, byteCount);
-			memcpy(&FIELD(result, 0), obj2str(arg), byteCount);
+			memcpy(&FIELD(result, 0), obj2str(args[0]), byteCount); // args[0] may have moved
 		}
 	} else if (IS_TYPE(arg, ListType)) {
 		byteCount = obj2int(FIELD(arg, 0));

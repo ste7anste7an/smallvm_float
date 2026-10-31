@@ -309,7 +309,9 @@ static char * asString(OBJ arg) {
 
 // JSON primitives
 
-static OBJ jsonValue(char *item) {
+static OBJ jsonValue(char *item, OBJ *args) {
+	// item points into the JSON string args[0].
+
 	char buf[1024];
 	char *end;
 	if (!item) return newString(0); // path not found
@@ -318,7 +320,7 @@ static OBJ jsonValue(char *item) {
 	case tjr_Array:
 	case tjr_Object:
 		end = tjr_endOfItem(item);
-		return newStringFromBytes(item, (end - item));
+		return newSubstring(&args[0], item - obj2str(args[0]), end - item);
 	case tjr_Number:
 		return int2obj(tjr_readInteger(item));
 	case tjr_String:
@@ -359,7 +361,7 @@ static OBJ primJSONGet(int argCount, OBJ *args) {
 			item = tjr_nextElement(item); // skip value
 		}
 	}
-	return jsonValue(item);
+	return jsonValue(item, args);
 }
 
 static OBJ primJSONCount(int argCount, OBJ *args) {
@@ -387,7 +389,7 @@ static OBJ primJSONValueAt(int argCount, OBJ *args) {
 	int i = obj2int(args[2]);
 
 	char *item = tjr_atPath(json, path);
-	return jsonValue(tjr_valueAt(item, i));
+	return jsonValue(tjr_valueAt(item, i), args);
 }
 
 static OBJ primJSONKeyAt(int argCount, OBJ *args) {

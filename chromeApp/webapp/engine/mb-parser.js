@@ -310,6 +310,12 @@ class MB_Parser {
 
 		for (let i = 0; i < args.length; i++) {
 			let arg = args[i];
+			// A palette colour slot with no default keeps the green it was made with,
+			// marked as filled in, as updateCallsOf marks it in a call.
+			if (!fromSource && (arg == null) && (b.inputs()[i] instanceof ColorSlotMorph)) {
+				b.inputs()[i].isDefaultColour = true;
+				continue;
+			}
 			this.setBlockArg(b, arg, i);
 			if (arg instanceof ReporterBlockMorph) arg.fixBlockColor();
 		}
@@ -336,8 +342,11 @@ class MB_Parser {
 			// A colour fills a colour slot; anywhere else it stays a colorSwatch block.
 			if (inputs[i] instanceof ColorSlotMorph) {
 				inputs[i].setContents(arg);
+				if (arg.isDefaultColour) inputs[i].isDefaultColour = true;
 			} else {
-				b.replaceInput(inputs[i], this.makeBlock(['colorSwatch', arg.r, arg.g, arg.b, Math.round(arg.a * 255)], true));
+				const swatch = this.makeBlock(['colorSwatch', arg.r, arg.g, arg.b, Math.round(arg.a * 255)], true);
+				if (arg.isDefaultColour) swatch.isDefaultColour = true;
+				b.replaceInput(inputs[i], swatch);
 			}
 		} else if (arg instanceof ReporterBlockMorph) {
 			b.replaceInput(inputs[i], arg);
@@ -382,7 +391,11 @@ class MB_Parser {
 			// One the decompiler split into {r, g, b} (fixBooleanAndColorArgs) has
 			// none, and the colour slot holds the packed 0xRRGGBB integer the bytes carry.
 			if (true == arg.isColor) {
-				if (arg.alpha != null) return new Color(arg.r, arg.g, arg.b, arg.alpha / 255);
+				if (arg.alpha != null) {
+					const colour = new Color(arg.r, arg.g, arg.b, arg.alpha / 255);
+					if (arg.isDefaultColour) colour.isDefaultColour = true; // see updateCallsOf
+					return colour;
+				}
 				return ((arg.r & 255) << 16) | ((arg.g & 255) << 8) | (arg.b & 255);
 			}
 			// A reporter is one node; a command in an argument position is the
