@@ -138,6 +138,8 @@ uint16_t bufferPixels[BUFFER_PIXELS_SIZE];
 	static void inline UPDATE_DISPLAY() {
 		#if defined(NEZHA_ESP32)
 			nezhaEndDrawing(); // a block's drawing reaches the screen in one piece
+			taskSleep(1);
+			return;
 		#endif
 		if (isOLED && !deferUpdates) {
 			oledUpdate();
