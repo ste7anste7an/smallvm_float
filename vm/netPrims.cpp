@@ -871,15 +871,17 @@ static OBJ primWebSocketLastEvent(int argCount, OBJ *args) {
 		FIELD(tempGCRoot, 0) = int2obj(3);
 		FIELD(tempGCRoot, 1) = int2obj(websocketEvtType);
 		FIELD(tempGCRoot, 2) = int2obj(websocketClientId);
+		// allocate the payload before storing it, since a GC may move tempGCRoot
 		if (WStype_TEXT == websocketEvtType) {
-			FIELD(tempGCRoot, 3) = newStringFromBytes(websocketPayload, websocketPayloadLength);
+			OBJ payload = newStringFromBytes(websocketPayload, websocketPayloadLength);
+			FIELD(tempGCRoot, 3) = payload;
 		} else {
 			int wordCount = (websocketPayloadLength + 3) / 4;
-			FIELD(tempGCRoot, 3) = newObj(ByteArrayType, wordCount, falseObj);
-			OBJ payload = FIELD(tempGCRoot, 3);
+			OBJ payload = newObj(ByteArrayType, wordCount, falseObj);
 			if (!payload) return fail(insufficientMemoryError);
 			memcpy(&FIELD(payload, 0), websocketPayload, websocketPayloadLength);
 			setByteCountAdjust(payload, websocketPayloadLength);
+			FIELD(tempGCRoot, 3) = payload;
 		}
 		websocketEvtType = -1;
 		return tempGCRoot;
@@ -1308,7 +1310,8 @@ static OBJ primMQTTLastEvent(int argCount, OBJ *args) {
 		if (!tempGCRoot) return tempGCRoot; // allocation failed
 
 		FIELD(tempGCRoot, 0) = int2obj(2); //list size
-		FIELD(tempGCRoot, 1) = newStringFromBytes(lastMQTTTopic, strlen(lastMQTTTopic));
+		OBJ topic = newStringFromBytes(lastMQTTTopic, strlen(lastMQTTTopic));
+		FIELD(tempGCRoot, 1) = topic; // store after allocating, since a GC may move tempGCRoot
 
 		if (useBinary) {
 			int wordCount = (payloadByteCount + 3) / 4;
@@ -1318,7 +1321,8 @@ static OBJ primMQTTLastEvent(int argCount, OBJ *args) {
 			setByteCountAdjust(payload, payloadByteCount);
 			FIELD(tempGCRoot, 2) = payload;
 		} else {
-			FIELD(tempGCRoot, 2) = newStringFromBytes(lastMQTTPayload, strlen(lastMQTTPayload));
+			OBJ payload = newStringFromBytes(lastMQTTPayload, strlen(lastMQTTPayload));
+			FIELD(tempGCRoot, 2) = payload;
 		}
 
 		hasMQTTMessage = false;
