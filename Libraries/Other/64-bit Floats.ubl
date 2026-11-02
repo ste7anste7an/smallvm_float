@@ -1,9 +1,8 @@
 module '64-bit Floats' Operators
 author MicroBlocks
-version 2 2
-description 'Requires firmware built with -DUSE_64BIT_FLOAT. Adds IEEE-754 64-bit floating-point values while preserving the original MicroBlocks integer range and operations. Trigonometric inputs and results use radians. Formatting width is a minimum; use a negative width to left-align. Decimal digits and exponent digits are clamped to 0-30.'
+version 2 3
+description 'Requires firmware built with -DUSE_64BIT_FLOAT. Adds IEEE-754 64-bit floating-point values while preserving the original MicroBlocks integer range and operations. Trigonometric inputs and results use radians. The collapsed printf block uses fixed notation; exposing exponent digits selects scientific notation. Formatting width is a minimum; use a negative width to left-align. Decimal digits and exponent digits are clamped to 0-30.'
 tags math number float '64-bit'
-choices float64PrintfFormat f e
 
 	spec 'r' '[misc:float64FromString]' '64-bit float from text _' 'str' '3.141592653589793'
 	spec 'r' '[misc:isFloat64]' '_ is a 64-bit float?' 'auto' 0
@@ -21,5 +20,5 @@ choices float64PrintfFormat f e
 	spec 'r' '[misc:float64Rescale]' '64-bit rescale _ from ( _ , _ ) to ( _ , _ )' 'num num num num num' 3 0 10 0 100
 	-
 	spec 'r' '[data:float64ToString]' '64-bit float _ as text' 'auto' 0
-	spec 'r' '[data:float64Printf]' '64-bit printf _ as % _ width _ digits _ : exponent digits _' 'num menu.float64PrintfFormat num num num' 3 'f' 0 6 2
+	spec 'r' '[data:float64Printf]' '64-bit printf _ width _ digits _ : exponent digits _' 'num num num num' 3 0 6 2
 

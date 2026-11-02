@@ -60,8 +60,8 @@ Float64 requires `sizeof(double) == 8`. `float64obj()` reports `primitiveNotImpl
 
 The stock MicroBlocks compiler does not emit Float literals, so importable UBL libraries create typed values through named primitives and string input. No IDE, compiler, decompiler, or bytecode-opcode change is required. Import exactly the UBL library matching the firmware profile:
 
-- [32-bit Floats.ubl](<Libraries/Other/32-bit Floats.ubl>) version 1.2 requires `USE_32BIT_FLOAT`.
-- [64-bit Floats.ubl](<Libraries/Other/64-bit Floats.ubl>) version 2.2 requires `USE_64BIT_FLOAT`.
+- [32-bit Floats.ubl](<Libraries/Other/32-bit Floats.ubl>) version 1.3 requires `USE_32BIT_FLOAT`.
+- [64-bit Floats.ubl](<Libraries/Other/64-bit Floats.ubl>) version 2.3 requires `USE_64BIT_FLOAT`.
 
 The [Float32 UBL library](<Libraries/Other/32-bit Floats.ubl>) provides:
 
@@ -102,7 +102,7 @@ Printing, `say`, `graph`, `join`, list-to-string conversion, JSON's local text h
 - Float32 uses `%.9g`, sufficient to round-trip an IEEE-754 binary32 value through decimal text.
 - Float64 uses `%.17g`, sufficient to round-trip an IEEE-754 binary64 value through decimal text.
 
-Each Float library also exposes one bounded printf-style formatting reporter with an `f`/`e` format menu. Fixed notation implements `%*.*f`. Scientific notation implements `%*.*e`; its optional final argument sets a minimum exponent-digit count and defaults to two. Width is a minimum rather than a truncation limit; a negative width left-aligns. Decimal and exponent digit counts are clamped to 0-30 and field width to -360 through 360.
+Each Float library also exposes one bounded printf-style formatting reporter. The collapsed block implements `%*.*f`. Exposing its optional `exponent digits` input switches it to `%*.*e` and sets the minimum exponent-digit count. Width is a minimum rather than a truncation limit; a negative width left-aligns. Decimal and exponent digit counts are clamped to 0-30 and field width to -360 through 360.
 
 The explicit constructor accepts syntax handled by `strtof` or `strtod`, including negative zero and conventional Infinity/NaN spellings when provided by the target C library. Trailing non-whitespace text is rejected.
 

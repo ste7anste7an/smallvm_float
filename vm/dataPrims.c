@@ -1251,25 +1251,42 @@ OBJ primToString(int argCount, OBJ *args) {
 
 #if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
 static OBJ primFormatFloat(int argCount, OBJ *args) {
-	// Return printf-style fixed or scientific text for a numeric value.
-	// Arguments are value, format (f or e), minimum width, decimal digits, and
-	// an optional minimum exponent-digit count. Width and digits are clamped by
-	// formatFloatText() so formatting always remains within the local buffer.
+	// Return printf-style fixed or scientific text for a numeric value. The
+	// normal arguments are value, minimum width, decimal digits, and an optional
+	// minimum exponent-digit count. Supplying that optional argument selects
+	// scientific notation. The older form with an f/e argument is also accepted.
 
-	if (argCount < 4) return fail(notEnoughArguments);
+	if (argCount < 3) return fail(notEnoughArguments);
 	if (!isNumber(args[0])) return fail(needsNumberError);
-	if (!IS_TYPE(args[1], StringType)) return fail(needsStringError);
-	if (!isInt(args[2]) || !isInt(args[3])) return fail(needsIntegerError);
-	if ((argCount > 4) && !isInt(args[4])) return fail(needsIntegerError);
 
-	int scientific = matches("e", args[1]) || matches("%e", args[1]);
-	int fixed = matches("f", args[1]) || matches("%f", args[1]);
-	if (!fixed && !scientific) return fail(unknownDatatype);
-	int exponentDigits = (argCount > 4) ? obj2int(args[4]) : 2;
+	int scientific;
+	int width;
+	int decimalDigits;
+	int exponentDigits = 2;
+	if (IS_TYPE(args[1], StringType)) {
+		// Compatibility with projects saved using the earlier combined block.
+		if (argCount < 4) return fail(notEnoughArguments);
+		scientific = matches("e", args[1]) || matches("%e", args[1]);
+		if (!scientific && !matches("f", args[1]) && !matches("%f", args[1])) {
+			return fail(unknownDatatype);
+		}
+		if (!isInt(args[2]) || !isInt(args[3])) return fail(needsIntegerError);
+		if ((argCount > 4) && !isInt(args[4])) return fail(needsIntegerError);
+		width = obj2int(args[2]);
+		decimalDigits = obj2int(args[3]);
+		if (argCount > 4) exponentDigits = obj2int(args[4]);
+	} else {
+		if (!isInt(args[1]) || !isInt(args[2])) return fail(needsIntegerError);
+		if ((argCount > 3) && !isInt(args[3])) return fail(needsIntegerError);
+		scientific = (argCount > 3);
+		width = obj2int(args[1]);
+		decimalDigits = obj2int(args[2]);
+		if (scientific) exponentDigits = obj2int(args[3]);
+	}
 
 	char s[FLOAT_FORMAT_BUFFER_SIZE];
 	int len = formatFloatText(s, sizeof(s), (double) obj2VMFloat(args[0]), scientific,
-		obj2int(args[2]), obj2int(args[3]), exponentDigits);
+		width, decimalDigits, exponentDigits);
 	return newStringFromBytes(s, len);
 }
 #endif

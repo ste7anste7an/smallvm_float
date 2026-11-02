@@ -15,6 +15,8 @@ int main() {
 	assert(0 == strcmp(s, "  1.23e+0002"));
 	assert(formatFloatText(s, sizeof(s), 123.4, 1, -12, 2, 4) == 12);
 	assert(0 == strcmp(s, "1.23e+0002  "));
+	formatFloatText(s, sizeof(s), (double) 3.14e20f, 1, 0, 6, 2);
+	assert(0 == strcmp(s, "3.140000e+20"));
 
 	formatFloatText(s, sizeof(s), 12.3456, 0, 2, 2, 0);
 	assert(0 == strcmp(s, "12.35")); // width is a minimum, not truncation
