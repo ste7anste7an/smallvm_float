@@ -1,6 +1,6 @@
 # MicroBlocks Float32 and Float64 implementation
 
-This document describes the optional floating-point profiles implemented by the small VM. The file name is retained from the earlier VM64 experiment, but the VM no longer exposes signed 64-bit integers. The only language integer representation is the original tagged integer.
+This document describes the optional floating-point profiles implemented by the small VM. The VM no longer exposes signed 64-bit integers; the only language integer representation is the original tagged integer.
 
 ## Executive summary
 
@@ -9,8 +9,8 @@ The firmware has three mutually exclusive numeric profiles:
 | Build flags | Language numbers | Float storage | VM version |
 | --- | --- | ---: | --- |
 | neither | original tagged integers only | none | `v421` |
-| `USE_32BIT_FLOAT` | tagged integers and IEEE-754 binary32 | one 32-bit payload word | `v427` |
-| `USE_64BIT_FLOAT` | tagged integers and IEEE-754 binary64 | two 32-bit payload words | `v426` |
+| `USE_32BIT_FLOAT` | tagged integers and IEEE-754 binary32 | one 32-bit payload word | unchanged from upstream |
+| `USE_64BIT_FLOAT` | tagged integers and IEEE-754 binary64 | two 32-bit payload words | unchanged from upstream |
 
 Defining both float flags is a compile-time error. `USE_64BIT`, boxed `Int64`, and every Int64 constructor and operation have been removed.
 
@@ -58,16 +58,19 @@ Float64 requires `sizeof(double) == 8`. `float64obj()` reports `primitiveNotImpl
 
 ## Libraries and named primitives
 
-The stock MicroBlocks compiler does not emit Float literals, so importable UBL libraries create typed values through named primitives and string input. No IDE, compiler, decompiler, or bytecode-opcode change is required.
+The stock MicroBlocks compiler does not emit Float literals, so importable UBL libraries create typed values through named primitives and string input. No IDE, compiler, decompiler, or bytecode-opcode change is required. Import exactly the UBL library matching the firmware profile:
 
-`Libraries/Other/32-bit Floats.ubl` requires `USE_32BIT_FLOAT` and provides:
+- [32-bit Floats.ubl](<Libraries/Other/32-bit Floats.ubl>) version 1.2 requires `USE_32BIT_FLOAT`.
+- [64-bit Floats.ubl](<Libraries/Other/64-bit Floats.ubl>) version 2.2 requires `USE_64BIT_FLOAT`.
+
+The [Float32 UBL library](<Libraries/Other/32-bit Floats.ubl>) provides:
 
 - Float32 construction from text and a Float32 predicate;
 - square root, power, sine, cosine, tangent, arctangent, and two-argument arctangent;
 - explicit rounding and truncation to a normal tagged integer;
 - Float32 rescale and text conversion.
 
-`Libraries/Other/64-bit Floats.ubl` requires `USE_64BIT_FLOAT` and provides the equivalent Float64 operations. It contains no integer constructor, integer predicate, hexadecimal/binary Int64 parser, or narrowing operation.
+The [Float64 UBL library](<Libraries/Other/64-bit Floats.ubl>) provides the equivalent Float64 operations. It contains no integer constructor, integer predicate, hexadecimal/binary Int64 parser, or narrowing operation.
 
 All trigonometric functions use radians. Rounding uses halfway-away-from-zero behavior. Rounding or truncating NaN, Infinity, or a value outside the tagged integer range reports `cannotConvertToInteger`.
 
@@ -130,9 +133,12 @@ Every Float arithmetic result allocates an object. In a float-heavy loop, transi
 | `vm/floatFormat.h`, `vm/floatFormat.c` | bounded fixed/scientific formatting and exponent padding |
 | `vm/miscPrims.c` | constructors, predicates, Float math, explicit integer conversion, and rescale |
 | `vm/runtime.c` | legacy-protocol Float text fallback |
-| `vm/version.h` | profile-specific firmware version |
-| `Libraries/Other/32-bit Floats.ubl` | user-facing Float32 blocks |
-| `Libraries/Other/64-bit Floats.ubl` | user-facing Float64 blocks |
+| `vm/version.h` | original upstream firmware version retained for every profile |
+| [Libraries/Other/32-bit Floats.ubl](<Libraries/Other/32-bit Floats.ubl>) | user-facing Float32 blocks for `USE_32BIT_FLOAT` |
+| [Libraries/Other/64-bit Floats.ubl](<Libraries/Other/64-bit Floats.ubl>) | user-facing Float64 blocks for `USE_64BIT_FLOAT` |
+| [Examples/Other/FLOAT_BENCHMARK.md](Examples/Other/FLOAT_BENCHMARK.md) | benchmark procedure and interpretation guide |
+| [Examples/Other/Float32 Performance Benchmark.ubp](<Examples/Other/Float32 Performance Benchmark.ubp>) | ready-to-run Float32 and integer benchmark project |
+| [Examples/Other/Float64 Performance Benchmark.ubp](<Examples/Other/Float64 Performance Benchmark.ubp>) | ready-to-run Float64 and integer benchmark project |
 
 ## Compatibility and limitations
 
@@ -144,6 +150,15 @@ Every Float arithmetic result allocates an object. In a float-heavy loop, transi
 - The two Float profiles intentionally cannot coexist in one firmware because `FloatType` has one profile-selected payload layout and the common arithmetic operators have one result type.
 
 Supporting Float32 and Float64 simultaneously would require distinct heap type IDs, conversion/promotion rules, wire capabilities, and user-facing type APIs. That is outside this implementation.
+
+## Performance benchmarks
+
+The [Float benchmark guide](Examples/Other/FLOAT_BENCHMARK.md) explains the test method, how to run it, what each row measures, and how allocation and garbage collection affect the results. Use the program matching the selected firmware profile:
+
+- [Float32 Performance Benchmark.ubp](<Examples/Other/Float32 Performance Benchmark.ubp>) with firmware built using `USE_32BIT_FLOAT`.
+- [Float64 Performance Benchmark.ubp](<Examples/Other/Float64 Performance Benchmark.ubp>) with firmware built using `USE_64BIT_FLOAT`.
+
+Each project embeds the matching UBL library and compares the standard integer path with Float arithmetic, comparisons, text conversion, and special math functions on the same board. The results are reported as gross and estimated net microseconds per operation.
 
 ## Testing
 
