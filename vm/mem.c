@@ -186,6 +186,45 @@ OBJ newObj(int type, int wordCount, OBJ fill) {
 	return result;
 }
 
+#ifdef USE_64BIT_FLOAT
+OBJ float64obj(double n) {
+	if (sizeof(double) != 8) return fail(primitiveNotImplemented);
+	OBJ result = newObj(FloatType, 2, falseObj);
+	if (!result) return result;
+	memcpy(((uint32 *) result) + HEADER_WORDS, &n, sizeof(n));
+	return result;
+}
+
+double obj2float64(OBJ obj) {
+	if (isInt(obj)) return (double) obj2int(obj);
+	double result = 0.0;
+	if (isFloat(obj)) {
+		if (sizeof(double) != 8) {
+			fail(primitiveNotImplemented);
+			return result;
+		}
+		memcpy(&result, ((uint32 *) obj) + HEADER_WORDS, sizeof(result));
+	}
+	return result;
+}
+#elif defined(USE_32BIT_FLOAT)
+OBJ float32obj(float n) {
+	OBJ result = newObj(FloatType, 1, falseObj);
+	if (!result) return result;
+	memcpy(((uint32 *) result) + HEADER_WORDS, &n, sizeof(n));
+	return result;
+}
+
+float obj2float32(OBJ obj) {
+	if (isInt(obj)) return (float) obj2int(obj);
+	float result = 0.0f;
+	if (isFloat(obj)) {
+		memcpy(&result, ((uint32 *) obj) + HEADER_WORDS, sizeof(result));
+	}
+	return result;
+}
+#endif
+
 OBJ resizeObj(OBJ oldObj, int wordCount) {
 	// Change the size of the given object to wordCount and return the new object.
 
@@ -236,6 +275,9 @@ OBJ newStringFromBytes(const char *bytes, int byteCount) {
 char* obj2str(OBJ obj) {
 	if (isInt(obj)) return (char *) "<Integer>";
 	if (isBoolean(obj)) return (char *) ((trueObj == obj) ? "true" : "false");
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	if (isFloat(obj)) return (char *) "<Float>";
+	#endif
 	if (IS_TYPE(obj, StringType)) return (char *) &obj[HEADER_WORDS];
 	if (IS_TYPE(obj, ListType)) return (char *) "<List>";
 	if (IS_TYPE(obj, ByteArrayType)) return (char *) "<ByteArray>";
@@ -263,6 +305,15 @@ void reportObj(const char *msg, OBJ obj) {
 	case IntegerType:
 		sprintf(s, "%s: %d", msg, obj2int(obj));
 		break;
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	case FloatType:
+		#ifdef USE_64BIT_FLOAT
+		sprintf(s, "%s: %.17g", msg, obj2float64(obj));
+		#else
+		sprintf(s, "%s: %.9g", msg, (double) obj2float32(obj));
+		#endif
+		break;
+	#endif
 	case StringType:
 		sprintf(s, "%s: %s", msg, obj2str(obj));
 		break;

@@ -1,0 +1,479 @@
+module main
+author OpenAI
+version 1 0
+description 'Measures default integer and Float64 operators, comparisons, and the 64-bit Floats library functions. Results are median-of-three microseconds per operation. Gross includes normal loop/value overhead; net subtracts an appropriate baseline.'
+variables checksum resultText 'arithmetic results' 'comparison results' 'library results'
+
+script 40 40 {
+whenStarted
+sayIt 'Running Float64 benchmark...'
+'_clear saved results'
+'_run benchmarks'
+sayIt 'Float64 benchmark complete. Click a result stack.'
+}
+
+script 520 40 {
+comment 'Click this stack after the benchmark finishes.'
+sayIt (v 'arithmetic results')
+}
+
+script 520 130 {
+comment 'Click this stack after the benchmark finishes.'
+sayIt (v 'comparison results')
+}
+
+script 520 220 {
+comment 'Click this stack after the benchmark finishes.'
+sayIt (v 'library results')
+}
+
+to '_run benchmarks' {
+  sayIt 'Measuring arithmetic...'
+  '_run arithmetic'
+  sayIt 'Measuring comparisons...'
+  '_run comparisons'
+  sayIt 'Measuring library math...'
+  '_run library functions'
+}
+
+to '_clear saved results' {
+  resultText = ''
+  'arithmetic results' = 'Not run yet'
+  'comparison results' = 'Not run yet'
+  'library results' = 'Not run yet'
+  '[misc:clearGraph]'
+  graphIt 'test gross_us/op net_us/op'
+}
+
+to '_run arithmetic' {
+  resultText = 'Arithmetic gross/net us/op: '
+  local 'fastN' 10000
+  local 'fastOps' (fastN * 8)
+  local 'body4Ops' (fastN * 4)
+  local 'arithBase' ('_median3' ('_arith baseline' fastN) ('_arith baseline' fastN) ('_arith baseline' fastN))
+  local 'body4Base' ('_median3' ('_body4 baseline' fastN) ('_body4 baseline' fastN) ('_body4 baseline' fastN))
+  '_record' 'I+' ('_median3' ('_int add' fastN) ('_int add' fastN) ('_int add' fastN)) arithBase fastOps
+  '_record' 'I-' ('_median3' ('_int subtract' fastN) ('_int subtract' fastN) ('_int subtract' fastN)) arithBase fastOps
+  '_record' 'I*' ('_median3' ('_int multiply' fastN) ('_int multiply' fastN) ('_int multiply' fastN)) arithBase fastOps
+  '_record' 'I/' ('_median3' ('_int divide' fastN) ('_int divide' fastN) ('_int divide' fastN)) arithBase fastOps
+  '_record' 'F64+' ('_median3' ('_float add' fastN) ('_float add' fastN) ('_float add' fastN)) arithBase fastOps
+  '_record' 'F64-' ('_median3' ('_float subtract' fastN) ('_float subtract' fastN) ('_float subtract' fastN)) arithBase fastOps
+  '_record' 'F64*' ('_median3' ('_float multiply' fastN) ('_float multiply' fastN) ('_float multiply' fastN)) arithBase fastOps
+  '_record' 'F64/' ('_median3' ('_float divide' fastN) ('_float divide' fastN) ('_float divide' fastN)) arithBase fastOps
+  '_record' 'Iabs' ('_median3' ('_int abs' fastN) ('_int abs' fastN) ('_int abs' fastN)) body4Base body4Ops
+  '_record' 'F64abs' ('_median3' ('_float abs' fastN) ('_float abs' fastN) ('_float abs' fastN)) body4Base body4Ops
+  'arithmetic results' = (v 'resultText')
+}
+
+to '_run comparisons' {
+  resultText = 'Comparisons gross/net us/op: '
+  local 'fastN' 10000
+  local 'body4Ops' (fastN * 4)
+  local 'body4Base' ('_median3' ('_body4 baseline' fastN) ('_body4 baseline' fastN) ('_body4 baseline' fastN))
+  '_record' 'I<' ('_median3' ('_int less' fastN) ('_int less' fastN) ('_int less' fastN)) body4Base body4Ops
+  '_record' 'F64<' ('_median3' ('_float less' fastN) ('_float less' fastN) ('_float less' fastN)) body4Base body4Ops
+  '_record' 'I=' ('_median3' ('_int equal' fastN) ('_int equal' fastN) ('_int equal' fastN)) body4Base body4Ops
+  '_record' 'F64=' ('_median3' ('_float equal' fastN) ('_float equal' fastN) ('_float equal' fastN)) body4Base body4Ops
+  '_record' 'I>' ('_median3' ('_int greater' fastN) ('_int greater' fastN) ('_int greater' fastN)) body4Base body4Ops
+  '_record' 'F64>' ('_median3' ('_float greater' fastN) ('_float greater' fastN) ('_float greater' fastN)) body4Base body4Ops
+  'comparison results' = (v 'resultText')
+}
+
+to '_run library functions' {
+  resultText = 'Library gross/net us/op: '
+  local 'specialN' 1000
+  local 'slowOps' (specialN * 4)
+  local 'cloneBase' ('_median3' ('_float clone' specialN) ('_float clone' specialN) ('_float clone' specialN))
+  local 'checkBase' ('_median3' ('_float check' specialN) ('_float check' specialN) ('_float check' specialN))
+  '_run library unary' specialN slowOps cloneBase
+  '_run library other' specialN slowOps cloneBase checkBase
+  'library results' = (v 'resultText')
+}
+
+to '_run library unary' specialN slowOps cloneBase {
+  '_record' 'parse' ('_median3' ('_float parse' specialN) ('_float parse' specialN) ('_float parse' specialN)) cloneBase slowOps
+  '_record' 'sqrt' ('_median3' ('_float sqrt' specialN) ('_float sqrt' specialN) ('_float sqrt' specialN)) cloneBase slowOps
+  '_record' 'power' ('_median3' ('_float power' specialN) ('_float power' specialN) ('_float power' specialN)) cloneBase slowOps
+  '_record' 'sin' ('_median3' ('_float sin' specialN) ('_float sin' specialN) ('_float sin' specialN)) cloneBase slowOps
+  '_record' 'cos' ('_median3' ('_float cos' specialN) ('_float cos' specialN) ('_float cos' specialN)) cloneBase slowOps
+  '_record' 'tan' ('_median3' ('_float tan' specialN) ('_float tan' specialN) ('_float tan' specialN)) cloneBase slowOps
+  '_record' 'atan' ('_median3' ('_float atan' specialN) ('_float atan' specialN) ('_float atan' specialN)) cloneBase slowOps
+}
+
+to '_run library other' specialN slowOps cloneBase checkBase {
+  '_record' 'atan2' ('_median3' ('_float atan2' specialN) ('_float atan2' specialN) ('_float atan2' specialN)) cloneBase slowOps
+  '_record' 'round' ('_median3' ('_float round' specialN) ('_float round' specialN) ('_float round' specialN)) checkBase slowOps
+  '_record' 'trunc' ('_median3' ('_float trunc' specialN) ('_float trunc' specialN) ('_float trunc' specialN)) checkBase slowOps
+  '_record' 'rescale' ('_median3' ('_float rescale' specialN) ('_float rescale' specialN) ('_float rescale' specialN)) cloneBase slowOps
+  '_record' 'toText' ('_median3' ('_float to text' specialN) ('_float to text' specialN) ('_float to text' specialN)) cloneBase slowOps
+}
+
+to '_record' label elapsed baseline operationCount {
+  local 'gross' (('[misc:float64FromString]' elapsed) / operationCount)
+  local 'net' (('[misc:float64FromString]' (maximum 0 (elapsed - baseline))) / operationCount)
+  resultText = ('[data:join]' (v 'resultText') label ' g=' ('[data:float64ToString]' gross) ' n=' ('[data:float64ToString]' net) '; ')
+  graphIt label gross net
+}
+
+to '_median3' a b c {
+  return (((sum a b c) - (minimum a b c)) - (maximum a b c))
+}
+
+to '_arith baseline' n {
+  local 'x' 12345
+  local 'start' (microsOp)
+  repeat n {x = x}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_body4 baseline' n {
+  local 'x' 12345
+  local 'sink' 0
+  local 'start' (microsOp)
+  repeat n {
+    sink = x
+    sink = x
+    sink = x
+    sink = x
+  }
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_int add' n {
+  local 'x' 12345
+  local 'y' 3
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x + y) + y) + y) + y) + y) + y) + y) + y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_int subtract' n {
+  local 'x' 500000
+  local 'y' 3
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x - y) - y) - y) - y) - y) - y) - y) - y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_int multiply' n {
+  local 'x' 0
+  local 'y' 7654321
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x * y) * y) * y) * y) * y) * y) * y) * y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_int divide' n {
+  local 'x' 7654321
+  local 'y' 1
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x / y) / y) / y) / y) / y) / y) / y) / y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_float add' n {
+  local 'x' ('[misc:float64FromString]' '1.25')
+  local 'y' ('[misc:float64FromString]' '0.125')
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x + y) + y) + y) + y) + y) + y) + y) + y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_float subtract' n {
+  local 'x' ('[misc:float64FromString]' '10001.25')
+  local 'y' ('[misc:float64FromString]' '0.125')
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x - y) - y) - y) - y) - y) - y) - y) - y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_float multiply' n {
+  local 'x' ('[misc:float64FromString]' '1.25')
+  local 'y' ('[misc:float64FromString]' '1.000001')
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x * y) * y) * y) * y) * y) * y) * y) * y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_float divide' n {
+  local 'x' ('[misc:float64FromString]' '1.25')
+  local 'y' ('[misc:float64FromString]' '1.000001')
+  local 'start' (microsOp)
+  repeat n {x = ((((((((x / y) / y) / y) / y) / y) / y) / y) / y)}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_int abs' n {
+  local 'x' -123456
+  local 'start' (microsOp)
+  repeat n {x = (absoluteValue (absoluteValue (absoluteValue (absoluteValue x))))}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_float abs' n {
+  local 'x' ('[misc:float64FromString]' '-1.25')
+  local 'start' (microsOp)
+  repeat n {x = (absoluteValue (absoluteValue (absoluteValue (absoluteValue x))))}
+  local 'elapsed' (microsSince start)
+  checksum = x
+  return elapsed
+}
+
+to '_int less' n {
+  local 'a' 123456
+  local 'b' 654321
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = (a < b); sink = (a < b); sink = (a < b); sink = (a < b)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float less' n {
+  local 'a' ('[misc:float64FromString]' '1.25')
+  local 'b' ('[misc:float64FromString]' '2.5')
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = (a < b); sink = (a < b); sink = (a < b); sink = (a < b)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_int equal' n {
+  local 'a' 123456
+  local 'b' 123456
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = (a == b); sink = (a == b); sink = (a == b); sink = (a == b)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float equal' n {
+  local 'a' ('[misc:float64FromString]' '1.25')
+  local 'b' ('[misc:float64FromString]' '1.25')
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = (a == b); sink = (a == b); sink = (a == b); sink = (a == b)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_int greater' n {
+  local 'a' 654321
+  local 'b' 123456
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = (a > b); sink = (a > b); sink = (a > b); sink = (a > b)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float greater' n {
+  local 'a' ('[misc:float64FromString]' '2.5')
+  local 'b' ('[misc:float64FromString]' '1.25')
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = (a > b); sink = (a > b); sink = (a > b); sink = (a > b)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float clone' n {
+  local 'x' ('[misc:float64FromString]' '1.25')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64FromString]' x); sink = ('[misc:float64FromString]' x); sink = ('[misc:float64FromString]' x); sink = ('[misc:float64FromString]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float check' n {
+  local 'x' ('[misc:float64FromString]' '1.25')
+  local 'sink' false
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:isFloat64]' x); sink = ('[misc:isFloat64]' x); sink = ('[misc:isFloat64]' x); sink = ('[misc:isFloat64]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float parse' n {
+  local 'text' '1.23456789012345'
+  local 'sink' 0
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64FromString]' text); sink = ('[misc:float64FromString]' text); sink = ('[misc:float64FromString]' text); sink = ('[misc:float64FromString]' text)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float sqrt' n {
+  local 'x' ('[misc:float64FromString]' '2.0')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Sqrt]' x); sink = ('[misc:float64Sqrt]' x); sink = ('[misc:float64Sqrt]' x); sink = ('[misc:float64Sqrt]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float power' n {
+  local 'x' ('[misc:float64FromString]' '1.0001')
+  local 'y' ('[misc:float64FromString]' '1.5')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Power]' x y); sink = ('[misc:float64Power]' x y); sink = ('[misc:float64Power]' x y); sink = ('[misc:float64Power]' x y)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float sin' n {
+  local 'x' ('[misc:float64FromString]' '0.5')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Sin]' x); sink = ('[misc:float64Sin]' x); sink = ('[misc:float64Sin]' x); sink = ('[misc:float64Sin]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float cos' n {
+  local 'x' ('[misc:float64FromString]' '0.5')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Cos]' x); sink = ('[misc:float64Cos]' x); sink = ('[misc:float64Cos]' x); sink = ('[misc:float64Cos]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float tan' n {
+  local 'x' ('[misc:float64FromString]' '0.5')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Tan]' x); sink = ('[misc:float64Tan]' x); sink = ('[misc:float64Tan]' x); sink = ('[misc:float64Tan]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float atan' n {
+  local 'x' ('[misc:float64FromString]' '0.5')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Atan]' x); sink = ('[misc:float64Atan]' x); sink = ('[misc:float64Atan]' x); sink = ('[misc:float64Atan]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float atan2' n {
+  local 'x' ('[misc:float64FromString]' '1.0')
+  local 'y' ('[misc:float64FromString]' '0.5')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Atan2]' x y); sink = ('[misc:float64Atan2]' x y); sink = ('[misc:float64Atan2]' x y); sink = ('[misc:float64Atan2]' x y)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float round' n {
+  local 'x' ('[misc:float64FromString]' '1.75')
+  local 'sink' 0
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:roundFloat64ToInt]' x); sink = ('[misc:roundFloat64ToInt]' x); sink = ('[misc:roundFloat64ToInt]' x); sink = ('[misc:roundFloat64ToInt]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float trunc' n {
+  local 'x' ('[misc:float64FromString]' '1.75')
+  local 'sink' 0
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:truncateFloat64ToInt]' x); sink = ('[misc:truncateFloat64ToInt]' x); sink = ('[misc:truncateFloat64ToInt]' x); sink = ('[misc:truncateFloat64ToInt]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float rescale' n {
+  local 'x' ('[misc:float64FromString]' '3.0')
+  local 'lo' ('[misc:float64FromString]' '0.0')
+  local 'hi' ('[misc:float64FromString]' '10.0')
+  local 'outLo' ('[misc:float64FromString]' '0.0')
+  local 'outHi' ('[misc:float64FromString]' '100.0')
+  local 'sink' x
+  local 'start' (microsOp)
+  repeat n {sink = ('[misc:float64Rescale]' x lo hi outLo outHi); sink = ('[misc:float64Rescale]' x lo hi outLo outHi); sink = ('[misc:float64Rescale]' x lo hi outLo outHi); sink = ('[misc:float64Rescale]' x lo hi outLo outHi)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+to '_float to text' n {
+  local 'x' ('[misc:float64FromString]' '1.23456789012345')
+  local 'sink' ''
+  local 'start' (microsOp)
+  repeat n {sink = ('[data:float64ToString]' x); sink = ('[data:float64ToString]' x); sink = ('[data:float64ToString]' x); sink = ('[data:float64ToString]' x)}
+  local 'elapsed' (microsSince start)
+  checksum = sink
+  return elapsed
+}
+
+module '64-bit Floats' Operators
+author MicroBlocks
+version 2 2
+description 'Requires firmware built with -DUSE_64BIT_FLOAT. Adds IEEE-754 64-bit floating-point values while preserving the original MicroBlocks integer range and operations. Trigonometric inputs and results use radians. Formatting width is a minimum; use a negative width to left-align. Decimal digits and exponent digits are clamped to 0-30.'
+tags math number float '64-bit'
+choices float64PrintfFormat f e
+
+	spec 'r' '[misc:float64FromString]' '64-bit float from text _' 'str' '3.141592653589793'
+	spec 'r' '[misc:isFloat64]' '_ is a 64-bit float?' 'auto' 0
+	-
+	spec 'r' '[misc:float64Sqrt]' '64-bit sqrt _' 'num' 2
+	spec 'r' '[misc:float64Power]' '64-bit _ to power _' 'num num' 2 8
+	spec 'r' '[misc:float64Sin]' '64-bit sin radians _' 'num' 0
+	spec 'r' '[misc:float64Cos]' '64-bit cos radians _' 'num' 0
+	spec 'r' '[misc:float64Tan]' '64-bit tan radians _' 'num' 0
+	spec 'r' '[misc:float64Atan]' '64-bit arctan _ (radians)' 'num' 1
+	spec 'r' '[misc:float64Atan2]' '64-bit arctan x _ y _ (radians)' 'num num' 1 1
+	-
+	spec 'r' '[misc:roundFloat64ToInt]' 'round 64-bit float _ to integer' 'num' 1
+	spec 'r' '[misc:truncateFloat64ToInt]' 'truncate 64-bit float _ to integer' 'num' 1
+	spec 'r' '[misc:float64Rescale]' '64-bit rescale _ from ( _ , _ ) to ( _ , _ )' 'num num num num num' 3 0 10 0 100
+	-
+	spec 'r' '[data:float64ToString]' '64-bit float _ as text' 'auto' 0
+	spec 'r' '[data:float64Printf]' '64-bit printf _ as % _ width _ digits _ : exponent digits _' 'num menu.float64PrintfFormat num num num' 3 'f' 0 6 2

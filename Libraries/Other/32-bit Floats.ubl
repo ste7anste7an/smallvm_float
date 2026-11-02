@@ -1,0 +1,24 @@
+module '32-bit Floats' Operators
+author MicroBlocks
+version 1 2
+description 'Requires firmware built with -DUSE_32BIT_FLOAT. Adds IEEE-754 32-bit floating-point values while preserving the original MicroBlocks integer range and operations. Trigonometric inputs and results use radians. Formatting width is a minimum; use a negative width to left-align. Decimal digits and exponent digits are clamped to 0-30.'
+tags math number float '32-bit'
+choices float32PrintfFormat f e
+
+	spec 'r' '[misc:float32FromString]' '32-bit float from text _' 'str' '3.1415927'
+	spec 'r' '[misc:isFloat32]' '_ is a 32-bit float?' 'auto' 0
+	-
+	spec 'r' '[misc:float32Sqrt]' '32-bit sqrt _' 'num' 2
+	spec 'r' '[misc:float32Power]' '32-bit _ to power _' 'num num' 2 8
+	spec 'r' '[misc:float32Sin]' '32-bit sin radians _' 'num' 0
+	spec 'r' '[misc:float32Cos]' '32-bit cos radians _' 'num' 0
+	spec 'r' '[misc:float32Tan]' '32-bit tan radians _' 'num' 0
+	spec 'r' '[misc:float32Atan]' '32-bit arctan _ (radians)' 'num' 1
+	spec 'r' '[misc:float32Atan2]' '32-bit arctan x _ y _ (radians)' 'num num' 1 1
+	-
+	spec 'r' '[misc:roundFloat32ToInt]' 'round 32-bit float _ to integer' 'num' 1
+	spec 'r' '[misc:truncateFloat32ToInt]' 'truncate 32-bit float _ to integer' 'num' 1
+	spec 'r' '[misc:float32Rescale]' '32-bit rescale _ from ( _ , _ ) to ( _ , _ )' 'num num num num num' 3 0 10 0 100
+	-
+	spec 'r' '[data:float32ToString]' '32-bit float _ as text' 'auto' 0
+	spec 'r' '[data:float32Printf]' '32-bit printf _ as % _ width _ digits _ : exponent digits _' 'num menu.float32PrintfFormat num num num' 3 'f' 0 6 2

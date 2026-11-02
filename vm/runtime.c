@@ -670,6 +670,17 @@ static void waitForOutbufBytes(int bytesNeeded) {
 	}
 }
 
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+static int numericText(OBJ value, char *dst, int dstSize) {
+	#ifdef USE_64BIT_FLOAT
+	if (isFloat(value)) return snprintf(dst, dstSize, "%.17g", obj2float64(value));
+	#else
+	if (isFloat(value)) return snprintf(dst, dstSize, "%.9g", (double) obj2float32(value));
+	#endif
+	return 0;
+}
+#endif
+
 void waitAndSendMessage(int msgType, int chunkIndex, int dataSize, char *data) {
 	// Wait for space, then send the given message.
 
@@ -680,7 +691,13 @@ void waitAndSendMessage(int msgType, int chunkIndex, int dataSize, char *data) {
 static void sendValueMessage(uint8 msgType, uint8 chunkOrVarIndex, OBJ value) {
 	// Send a value message of the given type for the given chunkOrVarIndex.
 	// Data is: <type (1 byte)><...data...>
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	// Types: 1 - immediate integer, 2 - string, 3 - boolean, 4 - list,
+	// 5 - bytearray. Float values use type 2 so existing IDEs can
+	// display them without knowing new protocol types.
+	#else
 	// Types: 1 - integer, 2 - string, 3 - boolean, 4 - list, 5 - bytearray
+	#endif
 
 	char data[801];
 
@@ -692,6 +709,12 @@ static void sendValueMessage(uint8 msgType, uint8 chunkOrVarIndex, OBJ value) {
 		data[3] = ((n >> 16) & 0xFF);
 		data[4] = ((n >> 24) & 0xFF);
 		sendMessage(msgType, chunkOrVarIndex, 5, data);
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	} else if (isFloat(value)) {
+		data[0] = 2;
+		int len = numericText(value, &data[1], sizeof(data) - 1);
+		sendMessage(msgType, chunkOrVarIndex, len + 1, data);
+	#endif
 	} else if (IS_TYPE(value, StringType)) {
 		data[0] = 2; // data type (2 is string)
 		char *s = obj2str(value);
@@ -722,6 +745,23 @@ static void sendValueMessage(uint8 msgType, uint8 chunkOrVarIndex, OBJ value) {
 		for (int i = 0; i < sendCount; i++) {
 			OBJ item = FIELD(value, i + 1);
 			int type = objType(item);
+			#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+			if (isFloat(item)) {
+				*dst++ = 2; // numeric text for compatibility with existing IDEs
+				char numberString[32];
+				numericText(item, numberString, sizeof(numberString));
+				int len = strlen(numberString);
+				int maxStringItem = 20;
+				if (len <= maxStringItem) {
+					*dst++ = len;
+					for (int j = 0; j < len; j++) *dst++ = numberString[j];
+				} else {
+					*dst++ = maxStringItem;
+					for (int j = 0; j < (maxStringItem - 3); j++) *dst++ = numberString[j];
+					for (int j = 0; j < 3; j++) *dst++ = '.';
+				}
+			} else
+			#endif
 			if (IntegerType == type) { // integer (32-bit signed, little-endian)
 				*dst++ = 1; // item type (1 is integer)
 				int n = obj2int(item);

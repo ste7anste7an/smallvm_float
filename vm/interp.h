@@ -215,6 +215,9 @@ extern int extraByteDelay;
 #define udpPortNotOpen			55	// UDP port not open
 #define cannotUseWhileIDEConnected 56 // This primitive cannot be used while connected to the IDE
 #define badPinError				57	// Pin is reserved or not available on this board
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	#define needsNumberError	58	// Needs an integer or floating point number
+#endif
 #define newSnapshotSignal		254 // Not a real error; used when launching a code snapshot
 #define sleepSignal				255	// Not a real error; used to make current task sleep
 
@@ -270,6 +273,29 @@ static inline int evalInt(OBJ obj) {
 		return 0;
 	}
 }
+
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+static inline VMFloat evalFloat(OBJ obj) {
+	if (isNumber(obj)) {
+		return obj2VMFloat(obj);
+	} else if (IS_TYPE(obj, StringType)) {
+		#ifdef USE_64BIT_FLOAT
+		return strtod(obj2str(obj), NULL);
+		#else
+		return strtof(obj2str(obj), NULL);
+		#endif
+	} else if (IS_TYPE(obj, ByteArrayType)) {
+		#ifdef USE_64BIT_FLOAT
+		return strtod((char *) &FIELD(obj, 0), NULL);
+		#else
+		return strtof((char *) &FIELD(obj, 0), NULL);
+		#endif
+	} else {
+		fail(needsNumberError);
+		return 0.0;
+	}
+}
+#endif
 
 // Testing Support
 

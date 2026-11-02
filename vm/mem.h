@@ -14,6 +14,10 @@
 extern "C" {
 #endif
 
+#if defined(USE_64BIT_FLOAT) && defined(USE_32BIT_FLOAT)
+#error USE_64BIT_FLOAT and USE_32BIT_FLOAT cannot be enabled together
+#endif
+
 // Unify Arduino IDE and PlatformIO
 #if defined(NRF52_SERIES) && !defined(NRF52)
 	#define NRF52 1
@@ -107,7 +111,12 @@ typedef int * OBJ;
 #define IntegerType 2
 #define ByteArrayType 3
 #define StringType 4
-// types 5-7 reserved for future non-pointer objects
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	#define FloatType 5
+	// types 6-7 remain reserved for future non-pointer objects
+#else
+	// types 5-7 reserved for future non-pointer objects
+#endif
 #define BinaryObjectTypes 7 // objects with type ID's <= 7 do not contain pointers
 #define ArrayType 8
 #define ListType 9
@@ -130,6 +139,18 @@ typedef int * OBJ;
 #define int2obj(n) ((OBJ) (((n) << 1) | 1))
 #define obj2int(obj) ((int)(obj) >> 1)
 #define zeroObj ((OBJ) 1)
+
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	// Floats are heap objects; integers keep their original immediate representation.
+	#define isFloat(obj) IS_TYPE((obj), FloatType)
+	#define isInteger(obj) isInt(obj)
+	#define isNumber(obj) (isInt(obj) || isFloat(obj))
+#else
+	// Compatibility aliases let shared code retain the original 32-bit semantics.
+	#define isFloat(obj) 0
+	#define isInteger(obj) isInt(obj)
+	#define isNumber(obj) isInt(obj)
+#endif
 
 // Memory Objects
 //
@@ -194,6 +215,20 @@ OBJ resizeObj(OBJ obj, int wordCount);
 OBJ newString(int byteCount);
 OBJ newStringFromBytes(const char *bytes, int byteCount);
 char* obj2str(OBJ obj);
+
+#ifdef USE_64BIT_FLOAT
+	OBJ float64obj(double n);
+	double obj2float64(OBJ obj);
+	typedef double VMFloat;
+	#define newFloatObj float64obj
+	#define obj2VMFloat obj2float64
+#elif defined(USE_32BIT_FLOAT)
+	OBJ float32obj(float n);
+	float obj2float32(OBJ obj);
+	typedef float VMFloat;
+	#define newFloatObj float32obj
+	#define obj2VMFloat obj2float32
+#endif
 
 // Debugging Support
 

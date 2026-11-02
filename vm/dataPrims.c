@@ -14,6 +14,9 @@
 #include "mem.h"
 #include "interp.h"
 #include "persist.h"
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+#include "floatFormat.h"
+#endif
 
 // Helper Functions
 
@@ -32,10 +35,22 @@ static int stringSize(OBJ obj) {
 
 static void printIntegerOrBooleanInto(OBJ obj, char *buf) {
 	// Helper for primJoin. Write a representation of obj into the given string.
+	#ifdef USE_64BIT_FLOAT
+	// Assume buf has space for at least 32 characters.
+	#else
 	// Assume buf has space for at least 20 characters.
+	#endif
 
 	*buf = 0; // null terminator
+	#ifdef USE_64BIT_FLOAT
 	if (isInt(obj)) sprintf(buf, "%d", obj2int(obj));
+	else if (isFloat(obj)) sprintf(buf, "%.17g", obj2float64(obj));
+	#elif defined(USE_32BIT_FLOAT)
+	if (isInt(obj)) sprintf(buf, "%d", obj2int(obj));
+	else if (isFloat(obj)) sprintf(buf, "%.9g", (double) obj2float32(obj));
+	#else
+	if (isInt(obj)) sprintf(buf, "%d", obj2int(obj));
+	#endif
 	else if (obj == falseObj) strcat(buf, "0");
 	else if (obj == trueObj) strcat(buf, "1");
 	else if (IS_TYPE(obj, StringType)) sprintf(buf, "%.15s...", obj2str(obj));
@@ -534,7 +549,7 @@ OBJ primJoin(int argCount, OBJ *args) {
 			arg = args[i];
 			if (IS_TYPE(arg, StringType)) {
 				resultCount += stringSize(arg);
-			} else if (isInt(arg) || isBoolean(arg)) {
+			} else if (isNumber(arg) || isBoolean(arg)) {
 				printIntegerOrBooleanInto(arg, buf);
 				resultCount += strlen(buf);
 			} else if (IS_TYPE(arg, ByteArrayType)) {
@@ -552,7 +567,7 @@ OBJ primJoin(int argCount, OBJ *args) {
 				count = stringSize(arg);
 				memcpy(dst, obj2str(arg), count);
 				dst += count;
-			} else if (isInt(arg) || isBoolean(arg)) {
+			} else if (isNumber(arg) || isBoolean(arg)) {
 				printIntegerOrBooleanInto(arg, buf);
 				count = strlen(buf);
 				memcpy(dst, buf, count);
@@ -660,7 +675,7 @@ OBJ primJoinStrings(int argCount, OBJ *args) {
 			resultBytes += stringSize(item);
 		} else if (IS_TYPE(item, ByteArrayType)) {
 			resultBytes += BYTES(item);
-		} else if (isInt(item) || isBoolean(item)) {
+		} else if (isNumber(item) || isBoolean(item)) {
 			printIntegerOrBooleanInto(item, buf);
 			resultBytes += strlen(buf);
 		} else {
@@ -678,7 +693,7 @@ OBJ primJoinStrings(int argCount, OBJ *args) {
 	for (int i = 0; i < count; i++) {
 		OBJ item = FIELD(stringList, i + 1);
 		char *s = obj2str(item);
-		if (isInt(item) || isBoolean(item)) {
+		if (isNumber(item) || isBoolean(item)) {
 			printIntegerOrBooleanInto(item, buf);
 			s = buf;
 		}
@@ -1117,6 +1132,28 @@ OBJ primConvertType(int argCount, OBJ *args) {
 			break;
 		}
 		break;
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	case FloatType:
+		switch (dstType) {
+		case BooleanType:
+			result = (obj2VMFloat(srcObj) == 0.0) ? falseObj : trueObj;
+			break;
+		case IntegerType:
+			result = srcObj; // "number" preserves the numeric representation
+			break;
+		case StringType:
+			#ifdef USE_64BIT_FLOAT
+			snprintf(s, sizeof(s), "%.17g", obj2float64(srcObj));
+			#else
+			snprintf(s, sizeof(s), "%.9g", (double) obj2float32(srcObj));
+			#endif
+			result = newStringFromBytes(s, strlen(s));
+			break;
+		case ListType:
+			return singletonList(srcObj);
+		}
+		break;
+	#endif
 	case StringType:
 		switch (dstType) {
 		case BooleanType:
@@ -1145,7 +1182,7 @@ OBJ primConvertType(int argCount, OBJ *args) {
 			return FIELD(srcObj, 1);
 			break;
 		case IntegerType:
-			if ((srcItemCount != 1) || !isInt(FIELD(srcObj, 1))) {
+			if ((srcItemCount != 1) || !isInteger(FIELD(srcObj, 1))) {
 				 return fail(cannotConvertToInteger);
 			}
 			return FIELD(srcObj, 1);
@@ -1193,6 +1230,15 @@ OBJ primToString(int argCount, OBJ *args) {
 	case IntegerType:
 		sprintf(s, "%d", obj2int(srcObj));
 		return newStringFromBytes(s, strlen(s));
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	case FloatType:
+		#ifdef USE_64BIT_FLOAT
+		snprintf(s, sizeof(s), "%.17g", obj2float64(srcObj));
+		#else
+		snprintf(s, sizeof(s), "%.9g", (double) obj2float32(srcObj));
+		#endif
+		return newStringFromBytes(s, strlen(s));
+	#endif
 	case StringType:
 		return srcObj;
 	case ListType:
@@ -1202,6 +1248,31 @@ OBJ primToString(int argCount, OBJ *args) {
 	}
 	return newString(0);
 }
+
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+static OBJ primFormatFloat(int argCount, OBJ *args) {
+	// Return printf-style fixed or scientific text for a numeric value.
+	// Arguments are value, format (f or e), minimum width, decimal digits, and
+	// an optional minimum exponent-digit count. Width and digits are clamped by
+	// formatFloatText() so formatting always remains within the local buffer.
+
+	if (argCount < 4) return fail(notEnoughArguments);
+	if (!isNumber(args[0])) return fail(needsNumberError);
+	if (!IS_TYPE(args[1], StringType)) return fail(needsStringError);
+	if (!isInt(args[2]) || !isInt(args[3])) return fail(needsIntegerError);
+	if ((argCount > 4) && !isInt(args[4])) return fail(needsIntegerError);
+
+	int scientific = matches("e", args[1]) || matches("%e", args[1]);
+	int fixed = matches("f", args[1]) || matches("%f", args[1]);
+	if (!fixed && !scientific) return fail(unknownDatatype);
+	int exponentDigits = (argCount > 4) ? obj2int(args[4]) : 2;
+
+	char s[FLOAT_FORMAT_BUFFER_SIZE];
+	int len = formatFloatText(s, sizeof(s), (double) obj2VMFloat(args[0]), scientific,
+		obj2int(args[2]), obj2int(args[3]), exponentDigits);
+	return newStringFromBytes(s, len);
+}
+#endif
 
 // Primitives
 
@@ -1222,6 +1293,13 @@ static PrimEntry entries[] = {
 	{"freeMemory", primFreeMemory},
 	{"convertType", primConvertType},
 	{"toString", primToString},
+	#ifdef USE_64BIT_FLOAT
+	{"float64ToString", primToString},
+	{"float64Printf", primFormatFloat},
+	#elif defined(USE_32BIT_FLOAT)
+	{"float32ToString", primToString},
+	{"float32Printf", primFormatFloat},
+	#endif
 };
 
 void addDataPrims() {

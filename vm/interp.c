@@ -12,6 +12,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+#include <math.h>
+	#ifdef USE_64BIT_FLOAT
+		#define VM_FABS fabs
+	#else
+		#define VM_FABS fabsf
+	#endif
+#endif
 #include <unistd.h>
 
 #include "mem.h"
@@ -81,7 +89,15 @@ static void printObj(OBJ obj) {
 	char *dst = &printBuffer[printBufferByteCount];
 	int n = PRINT_BUF_SIZE - printBufferByteCount;
 
+	#ifdef USE_64BIT_FLOAT
 	if (isInt(obj)) snprintf(dst, n, "%d", obj2int(obj));
+	else if (isFloat(obj)) snprintf(dst, n, "%.17g", obj2float64(obj));
+	#elif defined(USE_32BIT_FLOAT)
+	if (isInt(obj)) snprintf(dst, n, "%d", obj2int(obj));
+	else if (isFloat(obj)) snprintf(dst, n, "%.9g", (double) obj2float32(obj));
+	#else
+	if (isInt(obj)) snprintf(dst, n, "%d", obj2int(obj));
+	#endif
 	else if (obj == falseObj) snprintf(dst, n, "false");
 	else if (obj == trueObj) snprintf(dst, n, "true");
 	else if (objType(obj) == StringType) {
@@ -120,8 +136,14 @@ static int bytesForObject(OBJ value) {
 	// Return the number of bytes needed to transmit the given value.
 
 	int headerBytes = 6; // message header (5 bytes) + type byte
-	if (isInt(value)) { // 32-bit integer
+	if (isInt(value)) {
 		return headerBytes + 4;
+	#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+	} else if (isFloat(value)) {
+		// The stock IDE does not have a dedicated Float wire type. The firmware
+		// sends these values as their exact text representation.
+		return headerBytes + 32;
+	#endif
 	} else if (IS_TYPE(value, StringType)) { // string
 		int len = strlen(obj2str(value));
 		if (len > 800) len = 800;
@@ -196,7 +218,6 @@ static OBJ primUSecsSince(int argCount, OBJ *args) {
 	if (deltaTime < 0) deltaTime += 0x40000000;
 	return int2obj(deltaTime);
 }
-
 // Board Type
 
 #define BOARD_TYPE_SIZE 32
@@ -245,6 +266,109 @@ static OBJ primRandom(int argCount, OBJ *args) {
 	return int2obj(first + (rand() % range)); // result range is [first..last], inclusive
 }
 
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+static int compareObjects(OBJ obj1, OBJ obj2);
+
+static int compareIntegerAndFloat(int integer, VMFloat number) {
+	if (number >= (VMFloat) 1073741824.0) return -1;
+	if (number < (VMFloat) -1073741824.0) return 1;
+	int integralPart = (int) number;
+	if (integer < integralPart) return -1;
+	if (integer > integralPart) return 1;
+	VMFloat fraction = number - (VMFloat) integralPart;
+	return (fraction > (VMFloat) 0.0) ? -1 : ((fraction < (VMFloat) 0.0) ? 1 : 0);
+}
+
+static OBJ primMinimum(int argCount, OBJ *args) {
+	if (argCount < 1) return fail(notEnoughArguments);
+	if (!isNumber(args[0])) return fail(needsNumberError);
+	OBJ result = args[0];
+	for (int i = 0; i < argCount; i++) {
+		OBJ arg = args[i];
+		if (!isNumber(arg)) return fail(needsNumberError);
+		if (compareObjects(arg, result) < 0) result = arg;
+	}
+	return result;
+}
+
+static OBJ primMaximum(int argCount, OBJ *args) {
+	if (argCount < 1) return fail(notEnoughArguments);
+	if (!isNumber(args[0])) return fail(needsNumberError);
+	OBJ result = args[0];
+	for (int i = 0; i < argCount; i++) {
+		OBJ arg = args[i];
+		if (!isNumber(arg)) return fail(needsNumberError);
+		if (compareObjects(arg, result) > 0) result = arg;
+	}
+	return result;
+}
+
+static inline OBJ primSum(int argCount, OBJ *args) {
+	int integerResult = 0;
+	VMFloat floatResult = (VMFloat) 0.0;
+	int hasFloat = false;
+	if ((1 == argCount) && IS_TYPE(args[0], ListType)) {
+		OBJ *src = &FIELD(args[0], 0);
+		int count = obj2int(*src++);
+		for (int i = 0; i < count; i++) {
+			OBJ item = *src++;
+			if (!isNumber(item)) return fail(needsNumberError);
+			if (hasFloat || isFloat(item)) {
+				if (!hasFloat) floatResult = (VMFloat) integerResult;
+				floatResult += obj2VMFloat(item);
+				hasFloat = true;
+			} else {
+				integerResult += obj2int(item);
+			}
+		}
+	} else {
+		for (int i = 0; i < argCount; i++) {
+			OBJ item = args[i];
+			if (!isNumber(item)) return fail(needsNumberError);
+			if (hasFloat || isFloat(item)) {
+				if (!hasFloat) floatResult = (VMFloat) integerResult;
+				floatResult += obj2VMFloat(item);
+				hasFloat = true;
+			} else {
+				integerResult += obj2int(item);
+			}
+		}
+	}
+	return hasFloat ? newFloatObj(floatResult) : int2obj(integerResult);
+}
+
+static inline int compareObjects(OBJ obj1, OBJ obj2) {
+	int n1 = 0, n2 = 0;
+	if (isNumber(obj1) && isNumber(obj2)) {
+		if (isInt(obj1) && isInt(obj2)) {
+			int i1 = obj2int(obj1), i2 = obj2int(obj2);
+			return (i1 < i2) ? -1 : ((i1 > i2) ? 1 : 0);
+		}
+		VMFloat f1 = obj2VMFloat(obj1), f2 = obj2VMFloat(obj2);
+		if (isnan(f1) || isnan(f2)) {
+			fail(nonComparableError);
+			return 0;
+		}
+		if (isInt(obj1)) return compareIntegerAndFloat(obj2int(obj1), f2);
+		if (isInt(obj2)) return -compareIntegerAndFloat(obj2int(obj2), f1);
+		return (f1 < f2) ? -1 : ((f1 > f2) ? 1 : 0);
+	}
+	if (IS_TYPE(obj1, StringType) && IS_TYPE(obj2, StringType)) {
+		return strcmp(obj2str(obj1), obj2str(obj2));
+	} else if (IS_TYPE(obj1, StringType) && isInt(obj2)) {
+		n1 = strtol(obj2str(obj1), NULL, 10);
+		n2 = obj2int(obj2);
+	} else if (isInt(obj1) && IS_TYPE(obj2, StringType)) {
+		n1 = obj2int(obj1);
+		n2 = strtol(obj2str(obj2), NULL, 10);
+	} else {
+		fail(nonComparableError);
+	}
+	if (n1 < n2) return -1;
+	if (n1 > n2) return 1;
+	return 0;
+}
+#else
 static OBJ primMinimum(int argCount, OBJ *args) {
 	if (argCount < 1) return fail(notEnoughArguments);
 	int result = obj2int(args[0]);
@@ -315,6 +439,7 @@ static inline int compareObjects(OBJ obj1, OBJ obj2) {
 	if (n1 > n2) return 1;
 	return 0;
 }
+#endif
 
 static OBJ primCompare(int op, OBJ obj1, OBJ obj2) {
 	// Compare objects with the given operator:
@@ -342,6 +467,30 @@ static int stringsEqual(OBJ obj1, OBJ obj2) {
 	}
 	return true;
 }
+
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+static OBJ floatAdd(OBJ a, OBJ b) {
+	VMFloat left = evalFloat(a), right = evalFloat(b);
+	return failure() ? falseObj : newFloatObj(left + right);
+}
+
+static OBJ floatSubtract(OBJ a, OBJ b) {
+	VMFloat left = evalFloat(a), right = evalFloat(b);
+	return failure() ? falseObj : newFloatObj(left - right);
+}
+
+static OBJ floatMultiply(OBJ a, OBJ b) {
+	VMFloat left = evalFloat(a), right = evalFloat(b);
+	return failure() ? falseObj : newFloatObj(left * right);
+}
+
+static OBJ floatDivide(OBJ a, OBJ b) {
+	VMFloat dividend = evalFloat(a), divisor = evalFloat(b);
+	if (failure()) return falseObj;
+	if (divisor == (VMFloat) 0.0) return fail(zeroDivide);
+	return newFloatObj(dividend / divisor);
+}
+#endif
 
 static OBJ argOrDefault(OBJ *fp, int argNum, OBJ defaultValue) {
 	// Useful for working with optional arguments.
@@ -671,6 +820,17 @@ static void runTask(Task *task) {
 		vars[arg] = *--sp;
 		DISPATCH();
 	incrementGlobal_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		tmpObj = *--sp;
+		if (isFloat(vars[arg]) || isFloat(tmpObj)) {
+			vars[arg] = floatAdd(vars[arg], tmpObj);
+		} else if (bothInts(vars[arg], tmpObj)) {
+			vars[arg] = int2obj(obj2int(vars[arg]) + obj2int(tmpObj));
+		} else {
+			tmp = evalInt(vars[arg]);
+			if (!errorCode) vars[arg] = int2obj(tmp + evalInt(tmpObj));
+		}
+		#else
 		if (bothInts(vars[arg], *(sp - 1))) { // special case for integers:
 			vars[arg] = int2obj(obj2int(vars[arg]) + obj2int(*--sp));
 		} else {
@@ -679,6 +839,7 @@ static void runTask(Task *task) {
 				vars[arg] = int2obj(tmp + evalInt(*--sp));
 			}
 		}
+		#endif
 		DISPATCH();
 	pushArgCount_op:
 		STACK_CHECK(1);
@@ -701,8 +862,19 @@ static void runTask(Task *task) {
 		DISPATCH();
 	incrementArg_op:
 		if (IN_CALL()) {
+			#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+			OBJ *slot = fp - obj2int(*(fp - 3)) - 3 + arg;
+			tmpObj = *--sp;
+			if (isFloat(*slot) || isFloat(tmpObj)) {
+				*slot = floatAdd(*slot, tmpObj);
+			} else {
+				tmp = evalInt(*slot) + evalInt(tmpObj);
+				*slot = int2obj(tmp);
+			}
+			#else
 			tmp = evalInt(*(fp - obj2int(*(fp - 3)) - 3 + arg)) + evalInt(*--sp);
 			*(fp - obj2int(*(fp - 3)) - 3 + arg) = int2obj(tmp);
+			#endif
 		} else {
 			fail(notInFunction);
 		}
@@ -715,7 +887,16 @@ static void runTask(Task *task) {
 		*(fp + arg) = *--sp;
 		DISPATCH();
 	incrementLocal_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		tmpObj = *--sp;
+		if (isFloat(*(fp + arg)) || isFloat(tmpObj)) {
+			*(fp + arg) = floatAdd(*(fp + arg), tmpObj);
+		} else {
+			*(fp + arg) = int2obj(obj2int(*(fp + arg)) + evalInt(tmpObj));
+		}
+		#else
 		*(fp + arg) = int2obj(obj2int(*(fp + arg)) + evalInt(*--sp));
+		#endif
 		DISPATCH();
 	pop_op:
 	ignoreArgs_op:
@@ -958,7 +1139,7 @@ static void runTask(Task *task) {
 		DISPATCH();
 	lessThan_op:
 		tmpObj = *(sp - 2);
-		if (isInt(tmpObj) && isInt(*(sp - 1))) { // special case for integers:
+		if (bothInts(tmpObj, *(sp - 1))) { // immediate integer fast path
 			*(sp - arg) = (obj2int(tmpObj) < obj2int(*(sp - 1))) ? trueObj : falseObj;
 		} else {
 			*(sp - arg) = primCompare(-2, tmpObj, *(sp - 1));
@@ -967,7 +1148,7 @@ static void runTask(Task *task) {
 		DISPATCH();
 	lessOrEq_op:
 		tmpObj = *(sp - 2);
-		if (isInt(tmpObj) && isInt(*(sp - 1))) { // special case for integers:
+		if (bothInts(tmpObj, *(sp - 1))) { // immediate integer fast path
 			*(sp - arg) = (obj2int(tmpObj) <= obj2int(*(sp - 1))) ? trueObj : falseObj;
 		} else {
 			*(sp - arg) = primCompare(-1, tmpObj, *(sp - 1));
@@ -976,6 +1157,24 @@ static void runTask(Task *task) {
 		DISPATCH();
 	equal_op:
 		tmpObj = *(sp - 2);
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isNumber(tmpObj) && isNumber(*(sp - 1))) {
+			if (isInt(tmpObj) && isInt(*(sp - 1))) {
+				*(sp - arg) = (obj2int(tmpObj) == obj2int(*(sp - 1))) ? trueObj : falseObj;
+			} else {
+				VMFloat f1 = obj2VMFloat(tmpObj), f2 = obj2VMFloat(*(sp - 1));
+				*(sp - arg) = (!isnan(f1) && !isnan(f2) && (compareObjects(tmpObj, *(sp - 1)) == 0)) ? trueObj : falseObj;
+			}
+		} else if (tmpObj == *(sp - 1)) {
+			*(sp - arg) = trueObj;
+		} else if (tmpObj <= trueObj) {
+			*(sp - arg) = falseObj;
+		} else if (IS_TYPE(tmpObj, StringType) && IS_TYPE(*(sp - 1), StringType)) {
+			*(sp - arg) = stringsEqual(tmpObj, *(sp - 1)) ? trueObj : falseObj;
+		} else {
+			*(sp - arg) = falseObj;
+		}
+		#else
 		if (tmpObj == *(sp - 1)) { // identical objects
 			*(sp - arg) = trueObj;
 		} else if (tmpObj <= trueObj) {
@@ -987,10 +1186,29 @@ static void runTask(Task *task) {
 		} else {
 			*(sp - arg) = falseObj; // not comparable, so not equal
 		}
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	notEqual_op:
 		tmpObj = *(sp - 2);
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isNumber(tmpObj) && isNumber(*(sp - 1))) {
+			if (isInt(tmpObj) && isInt(*(sp - 1))) {
+				*(sp - arg) = (obj2int(tmpObj) != obj2int(*(sp - 1))) ? trueObj : falseObj;
+			} else {
+				VMFloat f1 = obj2VMFloat(tmpObj), f2 = obj2VMFloat(*(sp - 1));
+				*(sp - arg) = (isnan(f1) || isnan(f2) || (compareObjects(tmpObj, *(sp - 1)) != 0)) ? trueObj : falseObj;
+			}
+		} else if (tmpObj == *(sp - 1)) {
+			*(sp - arg) = falseObj;
+		} else if (tmpObj <= trueObj) {
+			*(sp - arg) = trueObj;
+		} else if (IS_TYPE(tmpObj, StringType) && IS_TYPE(*(sp - 1), StringType)) {
+			*(sp - arg) = stringsEqual(tmpObj, *(sp - 1)) ? falseObj : trueObj;
+		} else {
+			*(sp - arg) = trueObj;
+		}
+		#else
 		if (tmpObj == *(sp - 1)) { // identical objects
 			*(sp - arg) = falseObj;
 		} else if (tmpObj <= trueObj) {
@@ -1002,11 +1220,12 @@ static void runTask(Task *task) {
 		} else {
 			*(sp - arg) = trueObj; // not comparable, so not equal
 		}
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	greaterOrEq_op:
 		tmpObj = *(sp - 2);
-		if (isInt(tmpObj) && isInt(*(sp - 1))) { // special case for integers:
+		if (bothInts(tmpObj, *(sp - 1))) { // immediate integer fast path
 			*(sp - arg) = (obj2int(tmpObj) >= obj2int(*(sp - 1))) ? trueObj : falseObj;
 		} else {
 			*(sp - arg) = primCompare(1, tmpObj, *(sp - 1));
@@ -1015,7 +1234,7 @@ static void runTask(Task *task) {
 		DISPATCH();
 	greaterThan_op:
 		tmpObj = *(sp - 2);
-		if (isInt(tmpObj) && isInt(*(sp - 1))) { // special case for integers:
+		if (bothInts(tmpObj, *(sp - 1))) { // immediate integer fast path
 			*(sp - arg) = (obj2int(tmpObj) > obj2int(*(sp - 1))) ? trueObj : falseObj;
 		} else {
 			*(sp - arg) = primCompare(2, tmpObj, *(sp - 1));
@@ -1027,18 +1246,55 @@ static void runTask(Task *task) {
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	add_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isFloat(*(sp - 2)) || isFloat(*(sp - 1))) {
+			*(sp - arg) = floatAdd(*(sp - 2), *(sp - 1));
+		} else {
+			INT_BINARY_OP(+);
+		}
+		#else
 		INT_BINARY_OP(+);
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	subtract_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isFloat(*(sp - 2)) || isFloat(*(sp - 1))) {
+			*(sp - arg) = floatSubtract(*(sp - 2), *(sp - 1));
+		} else {
+			INT_BINARY_OP(-);
+		}
+		#else
 		INT_BINARY_OP(-);
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	multiply_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isFloat(*(sp - 2)) || isFloat(*(sp - 1))) {
+			*(sp - arg) = floatMultiply(*(sp - 2), *(sp - 1));
+		} else {
+			INT_BINARY_OP(*);
+		}
+		#else
 		INT_BINARY_OP(*);
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	divide_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isFloat(*(sp - 2)) || isFloat(*(sp - 1))) {
+			*(sp - arg) = floatDivide(*(sp - 2), *(sp - 1));
+		} else {
+			tmpObj = *(sp - 2);
+			if (bothInts(tmpObj, *(sp - 1)) && (zeroObj != *(sp - 1))) {
+				*(sp - arg) = int2obj(obj2int(tmpObj) / obj2int(*(sp - 1)));
+			} else {
+				tmp = evalInt(*(sp - 1));
+				*(sp - arg) = ((0 == tmp) ? fail(zeroDivide) : int2obj(evalInt(tmpObj) / tmp));
+			}
+		}
+		#else
 		tmpObj = *(sp - 2);
 		if (bothInts(tmpObj, *(sp - 1)) && (zeroObj != *(sp - 1))) { // special case for integers:
 			*(sp - arg) = int2obj(obj2int(tmpObj) / obj2int(*(sp - 1)));
@@ -1046,6 +1302,7 @@ static void runTask(Task *task) {
 			tmp = evalInt(*(sp - 1));
 			*(sp - arg) = ((0 == tmp) ? fail(zeroDivide) : int2obj(evalInt(tmpObj) / tmp));
 		}
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	modulo_op:
@@ -1060,7 +1317,15 @@ static void runTask(Task *task) {
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	absoluteValue_op:
+		#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+		if (isFloat(*(sp - 1))) {
+			*(sp - arg) = newFloatObj(VM_FABS(obj2VMFloat(*(sp - 1))));
+		} else {
+			*(sp - arg) = int2obj(abs(evalInt(*(sp - 1))));
+		}
+		#else
 		*(sp - arg) = int2obj(abs(evalInt(*(sp - 1))));
+		#endif
 		POP_ARGS_REPORTER();
 		DISPATCH();
 	random_op:
@@ -1139,6 +1404,11 @@ static void runTask(Task *task) {
 				case IntegerType:
 					*(sp - arg) = strcmp(type, "number") == 0 ? trueObj : falseObj;
 					break;
+				#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+				case FloatType:
+					*(sp - arg) = strcmp(type, "number") == 0 ? trueObj : falseObj;
+					break;
+				#endif
 				case StringType:
 					*(sp - arg) = strcmp(type, "string") == 0 ? trueObj : falseObj;
 					break;
@@ -1302,7 +1572,6 @@ static void runTask(Task *task) {
 		tmp |= (uint16) *ip++ << 16; // most significant bits
 		*sp++ = (OBJ) tmp;
 		DISPATCH();
-
 	// new primitive call ops:
 	commandPrimitive_op:
 		tmp = (*ip >> 10) & 0x3F; // primitive set index

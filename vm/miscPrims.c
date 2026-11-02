@@ -8,6 +8,10 @@
 // John Maloney, May 2019
 
 #include <math.h>
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+#include <errno.h>
+#include <ctype.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +61,144 @@ OBJ primBinaryToInt(int argCount, OBJ *args) {
 	if ((result < -0x40000000) || (result > 0x3FFFFFFF)) return fail(hexRangeError);
 	return int2obj(result);
 }
+
+#if defined(USE_64BIT_FLOAT) || defined(USE_32BIT_FLOAT)
+static char *skipTrailingWhitespace(char *s) {
+	while (*s && isspace((unsigned char) *s)) s++;
+	return s;
+}
+
+static OBJ primFloatFromString(int argCount, OBJ *args) {
+	// Parse the selected floating-point representation from a string.
+
+	if (argCount < 1) return fail(notEnoughArguments);
+	if (isNumber(args[0])) return newFloatObj(obj2VMFloat(args[0]));
+	if (!IS_TYPE(args[0], StringType)) return fail(needsStringError);
+
+	errno = 0;
+	char *s = obj2str(args[0]);
+	char *end = NULL;
+	#ifdef USE_64BIT_FLOAT
+	double result = strtod(s, &end);
+	#else
+	float result = strtof(s, &end);
+	#endif
+	if ((end == s) || *skipTrailingWhitespace(end)) {
+		return fail(needsNumberError);
+	}
+	return newFloatObj(result);
+}
+
+static OBJ primIsFloat(int argCount, OBJ *args) {
+	if (argCount < 1) return fail(notEnoughArguments);
+	return isFloat(args[0]) ? trueObj : falseObj;
+}
+
+#ifdef USE_64BIT_FLOAT
+	#define VM_SQRT sqrt
+	#define VM_POW pow
+	#define VM_SIN sin
+	#define VM_COS cos
+	#define VM_TAN tan
+	#define VM_ATAN atan
+	#define VM_ATAN2 atan2
+	#define VM_ROUND round
+	#define VM_TRUNC trunc
+#else
+	#define VM_SQRT sqrtf
+	#define VM_POW powf
+	#define VM_SIN sinf
+	#define VM_COS cosf
+	#define VM_TAN tanf
+	#define VM_ATAN atanf
+	#define VM_ATAN2 atan2f
+	#define VM_ROUND roundf
+	#define VM_TRUNC truncf
+#endif
+
+static int hasNumericArgs(int argCount, OBJ *args, int needed) {
+	if (argCount < needed) {
+		fail(notEnoughArguments);
+		return false;
+	}
+	for (int i = 0; i < needed; i++) {
+		if (!isNumber(args[i])) {
+			fail(needsNumberError);
+			return false;
+		}
+	}
+	return true;
+}
+
+static OBJ primFloatSqrt(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	return newFloatObj(VM_SQRT(obj2VMFloat(args[0])));
+}
+
+static OBJ primFloatPower(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 2)) return falseObj;
+	return newFloatObj(VM_POW(obj2VMFloat(args[0]), obj2VMFloat(args[1])));
+}
+
+static OBJ primFloatSin(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	return newFloatObj(VM_SIN(obj2VMFloat(args[0])));
+}
+
+static OBJ primFloatCos(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	return newFloatObj(VM_COS(obj2VMFloat(args[0])));
+}
+
+static OBJ primFloatTan(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	return newFloatObj(VM_TAN(obj2VMFloat(args[0])));
+}
+
+static OBJ primFloatAtan(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	return newFloatObj(VM_ATAN(obj2VMFloat(args[0])));
+}
+
+static OBJ primFloatAtan2(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 2)) return falseObj;
+	return newFloatObj(VM_ATAN2(obj2VMFloat(args[1]), obj2VMFloat(args[0])));
+}
+
+static OBJ integerFromFloat(VMFloat value, int roundValue) {
+	if (!isfinite(value)) return fail(cannotConvertToInteger);
+	value = roundValue ? VM_ROUND(value) : VM_TRUNC(value);
+	if ((value >= (VMFloat) 1073741824.0) ||
+		(value < (VMFloat) -1073741824.0)) {
+		return fail(cannotConvertToInteger);
+	}
+	return int2obj((int) value); // C conversion truncates toward zero
+}
+
+static OBJ primRoundFloatToInteger(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	if (isInt(args[0])) return args[0];
+	return integerFromFloat(obj2VMFloat(args[0]), true);
+}
+
+static OBJ primTruncateFloatToInteger(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 1)) return falseObj;
+	if (isInt(args[0])) return args[0];
+	return integerFromFloat(obj2VMFloat(args[0]), false);
+}
+
+static OBJ primFloatRescale(int argCount, OBJ *args) {
+	if (!hasNumericArgs(argCount, args, 5)) return falseObj;
+	VMFloat inValue = obj2VMFloat(args[0]);
+	VMFloat inMin = obj2VMFloat(args[1]);
+	VMFloat inMax = obj2VMFloat(args[2]);
+	VMFloat outMin = obj2VMFloat(args[3]);
+	VMFloat outMax = obj2VMFloat(args[4]);
+	VMFloat inSpan = inMax - inMin;
+	if (inSpan == 0.0) return fail(zeroDivide);
+	return newFloatObj(outMin + (((inValue - inMin) * (outMax - outMin)) / inSpan));
+}
+#endif
 
 OBJ primRescale(int argCount, OBJ *args) {
 	if (argCount < 5) return fail(notEnoughArguments);
@@ -291,7 +433,13 @@ static OBJ primScriptTooLarge(int argCount, OBJ *args) {
 
 // utility used by JSON primitives
 
+#ifdef USE_64BIT_FLOAT
+static char intString[32];
+#elif defined(USE_32BIT_FLOAT)
+static char intString[24];
+#else
 static char intString[16];
+#endif
 
 static char * asString(OBJ arg) {
 	// If the arg is a string, return it. If it is an integer, convert it to a string
@@ -299,8 +447,22 @@ static char * asString(OBJ arg) {
 
 	if (IS_TYPE(arg, StringType)) {
 		return obj2str(arg);
+	#ifdef USE_64BIT_FLOAT
+	} else if (isInt(arg)) {
+		snprintf(intString, sizeof(intString), "%d", obj2int(arg));
+		return intString;
+	} else if (isFloat(arg)) {
+		snprintf(intString, sizeof(intString), "%.17g", obj2float64(arg));
+	#elif defined(USE_32BIT_FLOAT)
+	} else if (isInt(arg)) {
+		snprintf(intString, sizeof(intString), "%d", obj2int(arg));
+		return intString;
+	} else if (isFloat(arg)) {
+		snprintf(intString, sizeof(intString), "%.9g", (double) obj2float32(arg));
+	#else
 	} else if (isInt(arg)) {
 		snprintf(intString, 15, "%d", obj2int(arg));
+	#endif
 		return intString;
 	} else {
 		return (char *) "";
@@ -771,6 +933,33 @@ static PrimEntry entries[] = {
 	{"bleID", primBLE_ID},
 	{"hexToInt", primHexToInt},
 	{"binToInt", primBinaryToInt},
+	#ifdef USE_64BIT_FLOAT
+	{"float64FromString", primFloatFromString},
+	{"isFloat64", primIsFloat},
+	{"float64Sqrt", primFloatSqrt},
+	{"float64Power", primFloatPower},
+	{"float64Sin", primFloatSin},
+	{"float64Cos", primFloatCos},
+	{"float64Tan", primFloatTan},
+	{"float64Atan", primFloatAtan},
+	{"float64Atan2", primFloatAtan2},
+	{"roundFloat64ToInt", primRoundFloatToInteger},
+	{"truncateFloat64ToInt", primTruncateFloatToInteger},
+	{"float64Rescale", primFloatRescale},
+	#elif defined(USE_32BIT_FLOAT)
+	{"float32FromString", primFloatFromString},
+	{"isFloat32", primIsFloat},
+	{"float32Sqrt", primFloatSqrt},
+	{"float32Power", primFloatPower},
+	{"float32Sin", primFloatSin},
+	{"float32Cos", primFloatCos},
+	{"float32Tan", primFloatTan},
+	{"float32Atan", primFloatAtan},
+	{"float32Atan2", primFloatAtan2},
+	{"roundFloat32ToInt", primRoundFloatToInteger},
+	{"truncateFloat32ToInt", primTruncateFloatToInteger},
+	{"float32Rescale", primFloatRescale},
+	#endif
 	{"rescale", primRescale},
 	{"connectedToIDE", primConnectedToIDE},
 	{"broadcastToIDE", primBroadcastToIDEOnly},
